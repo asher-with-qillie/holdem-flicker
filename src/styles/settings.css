@@ -1,96 +1,93 @@
-/* Settings screen — imported by src/screens/SettingsScreen.tsx */
+/* 설정 (owner F, spec §5.9) — imported by src/screens/SettingsScreen.tsx.
+   Tokens + .glass* come from global.css; ui components from ui.css. App.tsx renders the ‹ 뒤로 header and the
+   scroller (`.app__push-body .screen` sets padding-top 0 / padding-bottom 24 + safe-bottom). */
 
-.settings .panel { display: flex; flex-direction: column; }
-.settings .panel__title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.settings .panel__count { font-size: 12px; font-weight: 600; color: var(--ink-faint); }
-.settings .chip { min-height: 44px; }
-.settings .row__hint { line-height: 1.4; }
+.st { gap: 20px; }
+.st-title { padding: 4px 4px 0; }
 
-/* ---- position chips (3 × 2 grid, two-line content) ---- */
-.poschips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.settings .poschip {
-  flex-direction: column; justify-content: center; gap: 1px;
-  min-height: 52px; padding: 6px 8px; line-height: 1.15; text-align: center;
-}
-.poschip__pos { font-size: 15px; font-weight: 800; letter-spacing: 0.03em; }
-.poschip__ko { font-size: 12px; font-weight: 500; opacity: 0.72; white-space: nowrap; }
-.settings .panel__foot { margin-top: 10px; font-size: 12px; color: var(--ink-faint); line-height: 1.4; }
+/* ---- groups: caption + inset grouped list (GlassPanel r-md, padding 12 → rows) ---- */
+.st-group { display: flex; flex-direction: column; gap: 8px; }
+.st-group__cap { padding-left: 8px; font-size: var(--fs-footnote); line-height: var(--lh-footnote); font-weight: 600; color: var(--ink-3); letter-spacing: 0.01em; }
+.st-panel { display: flex; flex-direction: column; }
 
-/* ---- scenario-kind rows (stacked, label + one-line hint) ---- */
-.kindchips { display: flex; flex-direction: column; gap: 8px; }
-.settings .kchip {
-  display: flex; align-items: center; gap: 12px; width: 100%;
-  min-height: 56px; padding: 9px 12px; border-radius: 12px; text-align: left;
-}
-.settings .kchip.chip--on { background: rgba(255, 182, 77, 0.14); border-color: rgba(255, 182, 77, 0.7); color: var(--ink); }
-.kchip__check {
-  width: 22px; height: 22px; border-radius: 50%; flex: none;
-  border: 2px solid rgba(255, 255, 255, 0.3); display: grid; place-items: center;
-}
-.kchip__check svg { width: 14px; height: 14px; display: none; }
-.kchip--on .kchip__check { background: var(--accent); border-color: var(--accent); color: #1a1205; }
-.kchip--on .kchip__check svg { display: block; }
-.kchip__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.kchip__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.kchip__label { font-size: 14px; font-weight: 700; line-height: 1.3; }
-.kchip__hint { font-size: 12px; font-weight: 500; line-height: 1.35; color: var(--ink-dim); }
-.kchip__tag {
-  flex: none; font-size: 12px; font-weight: 700; line-height: 1; padding: 4px 7px; border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1); color: var(--ink-dim);
-}
-.kchip--on .kchip__tag { background: rgba(255, 182, 77, 0.22); color: var(--accent); }
+/* ---- rows (52 high; label left, control right) ---- */
+.st-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 6px 4px; }
+.st-panel > .st-row + .st-row { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.st-row--stack { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 4px 10px; }
+.st-row--stack > .st-row__ctl { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.st-row__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.st-row__label { font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 600; color: var(--ink); }
+.st-row__hint { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-3); }
+.st-row__value { font-size: var(--fs-subhead); line-height: var(--lh-subhead); font-weight: 500; color: var(--ink-3); white-space: nowrap; }
+.st-row__value--mint, .st-row__hint--mint { color: var(--mint); font-weight: 600; }
+.st-row__ctl { flex: none; display: flex; align-items: center; justify-content: flex-end; }
+.st-row__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.st-row__out { font-size: var(--fs-callout); font-weight: 700; color: var(--mint); }
 
-/* ---- switch rows (whole row is the tap target) ---- */
-.srow { width: 100%; border: 0; background: none; padding: 8px 0; text-align: left; -webkit-appearance: none; appearance: none; }
-.srow:active { opacity: 0.8; }
-.srow + .srow, .slider + .srow { border-top: 1px solid rgba(255, 255, 255, 0.07); }
-.srow__text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* whole-row buttons (데이터) */
+.st-row--btn { width: 100%; border: 0; background: none; text-align: left; font: inherit; color: inherit; border-radius: var(--r-xs); cursor: pointer; transition: background-color var(--dur-micro); }
+.st-row--btn:active { background: rgba(255, 255, 255, 0.06); }
+.st-row__trail { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--ink-3); }
+.st-row__trail svg { width: 20px; height: 20px; }
+.st-row--danger .st-row__label { color: var(--coral); }
 
-/* ---- sliders ---- */
-.slider { display: flex; flex-direction: column; padding: 6px 0 4px; }
-.slider + .slider { border-top: 1px solid rgba(255, 255, 255, 0.07); }
-.slider__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.slider__value { font-size: 16px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
-.slider__scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-faint); margin-top: -4px; }
-.slider .row__hint { margin-top: 4px; }
+/* compact segmented controls sitting to the right of a label (4 opts 192, 3 opts 152; the label wraps first) */
+.st-seg { width: 192px; }
+.st-seg--3 { width: 152px; }
 
-input[type='range'].range {
+/* 기본 속도: SpeedPicker (segment + live caption + 노출 모드 row) — the 노출 row reads as one more list row */
+.st-speed { gap: 10px; }
+.st-speed .ui-speed__row { margin-top: 2px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+
+/* ---- chips (범위) ---- */
+.st-row--stack .ui-chiprow--wrap { padding-top: 2px; }
+/* 6 positions always on one line: equal-width capsules (≥ 44 px each at 360) */
+.st-pos .ui-chiprow--wrap { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.st-pos .ui-chip { width: 100%; padding: 0 4px; justify-content: center; }
+.st-kinds .ui-chip { padding: 0 12px; }
+.st-kind__in { display: inline-flex; align-items: center; gap: 4px; }
+.st-kind__in svg { width: 14px; height: 14px; color: var(--mint); }
+.st-minhint { min-height: 0; max-height: 0; overflow: hidden; font-size: var(--fs-footnote); line-height: var(--lh-footnote); font-weight: 600; color: var(--amber); transition: max-height var(--dur-quick) var(--ease-out); }
+.st-minhint--on { max-height: 24px; }
+
+/* ---- range input ---- */
+.st-row--range { gap: 4px; }
+input[type='range'].st-range {
   -webkit-appearance: none; appearance: none;
   width: 100%; height: 44px; margin: 0; padding: 0; background: transparent; touch-action: pan-y;
 }
-input[type='range'].range:focus { outline: none; }
-input[type='range'].range::-webkit-slider-runnable-track {
-  height: 6px; border-radius: 999px;
-  background: linear-gradient(to right, var(--accent) 0 var(--pct, 0%), rgba(255, 255, 255, 0.16) var(--pct, 0%) 100%);
+input[type='range'].st-range:focus { outline: none; }
+input[type='range'].st-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--mint) 35%, transparent), 0 2px 8px rgba(0, 0, 0, 0.45); }
+input[type='range'].st-range::-webkit-slider-runnable-track {
+  height: 6px; border-radius: var(--r-capsule);
+  background: linear-gradient(to right, var(--mint) 0 var(--pct, 0%), rgba(255, 255, 255, 0.16) var(--pct, 0%) 100%);
 }
-input[type='range'].range::-webkit-slider-thumb {
+input[type='range'].st-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 28px; height: 28px; margin-top: -11px; border-radius: 50%;
-  background: #fff; border: 3px solid var(--accent); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  background: #fff; border: 3px solid var(--mint); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
-input[type='range'].range::-moz-range-track { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); }
-input[type='range'].range::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--accent); }
-input[type='range'].range::-moz-range-thumb {
-  width: 22px; height: 22px; border-radius: 50%;
-  background: #fff; border: 3px solid var(--accent); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+input[type='range'].st-range::-moz-range-track { height: 6px; border-radius: var(--r-capsule); background: rgba(255, 255, 255, 0.16); }
+input[type='range'].st-range::-moz-range-progress { height: 6px; border-radius: var(--r-capsule); background: var(--mint); }
+input[type='range'].st-range::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 3px solid var(--mint); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); }
+
+/* ---- 고급 disclosure ---- */
+.st-disclosure { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 4px 0 0; border: 0; background: none; text-align: left; font: inherit; color: inherit; border-radius: var(--r-sm); }
+.st-disclosure .st-group__cap { flex: 1; }
+.st-disclosure__val { font-size: var(--fs-footnote); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.st-disclosure__chev { color: var(--ink-3); transition: transform var(--dur-quick) var(--ease-std); }
+.st-disclosure__chev--open { transform: rotate(90deg); }
+.st-foot { padding: 6px 4px 2px; font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-3); }
+
+/* ---- confirm sheet ---- */
+.st-confirm__body { padding: 4px 0 12px; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--ink-2); }
+.st-confirm__btn { flex: 1; padding-inline: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .st-disclosure__chev, .st-minhint, .st-row--btn { transition: none; }
 }
 
-/* ---- data panel ---- */
-.datarows { display: flex; flex-direction: column; }
-.datarow { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; font-size: 14px; }
-.datarow + .datarow { border-top: 1px solid rgba(255, 255, 255, 0.07); }
-.datarow__value { font-weight: 800; font-variant-numeric: tabular-nums; }
-.datarow__value--ok { color: var(--ok); }
-.datarow__value--warn { color: var(--accent); }
-.disclaimer {
-  margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.18); border-left: 3px solid var(--gold);
-  font-size: 13px; line-height: 1.55; color: var(--ink-dim);
+/* 360 px phones: four Korean speed labels need the segment padding back (A's .ui-seg__opt pads 6 px) */
+@media (max-width: 370px) {
+  .st-speed .ui-seg__opt { padding-inline: 2px; letter-spacing: -0.02em; }
 }
-
-/* ---- reset actions ---- */
-.resets { display: flex; flex-direction: column; gap: 8px; }
-.btn--danger { color: var(--danger); border-color: rgba(255, 91, 91, 0.45); background: rgba(255, 91, 91, 0.08); }
-.btn--danger:active { background: rgba(255, 91, 91, 0.18); }
-.settings__notice { min-height: 20px; text-align: center; font-size: 13px; font-weight: 600; color: var(--ok); }
-.datarow__total { font-weight: 500; color: var(--ink-faint); }

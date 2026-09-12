@@ -19,7 +19,7 @@ export const KIND_CHIP_LABEL: Record<ScenarioKind, string> = {
   cold_4bet: '콜드 4벳',
 };
 
-/** Label for the villain chip group, per kind (absent = the kind has no villain). */
+/** Accessible label for the villain chip row, per kind (absent = the kind has no villain). */
 export const VILLAIN_LABEL: Partial<Record<ScenarioKind, string>> = {
   vs_open: '오픈한 상대',
   vs_3bet: '3벳한 상대',
@@ -75,7 +75,10 @@ export function toScenario(sel: ChartSelection): Scenario {
   return sel.villain ? { kind: sel.kind, hero: sel.hero, villain: sel.villain } : { kind: sel.kind, hero: sel.hero };
 }
 
+/* ---- sessionStorage (selection + 내 기록 overlay toggle survive tab switches, not app restarts) ---- */
+
 const STORAGE_KEY = 'holdem-flicker.charts.selection.v1';
+const OVERLAY_KEY = 'holdem-flicker.charts.overlay.v1';
 
 export function loadSelection(): ChartSelection {
   try {
@@ -91,6 +94,22 @@ export function saveSelection(sel: ChartSelection) {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sel));
   } catch {
     /* ignore (private mode, quota) */
+  }
+}
+
+export function loadOverlay(): boolean {
+  try {
+    return sessionStorage.getItem(OVERLAY_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveOverlay(on: boolean) {
+  try {
+    sessionStorage.setItem(OVERLAY_KEY, on ? '1' : '0');
+  } catch {
+    /* ignore */
   }
 }
 

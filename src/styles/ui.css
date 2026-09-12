@@ -14,7 +14,7 @@
 
 /* pushed 설정 (slides in from the right, above the tab bar) */
 .app__push {
-  position: fixed; inset: 0; z-index: var(--z-sheet); max-width: 520px; margin: 0 auto;
+  position: fixed; inset: 0; z-index: var(--z-push); max-width: 520px; margin: 0 auto;
   display: flex; flex-direction: column;
   background:
     radial-gradient(70% 40% at 50% -5%, color-mix(in srgb, var(--glow-felt) 30%, transparent), transparent 70%),
@@ -119,6 +119,8 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
   padding: 4px var(--gutter); margin-inline: calc(-1 * var(--gutter)); scroll-padding-inline: var(--gutter); overscroll-behavior-x: contain;
 }
 .ui-chiprow::-webkit-scrollbar { display: none; }
+.ui-chiprow:not(.ui-chiprow--wrap) { padding-block: 6px; margin-block: -6px; }
+@media (max-width: 370px) { .ui-seg__opt { padding-inline: 2px; letter-spacing: -0.01em; } }
 .ui-chiprow--wrap { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
 
 /* =============================================================== SegmentedControl */

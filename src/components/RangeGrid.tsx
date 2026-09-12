@@ -4,6 +4,18 @@ import { gridHand } from '../poker/hands';
 import { fullMix } from '../poker/range';
 import '../styles/charts.css';
 
+/** P2 mastery overlay state per hand (spec §5.8): mastered = inner mint border, learning = amber dot, weak = coral dot, unseen = dimmed. */
+export type MasteryState = 'mastered' | 'learning' | 'weak' | 'unseen';
+export type MasteryOverlay = Partial<Record<HandName, MasteryState>>;
+
+export interface RangeGridProps {
+  cells: ChartCells;
+  highlight?: HandName;
+  onSelect?: (hand: HandName) => void;
+  /** When given, hands missing from the map render as 'unseen'. */
+  overlay?: MasteryOverlay;
+}
+
 /** Slice order inside a cell: most aggressive on the left, fold (dim) on the right. */
 const SLICE_ORDER: Action[] = ['allin', 'fourbet', 'threebet', 'raise', 'call', 'fold'];
 
@@ -23,9 +35,10 @@ function cellBackground(mix: Array<{ action: Action; weight: number }>): string 
 
 /**
  * 13×13 hand grid (rows/cols in rank order A→2; diagonal = pairs, above = suited, below = offsuit).
- * Mixed cells are painted as proportional vertical slices; the pair diagonal is outlined.
+ * Mixed cells are painted as proportional vertical slices; the pair diagonal is outlined; `highlight` gets a
+ * 2 px mint ring. Labels stay ≥ 10 px down to 360 px wide (cells are `--r-xs` inside the `--r-md` panel).
  */
-export function RangeGrid({ cells, highlight, onSelect }: { cells: ChartCells; highlight?: HandName; onSelect?: (hand: HandName) => void }) {
+export function RangeGrid({ cells, highlight, onSelect, overlay }: RangeGridProps) {
   const rows = useMemo(
     () =>
       RANKS.map((_, r) =>
@@ -39,12 +52,15 @@ export function RangeGrid({ cells, highlight, onSelect }: { cells: ChartCells; h
     [cells],
   );
   return (
-    <div className="rgrid" role="group" aria-label="핸드 레인지 차트">
+    <div className={`rgrid${overlay ? ' rgrid--overlay' : ''}`} role="group" aria-label="핸드 레인지 차트">
       {rows.map((row, r) => (
         <div key={RANKS[r]} className="rgrid__row">
           {row.map(({ hand, pair, playable, background }) => {
             const hl = highlight === hand;
-            const cls = ['rgrid__cell', pair && 'rgrid__cell--pair', !playable && 'rgrid__cell--fold', hl && 'rgrid__cell--hl'].filter(Boolean).join(' ');
+            const mastery = overlay ? (overlay[hand] ?? 'unseen') : undefined;
+            const cls = ['rgrid__cell', pair && 'rgrid__cell--pair', !playable && 'rgrid__cell--fold', hl && 'rgrid__cell--hl', mastery && `rgrid__cell--${mastery}`]
+              .filter(Boolean)
+              .join(' ');
             return (
               <button
                 key={hand}
@@ -57,6 +73,7 @@ export function RangeGrid({ cells, highlight, onSelect }: { cells: ChartCells; h
                 tabIndex={onSelect ? 0 : -1}
               >
                 {hand}
+                {(mastery === 'learning' || mastery === 'weak') && <i className="rgrid__dot" aria-hidden="true" />}
               </button>
             );
           })}

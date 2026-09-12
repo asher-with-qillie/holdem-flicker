@@ -1,71 +1,103 @@
-/* Charts screen + RangeGrid (owner: charts). Tokens come from global.css. */
+/* Charts screen + RangeGrid (owner E, spec §5.8). Tokens and .glass* recipes come from global.css; ui-* classes from ui.css. */
 
-/* ---------- chip selectors ---------- */
-.charts { gap: 10px; }
-.charts__picker { display: flex; flex-direction: column; gap: 8px; }
-.charts__group { display: flex; flex-direction: column; gap: 4px; }
-.charts__label { font-size: 12px; font-weight: 700; color: var(--ink-dim); letter-spacing: 0.02em; }
-.cchips { display: flex; flex-wrap: wrap; gap: 6px 8px; }
-.cchip {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  min-height: 44px; min-width: 52px; padding: 0 13px; border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.06);
-  font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap;
-  transition: transform 80ms, background 120ms;
+/* ---------- screen ---------- */
+.charts { gap: 12px; }
+.charts__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.charts__toggle {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding-left: 8px; flex: none;
+  color: var(--ink-2); font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 600; white-space: nowrap; cursor: pointer;
 }
-.cchip:active { transform: scale(0.96); background: rgba(255, 255, 255, 0.14); }
-.cchip--on { background: var(--accent); color: #1a1205; border-color: transparent; }
-.cchip--on:active { background: var(--accent); }
-.cchip--dim:not(.cchip--on) { color: var(--ink-faint); border-style: dashed; background: rgba(255, 255, 255, 0.03); }
-.charts__note { font-size: 12px; color: var(--ink-faint); }
+
+/* ---------- sticky chip rows (상황 / 나 / 상대) ---------- */
+.charts__filters {
+  position: sticky; top: var(--safe-top); z-index: var(--z-sticky);
+  display: flex; flex-direction: column;
+  margin-inline: calc(-1 * var(--gutter)); padding: 6px var(--gutter);
+}
+/* pinned: the block turns into an edge-to-edge .glass-strong bar (class toggled by ChartFilters) */
+.charts .charts__filters--stuck { position: sticky; border-radius: 0; border-width: 0 0 1px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35); }
+.charts__row { display: flex; align-items: center; gap: 8px; }
+.charts__rowlabel { flex: none; width: 28px; color: var(--ink-2); }
+.charts__row > .ui-chiprow { flex: 1; min-width: 0; margin-left: 0; padding-left: 0; }
+/* the scroller clips a selected chip's outer glow into a hard rectangle — chips in a bar stay flat (inset highlight only) */
+.charts__row .ui-chip--selected { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28); }
+.charts__chip--pos { padding-inline: 11px; min-width: 44px; justify-content: center; }
 
 /* ---------- chart block ---------- */
-.charts__chart { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
-.charts__title { font-size: 17px; font-weight: 800; line-height: 1.3; }
-.charts__situation { font-size: 13px; color: var(--ink-dim); line-height: 1.45; margin-top: -4px; }
+.charts__chart { display: flex; flex-direction: column; gap: 10px; animation: charts-in var(--dur-quick) var(--ease-out); }
+@keyframes charts-in { from { opacity: 0; } to { opacity: 1; } }
+.charts__situation { color: var(--ink-2); margin-top: -6px; }
 
-.charts__shares { display: flex; flex-wrap: wrap; align-items: center; row-gap: 4px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.charts__shares { display: flex; flex-direction: column; gap: 6px; }
+.charts__bar { display: flex; height: 8px; border-radius: var(--r-capsule); background: rgba(255, 255, 255, 0.10); overflow: hidden; }
+.charts__bar i { display: block; height: 100%; flex: none; }
+.charts__bar i + i { box-shadow: -1px 0 0 rgba(0, 0, 0, 0.4); }
+.charts__sharetext { display: flex; flex-wrap: wrap; align-items: center; row-gap: 2px; color: var(--ink-2); }
 .share { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.share + .share::before { content: '·'; color: var(--ink-faint); margin: 0 8px; font-weight: 400; }
-.share b { font-weight: 800; }
-.share__dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
-.share--fold { color: var(--ink-dim); }
-.share--fold b { font-weight: 600; }
+.share + .share::before { content: '·'; margin: 0 7px; color: var(--ink-3); }
+.share b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.share__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 
-.charts__legend { margin-top: 2px; }
-.charts__legend .legend__swatch { flex: none; }
-.legend__swatch--pair { background: transparent; box-shadow: inset 0 0 0 1.5px rgba(232, 192, 96, 0.85); }
+.charts__panel { padding: 8px; }
 
-.charts__summary { font-size: 14px; line-height: 1.6; color: var(--ink); }
-.charts__disclaimer { font-size: 12px; color: var(--ink-faint); line-height: 1.5; }
-
-/* ---------- empty state ---------- */
-.charts__empty {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  min-height: 240px; padding: 28px 18px; text-align: center;
-  border: 1px dashed rgba(255, 255, 255, 0.22); border-radius: var(--radius); background: rgba(255, 255, 255, 0.03);
+.charts__legend {
+  display: flex; flex-wrap: wrap; gap: 6px 12px; --rg-fold: rgba(255, 255, 255, 0.18);
+  font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; letter-spacing: 0.01em; color: var(--ink-2);
 }
-.charts__empty-icon { width: 44px; height: 44px; fill: none; stroke: var(--ink-faint); stroke-width: 2; stroke-linecap: round; margin-bottom: 4px; }
-.charts__empty strong { font-size: 16px; }
-.charts__empty p { font-size: 13px; color: var(--ink-dim); line-height: 1.5; max-width: 28em; }
-.charts__empty-count { font-size: 12px; color: var(--ink-faint); }
+.legend__item { display: inline-flex; align-items: center; gap: 6px; }
+.legend__swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.legend__swatch--pair { background: transparent; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gold) 80%, transparent); }
+.legend__swatch--mastered { background: rgba(255, 255, 255, 0.10); box-shadow: inset 0 0 0 2px var(--mint); }
+.legend__swatch--dot { position: relative; background: rgba(255, 255, 255, 0.10); }
+.legend__swatch--dot::after { content: ''; position: absolute; top: 1px; right: 1px; width: 5px; height: 5px; border-radius: 50%; background: var(--dot); }
+.legend__swatch--amber { --dot: var(--amber); }
+.legend__swatch--coral { --dot: var(--coral); }
+.legend__swatch--unseen { background: rgba(255, 255, 255, 0.10); opacity: 0.42; }
+
+.charts__mastery { color: var(--ink-2); }
+.charts__mastery b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.charts__summary { color: var(--ink-2); }
+.charts__summary b { color: var(--ink); font-weight: 700; margin-right: 6px; }
+.charts__disclaimer { color: var(--ink-3); }
+
+/* ---------- defensive empty state (every scenario has a chart today) ---------- */
+.charts__empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 220px; text-align: center; }
+.charts__empty svg { width: 40px; height: 40px; fill: none; stroke: var(--ink-3); stroke-width: 2; stroke-linecap: round; margin-bottom: 6px; }
+
+/* ---------- cell sheet footer ---------- */
+.charts-sheet__flag { flex: 1 1 auto; padding-inline: 14px; }
+.charts-sheet__close { flex: 0 0 auto; }
+.charts-sheet__done { flex: 1 1 auto; display: flex; align-items: center; gap: 6px; min-height: 52px; color: var(--amber); font-weight: 600; }
+.charts-sheet__done svg { width: 18px; height: 18px; flex: none; }
 
 /* ---------- 13×13 range grid ---------- */
-.rgrid { --rg-fold: rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; gap: 2px; width: 100%; }
-.charts__legend { --rg-fold: rgba(255, 255, 255, 0.14); }
-.charts__shares { --rg-fold: rgba(255, 255, 255, 0.14); }
+.rgrid { --rg-fold: rgba(255, 255, 255, 0.09); display: flex; flex-direction: column; gap: 2px; width: 100%; }
 .rgrid__row { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 2px; }
 .rgrid__cell {
-  position: relative; aspect-ratio: 1; min-width: 0; padding: 0; margin: 0; border: 0; border-radius: 3px;
+  position: relative; aspect-ratio: 1; min-width: 0; padding: 0; margin: 0; border: 0; border-radius: var(--r-xs);
   display: flex; align-items: center; justify-content: center;
   background: var(--rg-fold);
-  font-size: clamp(9px, 2.55vw, 10.5px); font-weight: 700; line-height: 1; letter-spacing: -0.02em;
-  color: rgba(255, 255, 255, 0.95); text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
-  overflow: hidden; -webkit-tap-highlight-color: transparent;
+  font-size: clamp(10px, 2.7vw, 11px); font-weight: 700; line-height: 1; letter-spacing: -0.02em;
+  color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+  overflow: hidden; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: filter var(--dur-micro), opacity var(--dur-quick);
 }
-.rgrid__cell--fold { color: var(--ink-faint); text-shadow: none; }
-.rgrid__cell--pair { box-shadow: inset 0 0 0 1.5px rgba(232, 192, 96, 0.75); }
-.rgrid__cell--pair.rgrid__cell--fold { color: rgba(244, 241, 232, 0.55); }
+.rgrid__cell--fold { color: var(--ink-2); text-shadow: none; }
+.rgrid__cell--pair { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gold) 75%, transparent); }
 .rgrid__cell:active { filter: brightness(1.25); }
-.rgrid__cell--hl { z-index: 1; outline: 2px solid var(--accent); outline-offset: -2px; box-shadow: 0 0 0 2px rgba(255, 182, 77, 0.45), 0 2px 8px rgba(0, 0, 0, 0.5); color: #fff; }
-.rgrid__cell--hl.rgrid__cell--fold { color: var(--ink); text-shadow: none; }
+.rgrid__cell--hl { z-index: 2; outline: 2px solid var(--mint); outline-offset: 1px; box-shadow: 0 0 0 5px color-mix(in srgb, var(--mint) 22%, transparent), 0 2px 8px rgba(0, 0, 0, 0.5); color: #fff; }
+.rgrid__cell--hl.rgrid__cell--pair { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--gold) 75%, transparent), 0 0 0 5px color-mix(in srgb, var(--mint) 22%, transparent), 0 2px 8px rgba(0, 0, 0, 0.5); }
+.rgrid__cell--hl.rgrid__cell--fold { color: var(--ink); }
+
+/* 내 기록 overlay (P2) */
+.rgrid__cell--unseen { opacity: 0.5; }
+.rgrid__cell--mastered { border: 2px solid var(--mint); }
+.rgrid__dot { position: absolute; top: 2px; right: 2px; width: 5px; height: 5px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); pointer-events: none; }
+.rgrid__cell--learning .rgrid__dot { background: var(--amber); }
+.rgrid__cell--weak .rgrid__dot { background: var(--coral); }
+
+/* ---------- reduced motion (§8): the only transform-free motion here is a crossfade; keep it ≤ 150 ms ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .charts__chart { animation-duration: 150ms; }
+  .rgrid__cell { transition: none; }
+}

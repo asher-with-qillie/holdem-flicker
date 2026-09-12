@@ -72,7 +72,7 @@
   --dur-micro: 120ms; --dur-quick: 200ms; --dur-std: 320ms; --dur-slow: 420ms; --dur-ring: 600ms;
 
   /* ---- z-layers ---- */
-  --z-content: 0; --z-sticky: 10; --z-tabbar: 20; --z-toast: 30; --z-hold: 35;
+  --z-content: 0; --z-sticky: 10; --z-tabbar: 20; --z-push: 25; --z-toast: 30; --z-hold: 35;
   --z-sheet-backdrop: 40; --z-sheet: 41; --z-coach: 50;
 
   color-scheme: dark;
