@@ -23,11 +23,9 @@ describe('chart data integrity', () => {
     }
   });
 
-  it('lists which scenarios still lack charts (informational)', () => {
-    const missing = missingScenarios();
-    // eslint-disable-next-line no-console
-    if (missing.length) console.log(`Missing charts: ${missing.length}/${scenarios.length}`);
+  it('has a chart for every scenario', () => {
     expect(scenarios.length).toBe(5 + 15 + 15 + 15 + 15 + 4);
+    expect(missingScenarios().map((s) => `${s.kind}:${s.hero}:${s.villain ?? ''}`)).toEqual([]);
   });
 
   it('premium hands are never folded', () => {
