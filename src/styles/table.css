@@ -1,10 +1,10 @@
 /* Linear position strip */
-.pstrip { width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px 6px 8px; border-radius: var(--radius); background: rgba(0, 0, 0, 0.18); border: 1px solid rgba(255, 255, 255, 0.07); }
+.pstrip { width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px 6px 8px; border-radius: var(--r-md); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.10); }
 .pstrip__row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; align-items: start; }
 .pstrip__seat { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
 .pstrip__chip { position: relative; width: 100%; max-width: 54px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; background: rgba(255, 255, 255, 0.09); border: 1.5px solid rgba(255, 255, 255, 0.16); color: var(--ink); }
-.pstrip__dealer { position: absolute; top: -7px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: #fff; color: #1a1205; font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
-.pstrip__seat--hero .pstrip__chip { background: linear-gradient(180deg, #ffd978, #e8b640); color: #1a1205; border-color: #fff0b8; box-shadow: 0 0 0 3px rgba(232, 192, 96, 0.28), 0 4px 12px rgba(0,0,0,0.35); }
+.pstrip__dealer { position: absolute; top: -7px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); color: var(--ink-on-tint); font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+.pstrip__seat--hero .pstrip__chip { background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 80%, white), var(--gold)); color: var(--ink-on-tint); border-color: color-mix(in srgb, var(--gold) 60%, white); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 28%, transparent), 0 4px 12px rgba(0,0,0,0.35); }
 .pstrip__seat--villain .pstrip__chip { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.55); }
 .pstrip__seat--folded { opacity: 0.42; }
 .pstrip__seat--waiting .pstrip__chip { border-style: dashed; }
@@ -13,12 +13,12 @@
 .pstrip__tag--raise { background: var(--act-raise); }
 .pstrip__tag--threebet { background: var(--act-threebet); }
 .pstrip__tag--fourbet { background: var(--act-fourbet); }
-.pstrip__tag--allin { background: var(--act-allin); color: #1a1205; }
-.pstrip__tag--fold { background: rgba(255,255,255,0.14); color: var(--ink-dim); }
-.pstrip__tag--wait { background: transparent; border: 1px dashed rgba(255,255,255,0.3); color: var(--ink-faint); }
-.pstrip__tag--hero { background: var(--gold); color: #1a1205; }
-.pstrip__caption { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; font-size: 12.5px; color: var(--ink-dim); text-align: center; line-height: 1.4; }
-.pstrip__hint { color: var(--ink-faint); }
+.pstrip__tag--allin { background: var(--act-allin); color: var(--ink-on-tint); }
+.pstrip__tag--fold { background: rgba(255,255,255,0.14); color: var(--ink-2); }
+.pstrip__tag--wait { background: transparent; border: 1px dashed rgba(255,255,255,0.3); color: var(--ink-3); }
+.pstrip__tag--hero { background: var(--gold); color: var(--ink-on-tint); }
+.pstrip__caption { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; font-size: 12.5px; color: var(--ink-2); text-align: center; line-height: 1.4; }
+.pstrip__hint { color: var(--ink-3); }
 .pstrip--compact { gap: 6px; padding: 8px 4px 6px; }
 .pstrip--compact .pstrip__chip { height: 30px; font-size: 12px; }
 .pstrip--compact .pstrip__tag { height: 16px; font-size: 10px; padding: 0 6px; }

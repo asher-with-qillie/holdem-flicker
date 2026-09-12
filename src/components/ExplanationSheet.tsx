@@ -1,27 +1,35 @@
 import type { Explanation } from '../poker/explain';
 import type { Step } from '../poker/trainer';
 import { ActionBadge } from './ActionBadge';
+import { CapsuleButton } from './ui/CapsuleButton';
+import { Sheet } from './ui/Sheet';
 
-/** Bottom sheet with the full Korean explanation (+ postflop plan for non-fold actions). */
+/**
+ * Full Korean explanation body, answer-first (spec §4): badge → 왜 이 액션인가 → 핸드 → 상황 → 레인지 → 혼합 빈도 → 메모 → 플랍.
+ * The headline is the Sheet title; the hold overlay passes it the same way (`<Sheet held title={e.headline}>`).
+ */
 export function ExplanationBody({ step, explanation }: { step: Step; explanation: Explanation }) {
   const e = explanation;
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <strong style={{ fontSize: 17 }}>{e.headline}</strong>
-        <ActionBadge action={step.answer} kind={step.scenario.kind} size="sm" />
+    <div className="ui-explain">
+      <div className="ui-explain__top">
+        <ActionBadge action={step.answer} kind={step.scenario.kind} size="md" />
+        <span className="ui-explain__hand tnum">
+          {step.scenario.hero} · {step.hand}
+        </span>
       </div>
-      <h3>상황</h3>
-      <p>{e.situation}</p>
-      <h3>핸드</h3>
-      <p>{e.handProfile}</p>
       <h3>왜 이 액션인가</h3>
       <ul>
         {e.reasoning.map((r, i) => (
           <li key={i}>{r}</li>
         ))}
       </ul>
-      <p style={{ marginTop: 6, color: 'var(--ink-dim)' }}>{e.rangeContext}</p>
+      <h3>핸드</h3>
+      <p>{e.handProfile}</p>
+      <h3>상황</h3>
+      <p>{e.situation}</p>
+      <h3>레인지</h3>
+      <p className="ui-explain__dim">{e.rangeContext}</p>
       {e.mixNote && (
         <>
           <h3>혼합 빈도</h3>
@@ -37,7 +45,7 @@ export function ExplanationBody({ step, explanation }: { step: Step; explanation
       {e.postflop && (
         <>
           <h3>플랍을 본 뒤 확인할 것 · {e.postflop.potType}</h3>
-          <p style={{ color: 'var(--ink-dim)' }}>
+          <p className="ui-explain__dim">
             {e.postflop.role} · {e.postflop.position}
           </p>
           <ul>
@@ -60,17 +68,21 @@ export function ExplanationBody({ step, explanation }: { step: Step; explanation
   );
 }
 
+/** 해설 bottom sheet (detent half, scrollable) with a sticky 닫기 footer. */
 export function ExplanationSheet({ step, explanation, onClose }: { step: Step; explanation: Explanation; onClose: () => void }) {
   return (
-    <>
-      <div className="sheet-backdrop" onClick={onClose} />
-      <div className="sheet" role="dialog" aria-modal="true" aria-label="해설">
-        <div className="sheet__handle" />
-        <ExplanationBody step={step} explanation={explanation} />
-        <button type="button" className="btn btn--block" style={{ marginTop: 16 }} onClick={onClose}>
+    <Sheet
+      open
+      onClose={onClose}
+      detent="half"
+      title={explanation.headline}
+      footer={
+        <CapsuleButton tone="neutral" size="lg" block onClick={onClose}>
           닫기
-        </button>
-      </div>
-    </>
+        </CapsuleButton>
+      }
+    >
+      <ExplanationBody step={step} explanation={explanation} />
+    </Sheet>
   );
 }

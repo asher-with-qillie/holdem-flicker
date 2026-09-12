@@ -1,136 +1,258 @@
-/* Holdem Flicker — mobile-only design tokens */
+/* Holdem Flicker v2 — design tokens (the ONLY place tokens are defined), glass recipes, base styles
+   and the legacy aliases that keep the untouched v1 components/screens rendering on the new ground.
+   Component styles live in ui.css (owner A). See docs/REDESIGN_SPEC.md §2. */
+
 :root {
-  --felt-900: #072a1f;
-  --felt-800: #0b3b2b;
-  --felt-700: #0f4a36;
-  --felt-600: #146046;
-  --rail: #3b2314;
-  --ink: #f4f1e8;
-  --ink-dim: rgba(244, 241, 232, 0.66);
-  --ink-faint: rgba(244, 241, 232, 0.38);
-  --card: #fffdf7;
-  --card-edge: #d9d3c2;
-  --spade: #14161c;
-  --diamond: #d3262b;
-  --gold: #e8c060;
-  --accent: #ffb64d;
-  --danger: #ff5b5b;
-  --ok: #4cd97b;
+  /* ---- ground: ink-navy with a felt memory ---- */
+  --bg-0: #0A0D13;            /* body */
+  --bg-1: #10141C;            /* opaque raised (sheet body fallback) */
+  --bg-2: #171C26;            /* opaque fallback for glass without backdrop-filter */
+  --glow-felt: #0F5C40;       /* top-center blob, 30% */
+  --glow-cool: #173B62;       /* bottom-right blob, 20% */
 
-  --act-fold: #6b7280;
-  --act-call: #2ea86b;
-  --act-raise: #e2792f;
-  --act-threebet: #d83a3a;
-  --act-fourbet: #8a3ffc;
-  --act-allin: #e0b100;
+  /* ---- ink ---- */
+  --ink: #F2F4F8;
+  --ink-2: rgba(242, 244, 248, 0.70);
+  --ink-3: rgba(242, 244, 248, 0.44);
+  --ink-4: rgba(242, 244, 248, 0.22);
+  --ink-on-tint: #06110E;     /* text on mint / gold / amber solid fills */
 
-  --radius: 14px;
-  --radius-sm: 9px;
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --tap: 48px;
+  /* ---- brand + semantic ---- */
+  --mint: #4DE3A6;            /* accent: primary CTA, active tab, timer, 알아요, progress */
+  --mint-deep: #2BB884;       /* pressed CTA, ring track fill */
+  --gold: #F0C75E;            /* hero seat "나" only */
+  --amber: #FFB347;           /* 헷갈려요, 부분 정답, warnings — never red for self-rating */
+  --coral: #FF6B6B;           /* quiz wrong, destructive */
+  --sky: #6FB7FF;             /* review / due cards */
+  --lilac: #B48CFF;           /* new cards */
+  --flame: #FF9A3C;           /* streak flame only */
+
+  /* ---- playing cards (unchanged look) ---- */
+  --card: #FFFDF7; --card-edge: #D9D3C2; --spade: #14161C; --diamond: #D3262B;
+
+  /* ---- actions (chroma tuned for the dark ground) ---- */
+  --act-fold: #7C8594; --act-call: #34C77B; --act-raise: #FF8A3D;
+  --act-threebet: #FF5A5A; --act-fourbet: #A46BFF; --act-allin: #FFD23F;
+
+  /* ---- heatmap ramp ---- */
+  --heat-0: rgba(255, 255, 255, 0.06); --heat-1: #1E5A46; --heat-2: #2A8A66; --heat-3: #3BBF8C; --heat-4: #4DE3A6;
+
+  /* ---- radii (concentric: child = parent − padding, snapped, never < 8) ---- */
+  --r-xs: 8px; --r-sm: 12px; --r-md: 16px; --r-lg: 22px; --r-xl: 28px; --r-capsule: 999px;
+
+  /* ---- type scale (px / weight / line-height) ---- */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Pretendard Variable",
+          Pretendard, "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --fs-display: 44px; --lh-display: 48px;   /* 800, -0.03em  summary "20장", ring number */
+  --fs-title-l: 34px; --lh-title-l: 41px;   /* 700, -0.02em  screen titles */
+  --fs-title-1: 28px; --lh-title-1: 34px;   /* 700, -0.02em  summary headline */
+  --fs-title-2: 22px; --lh-title-2: 28px;   /* 700, -0.015em panel titles, answer badge lg */
+  --fs-title-3: 20px; --lh-title-3: 25px;   /* 600, -0.01em  hand label */
+  --fs-headline: 17px; --lh-headline: 22px; /* 600           buttons, situation line */
+  --fs-body: 16px; --lh-body: 24px;         /* 400           explanations */
+  --fs-callout: 15px; --lh-callout: 21px;   /* 500           chips, list rows */
+  --fs-subhead: 14px; --lh-subhead: 20px;   /* 500           secondary rows, mix chips */
+  --fs-footnote: 13px; --lh-footnote: 18px; /* 400           hints, captions */
+  --fs-caption: 12px; --lh-caption: 16px;   /* 600, +0.01em  tab labels, tile labels (minimum size) */
+
+  /* ---- spacing (4-pt) ---- */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-11: 44px;
+  --gutter: 16px;
+  --tab-h: 64px; --tab-inset: 16px; --tab-gap: 12px;
+  --content-bottom: calc(var(--tab-h) + var(--tab-gap) + 16px + var(--safe-bottom));
+  --tap: 44px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --font: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
+
+  /* ---- motion ---- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);        /* arrivals */
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);        /* departures */
+  --ease-std: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);  /* ~8% overshoot */
+  --dur-micro: 120ms; --dur-quick: 200ms; --dur-std: 320ms; --dur-slow: 420ms; --dur-ring: 600ms;
+
+  /* ---- z-layers ---- */
+  --z-content: 0; --z-sticky: 10; --z-tabbar: 20; --z-toast: 30; --z-hold: 35;
+  --z-sheet-backdrop: 40; --z-sheet: 41; --z-coach: 50;
+
   color-scheme: dark;
+
+  /* ---- legacy aliases (do not remove; untouched components use them) ---- */
+  --felt-900: var(--bg-0); --felt-800: var(--bg-1); --felt-700: var(--bg-2); --felt-600: #1D2431;
+  --rail: #2A2118;
+  --ink-dim: var(--ink-2); --ink-faint: var(--ink-3);
+  --accent: var(--mint); --danger: var(--coral); --ok: var(--mint);
+  --radius: var(--r-md); --radius-sm: var(--r-sm); --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
+/* ---- base ---------------------------------------------------------------- */
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
 html { -webkit-text-size-adjust: 100%; }
 body {
-  margin: 0;
-  font-family: var(--font);
-  background: radial-gradient(120% 80% at 50% 0%, var(--felt-700) 0%, var(--felt-900) 70%);
-  color: var(--ink);
-  overscroll-behavior: none;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  user-select: none;
+  margin: 0; font-family: var(--font); color: var(--ink);
+  background:
+    radial-gradient(70% 40% at 50% -5%, color-mix(in srgb, var(--glow-felt) 30%, transparent), transparent 70%),
+    radial-gradient(60% 40% at 100% 100%, color-mix(in srgb, var(--glow-cool) 20%, transparent), transparent 70%),
+    var(--bg-0);
+  background-attachment: fixed;
+  overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none;
+  word-break: keep-all;
 }
-button { font: inherit; color: inherit; }
+button { font: inherit; color: inherit; cursor: pointer; }
 a { color: inherit; }
 p { margin: 0; }
 h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.01em; }
 
-.app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; }
-.app__main { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; padding-top: var(--safe-top); }
-.app__main--fixed { overflow: hidden; }
+/* ---- type scale utilities ---- */
+.t-display { font-size: var(--fs-display); line-height: var(--lh-display); font-weight: 800; letter-spacing: -0.03em; }
+.t-title-l { font-size: var(--fs-title-l); line-height: var(--lh-title-l); font-weight: 700; letter-spacing: -0.02em; }
+.t-title-1 { font-size: var(--fs-title-1); line-height: var(--lh-title-1); font-weight: 700; letter-spacing: -0.02em; }
+.t-title-2 { font-size: var(--fs-title-2); line-height: var(--lh-title-2); font-weight: 700; letter-spacing: -0.015em; }
+.t-title-3 { font-size: var(--fs-title-3); line-height: var(--lh-title-3); font-weight: 600; letter-spacing: -0.01em; }
+.t-headline { font-size: var(--fs-headline); line-height: var(--lh-headline); font-weight: 600; }
+.t-body { font-size: var(--fs-body); line-height: var(--lh-body); font-weight: 400; }
+.t-callout { font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 500; }
+.t-subhead { font-size: var(--fs-subhead); line-height: var(--lh-subhead); font-weight: 500; }
+.t-footnote { font-size: var(--fs-footnote); line-height: var(--lh-footnote); font-weight: 400; }
+.t-caption { font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; letter-spacing: 0.01em; }
+.tnum, .t-display, .t-title-1, .t-title-2, .t-title-3 { font-variant-numeric: tabular-nums; }
+.ink-2 { color: var(--ink-2); }
+.ink-3 { color: var(--ink-3); }
+.ui-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; margin: -1px; }
 
-.tabbar {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  background: rgba(3, 20, 14, 0.92); backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: var(--safe-bottom);
+/* ---- 2.1 glass recipes ---------------------------------------------------- */
+.glass, .glass-strong, .glass-tint, .glass-clear {
+  position: relative; isolation: isolate; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: var(--r-lg);
 }
-.tabbar__btn {
-  height: 56px; border: 0; background: none; color: var(--ink-faint);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  font-size: 11px; font-weight: 600;
+/* Regular — HUD, panels, tiles, chips-container, rating buttons */
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.04) 100%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 rgba(0, 0, 0, 0.28),
+              0 12px 32px rgba(0, 0, 0, 0.42), 0 1px 2px rgba(0, 0, 0, 0.30);
 }
-.tabbar__btn svg { width: 22px; height: 22px; }
-.tabbar__btn--active { color: var(--accent); }
+/* Strong — tab bar, sheets, hold overlay, coach card (long text must stay readable) */
+.glass-strong {
+  background: linear-gradient(180deg, rgba(23, 28, 38, 0.78), rgba(16, 20, 28, 0.88));
+  -webkit-backdrop-filter: blur(32px) saturate(180%); backdrop-filter: blur(32px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 -12px 40px rgba(0, 0, 0, 0.45);
+}
+/* Tint — primary CTA (with .glass-solid), active tab pill, active segment, answer capsule, know/unsure buttons */
+.glass-tint {
+  --tint: var(--mint);
+  background: color-mix(in srgb, var(--tint) 30%, rgba(255, 255, 255, 0.05));
+  -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%);
+  border-color: color-mix(in srgb, var(--tint) 45%, rgba(255, 255, 255, 0.10));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 8px 24px color-mix(in srgb, var(--tint) 30%, transparent);
+}
+/* one per screen; opaque, so it needs no blur */
+.glass-solid { background: var(--tint); color: var(--ink-on-tint); border-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* Clear — sits over the card stage: answer slot, stat pills. Lower blur keeps the cards visible. */
+.glass-clear {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  -webkit-backdrop-filter: blur(12px) saturate(150%); backdrop-filter: blur(12px) saturate(150%);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+/* Same look, no backdrop blur — for small/nested glass (chips, pills, tiles) so a screen stays within the ≤ 3 blur budget */
+.glass-flat { -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* Refractive rim (regular + strong only) */
+.glass::before, .glass-strong::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.06) 35%, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.20) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude;
+}
+/* Specular pool at the top (regular only) */
+.glass::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(120% 55% at 50% -10%, rgba(255, 255, 255, 0.12), transparent 60%);
+}
+/* Press */
+.glass-press { transition: transform var(--dur-std) var(--ease-spring), background-color var(--dur-micro); }
+.glass-press:active { transform: scale(0.97); background-color: rgba(255, 255, 255, 0.16); transition-duration: var(--dur-micro); }
+.glass-tint.glass-press:active { filter: brightness(1.12); }
+/* Flat fills for things inside a glass panel (no second blur) */
+.fill { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.10); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass, .glass-clear { background: rgba(23, 28, 38, 0.92); }
+  .glass-strong { background: rgba(16, 20, 28, 0.96); }
+  .glass-tint { background: color-mix(in srgb, var(--tint) 32%, var(--bg-2)); }
+}
 
-.screen { padding: 12px 16px calc(16px + var(--safe-bottom)); display: flex; flex-direction: column; gap: 12px; }
-.screen__title { font-size: 20px; }
-.screen__sub { color: var(--ink-dim); font-size: 13px; line-height: 1.5; }
+/* ---- legacy class aliases (v1 screens/components; restyled with the v2 tokens) ------------------ */
+.screen { padding: 12px var(--gutter) var(--content-bottom); display: flex; flex-direction: column; gap: 12px; }
+.screen__title { font-size: var(--fs-title-l); line-height: var(--lh-title-l); letter-spacing: -0.02em; }
+.screen__sub { color: var(--ink-2); font-size: var(--fs-footnote); line-height: var(--lh-footnote); }
 
-.panel { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius); padding: 14px; }
-.panel__title { font-size: 13px; color: var(--ink-dim); margin-bottom: 8px; font-weight: 600; }
+.panel { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.10); border-radius: var(--r-md); padding: 14px; }
+.panel__title { font-size: var(--fs-footnote); color: var(--ink-2); margin-bottom: 8px; font-weight: 600; }
 
 .btn {
-  min-height: var(--tap); padding: 0 16px; border-radius: var(--radius-sm); border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.08); font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--tap); padding: 0 16px; border-radius: var(--r-capsule); border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08); font-weight: 600; font-size: var(--fs-headline); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform var(--dur-micro), background-color var(--dur-micro);
 }
 .btn:active { transform: scale(0.98); background: rgba(255, 255, 255, 0.14); }
-.btn--primary { background: var(--accent); color: #1a1205; border-color: transparent; }
+.btn--primary { background: var(--mint); color: var(--ink-on-tint); border-color: transparent; font-weight: 700; }
+.btn--primary:active { background: var(--mint-deep); }
 .btn--ghost { background: transparent; }
+.btn--danger { background: color-mix(in srgb, var(--coral) 18%, transparent); border-color: color-mix(in srgb, var(--coral) 45%, transparent); color: var(--coral); }
 .btn--block { width: 100%; }
 .btn[disabled] { opacity: 0.4; }
 
-.chip { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); font-size: 13px; font-weight: 600; }
-.chip--on { background: var(--accent); color: #1a1205; border-color: transparent; }
+.chip { display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: var(--r-capsule); border: 1px solid rgba(255, 255, 255, 0.10); background: rgba(255, 255, 255, 0.08); font-size: var(--fs-footnote); font-weight: 600; }
+.chip--on { background: var(--mint); color: var(--ink-on-tint); border-color: transparent; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
-.badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-weight: 800; color: #fff; letter-spacing: 0.02em; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.badge { display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-capsule); font-weight: 800; color: #fff; letter-spacing: 0.02em; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
 .badge--sm { height: 26px; padding: 0 10px; font-size: 12px; }
 .badge--md { height: 36px; padding: 0 16px; font-size: 15px; }
-.badge--lg { height: 56px; padding: 0 28px; font-size: 24px; }
+.badge--lg { height: 56px; padding: 0 28px; font-size: var(--fs-title-2); }
 .badge--fold { background: var(--act-fold); }
 .badge--call { background: var(--act-call); }
 .badge--raise { background: var(--act-raise); }
 .badge--threebet { background: var(--act-threebet); }
 .badge--fourbet { background: var(--act-fourbet); }
-.badge--allin { background: var(--act-allin); color: #1a1205; }
+.badge--allin { background: var(--act-allin); color: var(--ink-on-tint); }
 
-.timerbar { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.12); overflow: hidden; }
-.timerbar__fill { height: 100%; background: var(--accent); transition: width 80ms linear; }
-.timerbar--paused .timerbar__fill { background: var(--ink-dim); }
+.timerbar { height: 4px; border-radius: var(--r-capsule); background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.timerbar__fill { height: 100%; background: var(--mint); transition: width 80ms linear; }
+.timerbar--paused .timerbar__fill { background: var(--ink-3); }
 
-.sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
-.sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 82vh; overflow: auto; z-index: 41; background: #10241c; border-radius: 18px 18px 0 0; padding: 16px 18px calc(20px + var(--safe-bottom)); box-shadow: 0 -10px 40px rgba(0,0,0,0.5); max-width: 520px; margin: 0 auto; }
-.sheet__handle { width: 40px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.25); margin: 0 auto 12px; }
-.sheet h3 { font-size: 15px; margin: 14px 0 6px; color: var(--accent); }
-.sheet p, .sheet li { font-size: 14px; line-height: 1.6; color: var(--ink); }
+/* Legacy sheet classes — ExplanationSheet now renders through components/ui/Sheet; kept for stragglers. */
+.sheet-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); z-index: var(--z-sheet-backdrop); }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 82vh; overflow: auto; z-index: var(--z-sheet); background: var(--bg-1); border-radius: var(--r-xl) var(--r-xl) 0 0; padding: 16px 18px calc(20px + var(--safe-bottom)); box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5); max-width: 520px; margin: 0 auto; }
+.sheet__handle { width: 40px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); margin: 0 auto 12px; }
+.sheet h3 { font-size: var(--fs-callout); margin: 14px 0 6px; color: var(--mint); }
+.sheet p, .sheet li { font-size: var(--fs-subhead); line-height: 1.6; color: var(--ink); }
 .sheet ul { margin: 0; padding-left: 18px; }
 .sheet li + li { margin-top: 4px; }
 
 .range-grid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 2px; width: 100%; aspect-ratio: 1; }
-.range-cell { position: relative; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.92); border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
-.range-cell--pair { border: 1px solid rgba(255,255,255,0.18); }
-.range-cell--hl { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+.range-cell { position: relative; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: rgba(255, 255, 255, 0.92); border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.range-cell--pair { border: 1px solid rgba(255, 255, 255, 0.18); }
+.range-cell--hl { outline: 2px solid var(--mint); outline-offset: -2px; z-index: 1; }
 
-.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--ink-dim); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: var(--fs-caption); color: var(--ink-2); }
 .legend__item { display: inline-flex; align-items: center; gap: 6px; }
 .legend__swatch { width: 12px; height: 12px; border-radius: 3px; }
 
 select, input[type="range"] { width: 100%; }
-select { min-height: var(--tap); border-radius: var(--radius-sm); background: rgba(255,255,255,0.08); color: var(--ink); border: 1px solid rgba(255,255,255,0.14); padding: 0 12px; font: inherit; }
+select { min-height: var(--tap); border-radius: var(--r-sm); background: rgba(255, 255, 255, 0.08); color: var(--ink); border: 1px solid rgba(255, 255, 255, 0.14); padding: 0 12px; font: inherit; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--tap); }
-.row__label { font-size: 15px; font-weight: 600; }
-.row__hint { font-size: 12px; color: var(--ink-dim); }
-.switch { width: 52px; height: 30px; border-radius: 999px; background: rgba(255,255,255,0.18); border: 0; position: relative; flex: none; }
-.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform 150ms; }
-.switch--on { background: var(--ok); }
+.row__label { font-size: var(--fs-callout); font-weight: 600; }
+.row__hint { font-size: var(--fs-caption); color: var(--ink-2); }
+.switch { width: 52px; height: 30px; border-radius: var(--r-capsule); background: rgba(255, 255, 255, 0.18); border: 0; position: relative; flex: none; transition: background-color 150ms; }
+.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform 150ms var(--ease-std); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+.switch--on { background: var(--mint); }
 .switch--on::after { transform: translateX(22px); }
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* Reduced motion for the legacy v1 screens (their own css files animate; the timer's rAF width is unaffected).
+   v2 components define their own reduced-motion rules in ui.css. */
+@media (prefers-reduced-motion: reduce) {
+  [class^="trainer-"], [class*=" trainer-"], [class^="quiz-"], [class*=" quiz-"], .cchip, .crumb, .switch, .switch::after, .btn, .chip {
+    animation: none !important; transition: none !important;
+  }
+}
