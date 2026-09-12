@@ -1,152 +1,144 @@
-import { useCallback, useMemo, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { ExplanationBody, ExplanationSheet } from '../components/ExplanationSheet';
-import { HandView } from '../components/PlayingCard';
-import { TableDiagram } from '../components/TableDiagram';
-import { TimerBar } from '../components/TimerBar';
-import { explainStep } from '../poker/explain';
-import { cardLabel } from '../poker/hands';
-import { scenarioSituation } from '../poker/scenarios';
-import type { Card, HandName } from '../poker/types';
-import { useSettings } from '../state/settings';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SessionSummaryCard } from '../components/ui/SessionSummaryCard';
+import { Sheet } from '../components/ui/Sheet';
+import { toast } from '../components/ui/Toast';
+import { consumeLaunch, launch, setChromeHidden, setTab, useNav, type LaunchIntent } from '../state/nav';
+import { getProgress, useProgress } from '../state/progress';
+import { getSettings, updateSettings, useSettings, type DeckId, type Settings } from '../state/settings';
+import { weakKeys } from '../state/srs';
 import '../styles/trainer.css';
-import { AnswerArea, HOLD_HINT } from './trainer/AnswerArea';
-import { FitBox } from './trainer/FitBox';
-import { NextIcon, PauseIcon, PlayIcon, PrevIcon, ShuffleIcon } from './trainer/icons';
-import { StepCrumbs } from './trainer/StepCrumbs';
-import { useRafTimer } from './trainer/useRafTimer';
+import { resolvePositions, WEAK_MIN } from './trainer/decks';
+import { discardSession, getSession, startSession, type SessionConfig, type StartResult } from './trainer/sessionStore';
+import { SessionView } from './trainer/SessionView';
+import { SetupView, type SetupPreset } from './trainer/SetupView';
+import { SummaryView, toSummaryData } from './trainer/SummaryView';
 import { useTrainerSession } from './trainer/useTrainerSession';
 
-/** Owns the rAF loop so per-frame progress updates re-render only the bar. */
-function PhaseTimer({ durationMs, running, resetKey, paused, onExpire }: { durationMs: number; running: boolean; resetKey: string; paused: boolean; onExpire: () => void }) {
-  const progress = useRafTimer(durationMs, running, resetKey, onExpire);
-  return <TimerBar progress={progress} paused={paused} />;
+const START_ERROR: Record<'no_charts' | 'empty', string> = { no_charts: '이 조합의 차트가 아직 없어요', empty: '훈련할 카드가 없어요' };
+
+/** Session config from a launch intent + current settings (§5.2 / §6.4). */
+function configFromIntent(intent: Pick<LaunchIntent, 'deck' | 'positions' | 'scenarioId' | 'onlyKeys'>, settings: Settings): SessionConfig {
+  let deck: DeckId = intent.deck ?? (intent.scenarioId ? 'scenario' : settings.lastDeck);
+  if (deck === 'weak' && weakKeys().length < WEAK_MIN) deck = 'all';
+  const config: SessionConfig = {
+    deck,
+    positions: resolvePositions(intent.positions?.length ? intent.positions : settings.lastPositions, settings),
+    size: settings.sessionSize,
+    speed: settings.speedPreset,
+    exposure: settings.exposureMode,
+    manual: !settings.autoAdvance || !!intent.onlyKeys,
+  };
+  if (intent.scenarioId) config.scenarioId = intent.scenarioId;
+  if (intent.onlyKeys) config.onlyKeys = intent.onlyKeys;
+  return config;
 }
 
-function HandLabel({ cards, hand }: { cards: [Card, Card]; hand: HandName }) {
-  return (
-    <div className="trainer-handlabel" aria-label={`핸드 ${hand}`}>
-      <span className={`trainer-handlabel__card trainer-handlabel__card--${cards[0].suit}`}>{cardLabel(cards[0])}</span>
-      <span className={`trainer-handlabel__card trainer-handlabel__card--${cards[1].suit}`}>{cardLabel(cards[1])}</span>
-      <span className="trainer-handlabel__sep">·</span>
-      <span className="trainer-handlabel__name">{hand}</span>
-    </div>
-  );
+function begin(config: SessionConfig): StartResult {
+  if (getSession()) discardSession();
+  const r = startSession(config);
+  if (!r.ok) toast(START_ERROR[r.reason], 'amber');
+  return r;
 }
 
+/**
+ * 훈련 tab (§5.2–5.6): setup → session → summary in one screen, driven by `sessionStore` (module-level, so a
+ * paused session survives a tab switch). Hides the floating tab bar while a session is running and consumes
+ * `LaunchIntent`s from Home / Charts / the summary CTAs.
+ */
 export function TrainerScreen() {
   const [settings] = useSettings();
+  const nav = useNav();
   const s = useTrainerSession(settings);
-  const { step, seq } = s;
+  const pv = useProgress(settings.dailyGoal);
+  const [preset, setPreset] = useState<SetupPreset | null>(null);
+  const [lastOpen, setLastOpen] = useState(false);
+  const status = s.status;
 
-  const explanation = useMemo(() => (step ? explainStep(step) : null), [step]);
+  // Tab bar hidden while running; back on pause / summary / unmount.
+  useEffect(() => {
+    setChromeHidden('trainer', status === 'running');
+    return () => setChromeHidden('trainer', false);
+  }, [status]);
 
-  const onStagePointerDown = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      if (!e.isPrimary) return;
-      if ((e.target as Element).closest('button, a')) return;
-      try {
-        e.currentTarget.setPointerCapture(e.pointerId);
-      } catch {
-        /* pointer already gone */
-      }
-      s.setHolding(true);
-    },
-    [s.setHolding],
-  );
-  const endHold = useCallback(() => s.setHolding(false), [s.setHolding]);
-  const preventMenu = useCallback((e: ReactMouseEvent) => e.preventDefault(), []);
+  // Launch intents — on mount and whenever one arrives while mounted (summary CTAs, Home/Charts).
+  useEffect(() => {
+    if (!nav.launch || nav.launch.target !== 'train') return;
+    const intent = consumeLaunch();
+    if (!intent) return;
+    const st = getSession();
+    const focused = !!(intent.onlyKeys || intent.scenarioId);
+    if (st && (st.status === 'running' || st.status === 'paused') && !focused) return; // "이어서 하기": keep the session in progress
+    if (intent.deck && intent.deck !== 'scenario' && !intent.onlyKeys) updateSettings({ lastDeck: intent.deck });
+    if (intent.positions?.length && !intent.scenarioId) updateSettings({ lastPositions: intent.positions });
+    const current = getSettings();
+    if (intent.autostart) {
+      if (begin(configFromIntent(intent, current)).ok) return;
+    } else if (st) discardSession();
+    const p: SetupPreset = {};
+    if (intent.deck) p.deck = intent.deck;
+    if (intent.positions?.length) p.positions = intent.positions;
+    if (intent.scenarioId) p.scenarioId = intent.scenarioId;
+    if (intent.onlyKeys) p.onlyKeys = intent.onlyKeys;
+    setPreset(p);
+  }, [nav.launch]);
 
-  if (!step || !explanation) {
-    return (
-      <div className="trainer" onContextMenu={preventMenu}>
-        <div className="trainer-empty">
-          <div className="panel trainer-empty__panel">
-            <h2 className="trainer-empty__title">훈련할 차트가 없습니다</h2>
-            <p className="screen__sub">선택한 포지션·상황에 맞는 차트가 아직 없어요. 설정에서 다른 조합을 골라 보세요.</p>
-            <button type="button" className="btn btn--primary btn--block" onClick={s.newHand}>
-              다시 시도
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const onStart = useCallback((config: SessionConfig) => {
+    setPreset(null);
+    begin(config);
+  }, []);
 
-  const barPaused = !s.running && !s.waiting;
+  const onAgain = useCallback(() => {
+    const cfg = getSession()?.config;
+    if (cfg) begin(cfg);
+  }, []);
+  const onRetryUnsure = useCallback((keys: string[]) => {
+    if (!keys.length) return;
+    launch({ target: 'train', onlyKeys: keys, autostart: true });
+  }, []);
+  const onQuiz = useCallback((keys: string[]) => {
+    discardSession();
+    launch({ target: 'quiz', onlyKeys: keys, autostart: true });
+  }, []);
+  const onHome = useCallback(() => {
+    discardSession();
+    setTab('home');
+  }, []);
+
+  const lastResult = pv.lastResult && pv.lastResult.mode === 'train' ? pv.lastResult : undefined;
+  const lastData = useMemo(() => {
+    if (!lastOpen || !lastResult) return null;
+    const view = getProgress(settings.dailyGoal);
+    return toSummaryData(lastResult, view, settings.dailyGoal, { partial: lastResult.seen < lastResult.config.size, firstSession: false });
+  }, [lastOpen, lastResult, settings.dailyGoal]);
 
   return (
-    <div className="trainer" onContextMenu={preventMenu}>
-      <header className="trainer-head">
-        <span className="trainer-pos" aria-label={`내 포지션 ${seq.hero}`}>
-          {seq.hero}
-        </span>
-        <span className="trainer-counter" aria-label={`${s.stepIndex + 1}번째 단계, 총 ${seq.steps.length}단계`}>
-          {s.stepIndex + 1}/{seq.steps.length}
-        </span>
-        <span className="trainer-head__spacer" />
-        <button type="button" className={`trainer-ibtn${s.paused ? ' trainer-ibtn--accent' : ''}`} onClick={s.togglePause} aria-label={s.paused ? '재생' : '일시정지'} aria-pressed={s.paused}>
-          {s.paused ? <PlayIcon /> : <PauseIcon />}
-        </button>
-        <button type="button" className="btn trainer-newbtn" onClick={s.newHand}>
-          <ShuffleIcon />
-          새 핸드
-        </button>
-      </header>
+    <div className={`trainer trainer--${status}`}>
+      {status === 'idle' && <SetupView settings={settings} preset={preset} onStart={onStart} lastResult={lastResult} onOpenLast={() => setLastOpen(true)} />}
+      {(status === 'running' || status === 'paused') && <SessionView s={s} settings={settings} />}
+      {status === 'summary' && s.result && (
+        <SummaryView result={s.result} partial={!!s.session?.endedEarly} settings={settings} onRetryUnsure={onRetryUnsure} onAgain={onAgain} onQuiz={onQuiz} onHome={onHome} />
+      )}
 
-      <div
-        className={`trainer-stage${s.holding ? ' trainer-stage--holding' : ''}`}
-        onPointerDown={onStagePointerDown}
-        onPointerUp={endHold}
-        onPointerCancel={endHold}
-        onPointerLeave={endHold}
-        onContextMenu={preventMenu}
-      >
-        <div className="trainer-table">
-          <TableDiagram scenario={step.scenario} compact />
-        </div>
-        <p className="trainer-situation">
-          <span>{scenarioSituation(step.scenario)}</span>
-        </p>
-        <StepCrumbs steps={seq.steps} current={s.stepIndex} />
-
-        <FitBox className="trainer-hand">
-          {(box) => <HandView cards={seq.cards} size={box.height >= 150 ? 'lg' : box.height >= 90 ? 'md' : 'sm'} />}
-        </FitBox>
-        <HandLabel cards={seq.cards} hand={seq.hand} />
-
-        <div className="trainer-timer">
-          <PhaseTimer durationMs={s.durationMs} running={s.running} resetKey={s.timerKey} paused={barPaused} onExpire={s.onExpire} />
-        </div>
-
-        <AnswerArea step={step} phase={s.phase} explanation={explanation} showMix={settings.showMixFrequencies} animKey={s.timerKey} />
-        <p className="trainer-hint trainer-hint--foot">{HOLD_HINT}</p>
-      </div>
-
-      <div className="trainer-controls">
-        <button type="button" className="trainer-ibtn" onClick={s.prev} aria-label="이전 단계">
-          <PrevIcon />
-        </button>
-        <button type="button" className="btn trainer-controls__main" onClick={() => s.setSheetOpen(true)}>
-          해설
-        </button>
-        {s.waiting && (
-          <button type="button" className="btn btn--primary trainer-controls__main" onClick={s.next}>
-            다음
-          </button>
+      <Sheet open={lastOpen} onClose={() => setLastOpen(false)} detent="full" title="지난 세션">
+        {lastData && lastResult && (
+          <SessionSummaryCard
+            data={lastData}
+            onRetryUnsure={() => {
+              setLastOpen(false);
+              onRetryUnsure(lastResult.unsureKeys);
+            }}
+            onAgain={() => {
+              setLastOpen(false);
+              begin(configFromIntent({ deck: lastResult.config.deck === 'scenario' ? 'all' : lastResult.config.deck, positions: lastResult.config.positions }, getSettings()));
+            }}
+            onQuiz={() => {
+              setLastOpen(false);
+              onQuiz(lastResult.allKeys);
+            }}
+            onHome={() => setLastOpen(false)}
+          />
         )}
-        <button type="button" className="trainer-ibtn" onClick={s.next} aria-label="다음 단계">
-          <NextIcon />
-        </button>
-      </div>
-
-      <div className={`trainer-hold${s.holding ? ' trainer-hold--on' : ''}`} aria-hidden={!s.holding}>
-        <div className="trainer-hold__handle" />
-        <div className="trainer-hold__body">
-          <ExplanationBody step={step} explanation={explanation} />
-        </div>
-      </div>
-
-      {s.sheetOpen && <ExplanationSheet step={step} explanation={explanation} onClose={() => s.setSheetOpen(false)} />}
+      </Sheet>
     </div>
   );
 }

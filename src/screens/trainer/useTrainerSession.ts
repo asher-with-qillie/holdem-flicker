@@ -1,112 +1,141 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { dealCardsFor } from '../../poker/hands';
-import { nextHandSequence, type SessionOptions, type Step } from '../../poker/trainer';
-import type { Card, HandName, Pos } from '../../poker/types';
-import { vibrate, type Settings } from '../../state/settings';
+import { useCallback, useMemo } from 'react';
+import { toast } from '../../components/ui/Toast';
+import type { Step } from '../../poker/trainer';
+import type { Settings } from '../../state/settings';
+import type { RatingSource } from '../../state/srs';
+import {
+  currentCard,
+  endSession,
+  EXIT_MS,
+  expire,
+  flagToggle as storeFlagToggle,
+  getSession,
+  markUnratedToast,
+  next as storeNext,
+  prev as storePrev,
+  rateCard,
+  revealNow as storeRevealNow,
+  setHolding as storeSetHolding,
+  setSheetOpen as storeSetSheetOpen,
+  togglePause as storeTogglePause,
+  useSession,
+  type Phase,
+  type Rating,
+  type SessionCard,
+  type SessionConfig,
+  type SessionState,
+  type SessionStatus,
+} from './sessionStore';
 
-export type Phase = 'think' | 'reveal';
+export type { Phase } from './sessionStore';
 
-export interface HandSeq {
-  /** Monotonic id so timers/animations reset even if the same hand is dealt twice. */
-  id: number;
-  hero: Pos;
-  hand: HandName;
-  steps: Step[];
-  /** Dealt once per hand and kept stable across its steps. */
-  cards: [Card, Card];
-}
-
-let seqCounter = 0;
-
-function deal(opts: SessionOptions): HandSeq {
-  const { hero, hand, steps } = nextHandSequence(opts);
-  return { id: ++seqCounter, hero, hand, steps, cards: dealCardsFor(hand) };
-}
+const UNRATED_TOAST = '평가하면 다음에 더 잘 골라드려요';
 
 /**
- * Flashcard state machine: hand sequence → step index → think/reveal phase.
- * The countdown itself lives in `useRafTimer`; this hook only decides whether it runs and what expiry means.
+ * View-model over `sessionStore` (spec §6.1): same shape the v1 hook returned (`card` for `seq`, `index` for
+ * `stepIndex`) plus the session fields. Decides whether the rAF countdown runs and what expiry means.
  */
 export function useTrainerSession(settings: Settings) {
-  const opts = useMemo<SessionOptions>(
-    () => ({ positions: settings.positions, kinds: settings.kinds, interestingBias: settings.interestingBias }),
-    [settings.positions, settings.kinds, settings.interestingBias],
-  );
-  const optsRef = useRef(opts);
-  optsRef.current = opts;
+  const s: SessionState | null = useSession();
 
-  const [seq, setSeq] = useState<HandSeq>(() => deal(opts));
-  const [stepIndex, setStepIndex] = useState(0);
-  const [phase, setPhase] = useState<Phase>('think');
-  const [paused, setPaused] = useState(false);
-  const [holding, setHolding] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const status: SessionStatus = s?.status ?? 'idle';
+  const card: SessionCard | undefined = s ? s.queue[s.index] : undefined;
+  const step: Step | undefined = card?.step;
+  const phase: Phase = s?.phase ?? 'think';
+  const paused = status === 'paused';
+  const holding = !!s?.holding;
+  const sheetOpen = !!s?.sheetOpen;
+  const coachOpen = !!s?.coachOpen;
+  const manual = !!s?.config.manual;
+  const quiet = !!s && (s.config.speed === 'flash' || s.config.exposure);
+  /** Manual mode: the answer stays until a swipe / button / tap / ▶. */
+  const waiting = !!s && manual && phase === 'reveal';
+  const running = !!s && status === 'running' && !holding && !s.dragging && !sheetOpen && !coachOpen && !s.settling && !s.exiting && !waiting;
+  const durationMs = s ? Math.max(200, s.config.exposure ? s.timing.expose : phase === 'think' ? s.timing.think : s.timing.reveal) : 1000;
+  const timerKey = s && card ? `${s.id}:${card.id}:${phase}` : 'idle';
+  const timerHidden = !s || manual || (s.config.exposure && manual);
 
-  const newHand = useCallback(() => {
-    setSeq(deal(optsRef.current));
-    setStepIndex(0);
-    setPhase('think');
-  }, []);
-
-  const goTo = useCallback((i: number) => {
-    setStepIndex(i);
-    setPhase('think');
-  }, []);
-
-  const next = useCallback(() => {
-    if (stepIndex + 1 < seq.steps.length) goTo(stepIndex + 1);
-    else newHand();
-  }, [stepIndex, seq.steps.length, goTo, newHand]);
-
-  /** Previous step; at the first step it simply restarts the current card. */
-  const prev = useCallback(() => goTo(Math.max(0, stepIndex - 1)), [stepIndex, goTo]);
-
-  const reveal = useCallback(() => {
-    setPhase('reveal');
-    // Browsers block vibration until the page has seen a user gesture (and log an error); skip it until then.
-    if (navigator.userActivation?.hasBeenActive !== false) vibrate(12);
-  }, []);
-
-  const togglePause = useCallback(() => setPaused((p) => !p), []);
-
-  // Restart the sequence when the trained positions / scenario kinds change.
-  const restartKey = `${settings.positions.join(',')}|${settings.kinds.join(',')}`;
-  const prevRestartKey = useRef(restartKey);
-  useEffect(() => {
-    if (prevRestartKey.current === restartKey) return;
-    prevRestartKey.current = restartKey;
-    newHand();
-  }, [restartKey, newHand]);
-
-  const step: Step | undefined = seq.steps[stepIndex];
-  const waiting = phase === 'reveal' && !settings.autoAdvance;
-  const running = !!step && !paused && !holding && !sheetOpen && !waiting;
-  const durationMs = Math.max(200, (phase === 'think' ? settings.thinkSeconds : settings.revealSeconds) * 1000);
-  const timerKey = `${seq.id}:${stepIndex}:${phase}`;
+  /** Steps of the current hand chain (for StepCrumbs). */
+  const chain = useMemo(() => {
+    if (!s || !card || card.chainId === undefined) return card ? [card.step] : [];
+    const id = card.chainId;
+    return s.queue.filter((c) => c.chainId === id && c.origin !== 'requeue').map((c) => c.step);
+  }, [s, card]);
+  const chainIndex = card ? Math.max(0, chain.indexOf(card.step)) : 0;
 
   const onExpire = useCallback(() => {
-    if (phase === 'think') reveal();
-    else next();
-  }, [phase, reveal, next]);
+    const st = getSession();
+    if (!st || st.status !== 'running') return;
+    if (st.phase === 'reveal' || st.config.exposure) {
+      const c = currentCard(st);
+      const timed = st.config.speed === 'slow' || st.config.speed === 'normal';
+      if (c && !c.rating && !c.flagged && timed && !st.config.exposure && !st.unratedToastShown) {
+        markUnratedToast();
+        toast(UNRATED_TOAST);
+      }
+    }
+    expire();
+  }, []);
+
+  const rate = useCallback((r: Rating, source: RatingSource = 'button') => {
+    const st = getSession();
+    const c = currentCard(st);
+    if (!st || !c) return false;
+    if (r === 'know' && c.peeked) {
+      toast('답을 먼저 봤어요 · 다음에 확인해요', 'amber');
+      return false;
+    }
+    return rateCard(r, source, EXIT_MS);
+  }, []);
+
+  const flagToggle = useCallback(() => storeFlagToggle(), []);
+  const revealNow = useCallback(() => storeRevealNow(), []);
+  const next = useCallback(() => storeNext(), []);
+  const prev = useCallback(() => storePrev(), []);
+  const togglePause = useCallback(() => storeTogglePause(), []);
+  const setHolding = useCallback((h: boolean) => storeSetHolding(h), []);
+  const setSheetOpen = useCallback((o: boolean) => storeSetSheetOpen(o), []);
+  const endEarly = useCallback(() => endSession(), []);
+
+  const config: SessionConfig | undefined = s?.config;
 
   return {
-    seq,
+    session: s,
+    status,
+    config,
+    queue: s?.queue ?? [],
+    index: s?.index ?? 0,
+    card,
     step,
-    stepIndex,
+    chain,
+    chainIndex,
     phase,
     paused,
     holding,
     sheetOpen,
+    coachOpen,
     waiting,
     running,
+    quiet,
+    manual,
+    exiting: s?.exiting ?? null,
+    settling: !!s?.settling,
     durationMs,
     timerKey,
+    timerHidden,
     onExpire,
-    newHand,
+    rate,
+    flagToggle,
+    revealNow,
     next,
     prev,
     togglePause,
     setHolding,
     setSheetOpen,
+    endEarly,
+    result: s?.result,
+    showMix: settings.showMixFrequencies,
   };
 }
+
+export type TrainerSession = ReturnType<typeof useTrainerSession>;
