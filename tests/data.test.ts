@@ -66,3 +66,43 @@ describe('chart data integrity', () => {
     }
   });
 });
+
+describe('tree consistency (only for charts that exist)', () => {
+  const nonFold = (s: Scenario) => Object.entries(getChartCells(s)).filter(([, mix]) => Object.values(mix).some((w) => (w ?? 0) > 0)).map(([h]) => h);
+  const weight = (s: Scenario, hand: string, action: Action) => getChartCells(s)[hand]?.[action] ?? 0;
+
+  it('vs_3bet continuing hands are inside the RFI opening range', () => {
+    for (const s of scenarios.filter((x) => x.kind === 'vs_3bet' && hasChart(x))) {
+      const rfi: Scenario = { kind: 'rfi', hero: s.hero };
+      if (!hasChart(rfi)) continue;
+      for (const h of nonFold(s)) expect(weight(rfi, h, 'raise'), `${s.hero} vs ${s.villain} 3bet: ${h} continues but never opens`).toBeGreaterThan(0);
+    }
+  });
+
+  it('vs_4bet continuing hands are inside the vs_open 3-bet range', () => {
+    for (const s of scenarios.filter((x) => x.kind === 'vs_4bet' && hasChart(x))) {
+      const vo: Scenario = { kind: 'vs_open', hero: s.hero, villain: s.villain };
+      if (!hasChart(vo)) continue;
+      for (const h of nonFold(s)) expect(weight(vo, h, 'threebet'), `${s.hero} vs ${s.villain} 4bet: ${h} continues but never 3-bets`).toBeGreaterThan(0);
+    }
+  });
+
+  it('vs_5bet calling hands are inside the vs_3bet 4-bet range', () => {
+    for (const s of scenarios.filter((x) => x.kind === 'vs_5bet' && hasChart(x))) {
+      const v3: Scenario = { kind: 'vs_3bet', hero: s.hero, villain: s.villain };
+      if (!hasChart(v3)) continue;
+      for (const h of nonFold(s)) expect(weight(v3, h, 'fourbet'), `${s.hero} vs ${s.villain} 5bet: ${h} calls but never 4-bets`).toBeGreaterThan(0);
+    }
+  });
+
+  it('defends wider against later openers (vs_open total continue share)', () => {
+    for (const hero of ['CO', 'BTN', 'SB', 'BB'] as const) {
+      const vs = scenarios.filter((x) => x.kind === 'vs_open' && x.hero === hero && hasChart(x));
+      for (let i = 1; i < vs.length; i++) {
+        const a = rangeShare(getChartCells(vs[i - 1]));
+        const b = rangeShare(getChartCells(vs[i]));
+        expect(b, `${hero} vs ${vs[i].villain} (${(b * 100).toFixed(1)}%) should defend at least as wide as vs ${vs[i - 1].villain} (${(a * 100).toFixed(1)}%)`).toBeGreaterThanOrEqual(a - 0.005);
+      }
+    }
+  });
+});
