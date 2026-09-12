@@ -304,6 +304,17 @@ function board(slots: Array<string | string[]>, suits: SuitGlyph[], taken: Set<s
     .join('');
 }
 const DRY_BOARD: string[][] = [['K', 'Q', 'J'], ['7', '8', '6'], ['2', '3', '4']];
+/**
+ * Ranks for the "nothing here" dry board. A pair (88+) gets three spread ranks BELOW it (QQ → 10·7·2, JJ → 9·6·2,
+ * 88 → 7·4·2) so the example never contradicts the "A나 K가 뜨면 조심" bullet next to it; every other hand keeps K·7·2.
+ */
+function dryRanks(info: HandInfo, cls: HandClass): Array<string | string[]> {
+  if (cls === 'premium_pair' || cls === 'big_pair' || cls === 'mid_pair') {
+    const top = Math.max(info.highV - 2, 7);
+    return [rankOf(top), rankOf(top - 3), '2'];
+  }
+  return DRY_BOARD;
+}
 /** Suits for a "nothing here" board: a ♠♠ hero must not be handed a flush draw, so suited hands see at most one ♠. */
 const drySuits = (info: HandInfo): SuitGlyph[] => (info.kind === 'suited' ? ['♦', '♠', '♦'] : ['♠', '♦', '♠']);
 
@@ -928,14 +939,14 @@ function shortReason(cls: HandClass, verb: Verb, kind: ScenarioKind, info: HandI
         premium_pair: '지금은 이길 확률이 부족하거든요.',
         big_pair: '상대가 AA·KK를 들 때가 많거든요.',
         mid_pair: '상대가 더 큰 페어를 들 때가 많거든요.',
-        small_pair: '셋을 못 맞추면 거의 못 이기거든요.',
+        small_pair: '셋(같은 숫자 3장)을 못 맞추면 거의 못 이기거든요.',
         ak: '상대 패가 너무 세서 AK도 부족하거든요.',
-        big_ace: '같은 A를 맞춰도 킥커에서 지기 쉽거든요.',
+        big_ace: '같은 A를 맞춰도 옆 카드(킥커)에서 지기 쉽거든요.',
         suited_ace: '옆 카드(킥커)가 약해 큰 판을 못 이기거든요.',
         wheel_ace: 'A 한 쌍을 맞춰도 약해서 판을 못 이기거든요.',
-        offsuit_ace: '플러시도 안 되고 킥커도 약하거든요.',
-        suited_broadway: '상대 패가 세서 킥커에서 지기 쉽거든요.',
-        offsuit_broadway: '페어를 맞춰도 킥커에서 지기 쉽거든요.',
+        offsuit_ace: '플러시도 안 되고 옆 카드(킥커)도 약하거든요.',
+        suited_broadway: '상대 패가 세서 옆 카드(킥커)에서 지기 쉽거든요.',
+        offsuit_broadway: '페어를 맞춰도 옆 카드(킥커)에서 지기 쉽거든요.',
         suited_king: 'K 한 쌍을 맞춰도 옆 카드가 약하거든요.',
         suited_qj: '플러시 말고는 이길 길이 별로 없거든요.',
         suited_connector: '여기선 스트레이트·플러시 기대만으론 부족해요.',
@@ -947,35 +958,35 @@ function shortReason(cls: HandClass, verb: Verb, kind: ScenarioKind, info: HandI
       return {
         premium_pair: '가장 센 패라서 판을 키워야 하거든요.',
         big_pair: '대부분의 패보다 앞서 있거든요.',
-        mid_pair: '페어라 든든하고 셋도 노릴 수 있거든요.',
+        mid_pair: '페어라 든든하고 셋(같은 숫자 3장)도 노릴 수 있거든요.',
         small_pair: '플랍에서 셋(같은 숫자 3장)을 노릴 수 있거든요.',
         ak: '제일 큰 카드 두 장이라 자주 이기거든요.',
-        big_ace: '약한 A를 든 상대를 킥커로 이기거든요.',
+        big_ace: '약한 A를 든 상대를 옆 카드(킥커)로 이기거든요.',
         suited_ace: 'A가 있고 플러시도 노릴 수 있거든요.',
         wheel_ace: '플러시·스트레이트 둘 다 노릴 수 있거든요.',
-        offsuit_ace: '뒤에 사람이 적어 블라인드를 먹기 좋거든요.',
+        offsuit_ace: '미리 낸 돈(블라인드)을 먹기 좋거든요.',
         suited_broadway: '큰 카드 두 장에 플러시까지 노리거든요.',
-        offsuit_broadway: '큰 카드 두 장이라 탑페어를 자주 만들거든요.',
+        offsuit_broadway: '큰 카드 두 장이라 제일 높은 한 쌍(탑페어)을 자주 만들거든요.',
         suited_king: 'K가 있고 플러시도 노릴 수 있거든요.',
         suited_qj: '뒤에 사람이 적을 땐 이 정도도 올려요.',
         suited_connector: '이어진 같은 무늬라 큰 패를 만들기 좋거든요.',
         suited_gapper: '같은 무늬라 플러시를 노릴 수 있거든요.',
-        offsuit_connector: '뒤에 사람이 적어 블라인드를 노려 볼 만해요.',
-        junk: '뒤에 사람이 적어 블라인드를 노려 볼 만해요.',
+        offsuit_connector: '뒤에 사람이 적어 미리 낸 돈(블라인드)을 노려요.',
+        junk: '뒤에 사람이 적어 미리 낸 돈(블라인드)을 노려요.',
       }[cls];
     case 'call':
       return {
         premium_pair: '일부러 안 올려서 상대의 뻥을 살려 두거든요.',
         big_pair: '올리면 AA·KK만 남아서 콜로 판을 조절해요.',
-        mid_pair: '판을 키우기보다 셋을 노리는 게 낫거든요.',
-        small_pair: '플랍에서 셋을 맞추면 크게 딸 수 있거든요.',
+        mid_pair: '판을 키우기보다 셋(같은 숫자 3장)을 노리는 게 낫거든요.',
+        small_pair: '플랍에서 셋(같은 숫자 3장)을 맞추면 크게 딸 수 있거든요.',
         ak: '올리면 더 센 패만 남아서 그냥 보는 게 나아요.',
         big_ace: '올리면 약한 패는 접고 센 패만 남거든요.',
         suited_ace: 'A에 플러시 가능성까지 있어 싸게 볼 만해요.',
         wheel_ace: '플러시·스트레이트가 되면 크게 딸 수 있거든요.',
         offsuit_ace: '상대 패가 넓어서 A 하나로도 볼 만하거든요.',
         suited_broadway: '큰 카드에 플러시까지 있어 볼 만하거든요.',
-        offsuit_broadway: '탑페어를 자주 만들어서 싸게 볼 만해요.',
+        offsuit_broadway: '제일 높은 한 쌍(탑페어)을 자주 만들어 싸게 볼 만해요.',
         suited_king: '플러시 가능성으로 싸게 플랍을 보거든요.',
         suited_qj: '싸게 플러시를 노려 볼 만하거든요.',
         suited_connector: '스트레이트·플러시로 크게 딸 수 있거든요.',
@@ -989,15 +1000,15 @@ function shortReason(cls: HandClass, verb: Verb, kind: ScenarioKind, info: HandI
         premium_pair: '가장 센 패라 판을 최대한 키워야 하거든요.',
         big_pair: '상대 패 대부분보다 앞서 있거든요.',
         mid_pair: '상대가 접을 때가 많고 페어라 든든하거든요.',
-        small_pair: '상대가 접으면 좋고, 셋도 노릴 수 있거든요.',
+        small_pair: '상대가 접으면 좋고, 셋(같은 숫자 3장)도 노려요.',
         ak: '이기는 패도 많고 상대가 접기도 하거든요.',
         big_ace: '약한 A를 든 상대한테 돈을 더 받거든요.',
         suited_ace: 'A를 들어 상대가 AA일 확률이 줄거든요(블로커).',
         wheel_ace: 'A를 들어 상대가 AA일 확률이 줄거든요(블로커).',
-        offsuit_ace: 'A 블로커로 상대를 접게 하는 뻥(블러프)이에요.',
+        offsuit_ace: 'A를 들어 상대 AA를 줄이는(블로커) 뻥(블러프)이에요.',
         suited_broadway: '센 패로 돈을 받고, 플랍 뒤에도 놀기 좋거든요.',
-        offsuit_broadway: '따라 내면 킥커에서 지기 쉬워 올려서 접게 해요.',
-        suited_king: 'K 블로커에 플러시도 노리는 뻥(블러프)이에요.',
+        offsuit_broadway: '따라 내면 옆 카드(킥커)에서 지기 쉬워 올려서 접게 해요.',
+        suited_king: 'K를 들어 상대 KK·AK를 줄이는(블로커) 뻥(블러프)이에요.',
         suited_qj: '가끔 섞는 뻥(블러프)이에요.',
         suited_connector: '상대가 접으면 좋고, 안 접어도 큰 패를 노려요.',
         suited_gapper: '상대를 접게 하려는 뻥(블러프)이에요.',
@@ -1007,11 +1018,11 @@ function shortReason(cls: HandClass, verb: Verb, kind: ScenarioKind, info: HandI
     case 'allin':
       if (cls === 'premium_pair') return '상대의 4벳 패 전부보다 앞서 있거든요.';
       if (cls === 'big_pair' || cls === 'ak') return '상대의 뻥은 접게 하고, 센 패와는 반반이거든요.';
-      if (cls === 'wheel_ace' || cls === 'suited_ace') return 'A 블로커로 상대를 접게 하는 뻥(블러프)이에요.';
+      if (cls === 'wheel_ace' || cls === 'suited_ace') return 'A를 들어 상대 AA를 줄이는(블로커) 뻥(블러프)이에요.';
       return '상대의 뻥을 접게 만들려는 거예요.';
     case 'callJam':
       if (cls === 'premium_pair') return '상대가 KK·AK를 들어도 대부분 이기거든요.';
-      if (cls === 'ak') return 'A·K 블로커로 상대가 AA·KK일 확률이 줄거든요.';
+      if (cls === 'ak') return 'A·K를 들어 상대가 AA·KK일 확률이 줄거든요(블로커).';
       return '상대 올인에 QQ·AK도 섞여 있어 충분히 이겨요.';
     case 'foldJam':
       if (cls === 'wheel_ace' || cls === 'suited_ace') return '4벳은 뻥이었고 올인엔 이길 확률이 낮거든요.';
@@ -1145,9 +1156,12 @@ function pairExamples(ctx: ExCtx): string[] {
     if (info.high === 'A') {
       out.push(`내 ${me}, ${vs(ctx, 'KK')} → 10번 중 8번은 내가 이겨요.`);
       if (kind === 'vs_5bet' || verb === 'allin' || verb === 'fourbet') out.push(`${vs(ctx, 'AKo')}가 와도 10번 중 9번 이겨요. 걱정 없어요.`);
+      if (verb === 'allin') out.push('상대가 뭘 들었든 앞서요. 뻥은 접고 센 패는 콜해 주니 이득이에요.');
     } else {
       out.push(`내 ${me}, ${vs(ctx, 'QQ')} → 10번 중 8번은 내가 이겨요.`);
       out.push(`${vs(ctx, 'AA')}일 때만 크게 져요. 10번 중 2번만 이겨요.`);
+      // 5-bet jam: the 4-bet range is QQ+·AK plus A5s-type bluffs — KK folds out the bluff and is ~70% against AK.
+      if (verb === 'allin') out.push(`${vs(ctx, 'A5s')} 같은 뻥(블러프)은 접어 주고, AK는 10번 중 7번 이겨요.`);
     }
     if (verb === 'call') out.push('일부러 콜만 하면 상대가 뻥으로 더 걸어 줘요.');
     return out.slice(0, 3);
@@ -1156,6 +1170,11 @@ function pairExamples(ctx: ExCtx): string[] {
     if (verb === 'fold' || verb === 'foldJam') {
       out.push(`내 ${me}, ${vs(ctx, 'KK')} → 10번 중 2번만 이겨요.`);
       out.push(`${vs(ctx, 'AKo')}면 반반인데, 여기선 KK·AA일 때가 더 많아요.`);
+    } else if (verb === 'allin') {
+      // 5-bet jam over a 4-bet: the opponents are the 4-bet range (AK · A5s bluffs · KK/AA), never TT-type generic hands.
+      out.push(`내 ${me}, ${vs(ctx, 'AKo')} → 반반 싸움이에요(10번 중 5번쯤).`);
+      out.push(`${vs(ctx, 'A5s')} 같은 뻥(블러프)은 접어 줘요.`);
+      out.push(`${vs(ctx, 'KK')}·${oppHand('AA', taken)}면 10번 중 2번만 이겨요.`);
     } else {
       out.push(`내 ${me}, ${vs(ctx, 'AKo')} → 반반 싸움이에요(10번 중 5번쯤).`);
       out.push(`${vs(ctx, 'TT')}처럼 작은 페어면 10번 중 8번 이겨요.`);
@@ -1186,6 +1205,13 @@ function aceExamples(ctx: ExCtx): string[] {
     if (kind === 'vs_5bet') {
       out.push(verb === 'callJam' ? `내 ${me} → 상대가 AA·KK일 확률이 절반으로 줄어요(블로커).` : `내 ${me}, ${vs(ctx, 'KK')} → 10번 중 3번만 이겨요.`);
       out.push(`${vs(ctx, 'QQ')}면 반반이고, AK끼리면 대개 비겨요.`);
+      return out;
+    }
+    if (verb === 'allin') {
+      // 5-bet jam over a 4-bet: talk about the 4-bet range (A5s bluffs, KK, QQ), not the AQ that a 4-bettor never has.
+      // I hold a K, so KK cannot be drawn with ♠/♦ only — it stays a chart name after "상대가".
+      out.push(`내 ${me} → ${vs(ctx, 'A5s')} 같은 뻥(블러프)은 올인에 접어요.`);
+      out.push(`상대가 KK면 10번 중 3번, ${oppHand('QQ', taken)}면 반반이에요.`);
       return out;
     }
     out.push(`내 ${me}, ${vs(ctx, 'AQo')} → 플랍에 A가 뜨면 둘 다 A 한 쌍이지만 킥커 K로 내가 이겨요.`);
@@ -1399,7 +1425,7 @@ function easyFlop(step: Step, info: HandInfo, cls: HandClass): string[] | undefi
   const taken = new Set(cards.map(key));
   const out: string[] = [];
   const suited = info.kind === 'suited';
-  const dry = board(DRY_BOARD, drySuits(info), taken);
+  const dry = board(dryRanks(info, cls), drySuits(info), taken);
 
   // 1. what to look for with this hand
   switch (cls) {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { hasChart } from '../src/poker/data';
 import { classifyHand, dominatedBy, dominatorOf, explainStep, type Explanation } from '../src/poker/explain';
 import { parseHandName, ALL_HANDS } from '../src/poker/hands';
 import { GLOSSARY, glossaryLookup } from '../src/poker/glossary';
@@ -135,6 +136,24 @@ function jargonViolations(text: string): string[] {
   return out;
 }
 
+/**
+ * Table terms the one-liner (the first thing a learner reads) may use only in a gloss form: right after a "(" as in
+ * "옆 카드(킥커)" / "돈(블라인드)을", or right before one as in "셋(같은 숫자 3장)".
+ */
+const ONE_LINER_TERMS = ['킥커', '셋', '블로커', '탑페어', '블라인드'];
+
+function oneLinerGlossViolations(text: string): string[] {
+  const out: string[] = [];
+  for (const t of ONE_LINER_TERMS) {
+    for (let i = text.indexOf(t); i >= 0; i = text.indexOf(t, i + t.length)) {
+      const glossedBefore = text[i - 1] === '(';
+      const glossedAfter = text.slice(i + t.length).replace(/^\s+/, '').startsWith('(');
+      if (!glossedBefore && !glossedAfter) out.push(`${t}@${i}`);
+    }
+  }
+  return out;
+}
+
 const allSteps: Step[] = CASES.map(([sc, hand]) => stepFor(sc, hand));
 
 describe('easy block', () => {
@@ -172,6 +191,7 @@ describe('easy block', () => {
         expect(easy.flop, 'no flop').toBeUndefined();
       }
       expect(jargonViolations(easyText(e)), easyText(e)).toEqual([]);
+      expect(oneLinerGlossViolations(easy.oneLiner), easy.oneLiner).toEqual([]);
       // no broken cards: a bare rank never sits between suited cards in a board like "K♠72♠"
       expect(easyText(e)).not.toMatch(/[♠♦][2-9TJQKA]{2}[♠♦]/);
       expect(easyText(e)).not.toMatch(/습니다|입니다/);
@@ -358,6 +378,103 @@ describe('easy block', () => {
     const m = /→ ((?:[2-9TJQKA]|10)[♠♦](?:[2-9TJQKA]|10)[♠♦](?:[2-9TJQKA]|10)[♠♦]) 같은 플랍에서 아무것도 안 맞아요/.exec(j);
     if (m) expect((m[1].match(/♠/g) ?? []).length, j).toBeLessThanOrEqual(1);
   });
+  it('the one-liner glosses 킥커·셋·블로커·탑페어·블라인드 on first use, for every hand in every charted spot', () => {
+    const POS: Pos[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+    const scenarios: Scenario[] = POS.map((hero) => ({ kind: 'rfi', hero }));
+    for (const kind of ['vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet'] as ScenarioKind[]) {
+      for (const hero of POS) for (const villain of POS) if (hero !== villain) scenarios.push({ kind, hero, villain });
+    }
+    scenarios.push(
+      { kind: 'cold_4bet', hero: 'BTN', extras: { opener: 'UTG', threeBettor: 'CO' } },
+      { kind: 'cold_4bet', hero: 'BB', extras: { opener: 'HJ', threeBettor: 'BTN' } },
+      { kind: 'cold_4bet', hero: 'CO', extras: { opener: 'UTG', threeBettor: 'HJ' } },
+    );
+    let seen = 0;
+    for (const sc of scenarios.filter(hasChart)) {
+      for (const hand of ALL_HANDS) {
+        const { easy } = explainStep(stepFor(sc, hand));
+        seen++;
+        expect(oneLinerGlossViolations(easy.oneLiner), `${sc.kind} ${sc.hero} ${hand}: ${easy.oneLiner}`).toEqual([]);
+        expect(easy.oneLiner.length, easy.oneLiner).toBeLessThanOrEqual(60);
+      }
+    }
+    expect(seen).toBeGreaterThan(1000);
+    // the exact gloss forms
+    expect(explainStep(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'BTN' }, '55')).easy.reason).toBe('플랍에서 셋(같은 숫자 3장)을 맞추면 크게 딸 수 있거든요.');
+    expect(explainStep(stepFor({ kind: 'rfi', hero: 'BTN' }, 'A9o')).easy.reason).toBe('미리 낸 돈(블라인드)을 먹기 좋거든요.');
+    expect(explainStep(stepFor({ kind: 'rfi', hero: 'UTG' }, 'K3o')).easy.reason).toMatch(/옆 카드\(킥커\)|큰 카드가 하나뿐/);
+    expect(explainStep(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'UTG' }, 'QTo')).easy.reason).toMatch(/옆 카드\(킥커\)|한 쌍\(탑페어\)/);
+    // the helper itself: the old unglossed wordings are flagged, the gloss forms are not
+    const terms = (text: string) => oneLinerGlossViolations(text).map((v) => v.split('@')[0]);
+    expect(terms('이 패는 접는 게 맞아요. 셋을 못 맞추면 거의 못 이기거든요.')).toEqual(['셋']);
+    expect(terms('A·K 블로커로 상대가 AA·KK일 확률이 줄거든요.')).toEqual(['블로커']);
+    expect(terms('큰 카드 두 장이라 탑페어를 자주 만들거든요. 블라인드를 먹기 좋거든요.')).toEqual(['탑페어', '블라인드']);
+    expect(terms('A·K를 들어 상대가 AA·KK일 확률이 줄거든요(블로커).')).toEqual([]);
+    expect(terms('셋(같은 숫자 3장)을 못 맞추면 옆 카드(킥커)에서 져요. 한 쌍(탑페어)을 만들고 돈(블라인드)을 먹어요.')).toEqual([]);
+  });
+  it('5-bet jam examples in vs_4bet talk about the 4-bet range (A5s bluffs · KK · AK · AA), never AQ or TT', () => {
+    const POS: Pos[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+    let seen = 0;
+    for (const hero of POS) {
+      for (const villain of POS) {
+        if (hero === villain) continue;
+        const sc: Scenario = { kind: 'vs_4bet', hero, villain };
+        if (!hasChart(sc)) continue;
+        for (const hand of ALL_HANDS) {
+          const step = stepFor(sc, hand);
+          if (step.answer !== 'allin') continue;
+          seen++;
+          const ex = explainStep(step).easy.example.join(' ');
+          const label = `${hero} vs ${villain} ${hand}: ${ex}`;
+          expect(ex, label).not.toMatch(/A[♠♦]Q[♠♦]|AQ/);
+          expect(ex, label).not.toMatch(/10[♠♦]10|TT|1010/);
+          expect(ex, label).toMatch(/K[♠♦]?K|A[♠♦]?K|A[♠♦]?A|A[♠♦]?5/);
+        }
+      }
+    }
+    expect(seen).toBeGreaterThanOrEqual(5);
+    const ak = explainStep(stepFor({ kind: 'vs_4bet', hero: 'BTN', villain: 'CO' }, 'AKs')).easy.example;
+    expect(ak).toEqual(['내 A♠K♠ → 상대 A♦5♦ 같은 뻥(블러프)은 올인에 접어요.', '상대가 KK면 10번 중 3번, Q♠Q♦면 반반이에요.']);
+    const qq = explainStep(stepFor({ kind: 'vs_4bet', hero: 'BB', villain: 'BTN' }, 'QQ')).easy.example;
+    expect(qq).toEqual(['내 Q♠Q♦, 상대 A♦K♠ → 반반 싸움이에요(10번 중 5번쯤).', '상대 A♦5♦ 같은 뻥(블러프)은 접어 줘요.', '상대 K♠K♦·A♠A♦면 10번 중 2번만 이겨요.']);
+    const kk = explainStep(stepFor({ kind: 'vs_4bet', hero: 'BTN', villain: 'UTG' }, 'KK')).easy.example.join(' ');
+    expect(kk).toContain('상대 Q♠Q♦ → 10번 중 8번');
+    expect(kk).toContain('상대 A♦5♦ 같은 뻥(블러프)은 접어 주고, AK는 10번 중 7번 이겨요.');
+    const aa = explainStep(stepFor({ kind: 'vs_4bet', hero: 'BTN', villain: 'CO' }, 'AA')).easy.example.join(' ');
+    expect(aa).toContain('상대가 뭘 들었든 앞서요. 뻥은 접고 센 패는 콜해 주니 이득이에요.');
+  });
+  it('a pair never sees a rank above itself in the 드라이 보드 flop line (QQ → 10♠7♦2♠); other hands keep K♠7♦2♠', () => {
+    const V = (r: string) => '23456789TJQKA'.indexOf(r === '10' ? 'T' : r);
+    const cases: Array<[Scenario, string]> = [];
+    for (const hand of ['QQ', 'JJ', 'TT', '99', '88']) {
+      cases.push([{ kind: 'rfi', hero: 'UTG' }, hand], [{ kind: 'rfi', hero: 'BTN' }, hand]);
+      cases.push([{ kind: 'vs_open', hero: 'BB', villain: 'BTN' }, hand], [{ kind: 'vs_open', hero: 'CO', villain: 'UTG' }, hand]);
+      cases.push([{ kind: 'vs_3bet', hero: 'CO', villain: 'BB' }, hand], [{ kind: 'vs_3bet', hero: 'BTN', villain: 'BB' }, hand]);
+      cases.push([{ kind: 'vs_4bet', hero: 'BB', villain: 'BTN' }, hand], [{ kind: 'vs_4bet', hero: 'SB', villain: 'BTN' }, hand]);
+    }
+    let seen = 0;
+    for (const [sc, hand] of cases) {
+      const e = explainStep(stepFor(sc, hand));
+      if (!e.easy.flop) continue;
+      seen++;
+      const dry = e.easy.flop.filter((l) => /드라이/.test(l));
+      expect(dry.length, `${sc.kind} ${hand}`).toBe(1);
+      const m = /^((?:10|[2-9TJQKA])[♠♦](?:10|[2-9TJQKA])[♠♦](?:10|[2-9TJQKA])[♠♦])처럼 드라이/.exec(dry[0]);
+      expect(m, `${sc.kind} ${hand}: ${dry[0]}`).not.toBeNull();
+      for (const r of m![1].match(/10|[2-9TJQKA]/g)!) expect(V(r), `${sc.kind} ${hand}: ${dry[0]}`).toBeLessThan(V(hand[0]));
+    }
+    expect(seen).toBeGreaterThanOrEqual(10);
+    const flopOf = (sc: Scenario, hand: string) => explainStep(stepFor(sc, hand)).easy.flop!.join(' ');
+    expect(flopOf({ kind: 'rfi', hero: 'UTG' }, 'QQ')).toContain('10♠7♦2♠처럼 드라이한 보드');
+    expect(flopOf({ kind: 'rfi', hero: 'UTG' }, 'JJ')).toContain('9♠6♦2♠처럼 드라이한 보드');
+    expect(flopOf({ kind: 'rfi', hero: 'UTG' }, 'TT')).toContain('8♠5♦2♠처럼 드라이한 보드');
+    expect(flopOf({ kind: 'rfi', hero: 'CO' }, '88')).toContain('7♠4♦2♠처럼 드라이한 보드');
+    expect(flopOf({ kind: 'rfi', hero: 'UTG' }, 'AA')).toContain('Q♠9♦2♠처럼 드라이한 보드');
+    // non-pair hands (and small pairs) keep the K-high dry board from the style guide
+    expect(flopOf({ kind: 'rfi', hero: 'BTN' }, 'A9o')).toContain('K♠7♦2♠처럼 드라이한 보드');
+    expect(flopOf({ kind: 'vs_open', hero: 'HJ', villain: 'UTG' }, 'AJs')).toContain('K♦7♠2♦처럼 드라이한 보드');
+    expect(flopOf({ kind: 'vs_open', hero: 'BB', villain: 'BTN' }, '55')).toContain('K♠7♦2♠처럼 드라이한 보드');
+  });
   it('easy.reason is the one-liner minus the verdict, and never starts with the verdict', () => {
     for (const step of allSteps) {
       const { easy } = explainStep(step);
@@ -419,6 +536,7 @@ describe('trainer sequences', () => {
         const e = explainStep(s);
         expect(e.easy.oneLiner.length).toBeLessThanOrEqual(60);
         expect(jargonViolations(easyText(e))).toEqual([]);
+        expect(oneLinerGlossViolations(e.easy.oneLiner), e.easy.oneLiner).toEqual([]);
       }
     }
   });
