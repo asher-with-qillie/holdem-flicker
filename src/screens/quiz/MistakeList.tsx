@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActionBadge } from '../../components/ActionBadge';
+import { GlassPanel } from '../../components/ui/GlassPanel';
 import { SCENARIO_KINDS, type ScenarioKind } from '../../poker/types';
 import type { Mistake } from '../../state/stats';
 import { formatAgo } from './format';
@@ -11,19 +12,19 @@ function kindOf(m: Mistake): ScenarioKind | undefined {
   return (SCENARIO_KINDS as readonly string[]).includes(k) ? (k as ScenarioKind) : undefined;
 }
 
-/** Collapsible "최근 실수" panel — the last 20 mistakes with scenario title, hand, chosen vs answer. */
+/** Collapsed "최근 실수" disclosure (§5.7) — the last 20 quiz mistakes: hand, scenario, 내 선택 → 정답, when. */
 export function MistakeList({ mistakes }: { mistakes: Mistake[] }) {
   const [open, setOpen] = useState(false);
   const items = mistakes.slice(0, SHOWN);
   const now = Date.now();
   return (
-    <section className="quiz-mistakes">
+    <GlassPanel as="section" radius="md" padding={0} className="glass-flat quiz-mistakes">
       <button type="button" className="quiz-mistakes__toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span>최근 실수</span>
-        <span className={`quiz-mistakes__count${items.length ? '' : ' quiz-mistakes__count--zero'}`}>{items.length}</span>
         <svg className="quiz-mistakes__chev" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M6 9l6 6 6-6" />
+          <path d="M9 6l6 6-6 6" />
         </svg>
+        <span>최근 실수</span>
+        <span className={`quiz-mistakes__count tnum${items.length ? '' : ' quiz-mistakes__count--zero'}`}>{items.length}</span>
       </button>
       {open &&
         (items.length ? (
@@ -32,7 +33,7 @@ export function MistakeList({ mistakes }: { mistakes: Mistake[] }) {
               const kind = kindOf(m);
               return (
                 <li key={m.at} className="quiz-mistake">
-                  <span className="quiz-mistake__hand">{m.hand}</span>
+                  <span className="quiz-mistake__hand tnum">{m.hand}</span>
                   <div className="quiz-mistake__body">
                     <span className="quiz-mistake__title">{m.title}</span>
                     <span className="quiz-mistake__actions">
@@ -48,8 +49,8 @@ export function MistakeList({ mistakes }: { mistakes: Mistake[] }) {
             })}
           </ul>
         ) : (
-          <p className="quiz-mistakes__empty">아직 실수가 없습니다. 이 상태를 유지해 보세요!</p>
+          <p className="quiz-mistakes__empty">아직 실수가 없어요. 10문제 풀면 여기에 모여요</p>
         ))}
-    </section>
+    </GlassPanel>
   );
 }
