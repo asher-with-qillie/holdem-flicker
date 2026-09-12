@@ -1,68 +1,25 @@
-/* TableDiagram — SVG 6-max table. Colours come from the tokens in global.css. */
-.tbl {
-  display: block;
-  width: 100%;
-  height: 190px;
-  overflow: visible;
-  font-family: var(--font);
-  --tbl-blind: #3f7fd6;
-  --tbl-blind-dark: #2a5aa0;
-  --tbl-dark-text: #1a1205;
-}
-.tbl--compact { height: 150px; }
-
-/* gradient stops (stop-color accepts custom properties) */
-.tbl__stop-felt-a { stop-color: var(--felt-600); }
-.tbl__stop-felt-b { stop-color: var(--felt-800); }
-.tbl__stop-rail-a { stop-color: #7a4a28; }
-.tbl__stop-rail-b { stop-color: var(--rail); }
-.tbl__stop-rail-c { stop-color: #1f0f07; }
-.tbl__stop-gold-a { stop-color: #f7e2a0; }
-.tbl__stop-gold-b { stop-color: var(--gold); }
-.tbl__stop-raise { stop-color: var(--act-raise); }
-.tbl__stop-threebet { stop-color: var(--act-threebet); }
-.tbl__stop-fourbet { stop-color: var(--act-fourbet); }
-.tbl__stop-allin { stop-color: var(--act-allin); }
-
-/* table surface */
-.tbl__shadow { fill: rgba(0, 0, 0, 0.35); }
-.tbl__rail { stroke: rgba(0, 0, 0, 0.55); stroke-width: 1; }
-.tbl__felt-edge { fill: none; stroke: rgba(0, 0, 0, 0.32); stroke-width: 3; }
-.tbl__line { fill: none; stroke: rgba(255, 255, 255, 0.13); stroke-width: 1; stroke-dasharray: 4 5; }
-
-/* text */
-.tbl__text {
-  font-weight: 800;
-  text-anchor: middle;
-  dominant-baseline: central;
-  fill: var(--ink);
-  pointer-events: none;
-}
-.tbl__text.tbl__mark { font-size: 22px; fill: rgba(255, 255, 255, 0.08); letter-spacing: 0.05em; }
-.tbl__pos { font-size: 11px; letter-spacing: 0.02em; }
-.tbl__pos--hero { fill: var(--tbl-dark-text); }
-.tbl__chip-text {
-  font-size: 11.5px;
-  paint-order: stroke;
-  stroke: rgba(0, 0, 0, 0.38);
-  stroke-width: 2px;
-  stroke-linejoin: round;
-}
-.tbl--compact .tbl__chip-text { font-size: 11px; }
-.tbl__fold-text { font-size: 11px; }
-.tbl__tag-text { font-size: 11px; fill: var(--tbl-dark-text); }
-.tbl__button-text { font-size: 11px; fill: var(--tbl-dark-text); }
-
-/* seats */
-.tbl__seat-disc { fill: #0d1c16; stroke: rgba(255, 255, 255, 0.3); stroke-width: 1.5; }
-.tbl__seat--villain .tbl__seat-disc { fill: #17302a; stroke: rgba(255, 255, 255, 0.72); }
-.tbl__seat-disc--hero { stroke: var(--gold); stroke-width: 2; }
-.tbl__hero-glow { fill: none; stroke: var(--gold); stroke-opacity: 0.38; stroke-width: 3; }
-.tbl__seat--folded { opacity: 0.5; }
-.tbl__pill { stroke: rgba(0, 0, 0, 0.45); stroke-width: 1; }
-
-/* dealer button + blind chips */
-.tbl__button { fill: #f8f4e8; stroke: #b7ac8f; stroke-width: 1; }
-.tbl__blind { fill: var(--tbl-blind); stroke: rgba(0, 0, 0, 0.55); stroke-width: 1; }
-.tbl__blind-stripes { stroke: rgba(255, 255, 255, 0.92); }
-.tbl__blind-core { fill: var(--tbl-blind-dark); }
+/* Linear position strip */
+.pstrip { width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px 6px 8px; border-radius: var(--radius); background: rgba(0, 0, 0, 0.18); border: 1px solid rgba(255, 255, 255, 0.07); }
+.pstrip__row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; align-items: start; }
+.pstrip__seat { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
+.pstrip__chip { position: relative; width: 100%; max-width: 54px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; background: rgba(255, 255, 255, 0.09); border: 1.5px solid rgba(255, 255, 255, 0.16); color: var(--ink); }
+.pstrip__dealer { position: absolute; top: -7px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: #fff; color: #1a1205; font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+.pstrip__seat--hero .pstrip__chip { background: linear-gradient(180deg, #ffd978, #e8b640); color: #1a1205; border-color: #fff0b8; box-shadow: 0 0 0 3px rgba(232, 192, 96, 0.28), 0 4px 12px rgba(0,0,0,0.35); }
+.pstrip__seat--villain .pstrip__chip { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.55); }
+.pstrip__seat--folded { opacity: 0.42; }
+.pstrip__seat--waiting .pstrip__chip { border-style: dashed; }
+.pstrip__tags { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 18px; }
+.pstrip__tag { display: inline-flex; align-items: center; justify-content: center; height: 18px; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 800; color: #fff; white-space: nowrap; line-height: 1; }
+.pstrip__tag--raise { background: var(--act-raise); }
+.pstrip__tag--threebet { background: var(--act-threebet); }
+.pstrip__tag--fourbet { background: var(--act-fourbet); }
+.pstrip__tag--allin { background: var(--act-allin); color: #1a1205; }
+.pstrip__tag--fold { background: rgba(255,255,255,0.14); color: var(--ink-dim); }
+.pstrip__tag--wait { background: transparent; border: 1px dashed rgba(255,255,255,0.3); color: var(--ink-faint); }
+.pstrip__tag--hero { background: var(--gold); color: #1a1205; }
+.pstrip__caption { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; font-size: 12.5px; color: var(--ink-dim); text-align: center; line-height: 1.4; }
+.pstrip__hint { color: var(--ink-faint); }
+.pstrip--compact { gap: 6px; padding: 8px 4px 6px; }
+.pstrip--compact .pstrip__chip { height: 30px; font-size: 12px; }
+.pstrip--compact .pstrip__tag { height: 16px; font-size: 10px; padding: 0 6px; }
+.pstrip--compact .pstrip__caption { font-size: 12px; }

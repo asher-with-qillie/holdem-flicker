@@ -49,9 +49,10 @@ if (await stage.count()) {
   const bar3 = await page.locator('.timerbar__fill').first().evaluate((el) => el.style.width).catch(() => null);
   check(bar3 !== bar2, 'train: timer did not resume after release');
 }
-await page.waitForTimeout(5000);
+let revealed = false;
+for (let i = 0; i < 40 && !revealed; i++) { await page.waitForTimeout(250); revealed = (await page.locator('.badge--lg').count()) > 0; }
 await shot('03-train-reveal');
-check((await page.locator('.badge--lg').count()) > 0, 'train: no large action badge after think phase');
+check(revealed, 'train: no large action badge appeared within 10s');
 
 // --- Quiz
 await page.getByRole('button', { name: '퀴즈' }).tap();
@@ -69,7 +70,15 @@ await shot('06-charts');
 await noHScroll('charts');
 const cell = page.locator('[aria-label="AKs"]').first();
 check((await cell.count()) > 0, 'charts: AKs cell missing');
-if (await cell.count()) { await cell.tap(); await page.waitForTimeout(400); await shot('07-charts-cell'); check((await page.locator('.sheet').count()) > 0, 'charts: sheet did not open'); }
+if (await cell.count()) {
+  await cell.tap(); await page.waitForTimeout(400); await shot('07-charts-cell');
+  check((await page.locator('.sheet').count()) > 0, 'charts: sheet did not open');
+  const sheetText = await page.locator('.sheet').first().innerText().catch(() => '');
+  check(/플랍을 본 뒤/.test(sheetText), 'charts: AKs sheet lacks postflop plan');
+  await page.locator('.sheet button', { hasText: '닫기' }).first().tap();
+  await page.waitForTimeout(300);
+  check((await page.locator('.sheet').count()) === 0, 'charts: sheet did not close');
+}
 
 // --- Settings
 await page.getByRole('button', { name: '설정' }).tap();
