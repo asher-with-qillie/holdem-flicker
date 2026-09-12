@@ -1,0 +1,53 @@
+/* Playing cards (owner: cards). Art is a 200×280 SVG; the size classes only set the rendered width. */
+.pc {
+  --pc-w: 84px;
+  --pc-ink: var(--spade);
+  position: relative;
+  flex: none;
+  width: var(--pc-w);
+  aspect-ratio: 5 / 7;
+  border-radius: 7% / 5%; /* = rx 14 of the 200×280 viewBox, so the shadow hugs the rounded corners */
+  color: var(--pc-ink);
+  line-height: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 16px rgba(0, 0, 0, 0.42);
+}
+.pc--sm, .hand--sm { --pc-w: 44px; }
+.pc--md, .hand--md { --pc-w: 84px; }
+.pc--lg, .hand--lg { --pc-w: min(40vw, 160px); }
+.pc--s { --pc-ink: var(--spade); }
+.pc--d { --pc-ink: var(--diamond); }
+
+.pc__svg { display: block; width: 100%; height: auto; overflow: hidden; }
+
+/* Off-white face with a faint diagonal sheen. */
+.pc__g0 { stop-color: #fffefb; }
+.pc__g1 { stop-color: var(--card); }
+.pc__g2 { stop-color: #ebe5d3; }
+
+.pc__inner { fill: none; stroke: rgba(20, 22, 28, 0.06); stroke-width: 1.5; }
+.pc__edge { fill: none; stroke: var(--card-edge); stroke-width: 1.25px; vector-effect: non-scaling-stroke; }
+.pc__ink { fill: currentColor; }
+
+.pc__rank, .pc__big {
+  font-family: 'Times New Roman', Times, 'Noto Serif', 'Liberation Serif', Georgia, serif;
+  font-weight: 700;
+  fill: currentColor;
+  text-anchor: middle;
+}
+.pc__rank { font-size: 42px; letter-spacing: -0.02em; }
+.pc__big { font-size: 96px; }
+
+.pc__frame { fill: none; stroke: currentColor; stroke-width: 2.5; opacity: 0.6; }
+.pc__frame--in { stroke-width: 1; opacity: 0.35; }
+
+/* Two-card fan. Never wider than its container: 1.7 card widths + rotation slack. */
+.hand {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  max-width: 100%;
+  padding: 10px 14px 8px;
+}
+.hand__card { flex: none; transform-origin: 50% 100%; }
+.hand__card--a { transform: rotate(-7deg); }
+.hand__card--b { transform: rotate(7deg); margin-left: calc(var(--pc-w) * -0.3); }
