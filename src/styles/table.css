@@ -1,0 +1,68 @@
+/* TableDiagram — SVG 6-max table. Colours come from the tokens in global.css. */
+.tbl {
+  display: block;
+  width: 100%;
+  height: 190px;
+  overflow: visible;
+  font-family: var(--font);
+  --tbl-blind: #3f7fd6;
+  --tbl-blind-dark: #2a5aa0;
+  --tbl-dark-text: #1a1205;
+}
+.tbl--compact { height: 150px; }
+
+/* gradient stops (stop-color accepts custom properties) */
+.tbl__stop-felt-a { stop-color: var(--felt-600); }
+.tbl__stop-felt-b { stop-color: var(--felt-800); }
+.tbl__stop-rail-a { stop-color: #7a4a28; }
+.tbl__stop-rail-b { stop-color: var(--rail); }
+.tbl__stop-rail-c { stop-color: #1f0f07; }
+.tbl__stop-gold-a { stop-color: #f7e2a0; }
+.tbl__stop-gold-b { stop-color: var(--gold); }
+.tbl__stop-raise { stop-color: var(--act-raise); }
+.tbl__stop-threebet { stop-color: var(--act-threebet); }
+.tbl__stop-fourbet { stop-color: var(--act-fourbet); }
+.tbl__stop-allin { stop-color: var(--act-allin); }
+
+/* table surface */
+.tbl__shadow { fill: rgba(0, 0, 0, 0.35); }
+.tbl__rail { stroke: rgba(0, 0, 0, 0.55); stroke-width: 1; }
+.tbl__felt-edge { fill: none; stroke: rgba(0, 0, 0, 0.32); stroke-width: 3; }
+.tbl__line { fill: none; stroke: rgba(255, 255, 255, 0.13); stroke-width: 1; stroke-dasharray: 4 5; }
+
+/* text */
+.tbl__text {
+  font-weight: 800;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--ink);
+  pointer-events: none;
+}
+.tbl__text.tbl__mark { font-size: 22px; fill: rgba(255, 255, 255, 0.08); letter-spacing: 0.05em; }
+.tbl__pos { font-size: 11px; letter-spacing: 0.02em; }
+.tbl__pos--hero { fill: var(--tbl-dark-text); }
+.tbl__chip-text {
+  font-size: 11.5px;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.38);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+.tbl--compact .tbl__chip-text { font-size: 11px; }
+.tbl__fold-text { font-size: 11px; }
+.tbl__tag-text { font-size: 11px; fill: var(--tbl-dark-text); }
+.tbl__button-text { font-size: 11px; fill: var(--tbl-dark-text); }
+
+/* seats */
+.tbl__seat-disc { fill: #0d1c16; stroke: rgba(255, 255, 255, 0.3); stroke-width: 1.5; }
+.tbl__seat--villain .tbl__seat-disc { fill: #17302a; stroke: rgba(255, 255, 255, 0.72); }
+.tbl__seat-disc--hero { stroke: var(--gold); stroke-width: 2; }
+.tbl__hero-glow { fill: none; stroke: var(--gold); stroke-opacity: 0.38; stroke-width: 3; }
+.tbl__seat--folded { opacity: 0.5; }
+.tbl__pill { stroke: rgba(0, 0, 0, 0.45); stroke-width: 1; }
+
+/* dealer button + blind chips */
+.tbl__button { fill: #f8f4e8; stroke: #b7ac8f; stroke-width: 1; }
+.tbl__blind { fill: var(--tbl-blind); stroke: rgba(0, 0, 0, 0.55); stroke-width: 1; }
+.tbl__blind-stripes { stroke: rgba(255, 255, 255, 0.92); }
+.tbl__blind-core { fill: var(--tbl-blind-dark); }
