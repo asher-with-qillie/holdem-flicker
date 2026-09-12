@@ -1,5 +1,7 @@
 name: Build & Deploy (GitHub Pages)
 
+# Builds on every push/PR; on main, publishes dist/ to the gh-pages branch.
+# GitHub Pages serves that branch (Settings → Pages → Source: Deploy from a branch → gh-pages / root).
 on:
   push:
     branches: [main]
@@ -7,9 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -27,20 +27,11 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - uses: actions/upload-pages-artifact@v3
+      - run: touch dist/.nojekyll
+      - name: Publish to gh-pages
+        if: github.event_name != 'pull_request'
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: dist
-
-  deploy:
-    if: github.event_name != 'pull_request'
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          force_orphan: true

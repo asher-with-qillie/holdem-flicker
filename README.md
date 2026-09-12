@@ -21,8 +21,8 @@ npm run build    # dist/
 
 ## 배포
 
-`main` 브랜치에 푸시하면 GitHub Actions(`.github/workflows/deploy.yml`)가 빌드 후 GitHub Pages로 배포합니다.
-저장소 Settings → Pages → Source가 **GitHub Actions**로 되어 있어야 합니다 (워크플로가 자동 활성화를 시도합니다).
+`main` 브랜치에 푸시하면 GitHub Actions(`.github/workflows/deploy.yml`)가 빌드해서 `gh-pages` 브랜치에 올립니다.
+저장소 Settings → Pages → Source가 **Deploy from a branch · gh-pages / (root)** 이면 됩니다.
 배포 주소: `https://<owner>.github.io/holdem-flicker/`
 
 ## 구조
