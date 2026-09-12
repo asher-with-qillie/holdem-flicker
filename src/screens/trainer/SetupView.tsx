@@ -219,7 +219,7 @@ export function SetupView({ settings, preset, onStart, lastResult, onOpenLast }:
         <button type="button" className="trainer-lastrow" onClick={onOpenLast}>
           <span className="t-callout">지난 세션</span>
           <span className="trainer-lastrow__meta t-footnote tnum">
-            {lastResult.seen}장{lastPct !== null ? ` · 알아요 ${lastPct}%` : ''} · {formatDuration(lastResult.activeMs)}
+            {lastResult.seen}장{lastPct !== null ? ` · 정답 ${lastPct}%` : ''} · {formatDuration(lastResult.activeMs)}
           </span>
           <span className="trainer-lastrow__chev" aria-hidden="true">
             ▸

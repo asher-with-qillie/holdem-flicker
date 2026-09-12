@@ -16,4 +16,4 @@ export { RatingBar, type RatingBarProps } from './RatingBar';
 export { SessionSummaryCard, formatDuration, type SessionSummaryCardProps, type SummaryData, type SummaryRow } from './SessionSummaryCard';
 export { toast, ToastHost, type ToastTone } from './Toast';
 export * from './icons';
-export { CoachMark, CoachMarkFixture, defaultCoachSteps, type CoachMarkProps, type CoachStep, type CoachArt } from './CoachMark';
+export { CoachMark, defaultCoachSteps, type CoachMarkProps, type CoachStep, type CoachArt } from './CoachMark';

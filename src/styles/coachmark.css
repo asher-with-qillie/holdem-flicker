@@ -36,28 +36,21 @@
 .cm-finger { position: absolute; left: 9px; top: 9px; width: 30px; height: 38px; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)); }
 .cm-finger__fill { fill: rgba(242, 244, 248, 0.16); stroke: none; }
 
-/* swipe: card ghost-slides +24 (mint 알아요) then −24 (amber 헷갈려요), 1.6 s loop */
-.cm-card--swipe { animation: cm-swipe 1.6s var(--ease-std) infinite; }
-@keyframes cm-swipe {
-  0%, 100% { transform: translateX(0) rotate(0); }
-  25% { transform: translateX(24px) rotate(4deg); }
-  50% { transform: translateX(0) rotate(0); }
-  75% { transform: translateX(-24px) rotate(-4deg); }
+/* choose: three action pills, the finger taps the middle one and a ✓ pops (1.8 s loop) */
+.cm-choices { display: flex; gap: 8px; width: 100%; max-width: 250px; }
+.cm-choice {
+  position: relative; flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px;
+  border-radius: var(--r-capsule); font-size: var(--fs-subhead); font-weight: 700; color: var(--ink); border: 1px solid;
 }
-.cm-stamp {
-  position: absolute; top: 10px; padding: 3px 8px; border-radius: var(--r-xs); border: 2px solid currentColor;
-  font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 800; letter-spacing: 0.02em; white-space: nowrap;
-  background: rgba(6, 17, 14, 0.72); opacity: 0;
-}
-.cm-stamp--know { right: -34px; color: var(--mint); transform: rotate(12deg); animation: cm-stamp-know 1.6s linear infinite; }
-.cm-stamp--unsure { left: -44px; color: var(--amber); transform: rotate(-12deg); animation: cm-stamp-unsure 1.6s linear infinite; }
-@keyframes cm-stamp-know { 0%, 8% { opacity: 0; } 18%, 36% { opacity: 1; } 46%, 100% { opacity: 0; } }
-@keyframes cm-stamp-unsure { 0%, 58% { opacity: 0; } 68%, 86% { opacity: 1; } 96%, 100% { opacity: 0; } }
-.cm-cue { position: absolute; top: 50%; transform: translateY(-50%); font-size: 22px; font-weight: 700; color: var(--ink-4); }
-.cm-cue--l { left: 12px; }
-.cm-cue--r { right: 12px; }
-.cm-art--swipe .cm-cue--r { color: color-mix(in srgb, var(--mint) 55%, transparent); }
-.cm-art--swipe .cm-cue--l { color: color-mix(in srgb, var(--amber) 55%, transparent); }
+.cm-choice--fold { color: var(--ink-2); border-color: color-mix(in srgb, var(--act-fold) 45%, transparent); background: color-mix(in srgb, var(--act-fold) 16%, transparent); }
+.cm-choice--call { border-color: color-mix(in srgb, var(--act-call) 45%, transparent); background: color-mix(in srgb, var(--act-call) 16%, transparent); animation: cm-choice-pick 1.8s var(--ease-std) infinite; }
+.cm-choice--threebet { border-color: color-mix(in srgb, var(--act-threebet) 45%, transparent); background: color-mix(in srgb, var(--act-threebet) 16%, transparent); }
+.cm-choice__mark { font-size: 16px; font-weight: 800; opacity: 0; animation: cm-choice-mark 1.8s linear infinite; }
+@keyframes cm-choice-pick { 0%, 30% { background: color-mix(in srgb, var(--act-call) 16%, transparent); color: var(--ink); } 42%, 82% { background: var(--act-call); color: var(--ink-on-tint); box-shadow: 0 0 0 2px var(--mint); } 100% { background: color-mix(in srgb, var(--act-call) 16%, transparent); color: var(--ink); } }
+@keyframes cm-choice-mark { 0%, 40% { opacity: 0; } 46%, 82% { opacity: 1; } 90%, 100% { opacity: 0; } }
+.cm-touch--choose { left: calc(50% + 2px); top: 46px; }
+.cm-touch--choose .cm-ring { animation: cm-pulse-late 1.8s var(--ease-out) infinite; }
+@keyframes cm-pulse-late { 0%, 34% { transform: scale(0.55); opacity: 0; } 36% { opacity: 1; } 70%, 100% { transform: scale(1.6); opacity: 0; } }
 
 /* session: mini ring 0 → n */
 .cm-ring-num { font-size: var(--fs-title-3); font-weight: 800; letter-spacing: -0.01em; }
@@ -68,35 +61,13 @@
 .cm-actions { display: flex; gap: 10px; width: 100%; margin-top: 6px; }
 .cm-actions .ui-btn { flex: 1; padding-inline: 12px; }
 
-/* ---- dev fixture stage (#coach) ---- */
-.cm-fx {
-  position: fixed; inset: 0; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 14px;
-  padding: calc(var(--safe-top) + 12px) var(--gutter) calc(24px + var(--safe-bottom));
-  background: radial-gradient(50% 30% at 50% 45%, rgba(77, 227, 166, 0.10), transparent 70%);
-}
-.cm-fx__hud { display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 16px; border-radius: var(--r-capsule); font-size: var(--fs-callout); font-weight: 600; width: 100%; }
-.cm-fx__x { color: var(--ink-3); }
-.cm-fx__speed { margin-left: auto; color: var(--ink-3); }
-.cm-fx__strip { display: flex; width: 100%; padding: 4px; border-radius: var(--r-sm); }
-.cm-fx__seat { flex: 1; text-align: center; padding: 6px 0; border-radius: var(--r-xs); font-size: var(--fs-caption); font-weight: 700; color: var(--ink-3); }
-.cm-fx__seat--me { background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold); }
-.cm-fx__stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 100%; }
-.cm-fx__hand { color: var(--ink-2); }
-.cm-fx__slot { width: 100%; min-height: 96px; border-radius: var(--r-lg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
-.cm-fx__legal { font-size: var(--fs-subhead); color: var(--ink-3); }
-.cm-fx__rate { display: flex; gap: 12px; width: 100%; }
-.cm-fx__pill { flex: 1; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-capsule); font-size: var(--fs-headline); font-weight: 600; border: 1px solid; }
-.cm-fx__pill--unsure { flex: 42 1 0; color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, transparent); background: color-mix(in srgb, var(--amber) 16%, transparent); }
-.cm-fx__pill--know { flex: 58 1 0; color: var(--mint); border-color: color-mix(in srgb, var(--mint) 45%, transparent); background: color-mix(in srgb, var(--mint) 16%, transparent); }
-.cm-fx__again { position: absolute; left: 0; right: 0; top: calc(var(--safe-top) + 64px); display: flex; justify-content: center; }
-
 /* ---- reduced motion (§8): loops are static frames, crossfade ≤ 150 ms, no blur behind ---- */
 @media (prefers-reduced-motion: reduce) {
   .cm-step { animation-duration: 150ms; }
   .cm-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
   .cm-dots i { transition: none; }
   .cm-ring { animation: none; transform: scale(1.1); opacity: 0.85; }
-  .cm-card--swipe { animation: none; transform: translateX(16px) rotate(3deg); }
-  .cm-stamp--know { animation: none; opacity: 1; }
-  .cm-stamp--unsure { animation: none; opacity: 0; }
+  .cm-choice--call { animation: none; background: var(--act-call); color: var(--ink-on-tint); box-shadow: 0 0 0 2px var(--mint); }
+  .cm-choice__mark { animation: none; opacity: 1; }
+  .cm-touch--choose .cm-ring { animation: none; }
 }

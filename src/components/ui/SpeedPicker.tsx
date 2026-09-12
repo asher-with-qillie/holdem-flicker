@@ -17,7 +17,7 @@ function fmtSec(ms: number): string {
   return `${Number.isInteger(s) ? s : Number(s.toFixed(2))}초`;
 }
 
-/** Preset segments + live caption ("생각 3.5초 · 답 2.5초") + 노출 모드 switch row. */
+/** Preset segments + live caption ("생각 8초 · 답 5초"; 순간기억 → "답을 바로 보여줘요 · 선택 없음") + 노출 모드 switch row. */
 export function SpeedPicker({ value, onChange, exposure, onExposureChange, showCustom }: SpeedPickerProps): JSX.Element {
   // Only the 'custom' caption needs the seconds sliders; presets are pure.
   const [settings] = useSettings();
@@ -28,7 +28,11 @@ export function SpeedPicker({ value, onChange, exposure, onExposureChange, showC
     value === 'custom'
       ? { think: settings.thinkSeconds * 1000, reveal: settings.revealSeconds * 1000, expose: settings.revealSeconds * 1000 }
       : SPEED_PRESETS[value];
-  const caption = exposure ? `노출 ${fmtSec(timing.expose)} · 생각 없이 바로 답` : `생각 ${fmtSec(timing.think)} · 답 ${fmtSec(timing.reveal)}`;
+  const caption = exposure
+    ? `노출 ${fmtSec(timing.expose)} · 생각 없이 바로 답`
+    : value === 'flash'
+      ? '답을 바로 보여줘요 · 선택 없음'
+      : `생각 ${fmtSec(timing.think)} · 답 ${fmtSec(timing.reveal)}`;
 
   return (
     <div className="ui-speed">

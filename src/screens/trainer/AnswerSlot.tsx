@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { actionLabel } from '../../components/ActionBadge';
 import type { Explanation } from '../../poker/explain';
 import type { Step } from '../../poker/trainer';
-import { SCENARIO_ACTIONS, type Action } from '../../poker/types';
+import type { Action } from '../../poker/types';
 import type { Phase } from './sessionStore';
 
 const ACT_COLOR: Record<Action, string> = {
@@ -30,17 +30,16 @@ export function MixChips({ step }: { step: Step }) {
 }
 
 /**
- * Fixed-height glass-clear slot (§5.3 / §5.4): `뭐 할래요?` + legal actions while thinking; on reveal the answer
- * capsule flips in (rotateX −90° → 0, 240 ms) with the mix chips and the first reasoning line.
+ * Fixed-height glass-clear slot (§5.3 / §5.4): a quiet placeholder while thinking (the choice buttons sit above
+ * it); on reveal the answer capsule flips in (rotateX −90° → 0, 240 ms) with the mix chips and the first
+ * reasoning line.
  */
-export function AnswerSlot({ step, phase, explanation, showMix, animKey }: { step: Step; phase: Phase; explanation: Explanation; showMix: boolean; animKey: string }) {
+export function AnswerSlot({ step, phase, explanation, showMix, animKey, hint }: { step: Step; phase: Phase; explanation: Explanation; showMix: boolean; animKey: string; hint?: string }) {
   const kind = step.scenario.kind;
   if (phase === 'think') {
-    const options = SCENARIO_ACTIONS[kind].map((a) => actionLabel(a, kind, true)).join(' · ');
     return (
-      <div className="trainer-answer glass-clear" aria-live="polite">
-        <div className="trainer-answer__prompt t-headline">뭐 할래요?</div>
-        <div className="trainer-answer__options t-subhead">{options}</div>
+      <div className="trainer-answer trainer-answer--idle glass-clear" aria-live="polite">
+        <div className="trainer-answer__idle t-footnote">{hint ?? '고르면 정답과 해설이 나와요'}</div>
       </div>
     );
   }

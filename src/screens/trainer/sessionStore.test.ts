@@ -21,10 +21,12 @@ import { getProgress, resetProgress } from '../../state/progress';
 import { resetSettings, updateSettings } from '../../state/settings';
 import { getCard, resetSrs } from '../../state/srs';
 import {
+  choose,
   currentCard,
   discardSession,
   endSession,
   expire,
+  expireThink,
   flagToggle,
   getSession,
   next,
@@ -39,6 +41,8 @@ import {
 } from './sessionStore';
 
 const BASE: SessionConfig = { deck: 'rfi', positions: ['UTG', 'HJ', 'CO'], size: 10, speed: 'normal', exposure: false, manual: false };
+/** call 50 % / fold 50 % → answer call, fold = partial (≥ 0.4), fourbet = wrong. */
+const MIXED_KEY = 'vs_3bet:UTG:HJ|ATs';
 
 function start(over: Partial<SessionConfig> = {}) {
   const r = startSession({ ...BASE, ...over });
@@ -54,7 +58,7 @@ describe('sessionStore', () => {
     resetSrs();
     resetProgress();
     resetSessionStore();
-    updateSettings({ coachSeen: 1, haptics: false });
+    updateSettings({ coachSeen: 2, haptics: false });
   });
   afterEach(() => {
     resetSessionStore();
@@ -84,39 +88,79 @@ describe('sessionStore', () => {
     expect(getSession()).toBeNull();
   });
 
-  it('think → reveal → rate writes srs + progress once and advances', () => {
+  it('choosing the correct action reveals, rates know, and the reveal expiry writes srs + progress once', () => {
     start();
     const card = currentCard()!;
-    revealNow();
-    expect(getSession()!.phase).toBe('reveal');
-    expect(rateCard('know', 'swipe', 0)).toBe(true);
-    const s = getSession()!;
+    expect(choose(card.step.answer)).toBe(true);
+    let s = getSession()!;
+    expect(s.phase).toBe('reveal');
+    expect(currentCard()).toMatchObject({ chosenAction: card.step.answer, grade: 'correct', rating: 'know', ratingSource: 'button' });
+    expect(choose(card.step.answer)).toBe(false); // one choice per card
+    expire(); // reveal → next
+    s = getSession()!;
     expect(s.index).toBe(1);
     expect(s.phase).toBe('think');
     expect(s.queue[0].exposed).toBe(true);
     expect(s.queue[0].committedRating).toBe('know');
     expect(getCard(card.key)?.state).toBe('learning');
-    const today = getProgress(20).today;
-    expect(today).toMatchObject({ cards: 1, rated: 1, known: 1 });
+    expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 1, known: 1 });
+    expect(s.queue).toHaveLength(10); // no requeue
   });
 
-  it('rating is refused in think phase and the fly-out delay defers the advance', () => {
+  it('choosing a wrong action rates unsure and requeues', () => {
+    const s0 = start({ onlyKeys: [MIXED_KEY], manual: true });
+    const key = s0.queue[0].key;
+    expect(choose('fourbet')).toBe(true);
+    expect(currentCard()).toMatchObject({ chosenAction: 'fourbet', grade: 'wrong', rating: 'unsure' });
+    next();
+    const s = getSession()!;
+    expect(s.queue[0].committedRating).toBe('unsure');
+    expect(getCard(key)?.state).toBe('relearning');
+    expect(s.queue).toHaveLength(2);
+    expect(s.queue[1]).toMatchObject({ key, origin: 'requeue' });
+    expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 1, known: 0 });
+  });
+
+  it('a partial action counts as know with the partial srs write', () => {
+    start({ onlyKeys: [MIXED_KEY], manual: true });
+    const key = currentCard()!.key;
+    expect(choose('fold')).toBe(true);
+    expect(currentCard()).toMatchObject({ chosenAction: 'fold', grade: 'partial', rating: 'know' });
+    next();
+    const c = getCard(key)!;
+    expect(c.state).toBe('learning');
+    expect(c.lastRating).toBe('know');
+    expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 1, known: 1 });
+  });
+
+  it('think timeout → 시간 초과, rated unsure; buttons are then locked', () => {
+    start();
+    const key = currentCard()!.key;
+    expire(); // think timer ran out
+    const s = getSession()!;
+    expect(s.phase).toBe('reveal');
+    expect(currentCard()).toMatchObject({ timedOut: true, rating: 'unsure', ratingSource: 'button' });
+    expect(currentCard()!.chosenAction).toBeUndefined();
+    expect(choose(currentCard()!.step.answer)).toBe(false);
+    expire(); // reveal → next
+    expect(getSession()!.index).toBe(1);
+    expect(getCard(key)?.state).toBe('relearning');
+    expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 1, known: 0 });
+  });
+
+  it('explicit rateCard is refused in think phase and advances at once in reveal', () => {
     start();
     expect(rateCard('know', 'button')).toBe(false);
     revealNow();
-    expect(rateCard('know', 'button', 240)).toBe(true);
-    expect(getSession()!.exiting).toBe('know');
-    expect(getSession()!.index).toBe(0);
-    vi.advanceTimersByTime(240);
+    expect(rateCard('know', 'button')).toBe(true);
     expect(getSession()!.index).toBe(1);
-    expect(getSession()!.exiting).toBeNull();
   });
 
   it('헷갈려요 requeues the card at min(i+6, end), at most twice', () => {
     const s0 = start();
     const key = s0.queue[0].key;
     revealNow();
-    rateCard('unsure', 'button', 0);
+    rateCard('unsure', 'button');
     let s = getSession()!;
     expect(s.queue).toHaveLength(11);
     expect(s.queue[6]).toMatchObject({ key, origin: 'requeue' });
@@ -129,7 +173,7 @@ describe('sessionStore', () => {
     }
     expect(currentCard()!.key).toBe(key);
     revealNow();
-    rateCard('unsure', 'button', 0);
+    rateCard('unsure', 'button');
     s = getSession()!;
     expect(s.queue).toHaveLength(12);
     expect(s.requeues[key]).toBe(2);
@@ -139,46 +183,79 @@ describe('sessionStore', () => {
     }
     expect(currentCard()!.origin).toBe('requeue');
     revealNow();
-    rateCard('unsure', 'button', 0);
+    rateCard('unsure', 'button');
     expect(getSession()!.queue).toHaveLength(12);
     expect(getSession()!.queue.filter((c) => c.key === key)).toHaveLength(3);
   });
 
-  it('unrated timeout counts as exposure only', () => {
-    start();
+  it('exposure-mode timeout counts as exposure only (no automatic unsure)', () => {
+    start({ exposure: true });
     const key = currentCard()!.key;
-    expire(); // think → reveal
     expect(getSession()!.phase).toBe('reveal');
-    expire(); // reveal → next (unrated)
+    expect(choose(currentCard()!.step.answer)).toBe(false); // no choosing in 노출
+    expire(); // expose dwell → next
     expect(getSession()!.index).toBe(1);
     expect(getCard(key)).toMatchObject({ state: 'new', exposures: 1 });
     expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 0 });
   });
 
-  it('holding in think phase reveals and marks the card peeked; 알아요 is then refused, 헷갈려요 allowed', () => {
+  it('순간기억 has no choosing: the think timer just reveals, exposure only', () => {
+    start({ speed: 'flash' });
+    const key = currentCard()!.key;
+    expect(choose(currentCard()!.step.answer)).toBe(false);
+    expireThink();
+    expect(getSession()!.phase).toBe('reveal');
+    expect(currentCard()!.timedOut).toBeUndefined();
+    expect(currentCard()!.rating).toBeUndefined();
+    expire();
+    expect(getCard(key)).toMatchObject({ state: 'new', exposures: 1 });
+  });
+
+  it('holding in think phase keeps the phase, marks the card peeked, and a later choice counts as unsure', () => {
     start();
+    const key = currentCard()!.key;
     setHolding(true);
     let s = getSession()!;
     expect(s.holding).toBe(true);
-    expect(s.phase).toBe('reveal');
+    expect(s.phase).toBe('think');
     expect(currentCard()!.peeked).toBe(true);
     setHolding(false);
-    expect(rateCard('know', 'swipe', 0)).toBe(false);
-    expect(rateCard('unsure', 'swipe', 0)).toBe(true);
+    expect(choose(currentCard()!.step.answer)).toBe(true);
+    expect(currentCard()).toMatchObject({ grade: 'correct', rating: 'unsure' });
+    expect(rateCard('know', 'button')).toBe(false); // peeked rule
+    expire();
     s = getSession()!;
     expect(s.index).toBe(1);
+    expect(s.queue[0].committedRating).toBe('unsure');
+    expect(getCard(key)?.state).toBe('relearning');
+  });
+
+  it('헷갈려요로 표시 on a correct card commits it as unsure', () => {
+    start();
+    const key = currentCard()!.key;
+    choose(currentCard()!.step.answer);
+    expect(currentCard()!.rating).toBe('know');
+    flagToggle();
+    expect(currentCard()!.flagged).toBe(true);
+    expire();
+    const s = getSession()!;
+    expect(s.queue[0].committedRating).toBe('unsure');
+    expect(getCard(key)?.state).toBe('relearning');
+    expect(s.queue).toHaveLength(11); // requeued
+    expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 1, known: 0 });
   });
 
   it('◀ revisits the previous card in reveal phase and a changed rating is written as a delta', () => {
     start();
-    revealNow();
-    rateCard('know', 'button', 0);
+    choose(currentCard()!.step.answer);
+    expire();
     expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 1, known: 1 });
     prev();
     let s = getSession()!;
     expect(s.index).toBe(0);
     expect(s.phase).toBe('reveal');
-    rateCard('unsure', 'button', 0);
+    expect(currentCard()!.chosenAction).toBeDefined();
+    rateCard('unsure', 'button');
     s = getSession()!;
     expect(s.index).toBe(1);
     expect(s.queue[0].committedRating).toBe('unsure');
@@ -207,8 +284,8 @@ describe('sessionStore', () => {
 
   it('✕ writes a partial summary that counts a revealed current card', () => {
     start();
-    revealNow();
-    rateCard('know', 'button', 0);
+    choose(currentCard()!.step.answer);
+    expire();
     revealNow(); // second card revealed but not rated
     const r = endSession()!;
     const s = getSession()!;
@@ -225,11 +302,11 @@ describe('sessionStore', () => {
     updateSettings({ dailyGoal: 10 });
     start();
     const first = currentCard()!.key;
-    revealNow();
-    rateCard('unsure', 'swipe', 0);
+    expire(); // 시간 초과 → unsure
+    expire();
     while (getSession()!.status === 'running') {
-      revealNow();
-      rateCard('know', 'swipe', 0);
+      choose(currentCard()!.step.answer);
+      expire();
     }
     const s = getSession()!;
     expect(s.status).toBe('summary');

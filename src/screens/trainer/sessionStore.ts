@@ -2,30 +2,37 @@
  * Training-session store (spec §6.1) — module-level, survives unmount, read with `useSession()` /
  * `useSessionStatus()` (App hides the tab bar while `running`).
  *
- *   idle ──startSession(config)──▶ running: card[i].think ──expire | tap──▶ card[i].reveal ──rate | expire | tap | ▶──▶ i+1
- *     ▲                             │ hold ⇄ overlay (timer frozen, peeked if think)          │ unsure → requeue at min(i+6, end) (≤ 2×)
- *     │                             │ ‖ → paused ⇄ 계속                                        │
- *     │                             ◀────────────────────────── i+1 < queue.length ───────────┘  else ──▶ summary
- *     └──────── discardSession() ◀─────────────────────────────────────────────────────────────────────┘
+ *   idle ──startSession(config)──▶ running: card[i].think ──choose(a) | expire──▶ card[i].reveal ──expire | ▶──▶ i+1
+ *     ▲                             │ hold ⇄ overlay (timer frozen, peeked if think)            │ unsure → requeue at min(i+6, end) (≤ 2×)
+ *     │                             │ ‖ → paused ⇄ 계속                                          │
+ *     │                             ◀────────────────────────── i+1 < queue.length ─────────────┘  else ──▶ summary
+ *     └──────── discardSession() ◀───────────────────────────────────────────────────────────────────────┘
+ *
+ * Choosing (v2.1): the think phase shows the legal actions as buttons. `choose(action)` grades the pick like the
+ * quiz (`gradeAnswer`: exact / weight ≥ 0.4 partial / wrong) and rates the card itself — correct or partial → 'know'
+ * (partial passes `{ partial: true }` to srs), wrong → 'unsure'; a peeked card (held during think) is always 'unsure'.
+ * The think timer running out → `expireThink()`: 시간 초과, rated 'unsure'. 순간기억 / 노출 skip choosing entirely
+ * (answer shown, exposure-only write, the 🤔 flag is the only rating). The reveal-state 헷갈려요로 표시 toggle sets
+ * `flagged`, which always commits as 'unsure'.
  *
  * Every card that leaves the screen is committed exactly once: rated → `srs.rate`, flagged → `rate('unsure','button')`,
  * otherwise `recordExposure`; always `logCards(1, {rated, known})`. A card revisited with ◀ and re-rated gets a
  * corrective write (SRS rated again, progress adjusted by the delta) instead of a second full commit.
  *
- * Timers: the rAF countdown lives in the component (`useRafTimer`); the store only owns the two short
- * scheduling delays (fly-out before advancing, card transition before the next timer starts) and the
- * `activeMs` clock, which runs while the session is `running` and neither held nor covered by a sheet /
- * coach mark (manual waiting and dragging count as active — the user is looking at the card).
+ * Timers: the rAF countdown lives in the component (`useRafTimer`); the store only owns the short card-transition
+ * delay before the next timer starts and the `activeMs` clock, which runs while the session is `running` and
+ * neither held nor covered by a sheet / coach mark (manual waiting counts as active — the user is looking at the card).
  *
  * Node-safe: no `window` at import time (the store test runs in plain node).
  */
 import { useSyncExternalStore } from 'react';
 import { dealCardsFor } from '../../poker/hands';
 import type { Step } from '../../poker/trainer';
-import type { Card, Pos, ScenarioKind } from '../../poker/types';
+import type { Action, Card, Pos, ScenarioKind } from '../../poker/types';
 import { getProgress, logCards, logSeconds, logSession, setLastResult, type SessionResult } from '../../state/progress';
-import { getSettings, vibrate, type DeckId, type SpeedPreset } from '../../state/settings';
+import { COACH_VERSION, getSettings, vibrate, type DeckId, type SpeedPreset } from '../../state/settings';
 import { buildQueue, rate as srsRate, recordExposure, type CardKey, type QueueResult, type RatingSource } from '../../state/srs';
+import { gradeAnswer, type Grade } from '../quiz/grade';
 import { timingFor, type Origin, type Timing } from './decks';
 
 export type SessionStatus = 'idle' | 'running' | 'paused' | 'summary';
@@ -56,7 +63,14 @@ export interface SessionCard {
   chainId?: number;
   rating?: Rating;
   ratingSource?: RatingSource;
+  /** The action picked with a choice button (think phase). */
+  chosenAction?: Action;
+  /** Grade of `chosenAction` (quiz rules). */
+  grade?: Grade;
+  /** Think timer ran out with no choice (시간 초과). */
+  timedOut?: boolean;
   peeked?: boolean;
+  /** 헷갈려요로 표시 — always commits as 'unsure'. */
   flagged?: boolean;
   /** Committed to srs/progress (left the screen at least once). */
   exposed?: boolean;
@@ -78,15 +92,10 @@ export interface SessionState {
   /** key → times requeued (max 2). */
   requeues: Record<string, number>;
   holding: boolean;
-  dragging: boolean;
   sheetOpen: boolean;
   coachOpen: boolean;
   /** Card transition in progress — the next card's timer waits. */
   settling: boolean;
-  /** Fly-out in progress (rating committed, advance scheduled). */
-  exiting: Rating | null;
-  /** The once-per-session "평가하면…" toast was shown. */
-  unratedToastShown: boolean;
   cardsAtStart: number;
   streakAtStart: number;
   /** Ended with ✕ before the queue ran out (summary headline `여기까지 {n}장`). */
@@ -94,7 +103,6 @@ export interface SessionState {
   result?: SessionResult;
 }
 
-export const EXIT_MS = 240;
 const REQUEUE_MAX = 2;
 const REQUEUE_GAP = 6;
 
@@ -231,12 +239,9 @@ export function startSession(config: SessionConfig, at: number = now()): StartRe
     activeMs: 0,
     requeues: {},
     holding: false,
-    dragging: false,
     sheetOpen: false,
-    coachOpen: settings.coachSeen < 1,
+    coachOpen: settings.coachSeen < COACH_VERSION,
     settling: true,
-    exiting: null,
-    unratedToastShown: false,
     cardsAtStart: progress.today.cards,
     streakAtStart: progress.streak,
     endedEarly: false,
@@ -263,22 +268,18 @@ export function discardSession(): void {
 
 /* ------------------------------------------------------------------------------------------------ flags */
 
+/**
+ * Hold-to-pause. Holding during the think phase shows the explanation (answer included) in the held sheet —
+ * intended, but the card is marked `peeked` so a later choice commits as 'unsure'. The phase stays 'think'
+ * (timer frozen where it was) so the buttons are still there on release.
+ */
 export function setHolding(holding: boolean): void {
   if (!state || state.status !== 'running' || state.holding === holding) return;
   if (holding) {
-    const card = currentCard();
-    if (state.phase === 'think' && card) {
-      // Holding during think reveals the answer (intended) and marks the card as peeked.
-      updateCard(state.index, { peeked: true });
-      commit({ holding: true, phase: 'reveal' });
-    } else commit({ holding: true });
+    if (state.phase === 'think' && currentCard() && !quiet(state)) updateCard(state.index, { peeked: true });
+    commit({ holding: true });
     vibrate(8);
   } else commit({ holding: false });
-}
-
-export function setDragging(dragging: boolean): void {
-  if (!state || state.dragging === dragging) return;
-  commit({ dragging });
 }
 
 export function setSheetOpen(sheetOpen: boolean): void {
@@ -291,13 +292,9 @@ export function setCoachOpen(coachOpen: boolean): void {
   commit({ coachOpen });
 }
 
-export function markUnratedToast(): void {
-  if (state && !state.unratedToastShown) commit({ unratedToastShown: true });
-}
-
 export function togglePause(): void {
   if (!state) return;
-  if (state.status === 'running') commit({ status: 'paused', holding: false, dragging: false });
+  if (state.status === 'running') commit({ status: 'paused', holding: false });
   else if (state.status === 'paused') commit({ status: 'running' });
 }
 
@@ -311,7 +308,8 @@ function updateCard(i: number, patch: Partial<SessionCard>): SessionCard | undef
   return queue[i];
 }
 
-function quiet(s: SessionState): boolean {
+/** 순간기억 / 노출: no choosing, exposure-only writes (플래그 제외). */
+export function quiet(s: SessionState): boolean {
   return s.config.speed === 'flash' || s.config.exposure;
 }
 
@@ -323,14 +321,44 @@ function userActive(): boolean {
   }
 }
 
-/** think → reveal (tap or timer). `peeked` stays false. */
+/** think → reveal without a choice (순간기억 timer, tests). No rating — the card commits as exposure. */
 export function revealNow(): void {
   if (!state || state.status !== 'running' || state.phase !== 'think') return;
   if (!quiet(state) && userActive()) vibrate(12);
   commit({ phase: 'reveal' });
 }
 
-/** Toggle the 🤔 flag (순간기억 / 노출 tap). */
+/**
+ * Choice button in the think phase: grade, rate, reveal. Correct / partial → 'know' (partial noted for srs),
+ * wrong → 'unsure'; a peeked card is 'unsure' whatever was picked. Not available in 순간기억 / 노출.
+ */
+export function choose(action: Action): boolean {
+  if (!state || state.status !== 'running' || state.phase !== 'think' || quiet(state)) return false;
+  const card = currentCard();
+  if (!card || card.chosenAction || card.timedOut) return false;
+  const grade = gradeAnswer(card.step, action);
+  const rating: Rating = grade === 'wrong' || card.peeked ? 'unsure' : 'know';
+  updateCard(state.index, { chosenAction: action, grade, rating, ratingSource: 'button' });
+  if (userActive()) vibrate(rating === 'know' ? 10 : [18, 30, 18]);
+  commit({ phase: 'reveal' });
+  return true;
+}
+
+/** Think timer ran out with no choice: 시간 초과 → reveal, rated 'unsure' (not in 순간기억 / 노출: exposure only). */
+export function expireThink(): void {
+  if (!state || state.status !== 'running' || state.phase !== 'think') return;
+  if (quiet(state)) {
+    revealNow();
+    return;
+  }
+  const card = currentCard();
+  if (!card) return;
+  updateCard(state.index, { timedOut: true, rating: 'unsure', ratingSource: 'button' });
+  if (userActive()) vibrate([18, 30, 18]);
+  commit({ phase: 'reveal' });
+}
+
+/** Toggle 헷갈려요로 표시 (🤔). A flagged card always commits as 'unsure' (also when the choice was correct). */
 export function flagToggle(): void {
   if (!state || state.status !== 'running') return;
   const card = currentCard();
@@ -342,45 +370,40 @@ export function flagToggle(): void {
 }
 
 /**
- * Rate the current card (swipe / button / keyboard). The fly-out runs for `delayMs` before the queue advances;
+ * Explicit rating of the revealed card (keyboard / tests / corrective ◀ path) — advances at once.
  * `know` on a peeked card is refused (§5.4 peeked rule).
  */
-export function rateCard(rating: Rating, source: RatingSource, delayMs: number = EXIT_MS): boolean {
-  if (!state || state.status !== 'running' || state.exiting) return false;
+export function rateCard(rating: Rating, source: RatingSource): boolean {
+  if (!state || state.status !== 'running') return false;
   const card = currentCard();
   if (!card || state.phase !== 'reveal') return false;
   if (rating === 'know' && card.peeked) return false;
-  updateCard(state.index, { rating, ratingSource: source });
+  updateCard(state.index, { rating, ratingSource: source, flagged: rating === 'unsure' ? card.flagged : false });
   vibrate(rating === 'know' ? 10 : [18, 30, 18]);
-  if (delayMs <= 0) {
-    commit({});
-    advance();
-    return true;
-  }
-  commit({ exiting: rating });
-  schedule(state.id, delayMs, advance);
+  commit({});
+  advance();
   return true;
 }
 
-/** Timer expiry: think → reveal, reveal → next. */
+/** Timer expiry: think → 시간 초과 reveal (or plain reveal in quiet modes), reveal → next. */
 export function expire(): void {
   if (!state || state.status !== 'running') return;
-  if (state.phase === 'think' && !state.config.exposure) revealNow();
+  if (state.phase === 'think' && !state.config.exposure) expireThink();
   else advance();
 }
 
-/** ▶ / tap in reveal: leave the current card now. */
+/** ▶ in reveal: leave the current card now. */
 export function next(): void {
-  if (!state || state.status !== 'running' || state.exiting) return;
+  if (!state || state.status !== 'running') return;
   advance();
 }
 
 /** ◀: previous card in reveal phase so its rating can be changed (until summary). */
 export function prev(): void {
-  if (!state || state.status !== 'running' || state.exiting || state.index === 0) return;
+  if (!state || state.status !== 'running' || state.index === 0) return;
   clearPending();
   const id = state.id;
-  commit({ index: state.index - 1, phase: 'reveal', settling: true, holding: false, dragging: false });
+  commit({ index: state.index - 1, phase: 'reveal', settling: true, holding: false });
   schedule(id, state.timing.transition, () => commit({ settling: false }));
 }
 
@@ -389,9 +412,10 @@ function leaveCard(i: number, at: number) {
   if (!state) return;
   const card = state.queue[i];
   if (!card) return;
-  const rating: Rating | undefined = card.rating ?? (card.flagged ? 'unsure' : undefined);
+  const rating: Rating | undefined = card.flagged ? 'unsure' : card.rating;
   const source: RatingSource = card.rating ? (card.ratingSource ?? 'button') : 'button';
-  const opts = { now: at, ...(card.peeked ? { peeked: true } : {}) };
+  const partial = rating === 'know' && card.grade === 'partial';
+  const opts = { now: at, ...(card.peeked ? { peeked: true } : {}), ...(partial ? { partial: true } : {}) };
   if (!card.exposed) {
     if (rating) srsRate(card.step, rating, source, opts);
     else recordExposure(card.step, at);
@@ -414,7 +438,7 @@ function advance() {
   const i = state.index;
   leaveCard(i, at);
   const card = state.queue[i];
-  const isUnsure = card.rating === 'unsure' || (!card.rating && card.flagged);
+  const isUnsure = card.rating === 'unsure' || !!card.flagged;
   let queue = state.queue;
   const requeues = { ...state.requeues };
   if (isUnsure && (requeues[card.key] ?? 0) < REQUEUE_MAX) {
@@ -426,10 +450,10 @@ function advance() {
   }
   if (i + 1 < queue.length) {
     const id = state.id;
-    commit({ queue, requeues, index: i + 1, phase: state.config.exposure ? 'reveal' : 'think', settling: true, exiting: null, holding: false, dragging: false });
+    commit({ queue, requeues, index: i + 1, phase: state.config.exposure ? 'reveal' : 'think', settling: true, holding: false });
     schedule(id, state.timing.transition, () => commit({ settling: false }));
   } else {
-    state = { ...state, queue, requeues, exiting: null };
+    state = { ...state, queue, requeues };
     finish(at);
   }
 }
@@ -510,7 +534,7 @@ function finish(at: number): SessionResult {
   else if (after.streak > s.streakAtStart) vibrate([12, 60, 12]);
   else vibrate([10, 40, 10, 40]);
 
-  state = { ...s, status: 'summary', holding: false, dragging: false, sheetOpen: false, coachOpen: false, exiting: null, settling: false, result };
+  state = { ...s, status: 'summary', holding: false, sheetOpen: false, coachOpen: false, settling: false, result };
   emit();
   return result;
 }

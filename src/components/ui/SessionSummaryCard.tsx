@@ -26,7 +26,7 @@ export interface SummaryData {
   speedLabel: string; // "보통" | "순간기억" | "노출 · 보통" | "퀴즈"
   rated: number;
   known: number;
-  unsure: number; // quiz: rated = answered, known = correct(+partial), unsure = wrong
+  unsure: number; // trainer: known = 정답(+부분 정답) choices, unsure = 오답 / 시간 초과; quiz: rated = answered, known = correct(+partial), unsure = wrong
   byOrigin: { new: number; review: number; unsure: number };
   goalToday: number;
   goal: number;
@@ -105,7 +105,7 @@ export function SessionSummaryCard({ data: d, onRetryUnsure, onAgain, onHome, on
                 </span>
               }
             />
-            <p className="ui-summary__ringcap">{d.rated > 0 ? `알아요 ${pct}%` : '평가 없음'}</p>
+            <p className="ui-summary__ringcap">{d.rated > 0 ? `정답 ${pct}%` : '평가 없음'}</p>
           </>
         )}
       </div>
@@ -151,7 +151,7 @@ export function SessionSummaryCard({ data: d, onRetryUnsure, onAgain, onHome, on
           <button type="button" className="ui-summary__weak fill" onClick={onRetryUnsure}>
             <span className="ui-summary__weak-label">{d.weakest.label}</span>
             <span className="ui-summary__weak-stat tnum">
-              헷갈려요 {d.weakest.unsure}/{d.weakest.shown}
+              오답 {d.weakest.unsure}/{d.weakest.shown}
               {d.weakest.quizAcc !== undefined && ` · 퀴즈 ${Math.round(d.weakest.quizAcc)}%`}
             </span>
             <span className="ui-summary__chev" aria-hidden="true">
@@ -163,7 +163,7 @@ export function SessionSummaryCard({ data: d, onRetryUnsure, onAgain, onHome, on
 
       {d.unsureRows.length > 0 ? (
         <section className="ui-summary__section">
-          <h3 className="t-title-3">헷갈린 카드 {d.unsureRows.length}</h3>
+          <h3 className="t-title-3">틀린 카드 {d.unsureRows.length}</h3>
           <ul className="ui-summary__rows">
             {rows.map((row) => (
               <li key={row.key}>
@@ -185,7 +185,7 @@ export function SessionSummaryCard({ data: d, onRetryUnsure, onAgain, onHome, on
           )}
         </section>
       ) : (
-        !d.exposureOnly && d.rated > 0 && <p className="ui-summary__allknown">다 알고 있었네요. 다음엔 새 카드를 더 섞을게요</p>
+        !d.exposureOnly && d.rated > 0 && <p className="ui-summary__allknown">다 맞혔어요. 다음엔 새 카드를 더 섞을게요</p>
       )}
 
       {d.firstSession && onSpeedFeedback && (
@@ -208,7 +208,7 @@ export function SessionSummaryCard({ data: d, onRetryUnsure, onAgain, onHome, on
       <div className="ui-summary__ctas">
         {hasUnsure && (
           <CapsuleButton tone="primary" size="xl" block onClick={onRetryUnsure}>
-            헷갈린 것만 다시 · {unsureCount}장
+            틀린 것만 다시 · {unsureCount}장
           </CapsuleButton>
         )}
         <div className="ui-summary__cta-row">

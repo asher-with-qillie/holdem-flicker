@@ -39,8 +39,8 @@ Deliberately cut: streak freezes, tab-bar minimize-on-scroll, think-phase early 
    **three blurred surfaces** visible at once; glass never sits on glass more than two deep.
 2. **A session has an end.** 20 cards → summary → "한 번 더". No infinite trainer. Home always says what
    is left today.
-3. **One gesture per intent.** Tap = reveal/next. Hold = pause + explanation. Swipe → = 알아요, ← = 헷갈려요.
-   Buttons duplicate the swipe. Max 4 controls on screen during a session.
+3. **One gesture per intent.** Tap a choice button = answer + reveal. Hold = pause + explanation.
+   Max 4 controls on screen during a session.
 4. **Quiet gamification.** One flame, one ring, one heatmap. No confetti, no coins, no "대박!!". Praise
    with numbers ("어제보다 6장 더").
 5. **Toss-plain Korean.** "~해요" endings, short nouns, few periods. Poker terms stay (오픈·콜·3벳·4벳·올인,
@@ -62,9 +62,9 @@ Microcopy table (use verbatim):
 | Deck × position has no charts | `이 조합의 차트가 아직 없어요` |
 | 내 약점 chip disabled | `아직 없어요 · 10장만 평가하면 열려요` |
 | Peeked (held in think phase) | `답을 먼저 봤어요 · 다음에 확인해요` |
-| Swipe attempted in think phase | `답을 먼저 보고요` |
+| Think timer expired with no choice | `시간 초과 · 못 골랐어요` |
 | Summary headline | `세션 끝!` / partial `여기까지 {n}장` |
-| Summary CTAs | `헷갈린 것만 다시 · {n}장` / `한 번 더` / `퀴즈로 확인` / `홈으로` |
+| Summary CTAs | `틀린 것만 다시 · {n}장` / `한 번 더` / `퀴즈로 확인` / `홈으로` |
 | Hold overlay footer | `손을 떼면 이어서 진행해요` |
 | End-session confirm | title `여기까지 기록할까요?` body `본 카드 {n}장은 저장돼요` · `계속하기` / `끝내기` |
 | 노출 모드 caption | `훑어보기 중 · 탭하면 헷갈려요로 표시` |
@@ -270,7 +270,7 @@ export interface LaunchIntent {
   deck?: DeckId;
   positions?: Pos[];            // omit = keep current
   scenarioId?: string;          // with deck 'scenario' (e.g. "vs_open:BB:BTN")
-  onlyKeys?: string[];          // exact card keys (헷갈린 것만 다시 / 퀴즈로 확인)
+  onlyKeys?: string[];          // exact card keys (틀린 것만 다시 / 퀴즈로 확인)
   autostart?: boolean;          // skip the setup screen
 }
 export interface NavState { tab: TabId; settingsOpen: boolean; launch: LaunchIntent | null; }
@@ -393,7 +393,7 @@ export interface SheetProps {
   children: React.ReactNode;
 }
 
-// src/components/ui/SpeedPicker.tsx  (SegmentedControl of presets + caption "생각 3.5초 · 답 2.5초" (live) + 노출 모드 switch row)
+// src/components/ui/SpeedPicker.tsx  (SegmentedControl of presets + caption "생각 8초 · 답 5초" (live) + 노출 모드 switch row)
 export type SpeedPreset = 'slow' | 'normal' | 'fast' | 'flash' | 'custom';   // re-exported from src/state/settings.ts
 export interface SpeedPickerProps {
   value: SpeedPreset; onChange(v: SpeedPreset): void;
@@ -437,7 +437,7 @@ export interface SessionSummaryCardProps {
 
 // src/components/ui/CoachMark.tsx  — OWNER F (styles in src/styles/coachmark.css)
 export interface CoachMarkProps {
-  steps: Array<{ title: string; body: string; art: 'hold' | 'swipe' | 'session' }>;
+  steps: Array<{ title: string; body: string; art: 'hold' | 'choose' | 'session' }>;
   onDone(): void; onSkip(): void;
 }
 
@@ -497,7 +497,7 @@ circle, `▓` solid primary, `◉` ring, `━` progress, `▪` heat cell.
 │ │ 9월 3일 · 32장 · 알아요 81%                  │ │  footnote row after a cell tap (empty otherwise, 18px reserved)
 │ ╰────────────────────────────────────────────╯ │
 │                                                │
-│ 지난 세션  20장 · 알아요 80% · 2분 08초       ▸ │  row (progress.lastResult) → reopens summary sheet
+│ 지난 세션  20장 · 정답 80% · 2분 08초       ▸ │  row (progress.lastResult) → reopens summary sheet
 │  ╭──────────────────────────────────────────╮  │  FloatingTabBar
 │  │  ⌂ 홈    ▯▯ 훈련    ? 퀴즈    ▦ 차트     │  │
 │  ╰──────────────────────────────────────────╯  │
@@ -523,7 +523,7 @@ the empty copy, no 지난 세션 row. Scrolls vertically; large title does not c
 │ ╭────────────────────────────────────────────╮ │  SpeedPicker (SegmentedControl 48)
 │ │ 천천히 │ ▓보통▓ │ 빠르게 │ 순간기억          │ │
 │ ╰────────────────────────────────────────────╯ │
-│ 생각 3.5초 · 답 2.5초                           │  caption (live)
+│ 생각 8초 · 답 5초                               │  caption (live; 순간기억 → 답을 바로 보여줘요 · 선택 없음)
 │ 노출 모드 · 답을 처음부터 같이 봐요        [◯ ] │  row 44 + Switch
 │ 세션 크기         (10)(▓20▓)(40)               │  chips 36
 │ ╭────────────────────────────────────────────╮ │  preview GlassPanel clear
@@ -531,7 +531,7 @@ the empty copy, no 지난 세션 row. Scrolls vertically; large title does not c
 │ │ ● 복습 6   ● 헷갈려요 3   ● 새 카드 11     │ │  sky / amber / lilac
 │ ╰────────────────────────────────────────────╯ │
 │ ▓▓▓▓▓▓▓▓▓▓▓▓▓  ▶ 시작  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ │  primary xl block; disabled + reason when no charts
-│ 지난 세션  20장 · 알아요 80% · 2분 08초       ▸ │
+│ 지난 세션  20장 · 정답 80% · 2분 08초       ▸ │
 │  ╭──────────────────────────────────────────╮  │
 │  │  ⌂ 홈    ▯▯ 훈련    ? 퀴즈    ▦ 차트     │  │
 │  ╰──────────────────────────────────────────╯  │
@@ -544,83 +544,72 @@ counts only, no engine dealing beyond 60 attempts). Deck and positions persist t
 `thinkSeconds`/`revealSeconds` through `applySpeedPreset`). A `LaunchIntent` from `consumeLaunch()`
 pre-selects chips and, with `autostart`, starts immediately. Estimated time = size × cadence (§6.2) + 0.3 s.
 
-### 5.3 훈련 — session, think phase (tab bar hidden, nothing scrolls)
+### 5.3 훈련 — session, choose phase (tab bar hidden, nothing scrolls) — v2.1: buttons instead of swipe
 
 ```
 ┌────────────────────────────────────────────────┐
-│ ╭────────────────────────────────────────────╮ │  SessionHud: GlassPanel regular capsule 44
-│ │ (✕)  ●●●●●●●○○○○○○○○○○○○○  8/20   ▪복습 (‖)│ │  close · dots (≤20; bar for 40) · counter tnum · origin tag · pause
+│ ╭────────────────────────────────────────────╮ │  SessionHud: ✕ · dots · counter · origin dot · phase tag ▓선택하세요▓ (mint) · ‖
+│ │ (✕)  ●●●●●●●○○○○○○○○○○○○○  8/20 ▪ 선택하세요 (‖)│ │
 │ ╰────────────────────────────────────────────╯ │
 │ ╭────────────────────────────────────────────╮ │  position strip: TableDiagram compact inside .fill r-md (no blur)
 │ │ UTG   HJ   CO  ▓BTN▓ᴰ  SB   BB             │ │
-│ │ 폴드  폴드  폴드  오픈   폴드   나           │ │
-│ │       BTN 오픈 · 사이 4명 폴드 · 뒤 없음    │ │
 │ ╰────────────────────────────────────────────╯ │
 │ BTN가 오픈 레이즈. BB인 당신 차례입니다.        │  headline, centered, 2-line clamp (scenarioSituation)
 │ 오픈 대응 → 4벳 대응                            │  StepCrumbs (kept), only when steps > 1
-│                                                │
-│            ╭────╮╭────╮                        │  HandView lg via FitBox (SwipeStage owns this block)
+│            ╭────╮╭────╮                        │  HandView lg via FitBox (SwipeStage owns this block — hold only)
 │            │ K  ││ 10 │                        │
-│            │ ♦  ││ ♠  │                        │
 │            ╰────╯╰────╯                        │
 │              K♦ T♠ · KTo                       │  Title 3
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░ │  TimerBar 4px mint (hidden when manual / 노출)
-│ ╭────────────────────────────────────────────╮ │  AnswerSlot: GlassPanel clear, fixed 148px
-│ │              뭐 할래요?                     │ │  headline --ink-2
-│ │            폴드 · 콜 · 3벳                  │ │  subhead --ink-3 (legal actions)
-│ ╰────────────────────────────────────────────╯ │
-│ 길게 누르면 멈추고 해설                          │  footnote --ink-3, first 3 sessions only (progress.sessions < 3)
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━░░░░░░░░░░   6.4초   │  TimerBar 4px mint + countdown 22px bold mint tnum (100 ms steps)
+│                어떻게 할까요?                   │  headline prompt
+│ [   폴드   ] [    콜    ] [   3벳   ]           │  ChoiceButtons: SCENARIO_ACTIONS[kind], fold → aggressive, 56 high,
+│ ╭ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ╮ │  action-coloured (--act-*), .trainer-choice--<action>
+│ │        길게 누르면 멈추고 해설               │ │  AnswerSlot placeholder (dashed glass-clear, 120 fixed) — keeps the layout stable
+│ ╰ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ╯ │
 │  (◀)        [         해설         ]       (▶) │  IconButton 44 · CapsuleButton neutral lg · IconButton 44
 └────────────────────────────────────────────────┘
 ```
 
-- Header: no position pill (the strip shows 나), no 새 핸드 (▶ skips). ✕ → confirm Sheet (§1 copy);
-  끝내기 → summary with `headline: '여기까지 {n}장'`. ‖ → `paused`, tab bar returns, HUD shows `일시정지`,
-  ‖ becomes ▶ (계속).
-- Origin tag in HUD: `▪새 카드` lilac / `▪복습` sky / `▪헷갈려요` amber / `▪다시` amber / `▪퀴즈 오답` coral.
-- Tap on the stage in think phase → reveal now (`peeked=false`). Horizontal drag in think phase →
-  8 px rubber-band + caption `답을 먼저 보고요` for 200 ms.
-- ◀ goes to the previous card and allows changing its rating (until summary). ▶ skips (exposure only).
+- Ground: the near-black ink body background (`.trainer-session--think`). The HUD phase tag reads `선택하세요`.
+- Tapping a choice → `choose(action)`: graded like the quiz (`gradeAnswer`: exact / weight ≥ 0.4 partial / wrong),
+  rated automatically (correct · partial → `know` [partial → srs `{ partial: true }`], wrong → `unsure`,
+  `ratingSource: 'button'`) and the reveal state follows at once. Keyboard 1–3 = the buttons.
+- Think timer expiring with no choice → reveal in the `시간 초과` state, rated `unsure` automatically.
+- Hold ≥ 180 ms on the stage (not on a button) → pause + held 해설 sheet; the phase stays `think`, the card is
+  marked `peeked`, and a later choice commits as `unsure`. No tap-to-reveal, no horizontal drag.
+- ◀ goes to the previous card in the reveal state (rating can be changed with 헷갈려요로 표시). ▶ skips.
+- 순간기억 / 노출: no buttons (prompt + choices hidden, the fan takes the space); the answer appears by itself.
 
-### 5.4 훈련 — reveal phase (swipe + buttons)
+### 5.4 훈련 — reveal / explanation state (v2.1: background wash by outcome, no RatingBar)
 
 ```
 ┌────────────────────────────────────────────────┐
-│ ╭────────────────────────────────────────────╮ │
-│ │ (✕)  ●●●●●●●○○○○○○○○○○○○○  8/20   ▪복습 (‖)│ │  timer track now counts reveal
+│ ╭────────────────────────────────────────────╮ │  phase tag ▪해설 (ink-2 pill); background wash fades in 200 ms
+│ │ (✕)  ●●●●●●●○○○○○○○○○○○○○  8/20 ▪ 해설  (‖) │ │
 │ ╰────────────────────────────────────────────╯ │
-│ ╭────────────────────────────────────────────╮ │
-│ │ UTG   HJ   CO  ▓BTN▓ᴰ  SB   BB             │ │
-│ ╰────────────────────────────────────────────╯ │
-│ BTN가 오픈 레이즈. BB인 당신 차례입니다.        │
-│                                                │
-│   헷갈려요 ◁   ╭────╮╭────╮   ▷ 알아요          │  stamps: amber left / mint right, opacity ∝ |dx| (§6.3)
-│               │ K  ││ 10 │                    │  fan + answer slot follow the finger 1:1, rotate ≤ ±10°
-│               │ ♦  ││ ♠  │                    │
-│               ╰────╯╰────╯                    │
-│              K♦ T♠ · KTo                       │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━░░░░░░ │  reveal timer (paused while dragging)
-│ ╭────────────────────────────────────────────╮ │  AnswerSlot flips in (rotateX −90°→0, 240ms)
-│ │        ╭──────────────────╮                │ │  answer capsule: .glass-tint --tint = --act-*; Title 2; 56 high
-│ │        │       콜         │                │ │
+│ …strip · situation · crumbs · fan as in 5.3…    │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━░░░░░░  다음까지 3.2초  │  reveal timer + footnote countdown (ink-2)
+│                  정답 ✓                         │  outcome line: 정답 ✓ mint · 부분 정답 △ amber · 오답 ✕ coral ·
+│ [ ✓ 폴드 ] [    콜    ] [   3벳   ]             │  시간 초과 · 못 골랐어요 (ink-2). Chosen = solid + mark, correct = mint outline,
+│ ╭────────────────────────────────────────────╮ │  the rest dimmed 32 %, all disabled
+│ │        ╭──────────────────╮                │ │  AnswerSlot flips in: answer capsule (--act-* tint), mix chips, reasoning[0]
+│ │        │       폴드       │                │ │
 │ │        ╰──────────────────╯                │ │
-│ │   (콜 75%) (3벳 25%)                        │ │  mix chips .fill 24 (settings.showMixFrequencies && mixList ≥ 2)
-│ │ 탑페어를 자주 만들어 콜하지만 큰 팟은 피해요  │ │  footnote, reasoning[0], 2-line clamp
+│ │ 이 자리에서는 약한 킥커 때문에 밸류가 부족…  │ │
 │ ╰────────────────────────────────────────────╯ │
-│ ╭──── 헷갈려요 ────╮   ╭─────── 알아요 ───────╮ │  RatingBar 56 (42:58), amber / mint
-│ ╰──────────────────╯   ╰──────────────────────╯ │
-│  (◀)        [         해설         ]       (▶) │
+│              ( 헷갈려요로 표시 )                │  ghost md toggle, only on a know-rated card (→ commits as unsure, 🤔 badge);
+│  (◀)        [         해설         ]       (▶) │  wrong / 시간 초과 show the caption `헷갈려요로 기록 · 곧 다시 나와요`
 └────────────────────────────────────────────────┘
 ```
 
-- Timed presets: when the reveal timer expires without a rating → `recordExposure` and next (rhythm is
-  never blocked). Once per session, after the first unrated timeout in 천천히/보통, `toast('평가하면 다음에 더 잘 골라드려요')`.
-- Manual (`autoAdvance=false`): timer bar hidden; waits for swipe/button/tap/▶.
-- Rating → haptic, stamp, fly-out 240 ms, `rate()`, next. Debounce 250 ms before the next card accepts a swipe.
-- Peeked card (held during think): `knowDisabled` with hint `답을 먼저 봤어요 · 다음에 확인해요`; swipe right springs back.
-- 순간기억 (`flash`) and 노출 모드: RatingBar hidden, swipe disabled, caption `훑어보기 중 · 탭하면 헷갈려요로 표시`;
-  a tap toggles `flagged` (🤔 badge 24 px at the fan's top-right, 200 ms); flagged cards get `rate('unsure', 'button')`
-  when they leave the screen, unflagged get `recordExposure`. Reveal haptic off in these modes.
+- Session root classes: `.trainer-session--reveal` + `--correct` / `--wrong` / `--neutral` (시간 초과, no choice,
+  노출 / 순간기억). Wash = `.trainer-session__wash` (z −1, opacity 0 → 1, 200 ms, instant under reduced motion):
+  correct `radial-gradient(120% 80% at 50% 0%, #0f3b34, #071a17 70%)`, wrong `#3a2a0e → #1a1207`, neutral
+  `#1e2a44 → #0b1020`. Text contrast stays ≥ 4.5:1 on every wash (ink / ink-2 on ≤ #3a2a0e).
+- Timed presets: the reveal timer then auto-advances (`expire` → next). Manual (`autoAdvance=false`) / onlyKeys
+  sessions: timer hidden, wait for ▶ (Space / Enter). No swipe, no stamps, no fly-out.
+- 순간기억 (`flash`) and 노출 모드: exposure-only write; the rating slot shows the same 헷갈려요로 표시 toggle
+  (flagged → `rate('unsure','button')` on leave, unflagged → `recordExposure`). Reveal haptic off in these modes.
 
 ### 5.5 훈련 — hold-to-pause overlay
 
@@ -647,9 +636,10 @@ pre-selects chips and, with `autostart`, starts immediately. Estimated time = si
 └────────────────────────────────────────────────┘
 ```
 
-Rises 260 ms ease-out, backdrop 0→0.35; release drops 180 ms ease-in; timer resumes where it froze. Holding
-in think phase reveals the answer (intended) and sets `peeked=true`. Haptic 8 on engage. The 해설 button
-opens the full `ExplanationSheet` (detent half, scrollable) and pauses until closed.
+Rises 260 ms ease-out, backdrop 0→0.35; release drops 180 ms ease-in; timer resumes where it froze (the
+countdown reads `일시정지` meanwhile). Sheet title is `해설`. Holding in the choose phase shows the answer in the
+sheet (intended), keeps the phase and sets `peeked=true` — the later choice commits as `unsure`. Haptic 8 on
+engage. The 해설 button opens the full `ExplanationSheet` (detent half, scrollable) and pauses until closed.
 
 ### 5.6 훈련 — session summary
 
@@ -658,20 +648,20 @@ opens the full `ExplanationSheet` (detent half, scrollable) and pauses until clo
 │ ╭────────────────────────────────────────────╮ │  SessionSummaryCard: GlassPanel regular r-xl, springs in 0.92→1
 │ │              세션 끝!                       │ │  Title 1
 │ │         20장 · 2분 08초 · 보통               │ │  footnote --ink-2
-│ │            ◉ 알아요 80%                     │ │  ProgressRing 120/10 mint, center "16/20" (exposureOnly → "노출 20장")
+│ │            ◉ 정답 80%                       │ │  ProgressRing 120/10 mint, center "16/20" (exposureOnly → "노출 20장")
 │ │ (● 새 카드 11)(● 복습 6)(● 헷갈려요 3)       │ │  .fill chips lilac / sky / amber
 │ │ ╭────────────────────────────────────────╮ │ │  streak card: GlassPanel tint --gold, padding 12
 │ │ │ 🔥 8일째 (+1)      오늘 목표 20/20 ✓    │ │ │  flame scales 1→1.25→1 on +1; ✓ + gold when goalReachedNow
 │ │ │ ▪▪▪▪▪▪○  이번 주 6/7                    │ │ │  weekDots
 │ │ ╰────────────────────────────────────────╯ │ │
 │ │ 이번 세션 약점                              │ │  Title 3 (hidden when weakest undefined)
-│ │ SB · 오픈 대응 — 헷갈려요 3/4 · 퀴즈 55%    │ │  row → onRetryUnsure filtered to that bucket
-│ │ 헷갈린 카드 4                               │ │  Title 3 (hidden when 0)
+│ │ SB · 오픈 대응 — 오답 3/4 · 퀴즈 55%        │ │  row → onRetryUnsure filtered to that bucket
+│ │ 틀린 카드 4                                 │ │  Title 3 (hidden when 0)
 │ │ K♦T♠ KTo   BB · BTN 오픈 대응        ╭콜╮  │ │  rows 48: mini cards sm + hand + title + badge sm; tap → sheet
 │ │ A♠4♠ A4s   CO · BTN 3벳 대응         ╭4벳╮ │ │
 │ │ … 2개 더                                    │ │  expands (max 6 visible)
 │ │ 속도 어땠어요? (천천히)(딱 좋아요)(더 빠르게)│ │  firstSession only
-│ │ ▓▓▓▓▓▓▓▓ 헷갈린 것만 다시 · 4장 ▓▓▓▓▓▓▓▓▓ │ │  primary xl (hidden when 0; then 한 번 더 is primary)
+│ │ ▓▓▓▓▓▓▓▓ 틀린 것만 다시 · 4장 ▓▓▓▓▓▓▓▓▓▓▓ │ │  primary xl (hidden when 0; then 한 번 더 is primary)
 │ │ [   한 번 더   ]   [   퀴즈로 확인   ]       │ │  neutral lg ×2
 │ │                홈으로                       │ │  ghost md
 │ ╰────────────────────────────────────────────╯ │
@@ -683,10 +673,10 @@ opens the full `ExplanationSheet` (detent half, scrollable) and pauses until clo
 
 Ring animates 0→value over 600 ms, then the goal line fills; `goalReachedNow` → ring `celebrate` + haptic
 [30,60,30]; `streakIncremented` → flame pulse + [12,60,12]. `한 번 더` rebuilds with the same config;
-`헷갈린 것만 다시` → `launch({target:'train', onlyKeys: unsureKeys, autostart:true})` with `autoAdvance=false`
+`틀린 것만 다시` → `launch({target:'train', onlyKeys: unsureKeys, autostart:true})` with `autoAdvance=false`
 for that session; `퀴즈로 확인` → `launch({target:'quiz', onlyKeys: sessionKeys (unsure first), autostart:true})`.
 Speed feedback chips call `applySpeedPreset(prev/next preset)` and toast `속도를 바꿨어요`. When unsure = 0 the
-caption reads `다 알고 있었네요. 다음엔 새 카드를 더 섞을게요`. The summary scrolls if taller than the viewport.
+caption reads `다 맞혔어요. 다음엔 새 카드를 더 섞을게요` (SRS semantics know/unsure unchanged; only the labels read 정답/오답). The summary scrolls if taller than the viewport.
 
 ### 5.7 퀴즈 (rounds of 10)
 
@@ -777,7 +767,7 @@ Cell tap → `ExplanationSheet` with `stepFor(scenario, hand)`; sheet footer add
 │ │ 상황    ☑ 오픈 ☑ 오픈 대응 ☑ 3벳 대응        │ │  check rows (settings.kinds, ≥ 1)
 │ │         ☑ 4벳 대응 ☑ 올인 대응 ☐ 콜드 4벳    │ │
 │ ╰────────────────────────────────────────────╯ │
-│ 고급                                       ▸   │  disclosure: think 0.2–10 s / reveal 0.2–8 s sliders → speedPreset 'custom'
+│ 고급                                       ▸   │  disclosure: think 1–20 s / reveal 1–10 s (0.5 s steps) sliders → speedPreset 'custom'
 │ 기기                                           │
 │ ╭────────────────────────────────────────────╮ │
 │ │ 진동 (Android)                           [●] │ │  hint "iOS에서는 지원되지 않아요"
@@ -812,16 +802,16 @@ Confirmations use `Sheet` (not `window.confirm`). The screen scrolls; bottom pad
 │ ▒▒▒▒▒│  [ 건너뛰기 ]      [ ▓ 다음 ▓ ] │▒▒▒▒▒▒▒ │  ghost md · primary md
 │ ▒▒▒▒▒╰────────────────────────────────╯▒▒▒▒▒▒▒ │
 └────────────────────────────────────────────────┘
- step 2 · art 'swipe': card ghost-slides +24 px with mint 알아요 stamp, then −24 px with amber 헷갈려요 (1.6 s ∞)
-         "답을 보고 스와이프" / "오른쪽 → 알아요 · 왼쪽 ← 헷갈려요. 헷갈린 카드는 곧 다시 보여드릴게요"
-         a real horizontal swipe ≥ 40 px on the card counts as 다음
+ step 2 · art 'choose': three action pills, the finger taps 콜 and a ✓ pops (1.8 s ∞)
+         "버튼으로 골라요" / "버튼으로 액션을 고르면 바로 정답과 해설이 나와요. 틀린 카드는 곧 다시 보여드릴게요"
+         shown when settings.coachSeen < COACH_VERSION (2); done / skip writes coachSeen = COACH_VERSION
  step 3 · art 'session': mini ProgressRing 0→20 (600 ms) — "20장이 한 세션이에요" / "끝나면 요약이 나와요. ✕는 언제든 저장하고 끝내요"
          [ 시작할게요 ] (no skip on the last step)
 ```
 
 Trigger: TrainerScreen, when a session starts and `settings.coachSeen < 1` → render `<CoachMark>` over the
 paused session; `onDone`/`onSkip` → `update({coachSeen: 1})` and resume. Replay from 설정. Additionally on the
-first reveal of a fresh install (`progress.sessions === 0`) `RatingBar pulseOnce`.
+first reveal of a fresh install (`progress.sessions === 0`) the chosen choice button flashes (`trainer-choice-flash`).
 
 ---
 
@@ -847,7 +837,7 @@ export interface SessionState {
   queue: SessionCard[]; index: number; phase: Phase;
   startedAt: number; activeMs: number;          // accumulated while running
   requeues: Record<string, number>;             // key → times requeued (max 2)
-  holding: boolean; dragging: boolean; sheetOpen: boolean;
+  holding: boolean; sheetOpen: boolean; settling: boolean;
 }
 export function useSessionStatus(): SessionStatus;           // for App (tab bar hide)
 export function getSession(): SessionState | null;
@@ -863,8 +853,8 @@ idle ──start(config)──▶ running: card[i].think ──expire | tap─�
   ▲                        │ hold ⇄ overlay (timer frozen, peeked if think)      │ unsure → requeue at min(i+6, end) (≤2×)
   │                        │ ‖ → paused (tab bar back) ⇄ 계속                     │
   │                        ◀────────────────────── i+1 < queue.length ───────────┘  else ──▶ summary
-  └──────── 홈으로 / 한 번 더 / 헷갈린 것만 / 퀴즈로 확인 (launch) ◀────────────────────────────┘
-running = status==='running' && !holding && !dragging && !sheetOpen && !(manual && phase==='reveal') && !coachOpen
+  └──────── 홈으로 / 한 번 더 / 틀린 것만 / 퀴즈로 확인 (launch) ◀────────────────────────────┘
+running = status==='running' && !holding && !sheetOpen && !coachOpen && !settling && !(manual && phase==='reveal')
 ```
 
 `useTrainerSession(settings)` return shape: everything it returns today (`seq`-equivalent becomes `card`,
@@ -876,43 +866,38 @@ Per card on leave: rated → `rate()`; flagged → `rate('unsure','button')`; el
 `logCards(1, {rated, known})`. Session `activeMs` → `logSeconds` at summary. Restart when
 `settings.positions`/`kinds` change only in `idle` (a running session keeps its queue).
 
-### 6.2 Speed presets (exact ms) and 노출 모드 — `SPEED_PRESETS` in `src/state/settings.ts`
+### 6.2 Speed presets (exact ms, v2.1) and 노출 모드 — `SPEED_PRESETS` in `src/state/settings.ts`
 
-| preset | label | think | reveal | expose dwell | card transition | cadence | ratings |
+| preset | label | think (choose) | reveal | expose dwell | card transition | cadence | ratings |
 |---|---|---|---|---|---|---|---|
-| `slow` | 천천히 | 6000 | 4000 | 4000 | slide 300 | 10.3 s | swipe + buttons |
-| `normal` (default) | 보통 | 3500 | 2500 | 2500 | slide 300 | 6.3 s | swipe + buttons |
-| `fast` | 빠르게 | 1800 | 1500 | 1500 | slide 220 | 3.5 s | swipe + buttons |
-| `flash` | 순간기억 | 250 | 550 | 800 | crossfade 120 | **0.92 s** (0.8 s + fade) | tap-flag only |
-| `custom` | 사용자 | `thinkSeconds×1000` | `revealSeconds×1000` | `revealSeconds×1000` | slide 300 | — | as normal |
+| `slow` | 천천히 | 12000 | 6000 | 6000 | slide 300 | 18.3 s | choice buttons |
+| `normal` (default) | 보통 | 8000 | 5000 | 4000 | slide 300 | 13.3 s | choice buttons |
+| `fast` | 빠르게 | 5000 | 3000 | 2500 | slide 220 | 8.2 s | choice buttons |
+| `flash` | 순간기억 | 1500 | 1500 | 1200 | crossfade 120 | 3.1 s | 🤔 flag only (no choosing) |
+| `custom` | 사용자 | `thinkSeconds×1000` (1–20 s) | `revealSeconds×1000` (1–10 s) | `revealSeconds×1000` | slide 300 | — | as normal |
 
-`applySpeedPreset(p)` writes `{ speedPreset: p, thinkSeconds: think/1000, revealSeconds: reveal/1000 }` so
-`useRafTimer` and the engine are untouched; editing the 고급 sliders writes `speedPreset: 'custom'`. Slider
-minimum becomes 0.2 s. **노출 모드** (`exposureMode`, orthogonal): no think phase; hand + answer appear
-together for `expose` ms, then next; ratings via tap-flag only; hold works. `manual` + 노출 = wait for tap.
-Reveal haptic is off for `flash` and 노출.
+`applySpeedPreset(p)` writes `{ speedPreset: p, thinkSeconds: think/1000, revealSeconds: reveal/1000 }`;
+`load()` re-derives the seconds from the preset table whenever `speedPreset !== 'custom'`, so timings stored by an
+older build never survive an update. Editing the 고급 sliders writes `speedPreset: 'custom'`. The countdown is
+always visible next to the bar (`useRafTimer` exposes `remainingMs`, quantised to 100 ms): `6.4초` while choosing,
+`다음까지 3.2초` in the reveal state, `일시정지` while held / paused. **노출 모드** (`exposureMode`, orthogonal):
+no choose phase; hand + answer appear together for `expose` ms, then next; hold works. `manual` + 노출 = wait
+for ▶. The setup caption for 순간기억 reads `답을 바로 보여줘요 · 선택 없음`.
 
-### 6.3 Gestures — `src/screens/trainer/SwipeStage.tsx` (owner B; owns the fan + hand label + answer slot)
+### 6.3 Stage gesture — `src/screens/trainer/SwipeStage.tsx` (owner B; owns the fan + hand label, wraps timer / choices / answer slot)
+
+v2.1 keeps exactly one stage gesture: **hold-to-pause**. Horizontal swipes, stamps, rotation, fly-out and
+tap-to-reveal are gone; choosing is done with the `ChoiceButtons` capsules.
 
 ```
-pointerdown (primary; ignore if target.closest('button, a')) → setPointerCapture; record x0,y0,t0; timer paused; holdTimer = 180 ms
-pointermove → dx, dy
-  |dy| ≥ 10 && |dy| > 1.4·|dx| (before any mode)          → CANCEL (no mode), resume timer
-  |dx| ≥ 10 && |dx| > 1.4·|dy| && holdTimer pending        → clear holdTimer; mode = SWIPE if (phase==='reveal' && swipeEnabled) else RESIST
-  SWIPE: translateX(dx) rotate(clamp(dx/22, -10, 10)deg); stamp opacity = clamp((|dx| − 24) / 48, 0, 1)
-  RESIST (think phase / disabled): translateX(clamp(dx, -8, 8)); show caption once
-holdTimer fires (movement < 8 px)                           → mode = HOLD: onHoldStart() (overlay, peeked if think), vibrate(8)
-pointerup / pointercancel
-  HOLD   → onHoldEnd(); resume
-  SWIPE  → commit if |dx| ≥ 72 || (|dx| ≥ 24 && |vx| ≥ 0.5 px/ms over the last 80 ms)
-           commit: fly-out to ±120% in 240 ms ease-in → onSwipe(dx > 0 ? 'know' : 'unsure'); else spring back 320 ms → resume
-  none, < 180 ms, < 8 px (TAP) → onTap(): think → revealNow(); reveal (timed recall) → next (exposure); flash/노출 → flagToggle()
-after a commit the stage ignores new pointerdowns for 250 ms
+pointerdown (primary; ignored if target.closest('button, a')) → setPointerCapture; holdTimer = 180 ms
+pointermove ≥ 8 px before the timer fires                     → not a hold (gesture dropped)
+holdTimer fires                                                → onHoldStart(): store.setHolding(true) — overlay, timer frozen, peeked if choose phase, vibrate(8)
+pointerup / pointercancel                                      → onHoldEnd() when holding; otherwise nothing
 ```
 
-Element: `touch-action: none; user-select: none`, contextmenu prevented, `will-change: transform` only while
-dragging. Keyboard: ← / → / Space = unsure / know / reveal-or-next (desktop testing). `swipeEnabled =
-phase==='reveal' && !exposure && speed!=='flash' && !card.peeked-for-right` (a peeked card allows only ← ).
+Element: `touch-action: manipulation; user-select: none`, contextmenu prevented. Keyboard (desktop testing):
+1 / 2 / 3 = the choice buttons in order, Space / Enter = ▶ in the reveal state, Esc = sheets.
 
 ### 6.4 Focus decks and queue (implemented in `srs.ts`, consumed by trainer and quiz)
 
@@ -947,12 +932,12 @@ export interface Settings {
   lastDeck: DeckId;                // 'all' (never 'scenario')
   lastPositions: Pos[] | null;     // null = all of settings.positions
 }
-// DEFAULT_SETTINGS: thinkSeconds 3.5, revealSeconds 2.5 (= 보통), plus the defaults above. `load()` already merges partial storage.
+// DEFAULT_SETTINGS: thinkSeconds 8, revealSeconds 5 (= 보통 v2.1), plus the defaults above. `load()` merges partial storage and re-derives the seconds from the preset table (see §6.2).
 export const SPEED_PRESETS: Record<Exclude<SpeedPreset, 'custom'>, { label: string; think: number; reveal: number; expose: number; transition: number }> = {
   slow:   { label: '천천히',  think: 6000, reveal: 4000, expose: 4000, transition: 300 },
-  normal: { label: '보통',    think: 3500, reveal: 2500, expose: 2500, transition: 300 },
-  fast:   { label: '빠르게',  think: 1800, reveal: 1500, expose: 1500, transition: 220 },
-  flash:  { label: '순간기억', think: 250,  reveal: 550,  expose: 800,  transition: 120 },
+  normal: { label: '보통',    think: 8000, reveal: 5000, expose: 4000, transition: 300 },
+  fast:   { label: '빠르게',  think: 5000, reveal: 3000, expose: 2500, transition: 220 },
+  flash:  { label: '순간기억', think: 1500, reveal: 1500, expose: 1200, transition: 120 },
 };
 export function applySpeedPreset(p: SpeedPreset): void;   // custom → no timing change
 export function presetTiming(s: Settings): { think: number; reveal: number; expose: number; transition: number };
@@ -1124,7 +1109,6 @@ Quiz keeps calling `recordAnswer` (accuracy pills, 최근 실수). Home never re
 |---|---|---|
 | Think → reveal | AnswerSlot inner flips `rotateX(-90deg)→0` (perspective 800) + answer capsule `scale(.9)→1`; fan lifts 4 px and settles | 240 ms `--ease-spring` |
 | Card → next card | old fan `translateX(-40%) rotate(-6deg) opacity→0` (180 ms `--ease-in`); new fan from `translateX(60%) scale(.92)` (300 ms `--ease-spring`, 60 ms overlap); `fast` 220 ms; `flash`/노출 crossfade 120 ms | per §6.2 |
-| Swipe | follows finger 1:1 (no transition); commit fly-out ±120% 240 ms `--ease-in`; cancel spring back 320 ms `--ease-spring` | — |
 | Hold overlay | `translateY(100%)→0` 260 ms `--ease-out`; backdrop 0→.35; release 180 ms `--ease-in`; stage behind `scale(.98)` | — |
 | Sheet | `translateY(100%)→0` 420 ms `--ease-spring`; dismiss 220 ms `--ease-in` | — |
 | Tab switch | content crossfade 200 ms; active pill `translateX` 320 ms `--ease-spring` | — |
@@ -1135,13 +1119,13 @@ Quiz keeps calling `recordAnswer` (accuracy pills, 최근 실수). Home never re
 | Ring / goal | `stroke-dashoffset` 600 ms `--ease-out`; `celebrate` pulse `scale 1→1.06→1` 420 ms | — |
 | Chip select / segment | pill glide 320 ms `--ease-spring`; press `scale(.97)` 120 ms | — |
 | Timer bar | width per rAF frame, no CSS transition (existing) | — |
-| Coach mark | card crossfade 200 ms; art loops (ring pulse 1.2 s, ghost swipe 1.6 s) | — |
+| Coach mark | card crossfade 200 ms; art loops (ring pulse 1.2 s, choice tap 1.8 s) | — |
 
 `@media (prefers-reduced-motion: reduce)`: every transform above becomes an opacity crossfade ≤ 150 ms;
-the swipe still follows the finger (user-driven) but does not rotate and fly-out is an instant fade; rings
+the choice-button flash / shake are dropped and the reveal wash swaps instantly; rings
 fill instantly; hold overlay has no blur on the stage behind; coach-mark loops are static frames. Keep the
 existing global rule (`* { transition: none; animation: none }`) but scope it to `:not(.motion-safe)`? **No** —
-replace it with the per-component rules above so the timer and swipe keep working.
+replace it with the per-component rules above so the timer keeps working.
 
 Haptics (`vibrate()` from settings; iOS Safari ignores `navigator.vibrate`, so every haptic has a visual twin):
 
@@ -1149,7 +1133,7 @@ Haptics (`vibrate()` from settings; iOS Safari ignores `navigator.vibrate`, so e
 |---|---|---|
 | Reveal (not flash/노출) | 12 | answer flip |
 | Hold engaged | 8 | HUD "일시정지" |
-| 알아요 commit | 10 | mint stamp + fly-out |
+| 정답 choice | 10 | ✓ mark on the capsule |
 | 헷갈려요 commit / flag | [18, 30, 18] | amber stamp / 🤔 badge |
 | Quiz correct / partial / wrong | 12 / 12 / [30, 40, 30] | button tint flash |
 | Session complete | [10, 40, 10, 40] | summary spring |
@@ -1216,10 +1200,11 @@ Do not commit stubs of another owner's file; until it lands, develop against the
   remove before final). Checks: legacy components render on the new ground; ≤ 3 blurred surfaces; 44 px
   targets; `@supports` fallback verified by toggling `backdrop-filter` off in devtools; settings storage from
   v1 loads with the new defaults merged.
-- **B**: `setup`, `setup-launch-intent`, `think`, `reveal`, `reveal-mixed`, `hold` (`hold=.trainer-stage:900`),
-  `swipe-mid` (pointer down + move 48 px), `paused`, `flash`, `expose`, `manual-waiting`, `summary`,
-  `summary-partial` (✕ path), `coach-1..3`, `empty-no-charts`. Checks: cadence 순간기억 ≈ 0.9 s measured with
-  timestamps; swipe thresholds (72 px / velocity) behave; peeked rule; requeue max 2; tab bar hidden while
+- **B**: `setup`, `setup-launch-intent`, `think`, `reveal-correct`, `reveal-wrong`, `reveal-mixed`, `timeout`,
+  `hold` (`hold=.trainer-stage:900`), `paused`, `flash`, `expose`, `manual-waiting`, `summary`,
+  `summary-partial` (✕ path), `coach-1..3`, `empty-no-charts`. Checks: cadence 순간기억 ≈ 1.5 s measured with
+  timestamps; choice buttons ≥ 56 px and grade correctly (✓ / △ / ✕, correct outlined); think timeout →
+  시간 초과 + auto 'unsure'; peeked rule; requeue max 2; tab bar hidden while
   running and back on pause/summary; nothing scrolls during a session at 360 px and 430 px widths;
   `prefers-reduced-motion` path.
 - **C**: unit tests for every row of the scheduling table, fuzz determinism, queue composition (30 % / 60 %
@@ -1240,6 +1225,6 @@ Do not commit stubs of another owner's file; until it lands, develop against the
 
 **Cut order if time runs out** (first cut first): level names → chart mastery overlay → speed feedback
 chips → heatmap tooltip row → 노출 모드 tap-flag (노출 becomes pure exposure) → in-session requeue → coach
-steps 2–3 (keep hold; rely on RatingBar pulse). **Never cut**: 4-tab floating glass bar, session size +
-summary, speed presets with 순간기억, swipe/button rating, shared SRS store, daily goal ring + streak,
+steps 2–3 (keep hold; rely on the choice-button flash). **Never cut**: 4-tab floating glass bar, session size +
+summary, speed presets with 순간기억, choice-button rating, shared SRS store, daily goal ring + streak,
 hold-to-pause, coach step 1.

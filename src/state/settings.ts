@@ -21,20 +21,30 @@ export interface Settings {
   exposureMode: boolean; // false — hand + answer shown together, no think phase
   sessionSize: 10 | 20 | 40; // 20
   dailyGoal: 10 | 20 | 40 | 80; // 20
-  coachSeen: number; // 0 (bump the required value to re-show after a gesture change)
+  coachSeen: number; // 0 (compared against COACH_VERSION; bumped to re-show after a gesture change)
   lastDeck: DeckId; // 'all' (never 'scenario')
   lastPositions: Pos[] | null; // null = all of settings.positions
 }
 
 /** Exact per-preset timings in ms (spec §6.2). `custom` reads `thinkSeconds` / `revealSeconds` instead. */
 export const SPEED_PRESETS: Record<Exclude<SpeedPreset, 'custom'>, { label: string; think: number; reveal: number; expose: number; transition: number }> = {
-  slow: { label: '천천히', think: 6000, reveal: 4000, expose: 4000, transition: 300 },
-  normal: { label: '보통', think: 3500, reveal: 2500, expose: 2500, transition: 300 },
-  fast: { label: '빠르게', think: 1800, reveal: 1500, expose: 1500, transition: 220 },
-  flash: { label: '순간기억', think: 250, reveal: 550, expose: 800, transition: 120 },
+  slow: { label: '천천히', think: 12000, reveal: 6000, expose: 6000, transition: 300 },
+  normal: { label: '보통', think: 8000, reveal: 5000, expose: 4000, transition: 300 },
+  fast: { label: '빠르게', think: 5000, reveal: 3000, expose: 2500, transition: 220 },
+  flash: { label: '순간기억', think: 1500, reveal: 1500, expose: 1200, transition: 120 },
 };
 
 export const SPEED_PRESET_ORDER: ReadonlyArray<Exclude<SpeedPreset, 'custom'>> = ['slow', 'normal', 'fast', 'flash'];
+
+/** 고급 slider bounds (seconds). */
+export const THINK_SECONDS_RANGE = { min: 1, max: 20 } as const;
+export const REVEAL_SECONDS_RANGE = { min: 1, max: 10 } as const;
+
+/**
+ * Coach-mark version: the session shows the coach when `settings.coachSeen < COACH_VERSION` and writes
+ * `coachSeen: COACH_VERSION` on done / skip. Bump it when the gestures change (v2 = choice buttons instead of swipe).
+ */
+export const COACH_VERSION = 2;
 
 /** Scenario kinds behind each focus deck (spec §6.4). 'all' uses `settings.kinds`; 'weak'/'scenario' are computed by srs.ts. */
 export const DECK_KINDS: Record<Exclude<DeckId, 'weak' | 'scenario' | 'all'>, ScenarioKind[]> = {
@@ -47,8 +57,8 @@ export const DECK_KINDS: Record<Exclude<DeckId, 'weak' | 'scenario' | 'all'>, Sc
 export const DEFAULT_SETTINGS: Settings = {
   positions: [...POSITIONS],
   kinds: ['rfi', 'vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet'],
-  thinkSeconds: 3.5,
-  revealSeconds: 2.5,
+  thinkSeconds: 8,
+  revealSeconds: 5,
   autoAdvance: true,
   interestingBias: 0.6,
   showMixFrequencies: true,
@@ -69,6 +79,10 @@ const DECK_IDS: readonly DeckId[] = ['all', 'rfi', 'vs_open', 'vs_3bet', 'vs_4be
 const SESSION_SIZES: ReadonlyArray<Settings['sessionSize']> = [10, 20, 40];
 const DAILY_GOALS: ReadonlyArray<Settings['dailyGoal']> = [10, 20, 40, 80];
 
+function clampSeconds(v: unknown, range: { min: number; max: number }, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(range.max, Math.max(range.min, v)) : fallback;
+}
+
 function isPos(x: unknown): x is Pos {
   return typeof x === 'string' && (POSITIONS as readonly string[]).includes(x);
 }
@@ -88,6 +102,14 @@ function normalize(parsed: Partial<Settings>): Settings {
     }
   }
   if (!SPEED_PRESET_IDS.includes(s.speedPreset)) s.speedPreset = DEFAULT_SETTINGS.speedPreset;
+  if (s.speedPreset !== 'custom') {
+    // Presets own the seconds: re-derive them from the current table so timings stored by an older build never survive.
+    s.thinkSeconds = SPEED_PRESETS[s.speedPreset].think / 1000;
+    s.revealSeconds = SPEED_PRESETS[s.speedPreset].reveal / 1000;
+  } else {
+    s.thinkSeconds = clampSeconds(s.thinkSeconds, THINK_SECONDS_RANGE, DEFAULT_SETTINGS.thinkSeconds);
+    s.revealSeconds = clampSeconds(s.revealSeconds, REVEAL_SECONDS_RANGE, DEFAULT_SETTINGS.revealSeconds);
+  }
   if (!SESSION_SIZES.includes(s.sessionSize)) s.sessionSize = DEFAULT_SETTINGS.sessionSize;
   if (!DAILY_GOALS.includes(s.dailyGoal)) s.dailyGoal = DEFAULT_SETTINGS.dailyGoal;
   if (!DECK_IDS.includes(s.lastDeck) || s.lastDeck === 'scenario') s.lastDeck = 'all';

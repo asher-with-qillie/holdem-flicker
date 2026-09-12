@@ -1,18 +1,18 @@
 import { useCallback, useMemo } from 'react';
-import { toast } from '../../components/ui/Toast';
 import type { Step } from '../../poker/trainer';
+import type { Action } from '../../poker/types';
 import type { Settings } from '../../state/settings';
 import type { RatingSource } from '../../state/srs';
 import {
+  choose as storeChoose,
   currentCard,
   endSession,
-  EXIT_MS,
   expire,
   flagToggle as storeFlagToggle,
   getSession,
-  markUnratedToast,
   next as storeNext,
   prev as storePrev,
+  quiet as isQuiet,
   rateCard,
   revealNow as storeRevealNow,
   setHolding as storeSetHolding,
@@ -29,7 +29,13 @@ import {
 
 export type { Phase } from './sessionStore';
 
-const UNRATED_TOAST = '평가하면 다음에 더 잘 골라드려요';
+/** Background wash of the reveal state (§5.4 v2.1): correct → teal, wrong → amber, 시간 초과 / 노출 / no choice → slate. */
+export type RevealTone = 'correct' | 'wrong' | 'neutral';
+
+export function revealTone(card: SessionCard | undefined, quiet: boolean): RevealTone {
+  if (!card || quiet || card.timedOut || !card.chosenAction) return 'neutral';
+  return card.grade === 'wrong' ? 'wrong' : 'correct';
+}
 
 /**
  * View-model over `sessionStore` (spec §6.1): same shape the v1 hook returned (`card` for `seq`, `index` for
@@ -47,13 +53,14 @@ export function useTrainerSession(settings: Settings) {
   const sheetOpen = !!s?.sheetOpen;
   const coachOpen = !!s?.coachOpen;
   const manual = !!s?.config.manual;
-  const quiet = !!s && (s.config.speed === 'flash' || s.config.exposure);
-  /** Manual mode: the answer stays until a swipe / button / tap / ▶. */
+  const quiet = !!s && isQuiet(s);
+  /** Manual mode: the answer stays until ▶. */
   const waiting = !!s && manual && phase === 'reveal';
-  const running = !!s && status === 'running' && !holding && !s.dragging && !sheetOpen && !coachOpen && !s.settling && !s.exiting && !waiting;
+  const running = !!s && status === 'running' && !holding && !sheetOpen && !coachOpen && !s.settling && !waiting;
   const durationMs = s ? Math.max(200, s.config.exposure ? s.timing.expose : phase === 'think' ? s.timing.think : s.timing.reveal) : 1000;
   const timerKey = s && card ? `${s.id}:${card.id}:${phase}` : 'idle';
-  const timerHidden = !s || manual || (s.config.exposure && manual);
+  const timerHidden = !s || waiting || (s.config.exposure && manual);
+  const tone: RevealTone = revealTone(card, quiet);
 
   /** Steps of the current hand chain (for StepCrumbs). */
   const chain = useMemo(() => {
@@ -66,26 +73,17 @@ export function useTrainerSession(settings: Settings) {
   const onExpire = useCallback(() => {
     const st = getSession();
     if (!st || st.status !== 'running') return;
-    if (st.phase === 'reveal' || st.config.exposure) {
-      const c = currentCard(st);
-      const timed = st.config.speed === 'slow' || st.config.speed === 'normal';
-      if (c && !c.rating && !c.flagged && timed && !st.config.exposure && !st.unratedToastShown) {
-        markUnratedToast();
-        toast(UNRATED_TOAST);
-      }
-    }
     expire();
   }, []);
 
+  const choose = useCallback((a: Action) => storeChoose(a), []);
+
+  /** Explicit rating (keyboard / corrective ◀ path). `know` on a peeked card is refused. */
   const rate = useCallback((r: Rating, source: RatingSource = 'button') => {
     const st = getSession();
     const c = currentCard(st);
     if (!st || !c) return false;
-    if (r === 'know' && c.peeked) {
-      toast('답을 먼저 봤어요 · 다음에 확인해요', 'amber');
-      return false;
-    }
-    return rateCard(r, source, EXIT_MS);
+    return rateCard(r, source);
   }, []);
 
   const flagToggle = useCallback(() => storeFlagToggle(), []);
@@ -110,6 +108,7 @@ export function useTrainerSession(settings: Settings) {
     chain,
     chainIndex,
     phase,
+    tone,
     paused,
     holding,
     sheetOpen,
@@ -118,12 +117,12 @@ export function useTrainerSession(settings: Settings) {
     running,
     quiet,
     manual,
-    exiting: s?.exiting ?? null,
     settling: !!s?.settling,
     durationMs,
     timerKey,
     timerHidden,
     onExpire,
+    choose,
     rate,
     flagToggle,
     revealNow,

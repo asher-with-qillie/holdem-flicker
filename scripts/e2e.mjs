@@ -59,35 +59,53 @@ await shot('04-train-think');
 check((await page.locator('.trainer-stage').count()) > 0, 'train: .trainer-stage missing after start');
 check((await page.locator('.trainer-hud').count()) > 0, 'train: HUD missing');
 check(await tabBarHidden(), 'train: tab bar not hidden during session');
-
-// hold-to-pause
+check((await page.locator('.trainer-session--think').count()) > 0, 'train: .trainer-session--think missing (choose state)');
+check((await page.locator('.trainer-choice').count()) >= 2, 'train: fewer than 2 .trainer-choice buttons');
+const countdown = () => page.locator('.trainer-timer__num').first().innerText().catch(() => '');
+check(/\d+\.\d초/.test(await countdown()), `train: countdown number missing ("${await countdown()}")`);
+check(/선택하세요/.test(await page.locator('.trainer-hud').innerText()), 'train: HUD tag should read 선택하세요 while choosing');
 {
-  const box = await page.locator('.trainer-stage').first().boundingBox();
+  const tooSmall = await page.locator('.trainer-choice').evaluateAll((els) => els.filter((el) => el.getBoundingClientRect().height < 56).length);
+  check(tooSmall === 0, `train: ${tooSmall} choice button(s) shorter than 56 px`);
+}
+
+// hold-to-pause (on the fan, away from the buttons): countdown freezes, held sheet shows, resumes on release
+{
+  const box = await page.locator('.trainer-fan').first().boundingBox();
   const cdp = await ctx.newCDPSession(page);
-  const x = box.x + box.width / 2, y = box.y + box.height * 0.5;
+  const x = box.x + box.width / 2, y = box.y + box.height / 2;
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  await page.waitForTimeout(400);
+  // inline progress width (the stage's scale(.98) hold transition would jitter a bounding rect)
+  const barWidth = () => page.evaluate(() => document.querySelector('.timerbar__fill')?.style.width ?? '');
+  const t1 = await countdown();
+  const w1 = await barWidth();
   await page.waitForTimeout(700);
-  const w1 = await page.locator('.timerbar__fill, .trainer-hud__bar > *').first().evaluate((el) => el.style.width || el.getAttribute('style')).catch(() => null);
-  await page.waitForTimeout(700);
-  const w2 = await page.locator('.timerbar__fill, .trainer-hud__bar > *').first().evaluate((el) => el.style.width || el.getAttribute('style')).catch(() => null);
-  check(w1 !== null && w1 === w2, `train: timer did not pause while holding (${w1} → ${w2})`);
+  const t2 = await countdown();
+  const w2 = await barWidth();
+  check(t1 === '일시정지', `train: countdown label while holding should be 일시정지 (got "${t1}")`);
+  check(w1 !== '' && w1 === w2, `train: timer bar did not freeze while holding (${w1} → ${w2})`);
   const held = await page.locator('.ui-sheet--held, .trainer-hold').count();
   check(held > 0, 'train: hold overlay not shown');
   await shot('05-train-hold');
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(600);
+  const t3 = await countdown();
+  check(t3 !== t2, `train: countdown did not resume after release (${t2} → ${t3})`);
+  check((await page.locator('.ui-sheet--held').count()) === 0, 'train: hold overlay still shown after release');
 }
-// reveal → rate
-let revealed = false;
-for (let i = 0; i < 40 && !revealed; i++) { await page.waitForTimeout(250); revealed = (await page.locator('.trainer-answer__cap').count()) > 0; }
-check(revealed, 'train: answer cap did not appear within 10s');
+// choose → reveal state
+await page.locator('.trainer-choice').first().tap();
+await page.waitForTimeout(500);
 await shot('06-train-reveal');
-const counterBefore = await page.locator('.trainer-hud__count').first().innerText().catch(() => '');
-const know = page.locator('.ui-rating button', { hasText: '알아요' });
-check((await know.count()) > 0, 'train: 알아요 rating button missing');
-if (await know.count()) { await know.first().tap(); await page.waitForTimeout(900); }
-const counterAfter = await page.locator('.trainer-hud__count').first().innerText().catch(() => '');
-check(counterBefore !== counterAfter, `train: counter did not advance after rating (${counterBefore} → ${counterAfter})`);
+check((await page.locator('.trainer-session--reveal').count()) > 0, 'train: .trainer-session--reveal missing after choosing');
+check((await page.locator('.trainer-answer__cap').count()) > 0, 'train: answer cap missing after choosing');
+check(/해설/.test(await page.locator('.trainer-hud').innerText()), 'train: HUD tag should read 해설 in the reveal state');
+check(/다음까지 \d+\.\d초/.test(await countdown()), `train: reveal countdown missing ("${await countdown()}")`);
+{
+  const think = await page.evaluate(() => getComputedStyle(document.querySelector('.trainer-session__wash')).opacity);
+  check(Number(think) > 0.5, `train: reveal wash not visible (opacity ${think})`);
+}
 // end early → summary
 await page.locator('.trainer-hud__btn').first().tap();
 await page.waitForTimeout(400);
@@ -96,7 +114,7 @@ const endBtn = page.locator('.ui-sheet button, .trainer-confirm button', { hasTe
 check((await endBtn.count()) > 0, 'train: end-session confirm button missing');
 if (await endBtn.count()) { await endBtn.first().tap(); await page.waitForTimeout(700); }
 await shot('08-train-summary');
-check(/세션|알아요/.test(await page.locator('body').innerText()), 'train: summary missing');
+check(/세션|정답/.test(await page.locator('body').innerText()), 'train: summary missing');
 check(!(await tabBarHidden()), 'train: tab bar still hidden on summary');
 
 // --- Quiz

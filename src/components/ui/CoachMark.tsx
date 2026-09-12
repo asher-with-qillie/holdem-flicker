@@ -1,25 +1,24 @@
 /**
  * First-run coach mark (spec §4 / §5.10, owner F). Store-agnostic: the trainer (owner B) renders it over the
- * paused session when `settings.coachSeen < 1` and writes `coachSeen: 1` on `onDone` / `onSkip`.
+ * paused session when `settings.coachSeen < COACH_VERSION` and writes `coachSeen: COACH_VERSION` on `onDone` / `onSkip`.
  *
  *   <CoachMark steps={defaultCoachSteps(settings.sessionSize)} onDone={resume} onSkip={resume} />
  *
  * Portaled to <body> at --z-coach. Backdrop = dim 55 % + blur 8 with a radial spotlight cut-out (mask) that keeps
  * the cards behind visible. Card = GlassPanel strong (blur-free, the backdrop already blurs). Step art loops
- * (ring 1.2 s, ghost swipe 1.6 s) become static frames under prefers-reduced-motion. Keyboard: Enter/Space on the
- * focused button, Esc = 건너뛰기 (last step: 시작할게요), ← / → = 다음 on the swipe step. A real horizontal swipe
- * ≥ 40 px on the card also counts as 다음 on the swipe step. No haptics (§8).
+ * (ring 1.2 s, choice tap 1.8 s) become static frames under prefers-reduced-motion. Keyboard: Enter/Space on the
+ * focused button, Esc = 건너뛰기 (last step: 시작할게요). No haptics (§8).
  */
-import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Card } from '../../poker/types';
-import { HandView, PlayingCard } from '../PlayingCard';
+import { PlayingCard } from '../PlayingCard';
 import { CapsuleButton } from './CapsuleButton';
 import { GlassPanel } from './GlassPanel';
 import { ProgressRing } from './ProgressRing';
 import '../../styles/coachmark.css';
 
-export type CoachArt = 'hold' | 'swipe' | 'session';
+export type CoachArt = 'hold' | 'choose' | 'session';
 
 export interface CoachStep {
   title: string;
@@ -35,7 +34,6 @@ export interface CoachMarkProps {
   onSkip(): void;
 }
 
-const SWIPE_PX = 40;
 const ACE: Card = { rank: 'A', suit: 's' };
 const FOCUSABLE = 'button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -43,7 +41,7 @@ const FOCUSABLE = 'button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 export function defaultCoachSteps(sessionSize = 20): CoachStep[] {
   return [
     { art: 'hold', title: '꾹 누르면 멈춰요', body: '누르는 동안 해설이 올라오고, 손을 떼면 바로 이어져요.' },
-    { art: 'swipe', title: '답을 보고 스와이프', body: '오른쪽 → 알아요 · 왼쪽 ← 헷갈려요. 헷갈린 카드는 곧 다시 보여드릴게요' },
+    { art: 'choose', title: '버튼으로 골라요', body: '버튼으로 액션을 고르면 바로 정답과 해설이 나와요. 틀린 카드는 곧 다시 보여드릴게요' },
     { art: 'session', title: `${sessionSize}장이 한 세션이에요`, body: '끝나면 요약이 나와요. ✕는 언제든 저장하고 끝내요', count: sessionSize },
   ];
 }
@@ -75,16 +73,20 @@ function HoldArt() {
   );
 }
 
-function SwipeArt() {
+function ChooseArt() {
   return (
-    <div className="cm-art cm-art--swipe" aria-hidden="true">
-      <span className="cm-cue cm-cue--l">←</span>
-      <div className="cm-card cm-card--swipe">
-        <PlayingCard card={ACE} size="md" />
-        <span className="cm-stamp cm-stamp--know">알아요</span>
-        <span className="cm-stamp cm-stamp--unsure">헷갈려요</span>
+    <div className="cm-art cm-art--choose" aria-hidden="true">
+      <div className="cm-choices">
+        <span className="cm-choice cm-choice--fold">폴드</span>
+        <span className="cm-choice cm-choice--call">
+          콜<b className="cm-choice__mark">✓</b>
+        </span>
+        <span className="cm-choice cm-choice--threebet">3벳</span>
       </div>
-      <span className="cm-cue cm-cue--r">→</span>
+      <div className="cm-touch cm-touch--choose">
+        <span className="cm-ring" />
+        <Finger />
+      </div>
     </div>
   );
 }
@@ -102,13 +104,12 @@ function SessionArt({ count }: { count: number }) {
 export function CoachMark({ steps, onDone, onSkip }: CoachMarkProps): JSX.Element | null {
   const [index, setIndex] = useState(0);
   const panel = useRef<HTMLDivElement>(null);
-  const swipeStart = useRef<{ x: number; y: number; id: number } | null>(null);
   const titleId = useId();
   const step = steps[index];
   const last = index >= steps.length - 1;
 
-  const latest = useRef({ onDone, onSkip, last, art: step?.art });
-  latest.current = { onDone, onSkip, last, art: step?.art };
+  const latest = useRef({ onDone, onSkip, last });
+  latest.current = { onDone, onSkip, last };
 
   const next = () => {
     if (latest.current.last) latest.current.onDone();
@@ -120,14 +121,11 @@ export function CoachMark({ steps, onDone, onSkip }: CoachMarkProps): JSX.Elemen
     const el = panel.current;
     el?.querySelector<HTMLButtonElement>('.cm-next')?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
-      const { last: isLast, onDone: done, onSkip: skip, art } = latest.current;
+      const { last: isLast, onDone: done, onSkip: skip } = latest.current;
       if (e.key === 'Escape') {
         e.preventDefault();
         if (isLast) done();
         else skip();
-      } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && art === 'swipe') {
-        e.preventDefault();
-        next();
       } else if (e.key === 'Tab' && el) {
         const nodes = Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE));
         if (nodes.length === 0) return;
@@ -149,34 +147,12 @@ export function CoachMark({ steps, onDone, onSkip }: CoachMarkProps): JSX.Elemen
 
   if (!step) return null;
 
-  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (step.art !== 'swipe') return;
-    swipeStart.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
-  };
-  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const start = swipeStart.current;
-    swipeStart.current = null;
-    if (!start || start.id !== e.pointerId || step.art !== 'swipe') return;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    if (Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy)) next();
-  };
-
   const node = (
     <div className="cm-root" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <div className="cm-backdrop" aria-hidden="true" />
       <div className="cm-layout">
         <GlassPanel variant="strong" radius="lg" padding={20} className="cm-panel glass-flat">
-          <div
-            ref={panel}
-            key={index}
-            className={`cm-step cm-step--${step.art}`}
-            onPointerDown={onPointerDown}
-            onPointerUp={onPointerUp}
-            onPointerCancel={() => {
-              swipeStart.current = null;
-            }}
-          >
+          <div ref={panel} key={index} className={`cm-step cm-step--${step.art}`}>
             <div className="cm-dots" aria-hidden="true">
               {steps.map((_, k) => (
                 <i key={k} className={k === index ? 'on' : undefined} />
@@ -186,7 +162,7 @@ export function CoachMark({ steps, onDone, onSkip }: CoachMarkProps): JSX.Elemen
               {index + 1} / {steps.length} 단계
             </span>
             {step.art === 'hold' && <HoldArt />}
-            {step.art === 'swipe' && <SwipeArt />}
+            {step.art === 'choose' && <ChooseArt />}
             {step.art === 'session' && <SessionArt count={step.count ?? 20} />}
             <h2 id={titleId} className="cm-title t-title-3">
               {step.title}
@@ -208,61 +184,4 @@ export function CoachMark({ steps, onDone, onSkip }: CoachMarkProps): JSX.Elemen
     </div>
   );
   return createPortal(node, document.body);
-}
-
-/* ---------------------------------------------------------------- dev fixture (#coach) */
-
-const FIXTURE_HAND: [Card, Card] = [
-  { rank: 'A', suit: 's' },
-  { rank: 'K', suit: 'd' },
-];
-
-/**
- * Dev fixture for the `coach-fixture` screenshot: a static think-phase stage (HUD pill, fan, answer slot, rating
- * capsules — flat, no store) with <CoachMark> over it. Mount from App.tsx next to the `#ui` route:
- *   if (hash === '#coach') return <CoachMarkFixture />;
- */
-export function CoachMarkFixture(): JSX.Element {
-  const [open, setOpen] = useState(true);
-  const [ended, setEnded] = useState<'done' | 'skip' | null>(null);
-  const finish = (how: 'done' | 'skip') => {
-    setEnded(how);
-    setOpen(false);
-  };
-  return (
-    <div className="cm-fx">
-      <div className="cm-fx__hud glass-clear glass-flat">
-        <span className="cm-fx__x">✕</span>
-        <span className="tnum">3 / 20</span>
-        <span className="cm-fx__speed">보통</span>
-      </div>
-      <div className="cm-fx__strip fill">
-        {['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'].map((p) => (
-          <span key={p} className={p === 'BB' ? 'cm-fx__seat cm-fx__seat--me' : 'cm-fx__seat'}>
-            {p}
-          </span>
-        ))}
-      </div>
-      <div className="cm-fx__stage">
-        <HandView cards={FIXTURE_HAND} size="lg" />
-        <p className="cm-fx__hand t-title-3">AKo</p>
-      </div>
-      <div className="cm-fx__slot glass-clear glass-flat">
-        <span className="t-headline">뭐 할래요?</span>
-        <span className="cm-fx__legal">폴드 · 콜 · 3벳</span>
-      </div>
-      <div className="cm-fx__rate">
-        <span className="cm-fx__pill cm-fx__pill--unsure">헷갈려요</span>
-        <span className="cm-fx__pill cm-fx__pill--know">알아요</span>
-      </div>
-      {!open && (
-        <div className="cm-fx__again">
-          <CapsuleButton tone="neutral" size="md" onClick={() => setOpen(true)}>
-            다시 보기 · 마지막: {ended === 'done' ? '시작할게요' : '건너뛰기'}
-          </CapsuleButton>
-        </div>
-      )}
-      {open && <CoachMark steps={defaultCoachSteps(20)} onDone={() => finish('done')} onSkip={() => finish('skip')} />}
-    </div>
-  );
 }

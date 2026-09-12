@@ -19,7 +19,7 @@ import { IconCheck, IconNext } from '../components/ui/icons';
 import { ALL_CHART_DEFS, missingScenarios } from '../poker/data';
 import { POSITIONS, SCENARIO_KINDS, type Pos, type ScenarioKind } from '../poker/types';
 import { resetProgress } from '../state/progress';
-import { applySpeedPreset, resetSettings, useSettings, type Settings } from '../state/settings';
+import { applySpeedPreset, COACH_VERSION, resetSettings, REVEAL_SECONDS_RANGE, THINK_SECONDS_RANGE, useSettings, type Settings } from '../state/settings';
 import { resetSrs } from '../state/srs';
 import { resetStats, useStats } from '../state/stats';
 import '../styles/settings.css';
@@ -301,8 +301,8 @@ export function SettingsScreen(): JSX.Element {
         </button>
         {advOpen && (
           <GlassPanel id="st-adv-panel" radius="md" padding={12} className="st-panel glass-flat">
-            <RangeRow label="생각 시간" value={s.thinkSeconds} min={0.2} max={10} step={0.1} format={fmtSec} onChange={(v) => update({ thinkSeconds: Math.round(v * 10) / 10, speedPreset: 'custom' })} />
-            <RangeRow label="답 표시 시간" value={s.revealSeconds} min={0.2} max={8} step={0.1} format={fmtSec} onChange={(v) => update({ revealSeconds: Math.round(v * 10) / 10, speedPreset: 'custom' })} />
+            <RangeRow label="생각 시간" value={s.thinkSeconds} min={THINK_SECONDS_RANGE.min} max={THINK_SECONDS_RANGE.max} step={0.5} format={fmtSec} onChange={(v) => update({ thinkSeconds: Math.round(v * 10) / 10, speedPreset: 'custom' })} />
+            <RangeRow label="답 표시 시간" value={s.revealSeconds} min={REVEAL_SECONDS_RANGE.min} max={REVEAL_SECONDS_RANGE.max} step={0.5} format={fmtSec} onChange={(v) => update({ revealSeconds: Math.round(v * 10) / 10, speedPreset: 'custom' })} />
             <p className="st-foot">조절하면 기본 속도가 ‘사용자’로 바뀌어요</p>
           </GlassPanel>
         )}
@@ -319,7 +319,7 @@ export function SettingsScreen(): JSX.Element {
 
       <Group id="st-data" title="데이터">
         <Row label={`차트 ${data.charts}개 · 준비 중 ${data.missing}개`} hint="100bb 6-max 캐시 기준 근사치예요" />
-        <ActionRow label="사용법 다시 보기" hint={s.coachSeen < 1 ? '다음 세션에서 보여드려요' : '꾹 누르기 · 스와이프 · 세션 안내'} hintTone={s.coachSeen < 1 ? 'mint' : undefined} onClick={replayCoach} />
+        <ActionRow label="사용법 다시 보기" hint={s.coachSeen < COACH_VERSION ? '다음 세션에서 보여드려요' : '꾹 누르기 · 버튼 선택 · 세션 안내'} hintTone={s.coachSeen < COACH_VERSION ? 'mint' : undefined} onClick={replayCoach} />
         <ActionRow label="학습 기록 초기화" hint={stats.total > 0 ? `카드 평가 · 연속 · 퀴즈 ${stats.total}문제` : '카드 평가 · 연속 · 퀴즈 기록'} danger onClick={() => setConfirm('records')} />
         <ActionRow label="설정 초기화" hint="모든 설정을 기본값으로" onClick={() => setConfirm('settings')} />
       </Group>

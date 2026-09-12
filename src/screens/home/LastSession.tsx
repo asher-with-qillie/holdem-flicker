@@ -25,10 +25,10 @@ function speedLabel(r: SessionResult): string {
   return r.config.exposure ? `노출 · ${name}` : name;
 }
 
-/** One-line row text: "20장 · 알아요 80% · 2분 08초" (노출만 when nothing was rated). */
+/** One-line row text: "20장 · 정답 80% · 2분 08초" (노출만 when nothing was rated). */
 export function lastSessionText(r: SessionResult): string {
   const seen = r.mode === 'quiz' ? `퀴즈 ${r.seen}문제` : `${r.seen}장`;
-  const acc = r.rated > 0 ? `${r.mode === 'quiz' ? '정답' : '알아요'} ${pct(r.known / r.rated)}` : '노출만';
+  const acc = r.rated > 0 ? `정답 ${pct(r.known / r.rated)}` : '노출만';
   return `${seen} · ${acc} · ${formatDuration(r.activeMs)}`;
 }
 
