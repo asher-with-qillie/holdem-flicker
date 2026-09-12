@@ -34,11 +34,6 @@ import {
 } from './charts/selection';
 import '../styles/charts.css';
 
-/** Dev fixture for the `charts-empty` screenshot — every scenario has a chart today, so open …/#charts-empty. Remove before final. */
-function forceEmpty(): boolean {
-  return typeof window !== 'undefined' && window.location.hash === '#charts-empty';
-}
-
 function EmptyPanel() {
   return (
     <GlassPanel radius="md" className="glass-flat charts__empty" role="status">
@@ -71,7 +66,7 @@ export function ChartsScreen() {
 
   const scenario = useMemo(() => toScenario(sel), [sel]);
   const key = scenarioKey(scenario);
-  const ready = hasChart(scenario) && !forceEmpty();
+  const ready = hasChart(scenario);
   const cells = ready ? getChartCells(scenario) : null;
   const summary = ready ? getChartDef(scenario).summary : undefined;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- srsVersion re-runs the memo when a rating lands

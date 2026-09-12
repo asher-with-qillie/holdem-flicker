@@ -6,8 +6,6 @@ import { TrainerScreen } from './screens/TrainerScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { FloatingTabBar } from './components/ui/FloatingTabBar';
 import { ToastHost } from './components/ui/Toast';
-import { UiFixtures } from './components/ui/UiFixtures';
-import { CoachMarkFixture } from './components/ui/CoachMark';
 import { IconBack, IconCards, IconGrid, IconHome, IconQuiz } from './components/ui/icons';
 import { openSettings, setTab, useNav, useUiChrome, type TabId } from './state/nav';
 
@@ -19,16 +17,6 @@ const TABS: Array<{ id: TabId; label: string; icon: JSX.Element }> = [
   { id: 'quiz', label: '퀴즈', icon: <IconQuiz /> },
   { id: 'charts', label: '차트', icon: <IconGrid /> },
 ];
-
-function useHash(): string {
-  const [hash, setHash] = useState(() => window.location.hash);
-  useEffect(() => {
-    const onChange = () => setHash(window.location.hash);
-    window.addEventListener('hashchange', onChange);
-    return () => window.removeEventListener('hashchange', onChange);
-  }, []);
-  return hash;
-}
 
 /** Keeps the pushed 설정 mounted during its 240 ms exit slide. */
 function usePresence(open: boolean, exitMs: number): boolean {
@@ -45,13 +33,10 @@ function usePresence(open: boolean, exitMs: number): boolean {
 }
 
 export default function App() {
-  const hash = useHash();
   const nav = useNav();
   const chrome = useUiChrome();
   const settingsPresent = usePresence(nav.settingsOpen, 240);
 
-  if (hash === '#ui') return <UiFixtures />;
-  if (hash === '#coach') return <CoachMarkFixture />;
 
   const fixed = nav.tab === 'train';
   const barHidden = chrome.tabBarHidden;
