@@ -314,11 +314,11 @@ function reasoning(step: Step, cls: HandClass): string[] {
       break;
   }
 
-  // Hand-level rationale
+  // Hand-level rationale goes first: it is the one-line reason shown under the revealed answer.
   const isAggressive = answer === 'raise' || answer === 'threebet' || answer === 'fourbet' || answer === 'allin';
-  if (isAggressive) out.push(AGGRESSIVE[cls]);
-  else if (answer === 'call') out.push(CALL[cls]);
-  else out.push(FOLD[cls] || '이 자리에서는 폴드가 기대값이 가장 높습니다.');
+  if (isAggressive) out.unshift(AGGRESSIVE[cls]);
+  else if (answer === 'call') out.unshift(CALL[cls]);
+  else out.unshift(FOLD[cls] || '이 자리에서는 폴드가 기대값이 가장 높습니다.');
 
   // Position-specific extra
   if (answer === 'call' && (hero === 'SB' || (s.kind === 'vs_3bet' && !heroInPosition(hero, v!)))) {
