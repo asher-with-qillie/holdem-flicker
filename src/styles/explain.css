@@ -1,0 +1,62 @@
+/* Easy explanation body (ExplanationBody) + glossary term popover (PlainText / TermPopover). */
+
+/* ---- glossary term: dotted underline, tappable, inherits the surrounding text style ---- */
+.term {
+  display: inline; margin: 0; padding: 0 1px; border: 0; background: none; color: inherit; font: inherit; line-height: inherit;
+  text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--mint) 70%, transparent); text-decoration-thickness: 1.5px; text-underline-offset: 3px;
+  border-radius: 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.term:active { background: color-mix(in srgb, var(--mint) 22%, transparent); }
+.term:focus-visible { outline: 2px solid var(--mint); outline-offset: 1px; }
+
+/* ---- popover: small glass card anchored under (or over) the tapped word ---- */
+.term-pop {
+  position: fixed; z-index: calc(var(--z-coach) + 1); padding: 10px 12px 12px; border-radius: var(--r-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); animation: term-pop-in 160ms var(--ease-out);
+}
+.term-pop::before {
+  content: ''; position: absolute; left: var(--arrow-x, 50%); top: -6px; width: 12px; height: 12px; margin-left: -6px;
+  background: inherit; border-left: inherit; border-top: inherit; transform: rotate(45deg);
+}
+.term-pop--above::before { top: auto; bottom: -6px; border: 0; border-right: inherit; border-bottom: inherit; }
+.term-pop__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.term-pop__term { font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 700; color: var(--mint); }
+.term-pop__close {
+  flex: none; width: 32px; height: 32px; margin: -6px -8px -6px 0; border: 0; border-radius: var(--r-capsule); background: none;
+  color: var(--ink-2); font-size: 20px; line-height: 1;
+}
+.term-pop__def { margin: 4px 0 0; font-size: var(--fs-subhead); line-height: var(--lh-subhead); color: var(--ink); }
+@keyframes term-pop-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ---- easy body ---- */
+.ui-explain__lead { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; }
+.ui-explain__lead .badge { flex: none; margin-top: 1px; }
+.ui-explain__one { margin: 0; font-size: var(--fs-headline); line-height: var(--lh-headline); font-weight: 700; color: var(--ink); }
+.ui-explain h3.ui-explain__h { display: flex; align-items: center; gap: 6px; margin: 18px 0 6px; }
+.ui-explain h3.ui-explain__h small { font-weight: 500; color: var(--ink-3); font-size: var(--fs-caption); }
+
+.ui-explain__ex { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ui-explain__ex li {
+  padding: 8px 12px; border-radius: var(--r-sm); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: var(--fs-callout); line-height: var(--lh-callout); font-variant-numeric: tabular-nums;
+}
+.ui-explain__ex li::before { content: '♠'; margin-right: 6px; color: var(--ink-3); font-size: 11px; vertical-align: 1px; }
+
+/* ---- 더 자세히 disclosure ---- */
+.ui-explain__more { margin-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.10); }
+.ui-explain__more-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 48px; padding: 0 2px;
+  border: 0; background: none; color: var(--ink-2); font-size: var(--fs-callout); font-weight: 600; text-align: left;
+}
+.ui-explain__more-btn svg { flex: none; transition: transform var(--dur-std) var(--ease-spring); }
+.ui-explain__more-btn[aria-expanded='true'] svg { transform: rotate(180deg); }
+.ui-explain__more-body { padding-bottom: 8px; animation: term-pop-in 180ms var(--ease-out); }
+.ui-explain__more-body h3 { font-size: var(--fs-subhead); color: var(--ink-2); margin: 14px 0 4px; }
+.ui-explain__more-body p, .ui-explain__more-body li { font-size: var(--fs-callout); line-height: var(--lh-callout); }
+.ui-explain__more-body .ui-explain__dim { color: var(--ink-2); }
+.ui-explain__kv { color: var(--ink-3); font-size: var(--fs-footnote); margin: 0 0 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .term-pop, .ui-explain__more-body { animation: none; }
+  .ui-explain__more-btn svg { transition: none; }
+}

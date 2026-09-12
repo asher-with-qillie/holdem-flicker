@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActionBadge, actionLabel } from '../../components/ActionBadge';
 import { ExplanationSheet } from '../../components/ExplanationSheet';
+import { PlainText } from '../../components/Term';
 import { HandView } from '../../components/PlayingCard';
 import { TableDiagram } from '../../components/TableDiagram';
 import { CapsuleButton } from '../../components/ui/CapsuleButton';
@@ -14,7 +15,7 @@ import { SCENARIO_ACTIONS, type Card, type HandName } from '../../poker/types';
 import { useSettings } from '../../state/settings';
 import { useStats } from '../../state/stats';
 import { FitBox } from '../trainer/FitBox';
-import { firstSentence, pct } from './format';
+import { pct } from './format';
 import { actionWeight, PARTIAL_THRESHOLD, type Grade } from './grade';
 import { answer, endRound, next, type QuizQuestion, type QuizRound } from './roundStore';
 
@@ -178,7 +179,9 @@ function Question({ q, autoAdvance, showMix }: { q: QuizQuestion; autoAdvance: b
                   </span>
                 ))}
             </div>
-            <p className="quiz-feedback__reason">{firstSentence(explanation.reasoning[0] ?? '')}</p>
+            <p className="quiz-feedback__reason">
+              <PlainText text={explanation.easy.reason} />
+            </p>
             <div className="quiz-feedback__row">
               <CapsuleButton tone="neutral" size="md" onClick={openSheet}>
                 해설

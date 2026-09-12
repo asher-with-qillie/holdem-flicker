@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { actionLabel } from '../../components/ActionBadge';
+import { PlainText } from '../../components/Term';
 import type { Explanation } from '../../poker/explain';
 import type { Step } from '../../poker/trainer';
 import type { Action } from '../../poker/types';
@@ -31,8 +32,9 @@ export function MixChips({ step }: { step: Step }) {
 
 /**
  * Fixed-height glass-clear slot (§5.3 / §5.4): a quiet placeholder while thinking (the choice buttons sit above
- * it); on reveal the answer capsule flips in (rotateX −90° → 0, 240 ms) with the mix chips and the first
- * reasoning line.
+ * it); on reveal the answer capsule flips in (rotateX −90° → 0, 240 ms) with the mix chips and the easy
+ * reason clause (glossary terms tappable). Only the reason is shown — the verdict half of the one-liner repeats
+ * the capsule, and on ≤ 740 px-tall phones the line is clamped to one row, so the reason must come first.
  */
 export function AnswerSlot({ step, phase, explanation, showMix, animKey, hint }: { step: Step; phase: Phase; explanation: Explanation; showMix: boolean; animKey: string; hint?: string }) {
   const kind = step.scenario.kind;
@@ -57,7 +59,9 @@ export function AnswerSlot({ step, phase, explanation, showMix, animKey, hint }:
             <MixChips step={step} />
           </div>
         )}
-        {explanation.reasoning[0] && <p className={`trainer-answer__reason t-footnote${hasMix ? ' trainer-answer__reason--tight' : ''}`}>{explanation.reasoning[0]}</p>}
+        <p className={`trainer-answer__reason t-footnote${hasMix ? ' trainer-answer__reason--tight' : ''}`}>
+          <PlainText text={explanation.easy.reason} />
+        </p>
       </div>
     </div>
   );

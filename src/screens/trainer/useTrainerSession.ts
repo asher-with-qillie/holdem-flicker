@@ -4,6 +4,7 @@ import type { Action } from '../../poker/types';
 import type { Settings } from '../../state/settings';
 import type { RatingSource } from '../../state/srs';
 import {
+  awaitsNext,
   choose as storeChoose,
   currentCard,
   endSession,
@@ -54,12 +55,15 @@ export function useTrainerSession(settings: Settings) {
   const coachOpen = !!s?.coachOpen;
   const manual = !!s?.config.manual;
   const quiet = !!s && isQuiet(s);
-  /** Manual mode: the answer stays until ▶. */
-  const waiting = !!s && manual && phase === 'reveal';
+  /** The revealed card waits for 다음 / ▶ (choose mode always; 노출 / 순간기억 with 직접 넘기기) — no reveal countdown. */
+  const waiting = !!s && awaitsNext(s);
+  /** Choose mode reveal: the prominent 다음 button replaces ▶ and the timer row reads 다음을 눌러 넘어가요. */
+  const waitNext = waiting && !quiet;
   const running = !!s && status === 'running' && !holding && !sheetOpen && !coachOpen && !s.settling && !waiting;
   const durationMs = s ? Math.max(200, s.config.exposure ? s.timing.expose : phase === 'think' ? s.timing.think : s.timing.reveal) : 1000;
   const timerKey = s && card ? `${s.id}:${card.id}:${phase}` : 'idle';
-  const timerHidden = !s || waiting || (s.config.exposure && manual);
+  /** 노출 / 순간기억 + 직접 넘기기: no timer to show. Choose mode keeps the row for the 다음 hint. */
+  const timerHidden = !s || (waiting && quiet);
   const tone: RevealTone = revealTone(card, quiet);
 
   /** Steps of the current hand chain (for StepCrumbs). */
@@ -114,6 +118,7 @@ export function useTrainerSession(settings: Settings) {
     sheetOpen,
     coachOpen,
     waiting,
+    waitNext,
     running,
     quiet,
     manual,

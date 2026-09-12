@@ -122,7 +122,8 @@
 .trainer-flag { position: absolute; top: 2px; right: 10%; font-size: 24px; line-height: 1; animation: trainer-pop var(--dur-quick) var(--ease-spring); }
 @keyframes trainer-pop { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* ---- timer: bar + visible countdown ("6.4초" think · "다음까지 3.2초" reveal · "일시정지") ---- */
+/* ---- timer: bar + visible countdown ("6.4초" think · "일시정지"); the choose-mode reveal has no countdown:
+   the row reads "다음을 눌러 넘어가요" (bar gone) · "다음까지 3.2초" only in 노출 / 순간기억 ---- */
 .trainer-timer { flex: none; padding: 0 2px; }
 .trainer-timer__wrap { display: flex; align-items: center; gap: 10px; min-height: 28px; }
 .trainer-timer__wrap .timerbar { flex: 1; min-width: 0; }
@@ -131,6 +132,8 @@
 .trainer-timer__num--think { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; color: var(--mint); }
 .trainer-timer__num--reveal { font-size: var(--fs-footnote); font-weight: 700; color: var(--ink-2); }
 .trainer-timer__num--paused { font-size: var(--fs-footnote); font-weight: 700; color: var(--ink-3); }
+.trainer-timer__wrap--wait { justify-content: center; }
+.trainer-timer__num--wait { flex: 1; min-width: 0; text-align: center; font-size: var(--fs-footnote); font-weight: 700; color: var(--ink-2); animation: trainer-fade-in var(--dur-std) var(--ease-out); }
 .trainer-session--holding .timerbar__fill, .trainer-session--paused .timerbar__fill { background: var(--ink-3); }
 
 /* ---- choices (§5.3 v2.1): prompt / outcome line + action-coloured capsules ≥ 56 high ---- */
@@ -187,9 +190,13 @@
 .trainer-flagbtn { min-height: 40px; padding-inline: 16px; font-size: var(--fs-footnote); }
 .trainer-flagbtn.ui-btn--ghost { color: var(--ink-2); }
 
-/* ---- controls ---- */
-.trainer-controls { flex: none; display: flex; align-items: center; gap: 10px; height: 44px; }
+/* ---- controls: ◀ · 해설 · ▶ while thinking (44 row); the choose-mode reveal swaps ▶ for the primary 다음 (56 row) ---- */
+.trainer-controls { flex: none; display: flex; align-items: center; gap: 10px; height: 44px; transition: height var(--dur-quick) var(--ease-out); }
 .trainer-controls__main { flex: 1; min-height: 44px; }
+.trainer-controls--next { height: 56px; }
+.trainer-controls--next .trainer-controls__main { flex: 1; min-height: 56px; }
+.trainer-next { flex: 1.6; min-height: 56px; font-size: var(--fs-headline); animation: trainer-pop var(--dur-quick) var(--ease-spring); }
+.trainer-next .ui-btn__icon { order: 2; }
 
 /* ---- hold overlay footer / confirm ---- */
 .trainer-hold__foot { width: 100%; text-align: center; color: var(--ink-3); }
@@ -214,6 +221,7 @@
   .trainer-answer__cap { min-height: 40px; }
   .trainer-answer__reason { -webkit-line-clamp: 1; }
   .trainer-rateslot { min-height: 36px; }
+  .trainer-controls--next { height: 56px; }
 }
 
 /* ================================================================ reduced motion (§8): transforms → short crossfades, no wash fade */
@@ -223,7 +231,8 @@
   .trainer-session--holding .trainer-stage { transform: none; }
   .trainer-session__wash { transition: none; }
   .trainer-choice.glass-solid, .trainer-choice--chosen.trainer-choice--wrong { animation: none; }
-  .trainer-answer__flip, .trainer-answer__cap, .trainer-hud, .trainer-flag { animation: trainer-fade-in 150ms ease; }
+  .trainer-answer__flip, .trainer-answer__cap, .trainer-hud, .trainer-flag, .trainer-next, .trainer-timer__num--wait { animation: trainer-fade-in 150ms ease; }
+  .trainer-controls { transition: none; }
 }
 
 /* Contrast on the reveal washes: lift tertiary text one step */

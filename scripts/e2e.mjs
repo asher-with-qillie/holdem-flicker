@@ -64,6 +64,7 @@ check((await page.locator('.trainer-choice').count()) >= 2, 'train: fewer than 2
 const countdown = () => page.locator('.trainer-timer__num').first().innerText().catch(() => '');
 check(/\d+\.\d초/.test(await countdown()), `train: countdown number missing ("${await countdown()}")`);
 check(/선택하세요/.test(await page.locator('.trainer-hud').innerText()), 'train: HUD tag should read 선택하세요 while choosing');
+check((await page.locator('.trainer-next').count()) === 0, 'train: 다음 button must not show during the think phase');
 {
   const tooSmall = await page.locator('.trainer-choice').evaluateAll((els) => els.filter((el) => el.getBoundingClientRect().height < 56).length);
   check(tooSmall === 0, `train: ${tooSmall} choice button(s) shorter than 56 px`);
@@ -101,10 +102,32 @@ await shot('06-train-reveal');
 check((await page.locator('.trainer-session--reveal').count()) > 0, 'train: .trainer-session--reveal missing after choosing');
 check((await page.locator('.trainer-answer__cap').count()) > 0, 'train: answer cap missing after choosing');
 check(/해설/.test(await page.locator('.trainer-hud').innerText()), 'train: HUD tag should read 해설 in the reveal state');
-check(/다음까지 \d+\.\d초/.test(await countdown()), `train: reveal countdown missing ("${await countdown()}")`);
+// choose mode: the timer stops — no countdown number, the row reads 다음을 눌러 넘어가요, and only 다음 moves on
 {
+  const timerText = await page.locator('.trainer-timer').first().innerText().catch(() => '');
+  check(!/\d+\.\d초/.test(timerText), `train: reveal must not count down ("${timerText}")`);
+  check(/다음을 눌러/.test(timerText), `train: timer row should read 다음을 눌러 넘어가요 ("${timerText}")`);
+  const nextBtn = page.locator('.trainer-next');
+  check((await nextBtn.count()) === 1, 'train: .trainer-next missing in the reveal state');
+  if (await nextBtn.count()) {
+    const h = (await nextBtn.first().boundingBox())?.height ?? 0;
+    check(h >= 56, `train: 다음 button shorter than 56 px (${Math.round(h)})`);
+  }
   const think = await page.evaluate(() => getComputedStyle(document.querySelector('.trainer-session__wash')).opacity);
   check(Number(think) > 0.5, `train: reveal wash not visible (opacity ${think})`);
+  // it stays put without input (the old reveal timer was 5 s)
+  await page.waitForTimeout(1800);
+  const counter = () => page.locator('.trainer-hud__count').first().innerText().catch(() => '');
+  check(/^1\//.test(await counter()), `train: card advanced without 다음 (counter "${await counter()}")`);
+  check((await page.locator('.trainer-session--reveal').count()) > 0, 'train: reveal state left without 다음');
+  if (await nextBtn.count()) {
+    await nextBtn.first().tap();
+    await page.waitForTimeout(500);
+    check(/^2\//.test(await counter()), `train: 다음 did not advance the counter (got "${await counter()}")`);
+    check((await page.locator('.trainer-session--think').count()) > 0, 'train: next card should start in the think state');
+    check((await page.locator('.trainer-next').count()) === 0, 'train: 다음 button still shown on the next card');
+    await shot('06b-train-next-card');
+  }
 }
 // end early → summary
 await page.locator('.trainer-hud__btn').first().tap();
@@ -143,8 +166,19 @@ const cell = page.locator('[aria-label="AKs"]').first();
 check((await cell.count()) > 0, 'charts: AKs cell missing');
 if (await cell.count()) {
   await cell.tap(); await page.waitForTimeout(500); await shot('13-charts-cell');
-  const sheetText = await page.locator('.ui-sheet').last().innerText().catch(() => '');
-  check(/플랍을 본 뒤|왜 이 액션/.test(sheetText), 'charts: cell sheet lacks explanation');
+  const sheet = page.locator('.ui-sheet').last();
+  const sheetText = await sheet.innerText().catch(() => '');
+  check(/왜 그럴까요|예를 들면|플랍이 열리면/.test(sheetText), 'charts: cell sheet lacks the plain explanation body');
+  check(((await sheet.locator('.ui-explain__one').innerText().catch(() => '')).trim().length) > 0, 'charts: cell sheet lacks the one-line 결론 lead');
+  check((await sheet.locator('.ui-explain__more-btn[aria-expanded="false"]').count()) === 1, 'charts: 더 자세히 disclosure missing or not collapsed by default');
+  const term = sheet.locator('.term').first();
+  check((await term.count()) > 0, 'charts: no glossary .term in the sheet body');
+  if (await term.count()) {
+    await term.tap(); await page.waitForTimeout(300);
+    check((await page.locator('.term-pop').count()) === 1, `charts: tapping a .term should open exactly one .term-pop (got ${await page.locator('.term-pop').count()})`);
+    await shot('13b-charts-term');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+  }
   await page.keyboard.press('Escape'); await page.waitForTimeout(400);
 }
 

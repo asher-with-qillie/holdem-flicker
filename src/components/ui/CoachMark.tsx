@@ -41,7 +41,7 @@ const FOCUSABLE = 'button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 export function defaultCoachSteps(sessionSize = 20): CoachStep[] {
   return [
     { art: 'hold', title: '꾹 누르면 멈춰요', body: '누르는 동안 해설이 올라오고, 손을 떼면 바로 이어져요.' },
-    { art: 'choose', title: '버튼으로 골라요', body: '버튼으로 액션을 고르면 바로 정답과 해설이 나와요. 틀린 카드는 곧 다시 보여드릴게요' },
+    { art: 'choose', title: '버튼으로 골라요', body: '버튼으로 액션을 고르면 정답과 해설이 나와요. 다음 버튼으로 넘어가요.' },
     { art: 'session', title: `${sessionSize}장이 한 세션이에요`, body: '끝나면 요약이 나와요. ✕는 언제든 저장하고 끝내요', count: sessionSize },
   ];
 }

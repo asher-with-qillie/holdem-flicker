@@ -606,8 +606,11 @@ pre-selects chips and, with `autostart`, starts immediately. Estimated time = si
   노출 / 순간기억). Wash = `.trainer-session__wash` (z −1, opacity 0 → 1, 200 ms, instant under reduced motion):
   correct `radial-gradient(120% 80% at 50% 0%, #0f3b34, #071a17 70%)`, wrong `#3a2a0e → #1a1207`, neutral
   `#1e2a44 → #0b1020`. Text contrast stays ≥ 4.5:1 on every wash (ink / ink-2 on ≤ #3a2a0e).
-- Timed presets: the reveal timer then auto-advances (`expire` → next). Manual (`autoAdvance=false`) / onlyKeys
-  sessions: timer hidden, wait for ▶ (Space / Enter). No swipe, no stamps, no fly-out.
+- Choose mode (v2.2): the reveal has **no countdown** — the timer row reads `다음을 눌러 넘어가요` (bar gone) and the
+  card leaves only with the primary `다음` capsule (`.trainer-next`, block ≥ 56, mint, in place of ▶ next to ◀ and
+  해설; Space / Enter / →). Same after 시간 초과. 직접 넘기기 makes no difference here. No swipe, no stamps, no fly-out.
+- 노출 / 순간기억 keep the automatic reveal / expose timer (`expire` → next, `다음까지 3.2초`). With 직접 넘기기
+  (`manual`, also forced for onlyKeys) they hide the timer and wait for ▶.
 - 순간기억 (`flash`) and 노출 모드: exposure-only write; the rating slot shows the same 헷갈려요로 표시 toggle
   (flagged → `rate('unsure','button')` on leave, unflagged → `recordExposure`). Reveal haptic off in these modes.
 
@@ -854,7 +857,8 @@ idle ──start(config)──▶ running: card[i].think ──expire | tap─�
   │                        │ ‖ → paused (tab bar back) ⇄ 계속                     │
   │                        ◀────────────────────── i+1 < queue.length ───────────┘  else ──▶ summary
   └──────── 홈으로 / 한 번 더 / 틀린 것만 / 퀴즈로 확인 (launch) ◀────────────────────────────┘
-running = status==='running' && !holding && !sheetOpen && !coachOpen && !settling && !(manual && phase==='reveal')
+running = status==='running' && !holding && !sheetOpen && !coachOpen && !settling && !awaitsNext
+awaitsNext = phase==='reveal' && (!quiet || manual)   // v2.2: choose mode never runs a reveal timer — `next()` (다음) only; `expire()` is a no-op there
 ```
 
 `useTrainerSession(settings)` return shape: everything it returns today (`seq`-equivalent becomes `card`,

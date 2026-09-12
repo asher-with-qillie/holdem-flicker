@@ -2,7 +2,7 @@
  * Training-session store (spec §6.1) — module-level, survives unmount, read with `useSession()` /
  * `useSessionStatus()` (App hides the tab bar while `running`).
  *
- *   idle ──startSession(config)──▶ running: card[i].think ──choose(a) | expire──▶ card[i].reveal ──expire | ▶──▶ i+1
+ *   idle ──startSession(config)──▶ running: card[i].think ──choose(a) | expire──▶ card[i].reveal ──다음 (choose mode) | expire (노출·순간기억)──▶ i+1
  *     ▲                             │ hold ⇄ overlay (timer frozen, peeked if think)            │ unsure → requeue at min(i+6, end) (≤ 2×)
  *     │                             │ ‖ → paused ⇄ 계속                                          │
  *     │                             ◀────────────────────────── i+1 < queue.length ─────────────┘  else ──▶ summary
@@ -14,6 +14,10 @@
  * The think timer running out → `expireThink()`: 시간 초과, rated 'unsure'. 순간기억 / 노출 skip choosing entirely
  * (answer shown, exposure-only write, the 🤔 flag is the only rating). The reveal-state 헷갈려요로 표시 toggle sets
  * `flagged`, which always commits as 'unsure'.
+ *
+ * Leaving the reveal state: in choose mode the reveal has NO countdown — the card waits for the 다음 button (`next()`,
+ * see `awaitsNext`) however the reveal was reached (choice or 시간 초과); `expire()` is a no-op there. 노출 / 순간기억 keep
+ * the automatic reveal / expose timer (`expire` → next) unless `config.manual` (직접 넘기기), which waits for ▶.
  *
  * Every card that leaves the screen is committed exactly once: rated → `srs.rate`, flagged → `rate('unsure','button')`,
  * otherwise `recordExposure`; always `logCards(1, {rated, known})`. A card revisited with ◀ and re-rated gets a
@@ -313,6 +317,14 @@ export function quiet(s: SessionState): boolean {
   return s.config.speed === 'flash' || s.config.exposure;
 }
 
+/**
+ * The revealed card leaves only with 다음 / ▶ (`next()`): always in choose mode (the answer stays until the user
+ * has read it), and in 노출 / 순간기억 when 직접 넘기기 (`manual`) is on. Otherwise the reveal / expose timer advances.
+ */
+export function awaitsNext(s: SessionState): boolean {
+  return s.phase === 'reveal' && (!quiet(s) || s.config.manual);
+}
+
 function userActive(): boolean {
   try {
     return typeof navigator === 'undefined' || navigator.userActivation?.hasBeenActive !== false;
@@ -331,6 +343,7 @@ export function revealNow(): void {
 /**
  * Choice button in the think phase: grade, rate, reveal. Correct / partial → 'know' (partial noted for srs),
  * wrong → 'unsure'; a peeked card is 'unsure' whatever was picked. Not available in 순간기억 / 노출.
+ * Nothing is scheduled: the card stays revealed until `next()` (다음).
  */
 export function choose(action: Action): boolean {
   if (!state || state.status !== 'running' || state.phase !== 'think' || quiet(state)) return false;
@@ -344,7 +357,10 @@ export function choose(action: Action): boolean {
   return true;
 }
 
-/** Think timer ran out with no choice: 시간 초과 → reveal, rated 'unsure' (not in 순간기억 / 노출: exposure only). */
+/**
+ * Think timer ran out with no choice: 시간 초과 → reveal, rated 'unsure' (not in 순간기억 / 노출: exposure only).
+ * Like a choice, the 시간 초과 reveal waits for `next()` (다음).
+ */
 export function expireThink(): void {
   if (!state || state.status !== 'running' || state.phase !== 'think') return;
   if (quiet(state)) {
@@ -385,14 +401,18 @@ export function rateCard(rating: Rating, source: RatingSource): boolean {
   return true;
 }
 
-/** Timer expiry: think → 시간 초과 reveal (or plain reveal in quiet modes), reveal → next. */
+/**
+ * Timer expiry: think → 시간 초과 reveal (or plain reveal in quiet modes); reveal → next only where a reveal timer
+ * runs (노출 / 순간기억 without 직접 넘기기). A revealed card in choose mode ignores it — only 다음 leaves it.
+ */
 export function expire(): void {
   if (!state || state.status !== 'running') return;
   if (state.phase === 'think' && !state.config.exposure) expireThink();
+  else if (awaitsNext(state)) return;
   else advance();
 }
 
-/** ▶ in reveal: leave the current card now. */
+/** 다음 / ▶ in reveal (or a skip while thinking): leave the current card now. */
 export function next(): void {
   if (!state || state.status !== 'running') return;
   advance();

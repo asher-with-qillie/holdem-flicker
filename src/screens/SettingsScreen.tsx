@@ -242,7 +242,7 @@ export function SettingsScreen(): JSX.Element {
           <span className="st-row__label">기본 속도</span>
           <SpeedPicker value={s.speedPreset} onChange={applySpeedPreset} exposure={s.exposureMode} onExposureChange={(v) => update({ exposureMode: v })} />
         </div>
-        <Row label="직접 넘기기" hint="자동 진행을 끄고, 답을 본 뒤 탭해서 넘겨요">
+        <Row label="직접 넘기기" hint="노출·순간기억 모드에서 답을 본 뒤 탭해서 넘겨요">
           <Switch checked={!s.autoAdvance} onChange={(v) => update({ autoAdvance: !v })} label="직접 넘기기 (자동 진행 끄기)" />
         </Row>
         <Row label="혼합 빈도 표시" hint="예: 3벳 75% · 콜 25%">

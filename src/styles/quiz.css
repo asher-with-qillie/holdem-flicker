@@ -144,8 +144,12 @@
 /* =============================================================== short viewports (≈ 667 px Safari with chrome) */
 @media (max-height: 700px) {
   .quiz-round, .quiz-q { gap: 6px; }
-  .quiz-feedback { min-height: 160px; }
-  .quiz-feedback__reason { height: 18px; -webkit-line-clamp: 1; }
+  /* keep both lines of the one-line reason (결론 + 이유 wraps at ~332 px, 36 px); the 18 px the old 1-line clamp saved
+     comes out of the panel's slack instead: 4 px vertical padding, 6 px of gaps, 4 px off the mix-pill row. */
+  .quiz-feedback { min-height: 164px; }
+  .quiz-feedback.ui-p-12 { padding-top: 10px; padding-bottom: 10px; }
+  .quiz-feedback__in { gap: 4px; }
+  .quiz-feedback__mix, .quiz-mix { height: 20px; }
   .quiz-situation { min-height: 40px; font-size: var(--fs-callout); }
 }
 

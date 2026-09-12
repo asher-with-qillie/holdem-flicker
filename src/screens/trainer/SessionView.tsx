@@ -25,6 +25,7 @@ const PROMPT = '어떻게 할까요?';
 const HOLD_HINT = '길게 누르면 멈추고 해설';
 const HOLD_FOOTER = '손을 떼면 이어서 진행해요';
 const QUIET_CAPTION = '훑어보기 중 · 선택 없이 답만 봐요';
+const NEXT_HINT = '다음을 눌러 넘어가요';
 const UNSURE_CAPTION = '헷갈려요로 기록 · 곧 다시 나와요';
 const HINT_UNTIL_CARDS = 60; // ≈ first 3 sessions
 
@@ -38,10 +39,22 @@ function outcomeLine(card: SessionCard): { text: string; tone: 'correct' | 'part
   return { text: '오답 ✕', tone: 'wrong' };
 }
 
-/** Owns the rAF loop so per-frame progress updates re-render only the bar + the countdown number. */
-function PhaseTimer({ durationMs, running, resetKey, paused, hidden, phase, onExpire }: { durationMs: number; running: boolean; resetKey: string; paused: boolean; hidden: boolean; phase: 'think' | 'reveal'; onExpire: () => void }) {
+/**
+ * Owns the rAF loop so per-frame progress updates re-render only the bar + the countdown number.
+ * `waitNext` (choose-mode reveal): no countdown — the bar goes, the row reads 다음을 눌러 넘어가요.
+ */
+function PhaseTimer({ durationMs, running, resetKey, paused, hidden, waitNext, phase, onExpire }: { durationMs: number; running: boolean; resetKey: string; paused: boolean; hidden: boolean; waitNext: boolean; phase: 'think' | 'reveal'; onExpire: () => void }) {
   const { progress, remainingMs } = useRafTimer(durationMs, running, resetKey, onExpire);
   const num = formatCountdown(remainingMs);
+  if (waitNext) {
+    return (
+      <div className="trainer-timer__wrap trainer-timer__wrap--wait">
+        <span className="trainer-timer__num trainer-timer__num--wait" role="status">
+          {paused ? '일시정지' : NEXT_HINT}
+        </span>
+      </div>
+    );
+  }
   return (
     <div className={`trainer-timer__wrap${hidden ? ' trainer-timer__wrap--hidden' : ''}`} aria-hidden={hidden || undefined}>
       <TimerBar progress={progress} paused={paused} />
@@ -81,7 +94,7 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
   const onHoldStart = useCallback(() => s.setHolding(true), [s.setHolding]);
   const onHoldEnd = useCallback(() => s.setHolding(false), [s.setHolding]);
 
-  // Keyboard equivalents (desktop testing): 1–3 pick a choice · Space / Enter = 다음 in the reveal state.
+  // Keyboard equivalents (desktop testing): 1–3 pick a choice · Space / Enter / → = 다음 in the reveal state.
   useEffect(() => {
     if (s.status !== 'running' || s.sheetOpen || s.coachOpen || !step) return;
     const actions = SCENARIO_ACTIONS[step.scenario.kind];
@@ -91,7 +104,7 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
       if (s.phase === 'think' && !quiet && n >= 1 && n <= actions.length) {
         e.preventDefault();
         s.choose(actions[n - 1]);
-      } else if ((e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter') && s.phase === 'reveal') {
+      } else if ((e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter' || e.key === 'ArrowRight' || e.key === 'Right') && s.phase === 'reveal') {
         e.preventDefault();
         s.next();
       }
@@ -105,7 +118,6 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
   const seenCount = session.queue.filter((c) => c.exposed).length + (s.phase === 'reveal' && !card.exposed ? 1 : 0);
   const showHint = pv.totalCards < HINT_UNTIL_CARDS;
   const timerPaused = s.paused || s.holding || s.sheetOpen || s.coachOpen;
-  const timerHidden = s.waiting || (session.config.exposure && s.manual);
   const reveal = s.phase === 'reveal';
   const outcome = reveal && !quiet ? outcomeLine(card) : null;
   const canFlag = reveal && (quiet || card.rating === 'know' || card.flagged);
@@ -135,7 +147,7 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
 
       <SwipeStage card={card} phase={s.phase} crossfade={quiet} transitionMs={session.timing.transition} onHoldStart={onHoldStart} onHoldEnd={onHoldEnd}>
         <div className="trainer-timer">
-          <PhaseTimer durationMs={s.durationMs} running={s.running} resetKey={s.timerKey} paused={timerPaused} hidden={timerHidden} phase={s.phase} onExpire={s.onExpire} />
+          <PhaseTimer durationMs={s.durationMs} running={s.running} resetKey={s.timerKey} paused={timerPaused} hidden={s.timerHidden} waitNext={s.waitNext} phase={s.phase} onExpire={s.onExpire} />
         </div>
 
         {!quiet && (
@@ -162,12 +174,19 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
         ) : null}
       </div>
 
-      <div className="trainer-controls">
+      {/* choose-mode reveal: the only way forward is the prominent 다음 (also Enter / →); 노출·순간기억 keep ▶ */}
+      <div className={`trainer-controls${s.waitNext ? ' trainer-controls--next' : ''}`}>
         <IconButton icon={<IconPrev />} label="이전 카드" onClick={s.prev} disabled={s.index === 0} />
-        <CapsuleButton tone="neutral" size="lg" className="trainer-controls__main" onClick={() => s.setSheetOpen(true)}>
+        <CapsuleButton tone="neutral" size={s.waitNext ? 'xl' : 'lg'} className="trainer-controls__main" onClick={() => s.setSheetOpen(true)}>
           해설
         </CapsuleButton>
-        <IconButton icon={<IconNext />} label="다음 카드" onClick={s.next} />
+        {s.waitNext ? (
+          <CapsuleButton tone="primary" size="xl" block className="trainer-next" icon={<IconNext />} onClick={s.next}>
+            다음
+          </CapsuleButton>
+        ) : (
+          <IconButton icon={<IconNext />} label="다음 카드" onClick={s.next} />
+        )}
       </div>
 
       <Sheet open={s.holding} onClose={onHoldEnd} held title="해설" footer={<p className="trainer-hold__foot t-footnote">{HOLD_FOOTER}</p>}>

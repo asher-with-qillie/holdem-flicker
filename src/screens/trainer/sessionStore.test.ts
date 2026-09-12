@@ -96,7 +96,14 @@ describe('sessionStore', () => {
     expect(s.phase).toBe('reveal');
     expect(currentCard()).toMatchObject({ chosenAction: card.step.answer, grade: 'correct', rating: 'know', ratingSource: 'button' });
     expect(choose(card.step.answer)).toBe(false); // one choice per card
-    expire(); // reveal → next
+    // no automatic advance: nothing scheduled, the reveal timer does not exist, expire() is a no-op
+    vi.advanceTimersByTime(60_000);
+    expire();
+    s = getSession()!;
+    expect(s.index).toBe(0);
+    expect(s.phase).toBe('reveal');
+    expect(s.queue[0].exposed).toBeFalsy();
+    next(); // 다음
     s = getSession()!;
     expect(s.index).toBe(1);
     expect(s.phase).toBe('think');
@@ -142,7 +149,12 @@ describe('sessionStore', () => {
     expect(currentCard()).toMatchObject({ timedOut: true, rating: 'unsure', ratingSource: 'button' });
     expect(currentCard()!.chosenAction).toBeUndefined();
     expect(choose(currentCard()!.step.answer)).toBe(false);
-    expire(); // reveal → next
+    // 시간 초과 also waits for 다음
+    expire();
+    vi.advanceTimersByTime(60_000);
+    expect(getSession()!.index).toBe(0);
+    expect(getSession()!.phase).toBe('reveal');
+    next();
     expect(getSession()!.index).toBe(1);
     expect(getCard(key)?.state).toBe('relearning');
     expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 1, known: 0 });
@@ -199,6 +211,47 @@ describe('sessionStore', () => {
     expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 0 });
   });
 
+  it('exposure-mode timeout keeps auto-advancing through the whole session', () => {
+    start({ exposure: true, size: 10 });
+    for (let i = 0; i < 10; i++) {
+      expect(getSession()!.phase).toBe('reveal');
+      expect(getSession()!.index).toBe(i);
+      expire();
+    }
+    expect(getSession()!.status).toBe('summary');
+    expect(getSession()!.result!.seen).toBe(10);
+  });
+
+  it('노출 + 직접 넘기기 waits for ▶ (expire is a no-op in reveal)', () => {
+    start({ exposure: true, manual: true });
+    expire();
+    expect(getSession()!.index).toBe(0);
+    next();
+    expect(getSession()!.index).toBe(1);
+  });
+
+  it('choose mode: a choice or 시간 초과 never advances by itself — 다음 (next) does, in manual and timed sessions alike', () => {
+    for (const manual of [false, true]) {
+      resetSessionStore();
+      start({ manual });
+      choose(currentCard()!.step.answer);
+      vi.advanceTimersByTime(120_000);
+      expire();
+      expire();
+      expect(getSession()!).toMatchObject({ index: 0, phase: 'reveal' });
+      next();
+      expect(getSession()!).toMatchObject({ index: 1, phase: 'think' });
+      expireThink();
+      expect(currentCard()!.timedOut).toBe(true);
+      vi.advanceTimersByTime(120_000);
+      expire();
+      expect(getSession()!).toMatchObject({ index: 1, phase: 'reveal' });
+      next();
+      expect(getSession()!).toMatchObject({ index: 2, phase: 'think' });
+      discardSession();
+    }
+  });
+
   it('순간기억 has no choosing: the think timer just reveals, exposure only', () => {
     start({ speed: 'flash' });
     const key = currentCard()!.key;
@@ -223,7 +276,7 @@ describe('sessionStore', () => {
     expect(choose(currentCard()!.step.answer)).toBe(true);
     expect(currentCard()).toMatchObject({ grade: 'correct', rating: 'unsure' });
     expect(rateCard('know', 'button')).toBe(false); // peeked rule
-    expire();
+    next();
     s = getSession()!;
     expect(s.index).toBe(1);
     expect(s.queue[0].committedRating).toBe('unsure');
@@ -237,7 +290,7 @@ describe('sessionStore', () => {
     expect(currentCard()!.rating).toBe('know');
     flagToggle();
     expect(currentCard()!.flagged).toBe(true);
-    expire();
+    next();
     const s = getSession()!;
     expect(s.queue[0].committedRating).toBe('unsure');
     expect(getCard(key)?.state).toBe('relearning');
@@ -248,7 +301,7 @@ describe('sessionStore', () => {
   it('◀ revisits the previous card in reveal phase and a changed rating is written as a delta', () => {
     start();
     choose(currentCard()!.step.answer);
-    expire();
+    next();
     expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 1, known: 1 });
     prev();
     let s = getSession()!;
@@ -285,7 +338,7 @@ describe('sessionStore', () => {
   it('✕ writes a partial summary that counts a revealed current card', () => {
     start();
     choose(currentCard()!.step.answer);
-    expire();
+    next();
     revealNow(); // second card revealed but not rated
     const r = endSession()!;
     const s = getSession()!;
@@ -303,10 +356,10 @@ describe('sessionStore', () => {
     start();
     const first = currentCard()!.key;
     expire(); // 시간 초과 → unsure
-    expire();
+    next();
     while (getSession()!.status === 'running') {
       choose(currentCard()!.step.answer);
-      expire();
+      next();
     }
     const s = getSession()!;
     expect(s.status).toBe('summary');
