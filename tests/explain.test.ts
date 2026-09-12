@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classifyHand, explainStep } from '../src/poker/explain';
-import { stepFor, buildSteps, DEFAULT_SESSION_OPTIONS, nextHandSequence } from '../src/poker/trainer';
+import { stepFor, buildSteps, DEFAULT_SESSION_OPTIONS, nextHandSequence, randomQuizStep } from '../src/poker/trainer';
+import type { Pos, ScenarioKind } from '../src/poker/types';
 import { seedRandom } from '../src/poker/hands';
 
 describe('hand classes', () => {
@@ -56,5 +57,30 @@ describe('trainer sequences', () => {
       expect(buildSteps('BB', 'AKs', DEFAULT_SESSION_OPTIONS).some((s) => s.scenario.kind === 'rfi')).toBe(false);
       expect(buildSteps('UTG', 'AKs', DEFAULT_SESSION_OPTIONS).some((s) => s.scenario.kind === 'vs_open')).toBe(false);
     }
+  });
+});
+
+describe('settings-respecting sequences', () => {
+  it('never produces a scenario kind that the settings exclude', () => {
+    seedRandom(11);
+    const cases: Array<{ positions: Pos[]; kinds: ScenarioKind[] }> = [
+      { positions: ['UTG'], kinds: ['vs_open'] },
+      { positions: ['BB'], kinds: ['rfi'] },
+      { positions: ['UTG', 'HJ'], kinds: ['cold_4bet'] },
+      { positions: ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'], kinds: ['vs_5bet'] },
+      { positions: ['UTG', 'HJ'], kinds: ['cold_4bet', 'vs_4bet'] },
+    ];
+    for (const c of cases) {
+      const opts = { ...DEFAULT_SESSION_OPTIONS, ...c };
+      for (let i = 0; i < 100; i++) {
+        const seq = nextHandSequence(opts);
+        for (const s of seq.steps) expect(c.kinds, `${c.positions}/${c.kinds} produced ${s.scenario.kind}`).toContain(s.scenario.kind);
+      }
+    }
+  });
+  it('returns empty steps when nothing is feasible and throws for quiz', () => {
+    const opts = { ...DEFAULT_SESSION_OPTIONS, positions: ['UTG'] as Pos[], kinds: ['vs_open'] as ScenarioKind[] };
+    expect(nextHandSequence(opts).steps).toEqual([]);
+    expect(() => randomQuizStep(opts)).toThrow();
   });
 });

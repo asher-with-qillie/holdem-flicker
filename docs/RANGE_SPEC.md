@@ -48,7 +48,7 @@ Use only weights from `{0.25, 0.5, 0.75, 1}`. The memorization answer is the hig
 UTG (~17.9%): 22+, A2s+, K9s+, Q9s+, J9s+, T9s, 98s, 87s, 76s, 65s:0.5, AJo+, KQo, ATo:0.5, KJo:0.5
 HJ  (~21.3%): 22+, A2s+, K7s+, Q9s+, J9s+, T8s+, 98s, 97s:0.5, 87s, 76s, 65s, 54s:0.5, ATo+, KJo+, QJo:0.5, KTo:0.5
 CO  (~28.7%): 22+, A2s+, K4s+, Q7s+, J8s+, T8s+, 97s+, 86s+, 75s+, 65s, 54s, 64s:0.5, A8o+, KTo+, QTo+, JTo
-BTN (~44.9%): 22+, A2s+, K2s+, Q2s+, J4s+, T6s+, 96s+, 85s+, 75s+, 64s+, 53s+, A2o+, K8o+, Q9o+, J9o+, T9o
+BTN (~46.3%): 22+, A2s+, K2s+, Q2s+, J4s+, T6s+, 96s+, 85s+, 75s+, 64s+, 53s+, A2o+, K7o+, Q9o+, Q8o:0.5, J9o+, J8o:0.5, T9o, T8o:0.5, 98o:0.5
 SB  (~46.5%): 22+, A2s+, K2s+, Q3s+, Q2s:0.5, J5s+, T6s+, 96s+, 85s+, 75s+, 64s+, 54s, 53s:0.5, A2o+, K7o+, K6o:0.5, Q9o+, Q8o:0.5, J9o+, J8o:0.5, T9o, T8o:0.5, 98o:0.5
 ```
 

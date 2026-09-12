@@ -89,9 +89,12 @@ export function parseRange(range: string): Record<HandName, number> {
     const colon = tok.indexOf(':');
     if (colon >= 0) {
       body = tok.slice(0, colon);
-      weight = Number(tok.slice(colon + 1));
-      if (!Number.isFinite(weight) || weight <= 0 || weight > 1) throw new Error(`Bad weight in token "${tok}"`);
+      const w = tok.slice(colon + 1);
+      if (!/^(0?\.\d+|1(\.0+)?)$/.test(w)) throw new Error(`Bad weight in token "${tok}"`);
+      weight = Number(w);
+      if (weight <= 0 || weight > 1) throw new Error(`Bad weight in token "${tok}"`);
     }
+    if (!body) throw new Error(`Bad token "${tok}"`);
     for (const h of expandToken(body)) out[h] = weight;
   }
   return out;
@@ -137,7 +140,7 @@ export function fullMix(mix: ActionMix | undefined): Array<{ action: Action; wei
       if (a !== 'fold' && w && w > EPS) out.push({ action: a, weight: w });
     }
   }
-  return out.sort((a, b) => b.weight - a.weight || ACTIONS.indexOf(b.action) - ACTIONS.indexOf(a.action));
+  return out.sort((a, b) => (Math.abs(a.weight - b.weight) < EPS ? ACTIONS.indexOf(b.action) - ACTIONS.indexOf(a.action) : b.weight - a.weight));
 }
 
 /** The action to memorize: highest weight; ties go to the more aggressive action. */

@@ -29,6 +29,8 @@ describe('range notation', () => {
     expect(() => parseRange('AAs')).toThrow();
     expect(() => parseRange('AKs-KQs')).toThrow();
     expect(() => parseRange('AKs:1.5')).toThrow();
+    expect(() => parseRange('KQo :0.5')).toThrow();
+    expect(() => parseRange('KQo:0x1')).toThrow();
   });
   it('builds charts and detects over-weight', () => {
     const cells = buildChart({ id: 'x', kind: 'vs_open', hero: 'BTN', villain: 'CO', actions: { threebet: 'QQ+,AKs:0.5', call: 'AKs:0.5,JJ' } });

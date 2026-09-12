@@ -59,33 +59,35 @@ export function combos(name: HandName): number {
 }
 
 let seed = 0;
+let seeded = false;
 /** Small deterministic-when-seeded PRNG for tests; falls back to Math.random. */
 export function random(): number {
-  if (seed === 0) return Math.random();
+  if (!seeded) return Math.random();
   seed = (seed * 1664525 + 1013904223) >>> 0;
   return seed / 4294967296;
 }
 export function seedRandom(s: number) {
-  seed = s >>> 0 || 1;
+  seed = s >>> 0;
+  seeded = true;
 }
-export function pick<T>(arr: readonly T[]): T {
-  return arr[Math.floor(random() * arr.length)];
+export function pick<T>(arr: readonly T[], rng: () => number = random): T {
+  return arr[Math.floor(rng() * arr.length)];
 }
 
 /**
  * Deal two concrete cards for a canonical hand.
  * Suits: only ♠ and ♦ (user preference). Suited → both ♠ or both ♦; offsuit/pair → one ♠ one ♦.
  */
-export function dealCardsFor(name: HandName): [Card, Card] {
+export function dealCardsFor(name: HandName, rng: () => number = random): [Card, Card] {
   const info = parseHandName(name);
   if (info.kind === 'suited') {
-    const s: Suit = random() < 0.5 ? 's' : 'd';
+    const s: Suit = rng() < 0.5 ? 's' : 'd';
     return [
       { rank: info.high, suit: s },
       { rank: info.low, suit: s },
     ];
   }
-  const first: Suit = random() < 0.5 ? 's' : 'd';
+  const first: Suit = rng() < 0.5 ? 's' : 'd';
   const second: Suit = first === 's' ? 'd' : 's';
   return [
     { rank: info.high, suit: first },
@@ -94,9 +96,9 @@ export function dealCardsFor(name: HandName): [Card, Card] {
 }
 
 /** Deal a uniformly random hand (by combinatorial weight: pairs 6, suited 4, offsuit 12). */
-export function dealRandomHand(): HandName {
+export function dealRandomHand(rng: () => number = random): HandName {
   // 1326 combos total
-  let r = random() * 1326;
+  let r = rng() * 1326;
   for (const h of ALL_HANDS) {
     r -= combos(h);
     if (r < 0) return h;
@@ -105,11 +107,11 @@ export function dealRandomHand(): HandName {
 }
 
 /** Deal a random hand weighted by `weights` (hand → weight in [0,1]) × combos. Returns null if empty. */
-export function dealWeightedHand(weights: Record<HandName, number>): HandName | null {
+export function dealWeightedHand(weights: Record<HandName, number>, rng: () => number = random): HandName | null {
   let total = 0;
   for (const h of ALL_HANDS) total += (weights[h] ?? 0) * combos(h);
   if (total <= 0) return null;
-  let r = random() * total;
+  let r = rng() * total;
   for (const h of ALL_HANDS) {
     r -= (weights[h] ?? 0) * combos(h);
     if (r < 0) return h;

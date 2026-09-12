@@ -135,6 +135,27 @@ export function buildSteps(hero: Pos, hand: HandName, opts: SessionOptions, rng:
   return steps;
 }
 
+/** Can `hero` ever produce a step of `kind`? */
+export function heroCanPlay(hero: Pos, kind: ScenarioKind): boolean {
+  switch (kind) {
+    case 'rfi':
+    case 'vs_3bet':
+    case 'vs_5bet':
+      return hero !== 'BB';
+    case 'vs_open':
+    case 'vs_4bet':
+      return hero !== 'UTG';
+    case 'cold_4bet':
+      return POS_INDEX[hero] >= 2;
+  }
+}
+
+/** Positions from `opts` that can produce at least one enabled kind. */
+export function feasiblePositions(opts: SessionOptions): Pos[] {
+  const positions = opts.positions.length ? opts.positions : [...POSITIONS];
+  return positions.filter((p) => opts.kinds.some((k) => heroCanPlay(p, k)));
+}
+
 /** Deal a hand for `hero`, biased toward hands that are playable somewhere for that seat. */
 export function dealForHero(hero: Pos, opts: SessionOptions, rng: () => number = random): HandName {
   const kinds = new Set(opts.kinds);
@@ -142,49 +163,52 @@ export function dealForHero(hero: Pos, opts: SessionOptions, rng: () => number =
   const onlyLater = !kinds.has('rfi') && !kinds.has('vs_open') && !kinds.has('cold_4bet');
   if (onlyLater) {
     if ((kinds.has('vs_3bet') || kinds.has('vs_5bet')) && hero !== 'BB' && hasChart({ kind: 'rfi', hero })) {
-      const h = dealWeightedHand(continueWeights(getChartCells({ kind: 'rfi', hero })));
+      const h = dealWeightedHand(continueWeights(getChartCells({ kind: 'rfi', hero })), rng);
       if (h) return h;
     }
     if (kinds.has('vs_4bet') && hero !== 'UTG') {
-      const villain = pick(positionsBefore(hero));
+      const villain = pick(positionsBefore(hero), rng);
       if (hasChart({ kind: 'vs_open', hero, villain })) {
-        const h = dealWeightedHand(continueWeights(getChartCells({ kind: 'vs_open', hero, villain }), ['threebet']));
+        const h = dealWeightedHand(continueWeights(getChartCells({ kind: 'vs_open', hero, villain }), ['threebet']), rng);
         if (h) return h;
       }
     }
   }
   if (rng() < opts.interestingBias) {
-    const h = dealWeightedHand(interestingWeights(hero));
+    const h = dealWeightedHand(interestingWeights(hero), rng);
     if (h) return h;
   }
-  return dealRandomHand();
+  return dealRandomHand(rng);
 }
 
-/** Produce the next non-empty hand sequence (hero + hand + steps). */
-export function nextHandSequence(opts: SessionOptions): { hero: Pos; hand: HandName; steps: Step[] } {
-  const positions = opts.positions.length ? opts.positions : [...POSITIONS];
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const hero = pick(positions);
-    const hand = dealForHero(hero, opts);
-    const steps = buildSteps(hero, hand, opts);
-    if (steps.length) return { hero, hand, steps };
+/**
+ * Produce the next hand sequence (hero + hand + steps) honouring `opts.kinds` and `opts.positions`.
+ * `steps` is empty only when the settings cannot produce any step at all (e.g. positions=[BB], kinds=[rfi]).
+ */
+export function nextHandSequence(opts: SessionOptions, rng: () => number = random): { hero: Pos; hand: HandName; steps: Step[] } {
+  const positions = feasiblePositions(opts);
+  if (!positions.length) {
+    const hero = opts.positions[0] ?? 'BTN';
+    return { hero, hand: dealRandomHand(rng), steps: [] };
   }
-  // Fallback: any scenario with a chart
-  const hero = pick(positions);
-  const hand = dealRandomHand();
-  return { hero, hand, steps: buildSteps(hero, hand, { ...opts, kinds: ['rfi', 'vs_open'] }) };
+  let last: { hero: Pos; hand: HandName; steps: Step[] } | null = null;
+  for (let attempt = 0; attempt < 400; attempt++) {
+    const hero = pick(positions, rng);
+    const hand = dealForHero(hero, opts, rng);
+    const steps = buildSteps(hero, hand, opts, rng);
+    last = { hero, hand, steps };
+    if (steps.length) return last;
+  }
+  return last!;
 }
 
-/** Produce a single random step for quiz mode (any enabled scenario kind, hand sampled sensibly). */
-export function randomQuizStep(opts: SessionOptions): Step {
-  for (let attempt = 0; attempt < 100; attempt++) {
-    const seq = nextHandSequence(opts);
-    if (seq.steps.length) return pick(seq.steps);
+/** Produce a single random step for quiz mode (only enabled scenario kinds). Throws if the settings allow none. */
+export function randomQuizStep(opts: SessionOptions, rng: () => number = random): Step {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const seq = nextHandSequence(opts, rng);
+    if (seq.steps.length) return pick(seq.steps, rng);
   }
-  const hero: Pos = 'BTN';
-  const step = makeStep({ kind: 'rfi', hero }, dealRandomHand());
-  if (!step) throw new Error('No charts available');
-  return step;
+  throw new Error('No scenario matches the current settings');
 }
 
 /** Build a standalone step for any scenario + hand (used by the chart browser and quiz). Throws if no chart. */
