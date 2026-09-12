@@ -1,0 +1,94 @@
+/* 홈 (spec §5.1) — layout for src/screens/HomeScreen.tsx + src/screens/home/*. Tokens and .glass* come from
+   global.css, component styles from ui.css. Blur budget on this screen: today panel + activity panel + tab bar
+   (= 3); tiles, the 약점 list and the 지난 세션 row are blur-free (.glass-flat / plain). */
+
+.home { gap: 16px; }
+
+/* ---- header: eyebrow (flame · level) + large title + sub, gear on the right ---- */
+.home__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.home__head { min-width: 0; flex: 1; }
+.home__eyebrow {
+  display: flex; align-items: center; gap: 6px; min-height: 44px; margin: 0;
+  font-size: var(--fs-footnote); line-height: var(--lh-footnote); font-weight: 500; color: var(--ink-2);
+}
+.home__eyebrow svg { color: var(--flame); flex: none; }
+.home__eyebrow--cold svg { color: var(--ink-3); }
+.home__title { margin: 0; overflow-wrap: anywhere; }
+.home__sub { margin: 6px 0 0; color: var(--ink-2); font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 500; }
+
+/* ---- today panel ---- */
+.home-today { display: flex; flex-direction: column; gap: 14px; }
+.home-today__row { display: flex; align-items: center; gap: 16px; }
+.home-today__count { letter-spacing: -0.02em; }
+.home-today__text { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.home-today__line {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0;
+  font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-2); font-variant-numeric: tabular-nums;
+}
+.home-today__line > span { display: inline-flex; align-items: center; white-space: nowrap; }
+.home-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; flex: none; }
+
+/* ---- stat tiles ---- */
+.home__tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
+/* ---- level line (only when 외웠어요 ≥ 1) ---- */
+.home-level { display: flex; flex-direction: column; gap: 6px; padding: 0 4px; }
+.home-level__row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: var(--fs-footnote); line-height: var(--lh-footnote); }
+.home-level__name { font-weight: 600; color: var(--ink); }
+.home-level__next { color: var(--ink-2); }
+.home-level__bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.10); overflow: hidden; }
+.home-level__fill { height: 100%; border-radius: inherit; background: var(--mint); transition: width var(--dur-ring) var(--ease-out); }
+
+/* ---- sections: Title 3 + aside / link ---- */
+.home-section { display: flex; flex-direction: column; gap: 10px; }
+.home-sec { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
+.home-sec h2 { margin: 0; flex: none; }
+.home-sec__aside { min-width: 0; text-align: right; font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-2); }
+.home-link {
+  display: inline-flex; align-items: center; gap: 2px; min-height: 44px; margin: -8px -4px; padding: 0 4px;
+  border: 0; background: none; border-radius: var(--r-capsule); color: var(--mint); font: inherit;
+  font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 600; white-space: nowrap;
+  transition: background-color var(--dur-micro), transform var(--dur-std) var(--ease-spring);
+}
+.home-link:active { background: rgba(255, 255, 255, 0.08); transform: scale(0.97); }
+.home-link svg { flex: none; }
+
+/* ---- 약한 곳 rows (52 high, 1px dividers) ---- */
+.home-spots { list-style: none; margin: 0; padding: 0; }
+.home-spot { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 4px 2px 4px 6px; }
+.home-spot + .home-spot { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.home-spot__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); flex: none; }
+.home-spot__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.home-spot__name { font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-spot__meta { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-spot .ui-chip { flex: none; }
+
+/* ---- empty copy panels ---- */
+.home-empty { text-align: center; color: var(--ink-3); font-size: var(--fs-footnote); line-height: var(--lh-footnote); }
+
+/* ---- 최근 12주 ---- */
+.home-activity { display: flex; flex-direction: column; gap: 10px; }
+.home-activity__note { min-height: 18px; margin: 0; font-size: var(--fs-footnote); line-height: 18px; color: var(--ink-2); }
+.home-activity__note--empty { color: var(--ink-3); text-align: center; }
+
+/* ---- 지난 세션 row ---- */
+.home-last {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 0 6px 0 10px;
+  border: 0; border-radius: var(--r-md); background: none; color: var(--ink); font: inherit; text-align: left;
+  transition: background-color var(--dur-micro), transform var(--dur-std) var(--ease-spring);
+}
+.home-last:active { background: rgba(255, 255, 255, 0.06); transform: scale(0.99); }
+.home-last__label { flex: none; font-size: var(--fs-subhead); line-height: var(--lh-subhead); font-weight: 600; color: var(--ink-2); }
+.home-last__value { flex: 1; min-width: 0; font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-last svg { color: var(--ink-3); flex: none; }
+
+/* ---- narrow phones (360): the ring row keeps one line per stat ---- */
+@media (max-width: 374px) {
+  .home-today__row { gap: 12px; }
+  .home-spot .ui-chip { padding-inline: 10px; }
+}
+
+/* ---- reduced motion (§8): the ring is passed animate={false}; these are the screen's own transitions ---- */
+@media (prefers-reduced-motion: reduce) {
+  .home-level__fill, .home-link, .home-last { transition: none; }
+}
