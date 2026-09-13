@@ -32,9 +32,9 @@ export function MixChips({ step }: { step: Step }) {
 
 /**
  * Fixed-height glass-clear slot (§5.3 / §5.4): a quiet placeholder while thinking (the choice buttons sit above
- * it); on reveal the answer capsule flips in (rotateX −90° → 0, 240 ms) with the mix chips and the easy
- * reason clause (glossary terms tappable). Only the reason is shown — the verdict half of the one-liner repeats
- * the capsule, and on ≤ 740 px-tall phones the line is clamped to one row, so the reason must come first.
+ * it); on reveal the answer capsule flips in (rotateX −90° → 0, 240 ms) with the mix chips and the full easy
+ * one-liner (action word first, then the reason; glossary terms tappable). The quiz reveal prints the same
+ * sentence, and trainer.css clamps the line to two rows at every height, so nothing is cut off.
  */
 export function AnswerSlot({ step, phase, explanation, showMix, animKey, hint }: { step: Step; phase: Phase; explanation: Explanation; showMix: boolean; animKey: string; hint?: string }) {
   const kind = step.scenario.kind;
@@ -60,7 +60,7 @@ export function AnswerSlot({ step, phase, explanation, showMix, animKey, hint }:
           </div>
         )}
         <p className={`trainer-answer__reason t-footnote${hasMix ? ' trainer-answer__reason--tight' : ''}`}>
-          <PlainText text={explanation.easy.reason} />
+          <PlainText text={explanation.easy.oneLiner} />
         </p>
       </div>
     </div>

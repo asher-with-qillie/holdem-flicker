@@ -15,9 +15,14 @@
  * (answer shown, exposure-only write, the 🤔 flag is the only rating). The reveal-state 헷갈려요로 표시 toggle sets
  * `flagged`, which always commits as 'unsure'.
  *
- * Leaving the reveal state: in choose mode the reveal has NO countdown — the card waits for the 다음 button (`next()`,
- * see `awaitsNext`) however the reveal was reached (choice or 시간 초과); `expire()` is a no-op there. 노출 / 순간기억 keep
- * the automatic reveal / expose timer (`expire` → next) unless `config.manual` (직접 넘기기), which waits for ▶.
+ * Leaving the reveal state: in choose mode the card waits for the 다음 button (`next()`, see `awaitsNext`) however the
+ * reveal was reached (choice or 시간 초과); `expire()` is a no-op there. On top of that the reveal arms a fixed
+ * `NEXT_AUTO_MS` (5 s) auto-advance (`autoNextAt`) that taps 다음 for the user — the countdown is drawn inside the
+ * button. Any other interaction on the revealed card (해설 / 차트 sheet, ◀, 헷갈려요로 표시, 일시정지, 길게 누르기,
+ * 카드 탭) calls `cancelAutoNext()`, which is sticky for that card: closing the sheet does not restart it. The same
+ * gestures during the think phase are ignored — the countdown does not exist yet, so the reveal still gets it. 직접 넘기기
+ * (`config.manual`, also forced by 헷갈린 것만 다시) opts out of the auto-advance entirely — the user turns the pages.
+ * 노출 / 순간기억 keep the automatic reveal / expose timer (`expire` → next) unless `config.manual`, which waits for ▶.
  *
  * Every card that leaves the screen is committed exactly once: rated → `srs.rate`, flagged → `rate('unsure','button')`,
  * otherwise `recordExposure`; always `logCards(1, {rated, known})`. A card revisited with ◀ and re-rated gets a
@@ -100,12 +105,19 @@ export interface SessionState {
   coachOpen: boolean;
   /** Card transition in progress — the next card's timer waits. */
   settling: boolean;
+  /** When the reveal auto-advance fires (epoch ms); null = not armed (think phase, quiet / manual, cancelled). */
+  autoNextAt: number | null;
+  /** The user did something else on this card — the auto-advance stays off until the card changes. */
+  autoNextCancelled: boolean;
   cardsAtStart: number;
   streakAtStart: number;
   /** Ended with ✕ before the queue ran out (summary headline `여기까지 {n}장`). */
   endedEarly: boolean;
   result?: SessionResult;
 }
+
+/** Reveal → 다음 auto-advance in choose mode (§5.4). Fixed: independent of the speed presets. */
+export const NEXT_AUTO_MS = 5000;
 
 const REQUEUE_MAX = 2;
 const REQUEUE_GAP = 6;
@@ -115,6 +127,9 @@ let activeSince: number | null = null;
 let cardSeq = 0;
 let sessionSeq = 0;
 let pending: ReturnType<typeof setTimeout> | null = null;
+let autoPending: ReturnType<typeof setTimeout> | null = null;
+/** Registered while the auto-advance is armed: a card must never turn over while the tab is hidden. */
+let autoVisibility: (() => void) | null = null;
 const listeners = new Set<() => void>();
 
 const now = () => Date.now();
@@ -149,6 +164,17 @@ function clearPending() {
   if (pending !== null) {
     clearTimeout(pending);
     pending = null;
+  }
+}
+
+function clearAuto() {
+  if (autoPending !== null) {
+    clearTimeout(autoPending);
+    autoPending = null;
+  }
+  if (autoVisibility !== null) {
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', autoVisibility);
+    autoVisibility = null;
   }
 }
 
@@ -228,6 +254,7 @@ export function startSession(config: SessionConfig, at: number = now()): StartRe
   });
 
   clearPending();
+  clearAuto();
   if (state) syncClockOff(at);
   const id = `s${at.toString(36)}-${++sessionSeq}`;
   const timing = timingFor(config.speed, settings);
@@ -246,6 +273,8 @@ export function startSession(config: SessionConfig, at: number = now()): StartRe
     sheetOpen: false,
     coachOpen: settings.coachSeen < COACH_VERSION,
     settling: true,
+    autoNextAt: null,
+    autoNextCancelled: false,
     cardsAtStart: progress.today.cards,
     streakAtStart: progress.streak,
     endedEarly: false,
@@ -265,6 +294,7 @@ function syncClockOff(t: number) {
 /** Back to idle (홈으로 / a new launch). */
 export function discardSession(): void {
   clearPending();
+  clearAuto();
   syncClockOff(now());
   state = null;
   emit();
@@ -280,6 +310,7 @@ export function discardSession(): void {
 export function setHolding(holding: boolean): void {
   if (!state || state.status !== 'running' || state.holding === holding) return;
   if (holding) {
+    cancelAutoNext();
     if (state.phase === 'think' && currentCard() && !quiet(state)) updateCard(state.index, { peeked: true });
     commit({ holding: true });
     vibrate(8);
@@ -288,16 +319,19 @@ export function setHolding(holding: boolean): void {
 
 export function setSheetOpen(sheetOpen: boolean): void {
   if (!state || state.sheetOpen === sheetOpen) return;
+  if (sheetOpen) cancelAutoNext();
   commit({ sheetOpen });
 }
 
 export function setCoachOpen(coachOpen: boolean): void {
   if (!state || state.coachOpen === coachOpen) return;
+  if (coachOpen) cancelAutoNext();
   commit({ coachOpen });
 }
 
 export function togglePause(): void {
   if (!state) return;
+  cancelAutoNext();
   if (state.status === 'running') commit({ status: 'paused', holding: false });
   else if (state.status === 'paused') commit({ status: 'running' });
 }
@@ -325,6 +359,48 @@ export function awaitsNext(s: SessionState): boolean {
   return s.phase === 'reveal' && (!quiet(s) || s.config.manual);
 }
 
+/** True while the reveal is counting down to 다음 (choose mode, armed, not cancelled) — drives the button countdown. */
+export function autoNextArmed(s: SessionState | null = state): boolean {
+  return !!s && s.status === 'running' && s.phase === 'reveal' && s.autoNextAt !== null;
+}
+
+/**
+ * Arm the reveal auto-advance (choose mode only). Called whenever a card enters the reveal state; refuses in
+ * 노출 / 순간기억, in 직접 넘기기 sessions and once the card's auto-advance was cancelled.
+ */
+function armAutoNext(at: number = now()): void {
+  if (!state || state.status !== 'running' || state.phase !== 'reveal') return;
+  if (quiet(state) || state.config.manual || state.autoNextCancelled) return;
+  clearAuto();
+  const id = state.id;
+  autoPending = setTimeout(() => {
+    autoPending = null;
+    const s = state;
+    if (!s || s.id !== id || s.status !== 'running' || s.phase !== 'reveal' || s.autoNextCancelled || s.autoNextAt === null) return;
+    advance(); // same path as tapping 다음
+  }, NEXT_AUTO_MS);
+  if (typeof document !== 'undefined') {
+    // Locking the phone must not flip the card behind the user's back (the rAF timers clamp for the same reason).
+    autoVisibility = () => {
+      if (document.hidden) cancelAutoNext();
+    };
+    document.addEventListener('visibilitychange', autoVisibility);
+  }
+  commit({ autoNextAt: at + NEXT_AUTO_MS });
+}
+
+/**
+ * Any interaction other than 다음 turns the auto-advance off for the current card — permanently, so closing a
+ * sheet does not restart the countdown. Cleared only when the card changes (`advance` / `prev`).
+ */
+export function cancelAutoNext(): void {
+  if (!state) return;
+  if (state.phase !== 'reveal') return; // nothing is counting down while thinking (a peek there still gets its 5 s)
+  clearAuto();
+  if (state.autoNextCancelled && state.autoNextAt === null) return;
+  commit({ autoNextAt: null, autoNextCancelled: true });
+}
+
 function userActive(): boolean {
   try {
     return typeof navigator === 'undefined' || navigator.userActivation?.hasBeenActive !== false;
@@ -338,6 +414,7 @@ export function revealNow(): void {
   if (!state || state.status !== 'running' || state.phase !== 'think') return;
   if (!quiet(state) && userActive()) vibrate(12);
   commit({ phase: 'reveal' });
+  armAutoNext();
 }
 
 /**
@@ -354,6 +431,7 @@ export function choose(action: Action): boolean {
   updateCard(state.index, { chosenAction: action, grade, rating, ratingSource: 'button' });
   if (userActive()) vibrate(rating === 'know' ? 10 : [18, 30, 18]);
   commit({ phase: 'reveal' });
+  armAutoNext();
   return true;
 }
 
@@ -372,6 +450,7 @@ export function expireThink(): void {
   updateCard(state.index, { timedOut: true, rating: 'unsure', ratingSource: 'button' });
   if (userActive()) vibrate([18, 30, 18]);
   commit({ phase: 'reveal' });
+  armAutoNext();
 }
 
 /** Toggle 헷갈려요로 표시 (🤔). A flagged card always commits as 'unsure' (also when the choice was correct). */
@@ -379,6 +458,7 @@ export function flagToggle(): void {
   if (!state || state.status !== 'running') return;
   const card = currentCard();
   if (!card) return;
+  cancelAutoNext();
   const flagged = !card.flagged;
   updateCard(state.index, { flagged });
   if (flagged) vibrate([18, 30, 18]);
@@ -422,8 +502,9 @@ export function next(): void {
 export function prev(): void {
   if (!state || state.status !== 'running' || state.index === 0) return;
   clearPending();
+  clearAuto();
   const id = state.id;
-  commit({ index: state.index - 1, phase: 'reveal', settling: true, holding: false });
+  commit({ index: state.index - 1, phase: 'reveal', settling: true, holding: false, autoNextAt: null, autoNextCancelled: true });
   schedule(id, state.timing.transition, () => commit({ settling: false }));
 }
 
@@ -454,6 +535,7 @@ function leaveCard(i: number, at: number) {
 function advance() {
   if (!state || state.status !== 'running') return;
   clearPending();
+  clearAuto();
   const at = now();
   const i = state.index;
   leaveCard(i, at);
@@ -470,7 +552,7 @@ function advance() {
   }
   if (i + 1 < queue.length) {
     const id = state.id;
-    commit({ queue, requeues, index: i + 1, phase: state.config.exposure ? 'reveal' : 'think', settling: true, holding: false });
+    commit({ queue, requeues, index: i + 1, phase: state.config.exposure ? 'reveal' : 'think', settling: true, holding: false, autoNextAt: null, autoNextCancelled: false });
     schedule(id, state.timing.transition, () => commit({ settling: false }));
   } else {
     state = { ...state, queue, requeues };
@@ -485,6 +567,7 @@ export function endSession(): SessionResult | null {
   if (!state) return null;
   if (state.status === 'summary') return state.result ?? null;
   clearPending();
+  clearAuto();
   const at = now();
   const card = currentCard();
   if (card && state.phase === 'reveal' && !card.exposed) leaveCard(state.index, at); // the answer was shown → it counts
@@ -554,7 +637,7 @@ function finish(at: number): SessionResult {
   else if (after.streak > s.streakAtStart) vibrate([12, 60, 12]);
   else vibrate([10, 40, 10, 40]);
 
-  state = { ...s, status: 'summary', holding: false, sheetOpen: false, coachOpen: false, settling: false, result };
+  state = { ...s, status: 'summary', holding: false, sheetOpen: false, coachOpen: false, settling: false, autoNextAt: null, autoNextCancelled: false, result };
   emit();
   return result;
 }
@@ -562,6 +645,7 @@ function finish(at: number): SessionResult {
 /** Test hook: drop everything (also cancels timers). */
 export function resetSessionStore(): void {
   clearPending();
+  clearAuto();
   state = null;
   activeSince = null;
   emit();

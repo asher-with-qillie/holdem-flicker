@@ -4,7 +4,9 @@ import type { Action } from '../../poker/types';
 import type { Settings } from '../../state/settings';
 import type { RatingSource } from '../../state/srs';
 import {
+  autoNextArmed,
   awaitsNext,
+  cancelAutoNext as storeCancelAutoNext,
   choose as storeChoose,
   currentCard,
   endSession,
@@ -59,6 +61,10 @@ export function useTrainerSession(settings: Settings) {
   const waiting = !!s && awaitsNext(s);
   /** Choose mode reveal: the prominent 다음 button replaces ▶ and the timer row reads 다음을 눌러 넘어가요. */
   const waitNext = waiting && !quiet;
+  /** The 다음 button is counting down (5 s) — cancelled by any other interaction, off in 직접 넘기기. */
+  const autoNext = autoNextArmed(s) && !sheetOpen && !coachOpen && !holding;
+  /** Restarts the button countdown per card / per reveal. */
+  const autoNextKey = s && card ? `${s.id}:${card.id}:auto` : 'idle';
   const running = !!s && status === 'running' && !holding && !sheetOpen && !coachOpen && !s.settling && !waiting;
   const durationMs = s ? Math.max(200, s.config.exposure ? s.timing.expose : phase === 'think' ? s.timing.think : s.timing.reveal) : 1000;
   const timerKey = s && card ? `${s.id}:${card.id}:${phase}` : 'idle';
@@ -97,6 +103,8 @@ export function useTrainerSession(settings: Settings) {
   const togglePause = useCallback(() => storeTogglePause(), []);
   const setHolding = useCallback((h: boolean) => storeSetHolding(h), []);
   const setSheetOpen = useCallback((o: boolean) => storeSetSheetOpen(o), []);
+  /** Any interaction that is not 다음 (stage tap, 차트 sheet…) stops the auto-advance for this card. */
+  const cancelAutoNext = useCallback(() => storeCancelAutoNext(), []);
   const endEarly = useCallback(() => endSession(), []);
 
   const config: SessionConfig | undefined = s?.config;
@@ -119,6 +127,8 @@ export function useTrainerSession(settings: Settings) {
     coachOpen,
     waiting,
     waitNext,
+    autoNext,
+    autoNextKey,
     running,
     quiet,
     manual,
@@ -136,6 +146,7 @@ export function useTrainerSession(settings: Settings) {
     togglePause,
     setHolding,
     setSheetOpen,
+    cancelAutoNext,
     endEarly,
     result: s?.result,
     showMix: settings.showMixFrequencies,

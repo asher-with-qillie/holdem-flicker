@@ -102,32 +102,92 @@ await shot('06-train-reveal');
 check((await page.locator('.trainer-session--reveal').count()) > 0, 'train: .trainer-session--reveal missing after choosing');
 check((await page.locator('.trainer-answer__cap').count()) > 0, 'train: answer cap missing after choosing');
 check(/해설/.test(await page.locator('.trainer-hud').innerText()), 'train: HUD tag should read 해설 in the reveal state');
-// choose mode: the timer stops — no countdown number, the row reads 다음을 눌러 넘어가요, and only 다음 moves on
+// choose mode: the timer row keeps a static hint; the 5 s countdown lives inside the 다음 button
 {
   const timerText = await page.locator('.trainer-timer').first().innerText().catch(() => '');
-  check(!/\d+\.\d초/.test(timerText), `train: reveal must not count down ("${timerText}")`);
-  check(/다음을 눌러/.test(timerText), `train: timer row should read 다음을 눌러 넘어가요 ("${timerText}")`);
+  check(!/\d+\.\d초/.test(timerText), `train: reveal must not bring back the countdown row ("${timerText}")`);
+  check(/자동으로 넘어가/.test(timerText), `train: timer row should read 자동으로 넘어가 넘어가요 ("${timerText}")`);
+  const think = await page.evaluate(() => getComputedStyle(document.querySelector('.trainer-session__wash')).opacity);
+  check(Number(think) > 0.5, `train: reveal wash not visible (opacity ${think})`);
+  const counter = () => page.locator('.trainer-hud__count').first().innerText().catch(() => '');
   const nextBtn = page.locator('.trainer-next');
   check((await nextBtn.count()) === 1, 'train: .trainer-next missing in the reveal state');
   if (await nextBtn.count()) {
     const h = (await nextBtn.first().boundingBox())?.height ?? 0;
     check(h >= 56, `train: 다음 button shorter than 56 px (${Math.round(h)})`);
-  }
-  const think = await page.evaluate(() => getComputedStyle(document.querySelector('.trainer-session__wash')).opacity);
-  check(Number(think) > 0.5, `train: reveal wash not visible (opacity ${think})`);
-  // it stays put without input (the old reveal timer was 5 s)
-  await page.waitForTimeout(1800);
-  const counter = () => page.locator('.trainer-hud__count').first().innerText().catch(() => '');
-  check(/^1\//.test(await counter()), `train: card advanced without 다음 (counter "${await counter()}")`);
-  check((await page.locator('.trainer-session--reveal').count()) > 0, 'train: reveal state left without 다음');
-  if (await nextBtn.count()) {
-    await nextBtn.first().tap();
-    await page.waitForTimeout(500);
-    check(/^2\//.test(await counter()), `train: 다음 did not advance the counter (got "${await counter()}")`);
+    const label = (await nextBtn.first().innerText()).replace(/\s+/g, ' ').trim();
+    check(/다음\s*·?\s*[1-5]/.test(label), `train: 다음 button should carry the countdown (got "${label}")`);
+    check((await nextBtn.first().getAttribute('data-auto')) === 'on', 'train: 다음 countdown not armed after choosing');
+    const fill = await nextBtn.first().evaluate((el) => ({ w: parseFloat(getComputedStyle(el, '::before').width) || 0, btn: el.getBoundingClientRect().width }));
+    check(fill.w > 8 && fill.w <= fill.btn + 1, `train: countdown fill not drawn inside the button (${Math.round(fill.w)} of ${Math.round(fill.btn)})`);
+    await shot('06a-train-next-countdown');
+    // no input at all: the countdown drains and taps 다음 for the user
+    await page.waitForTimeout(6000);
+    check(/^2\//.test(await counter()), `train: the 5 s countdown did not advance the card by itself (counter "${await counter()}")`);
     check((await page.locator('.trainer-session--think').count()) > 0, 'train: next card should start in the think state');
     check((await page.locator('.trainer-next').count()) === 0, 'train: 다음 button still shown on the next card');
     await shot('06b-train-next-card');
   }
+}
+// card 2: 해설 cancels the auto-advance for good, 차트 shows the GTO chart, 다음 moves on by hand
+{
+  const counter = () => page.locator('.trainer-hud__count').first().innerText().catch(() => '');
+  await page.locator('.trainer-choice').first().tap();
+  await page.waitForTimeout(400);
+  const nextBtn = page.locator('.trainer-next');
+  check((await nextBtn.first().getAttribute('data-auto')) === 'on', 'train: card 2 should start its own countdown');
+  // 해설 → close: the countdown must not come back
+  await page.locator('.trainer-controls__main').first().tap();
+  await page.waitForTimeout(500);
+  check((await page.locator('.ui-sheet').count()) > 0, 'train: 해설 sheet did not open');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+  const label = (await nextBtn.first().innerText()).replace(/\s+/g, ' ').trim();
+  check(!/[0-9]/.test(label), `train: 다음 must lose its number after 해설 (got "${label}")`);
+  check((await nextBtn.first().getAttribute('data-auto')) === 'off', 'train: auto-advance restarted after closing 해설');
+  const fillOff = await nextBtn.first().evaluate((el) => parseFloat(getComputedStyle(el, '::before').width) || 0);
+  check(fillOff < 1, `train: countdown fill still drawn after cancelling (${Math.round(fillOff)}px)`);
+  await shot('06c-train-next-cancelled');
+  // 차트 sheet: shares + 13×13 grid with the current hand ringed
+  const hand = (await page.locator('.trainer-handlabel__name').first().innerText()).trim();
+  await page.locator('.trainer-chartbtn').first().tap();
+  await page.waitForTimeout(600);
+  const sheet = page.locator('.ui-sheet').last();
+  check((await sheet.count()) > 0, 'train: 차트 sheet did not open');
+  const cells = sheet.locator('.rgrid__cell[aria-label]');
+  check((await cells.count()) === 169, `train: chart sheet grid should have 169 labelled cells (got ${await cells.count()})`);
+  const hl = sheet.locator(`.rgrid__cell[aria-label="${hand}"][aria-current="true"]`);
+  check((await hl.count()) === 1, `train: chart sheet should ring the current hand ${hand}`);
+  const cellBox = await cells.first().boundingBox();
+  check((cellBox?.width ?? 0) >= 22, `train: chart cells too small (${Math.round(cellBox?.width ?? 0)}px)`);
+  // the spec's ≥ 22 px is stated at 360 px, but the device viewport is 390 — check the narrow case too
+  const vp = page.viewportSize();
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.waitForTimeout(300);
+  const cell360 = await cells.first().boundingBox();
+  check((cell360?.width ?? 0) >= 22, `train: chart cells too small at 360px (${(cell360?.width ?? 0).toFixed(1)}px)`);
+  await shot('06d1-train-chart-sheet-360');
+  await noHScroll('train chart sheet 360');
+  if (vp) await page.setViewportSize(vp);
+  await page.waitForTimeout(300);
+  const sheetText = await sheet.innerText();
+  check(new RegExp(`내 패 ${hand}는 여기`).test(sheetText.replace(/\s+/g, ' ')), `train: chart sheet caption missing ("${sheetText.slice(0, 60)}")`);
+  check(/전체 차트 보기/.test(sheetText), 'train: chart sheet footer button missing');
+  await shot('06d-train-chart-sheet');
+  await noHScroll('train chart sheet');
+  const sessionScrolls = await page.evaluate(() => { const el = document.querySelector('.trainer-session'); return el ? el.scrollHeight > el.clientHeight + 1 : false; });
+  check(!sessionScrolls, 'train: the session screen scrolls behind the chart sheet');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+  check((await page.locator('.trainer-chart').count()) === 0, 'train: chart sheet still open after Escape');
+  // still no auto-advance, then tap 다음 by hand
+  check(/^2\//.test(await counter()), `train: card advanced while the chart sheet was open (counter "${await counter()}")`);
+  await page.waitForTimeout(7000);
+  check(/^2\//.test(await counter()), `train: cancelled card advanced by itself (counter "${await counter()}")`);
+  check((await nextBtn.first().getAttribute('data-auto')) === 'off', 'train: auto-advance restarted after the 차트 sheet');
+  await nextBtn.first().tap();
+  await page.waitForTimeout(500);
+  check(/^3\//.test(await counter()), `train: 다음 did not advance the counter (got "${await counter()}")`);
 }
 // end early → summary
 await page.locator('.trainer-hud__btn').first().tap();
@@ -168,7 +228,7 @@ if (await cell.count()) {
   await cell.tap(); await page.waitForTimeout(500); await shot('13-charts-cell');
   const sheet = page.locator('.ui-sheet').last();
   const sheetText = await sheet.innerText().catch(() => '');
-  check(/왜 그럴까요|예를 들면|플랍이 열리면/.test(sheetText), 'charts: cell sheet lacks the plain explanation body');
+  check(/왜\?|예시|플랍에서는/.test(sheetText), 'charts: cell sheet lacks the plain explanation body');
   check(((await sheet.locator('.ui-explain__one').innerText().catch(() => '')).trim().length) > 0, 'charts: cell sheet lacks the one-line 결론 lead');
   check((await sheet.locator('.ui-explain__more-btn[aria-expanded="false"]').count()) === 1, 'charts: 더 자세히 disclosure missing or not collapsed by default');
   const term = sheet.locator('.term').first();

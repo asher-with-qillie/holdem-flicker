@@ -29,6 +29,8 @@ export interface SwipeStageProps {
   children?: ReactNode;
   onHoldStart(): void;
   onHoldEnd(): void;
+  /** Any touch on the card area that is not a button (used to cancel the reveal auto-advance). */
+  onPress?(): void;
 }
 
 function reducedMotion(): boolean {
@@ -69,12 +71,12 @@ function Fan({ cards, hand, flagged }: { cards: [Card, Card]; hand: HandName; fl
  * < 8 px movement → onHoldStart, release → onHoldEnd). Buttons inside the stage are ignored so the choice
  * capsules keep working. Card changes slide (or crossfade in quiet modes) with a ghost of the previous fan.
  */
-export function SwipeStage({ card, phase, crossfade, transitionMs, children, onHoldStart, onHoldEnd }: SwipeStageProps) {
+export function SwipeStage({ card, phase, crossfade, transitionMs, children, onHoldStart, onHoldEnd, onPress }: SwipeStageProps) {
   const gesture = useRef<Gesture | null>(null);
   const [ghost, setGhost] = useState<SessionCard | null>(null);
 
-  const cb = useRef({ onHoldStart, onHoldEnd });
-  cb.current = { onHoldStart, onHoldEnd };
+  const cb = useRef({ onHoldStart, onHoldEnd, onPress });
+  cb.current = { onHoldStart, onHoldEnd, onPress };
 
   // Card change: show a ghost of the previous fan.
   const prevCard = useRef(card);
@@ -107,6 +109,7 @@ export function SwipeStage({ card, phase, crossfade, transitionMs, children, onH
   const onPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary || gesture.current) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    cb.current.onPress?.(); // any touch on the card area counts as interaction (cancels auto-advance)
     if ((e.target as Element).closest('button, a')) return;
     try {
       e.currentTarget.setPointerCapture(e.pointerId);

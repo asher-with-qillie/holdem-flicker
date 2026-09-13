@@ -347,3 +347,6 @@ button.ui-heat__cell:active { filter: brightness(1.25); }
   .ui-ring--celebrate, .ui-rating--pulse .ui-rating__know, .ui-summary__flame--pulse svg { animation: none; }
   .ui-toast { transform: none; transition-duration: 150ms; }
 }
+
+/* Solid tinted buttons carry dark ink: white on mint is 1.5:1, dark ink is 13:1. */
+.ui-btn.glass-solid, .ui-btn.glass-solid .ui-btn__label { color: var(--ink-on-tint); }

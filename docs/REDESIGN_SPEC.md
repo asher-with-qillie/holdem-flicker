@@ -606,9 +606,29 @@ pre-selects chips and, with `autostart`, starts immediately. Estimated time = si
   노출 / 순간기억). Wash = `.trainer-session__wash` (z −1, opacity 0 → 1, 200 ms, instant under reduced motion):
   correct `radial-gradient(120% 80% at 50% 0%, #0f3b34, #071a17 70%)`, wrong `#3a2a0e → #1a1207`, neutral
   `#1e2a44 → #0b1020`. Text contrast stays ≥ 4.5:1 on every wash (ink / ink-2 on ≤ #3a2a0e).
-- Choose mode (v2.2): the reveal has **no countdown** — the timer row reads `다음을 눌러 넘어가요` (bar gone) and the
-  card leaves only with the primary `다음` capsule (`.trainer-next`, block ≥ 56, mint, in place of ▶ next to ◀ and
-  해설; Space / Enter / →). Same after 시간 초과. 직접 넘기기 makes no difference here. No swipe, no stamps, no fly-out.
+- Choose mode (v2.3): the timer row keeps only the static hint `다음을 눌러 넘어가요` (bar gone, no countdown row) and
+  the card leaves with the primary `다음` capsule (`.trainer-next`, block ≥ 56, mint, in place of ▶ next to ◀, 해설 and
+  차트; Space / Enter / →). Same after 시간 초과. No swipe, no stamps, no fly-out.
+- **5 s auto-advance inside the 다음 button** (v2.3, `NEXT_AUTO_MS = 5000` in `sessionStore.ts`, independent of the
+  speed presets): entering the reveal arms `autoNextAt`; the button reads `다음 · 5` → `다음 · 1` (tabular figures)
+  over a lighter-mint `::before` layer (`--next-fill`) that drains left → right under the label within the capsule
+  radius — per frame from `useRafTimer`, in 1 s steps under `prefers-reduced-motion` (the fill reaches empty; only the
+  visible number is clamped at 1). The armed button announces itself as `다음 · 5초 뒤 자동으로 넘어가요` (static, so the
+  per-second counter stays `aria-hidden`). At 0 the store taps 다음 itself
+  (same `advance()` path). Any other interaction on the revealed card — 해설 or the 차트 sheet, ◀, 헷갈려요로 표시,
+  일시정지, 길게 누르기, a tap on the card area — calls `cancelAutoNext()`, which is **sticky**: the button falls back
+  to a plain `다음` (no number, no fill, `data-auto="off"`) and closing the sheet does not restart it; the next card
+  counts down again. 직접 넘기기 (`manual`, also forced for onlyKeys) opts out entirely, and the same gestures during
+  the think phase do not pre-cancel the coming reveal. 노출 / 순간기억 are untouched (their own reveal timer below).
+- 차트 (v2.3): next to 해설 in the reveal row (both ≥ 44, the row fits at 360 with the chevron dropped ≤ 380 px).
+  Shown in choose mode and in 노출 (a stable reveal) but **not in 순간기억**, whose 1.5 s think ⇄ reveal flip would
+  mount and unmount it — and so re-lay-out the whole row — twice per card for a button too short-lived to use.
+  It opens `RevealChart` — a full-detent Sheet titled with the scenario: `ActionShares`, the 13×13 `RangeGrid` with
+  the played hand ringed (`.trainer-chart__grid` padding 6 px ⇒ cells ≈ 22.1 px at 360, 24+ at 390), the caption
+  `내 패 A5s는 여기`, `ChartLegend`, `chart.summary`, and a `전체 차트 보기` footer that stores the chart selection,
+  **pauses the session** (the clock must not run while the user browses charts) and switches to the 차트 tab.
+  Opening it goes through `setSheetOpen(true)` (session paused, auto-advance cancelled); the sheet scrolls on its
+  own, the session never does.
 - 노출 / 순간기억 keep the automatic reveal / expose timer (`expire` → next, `다음까지 3.2초`). With 직접 넘기기
   (`manual`, also forced for onlyKeys) they hide the timer and wait for ▶.
 - 순간기억 (`flash`) and 노출 모드: exposure-only write; the rating slot shows the same 헷갈려요로 표시 toggle

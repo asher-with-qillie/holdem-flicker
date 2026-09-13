@@ -195,8 +195,35 @@
 .trainer-controls__main { flex: 1; min-height: 44px; }
 .trainer-controls--next { height: 56px; }
 .trainer-controls--next .trainer-controls__main { flex: 1; min-height: 56px; }
-.trainer-next { flex: 1.6; min-height: 56px; font-size: var(--fs-headline); animation: trainer-pop var(--dur-quick) var(--ease-spring); }
+.trainer-next { position: relative; overflow: hidden; flex: 1.6; min-height: 56px; font-size: var(--fs-headline); animation: trainer-pop var(--dur-quick) var(--ease-spring); }
 .trainer-next .ui-btn__icon { order: 2; }
+/* 5 s auto-advance (§5.4): a lighter mint layer under the label that drains left → right, width set per frame. */
+.trainer-next::before {
+  content: ''; position: absolute; top: 0; bottom: 0; right: 0; z-index: 0; pointer-events: none;
+  width: var(--next-fill, 0%); border-radius: var(--r-capsule);
+  background: color-mix(in srgb, #fff 30%, var(--mint));
+}
+.trainer-next > * { position: relative; z-index: 1; }
+.trainer-next__count { margin-left: 5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+/* 해설 / 차트 sit next to the 56-high 다음: tighter padding so all three fit at 360 px */
+.trainer-controls--next .trainer-controls__main { padding-inline: 12px; }
+.trainer-controls--next .trainer-next { padding-inline: 12px; gap: 6px; }
+.trainer-chartbtn { flex: 1; }
+/* narrow phones: the chevron goes, the row keeps ◀ · 해설 · 차트 · 다음 · 5 unclipped at 360 (and 320) */
+@media (max-width: 380px) {
+  .trainer-controls--next { gap: 8px; }
+  .trainer-controls--next .trainer-controls__main, .trainer-controls--next .trainer-next { padding-inline: 10px; }
+  .trainer-controls--next .trainer-next .ui-btn__icon { display: none; }
+}
+
+/* ---- 차트 sheet on the reveal screen (§5.4): shares · 13×13 grid · 내 패 caption · legend · summary ---- */
+.trainer-chart { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.trainer-chart__grid { padding: 6px; border-radius: var(--r-md); } /* 6px: 360px 폭에서도 칸이 22px 이상 */
+.trainer-chart__grid .rgrid__cell { font-size: clamp(9px, 2.6vw, 11px); }
+.trainer-chart__you { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--ink-2); text-align: center; }
+.trainer-chart__you b { color: var(--ink); font-weight: 700; }
+.trainer-chart__you i { flex: none; width: 14px; height: 14px; border-radius: var(--r-xs); border: 2px solid var(--mint); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 22%, transparent); }
+.trainer-chart__summary { color: var(--ink-2); }
 
 /* ---- hold overlay footer / confirm ---- */
 .trainer-hold__foot { width: 100%; text-align: center; color: var(--ink-3); }
@@ -216,12 +243,13 @@
   .trainer-timer__wrap { min-height: 24px; }
   .trainer-choose { gap: 4px; }
   .trainer-choose__prompt { min-height: 20px; }
-  .trainer-answer { min-height: 96px; padding: 8px 12px; gap: 4px; }
+  /* 한 줄 해설은 짧은 화면에서도 두 줄을 다 보여 줍니다(§4). 필요한 ~18px는 아래 두 줄에서 덜어 냅니다. */
+  .trainer-answer { min-height: 114px; padding: 8px 12px; gap: 4px; }
   .trainer-answer__flip { gap: 4px; }
   .trainer-answer__cap { min-height: 40px; }
-  .trainer-answer__reason { -webkit-line-clamp: 1; }
-  .trainer-rateslot { min-height: 36px; }
-  .trainer-controls--next { height: 56px; }
+  .trainer-answer__reason { -webkit-line-clamp: 2; }
+  .trainer-rateslot { min-height: 30px; }
+  .trainer-controls--next { height: 48px; }
 }
 
 /* ================================================================ reduced motion (§8): transforms → short crossfades, no wash fade */
@@ -232,6 +260,7 @@
   .trainer-session__wash { transition: none; }
   .trainer-choice.glass-solid, .trainer-choice--chosen.trainer-choice--wrong { animation: none; }
   .trainer-answer__flip, .trainer-answer__cap, .trainer-hud, .trainer-flag, .trainer-next, .trainer-timer__num--wait { animation: trainer-fade-in 150ms ease; }
+  .trainer-next::before { transition: none; }
   .trainer-controls { transition: none; }
 }
 

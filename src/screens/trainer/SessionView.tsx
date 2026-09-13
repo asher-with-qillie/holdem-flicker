@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { ExplanationBody, ExplanationSheet } from '../../components/ExplanationSheet';
 import { TableDiagram } from '../../components/TableDiagram';
 import { TimerBar } from '../../components/TimerBar';
@@ -12,10 +12,12 @@ import { scenarioSituation } from '../../poker/scenarios';
 import { SCENARIO_ACTIONS } from '../../poker/types';
 import { useProgress } from '../../state/progress';
 import { COACH_VERSION, updateSettings, type Settings } from '../../state/settings';
+import { useReducedMotion } from '../home/useReducedMotion';
 import { AnswerSlot } from './AnswerSlot';
 import { ChoiceButtons } from './ChoiceButtons';
+import { RevealChart } from './RevealChart';
 import { SessionHud } from './SessionHud';
-import { setCoachOpen, type SessionCard } from './sessionStore';
+import { NEXT_AUTO_MS, setCoachOpen, type SessionCard } from './sessionStore';
 import { StepCrumbs } from './StepCrumbs';
 import { SwipeStage } from './SwipeStage';
 import { formatCountdown, useRafTimer } from './useRafTimer';
@@ -25,7 +27,8 @@ const PROMPT = '어떻게 할까요?';
 const HOLD_HINT = '길게 누르면 멈추고 해설';
 const HOLD_FOOTER = '손을 떼면 이어서 진행해요';
 const QUIET_CAPTION = '훑어보기 중 · 선택 없이 답만 봐요';
-const NEXT_HINT = '다음을 눌러 넘어가요';
+const NEXT_HINT_AUTO = '그대로 두면 자동으로 넘어가요';
+const NEXT_HINT_MANUAL = '다음을 눌러 넘어가요';
 const UNSURE_CAPTION = '헷갈려요로 기록 · 곧 다시 나와요';
 const HINT_UNTIL_CARDS = 60; // ≈ first 3 sessions
 
@@ -41,16 +44,16 @@ function outcomeLine(card: SessionCard): { text: string; tone: 'correct' | 'part
 
 /**
  * Owns the rAF loop so per-frame progress updates re-render only the bar + the countdown number.
- * `waitNext` (choose-mode reveal): no countdown — the bar goes, the row reads 다음을 눌러 넘어가요.
+ * `waitNext` (choose-mode reveal): no countdown row — the 다음 button carries it; the row states how the card leaves.
  */
-function PhaseTimer({ durationMs, running, resetKey, paused, hidden, waitNext, phase, onExpire }: { durationMs: number; running: boolean; resetKey: string; paused: boolean; hidden: boolean; waitNext: boolean; phase: 'think' | 'reveal'; onExpire: () => void }) {
+function PhaseTimer({ durationMs, running, resetKey, paused, hidden, waitNext, autoNext, phase, onExpire }: { durationMs: number; running: boolean; resetKey: string; paused: boolean; hidden: boolean; waitNext: boolean; autoNext: boolean; phase: 'think' | 'reveal'; onExpire: () => void }) {
   const { progress, remainingMs } = useRafTimer(durationMs, running, resetKey, onExpire);
   const num = formatCountdown(remainingMs);
   if (waitNext) {
     return (
       <div className="trainer-timer__wrap trainer-timer__wrap--wait">
         <span className="trainer-timer__num trainer-timer__num--wait" role="status">
-          {paused ? '일시정지' : NEXT_HINT}
+          {paused ? '일시정지' : autoNext ? NEXT_HINT_AUTO : NEXT_HINT_MANUAL}
         </span>
       </div>
     );
@@ -65,10 +68,51 @@ function PhaseTimer({ durationMs, running, resetKey, paused, hidden, waitNext, p
   );
 }
 
+const noop = () => {};
+
+/**
+ * The primary 다음 button of the choose-mode reveal. While the auto-advance is armed it carries the countdown
+ * (다음 · 5 → 다음 · 1, tabular figures) and a lighter mint layer that drains left → right behind the label;
+ * the store's 5 s timer does the advancing, this only draws it. Under prefers-reduced-motion the layer steps
+ * once per second instead of moving every frame. Cancelled (any other interaction) → plain 다음, no number.
+ */
+function NextButton({ armed, resetKey, reduced, onNext }: { armed: boolean; resetKey: string; reduced: boolean; onNext: () => void }) {
+  const { progress, remainingMs } = useRafTimer(NEXT_AUTO_MS, armed, resetKey, noop);
+  const secs = Math.min(Math.ceil(NEXT_AUTO_MS / 1000), Math.max(1, Math.ceil(remainingMs / 1000)));
+  // The visible number is clamped to 1 so it never reads 0, and the reduced-motion fill steps on the same
+  // ceil() boundary so bar and label always agree: 100 % while it reads 5, 20 % while it reads 1. The card
+  // advances at 0, so the stepped bar never has to render empty.
+  const fillStep = Math.min(NEXT_AUTO_MS / 1000, Math.ceil(remainingMs / 1000));
+  const left = reduced ? (fillStep * 1000) / NEXT_AUTO_MS : progress;
+  const fill = armed ? `${Math.max(0, Math.min(1, left)) * 100}%` : '0%';
+  return (
+    <CapsuleButton
+      tone="primary"
+      size="xl"
+      block
+      className={`trainer-next${armed ? ' trainer-next--auto' : ''}`}
+      style={{ '--next-fill': fill } as CSSProperties}
+      icon={<IconNext />}
+      onClick={onNext}
+      aria-label={armed ? `다음 · ${Math.ceil(NEXT_AUTO_MS / 1000)}초 뒤 자동으로 넘어가요` : '다음'}
+      data-auto={armed ? 'on' : 'off'}
+    >
+      다음
+      {armed && (
+        <span className="trainer-next__count tnum" aria-hidden="true">
+          · {secs}
+        </span>
+      )}
+    </CapsuleButton>
+  );
+}
+
 export function SessionView({ s, settings }: { s: TrainerSession; settings: Settings }) {
   const { card, step, session } = s;
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
   const pv = useProgress(settings.dailyGoal);
+  const reduced = useReducedMotion();
 
   const explanation = useMemo(() => (step ? explainStep(step) : null), [step]);
 
@@ -85,6 +129,15 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
     s.endEarly();
   }, [s.endEarly]);
 
+  const openChart = useCallback(() => {
+    setChartOpen(true);
+    s.setSheetOpen(true); // pauses the session and cancels the auto-advance (§5.4)
+  }, [s.setSheetOpen]);
+  const closeChart = useCallback(() => {
+    setChartOpen(false);
+    s.setSheetOpen(false);
+  }, [s.setSheetOpen]);
+
   const coachDone = useCallback(() => {
     updateSettings({ coachSeen: COACH_VERSION });
     setCoachOpen(false);
@@ -93,6 +146,8 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
   const quiet = s.quiet;
   const onHoldStart = useCallback(() => s.setHolding(true), [s.setHolding]);
   const onHoldEnd = useCallback(() => s.setHolding(false), [s.setHolding]);
+  /** Touching the card area counts as "I am reading this" — the auto-advance stops for good on this card. */
+  const onStagePress = useCallback(() => s.cancelAutoNext(), [s.cancelAutoNext]);
 
   // Keyboard equivalents (desktop testing): 1–3 pick a choice · Space / Enter / → = 다음 in the reveal state.
   useEffect(() => {
@@ -145,9 +200,9 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
       </p>
       <div className="trainer-crumbs-slot">{s.chain.length > 1 && <StepCrumbs steps={s.chain} current={s.chainIndex} />}</div>
 
-      <SwipeStage card={card} phase={s.phase} crossfade={quiet} transitionMs={session.timing.transition} onHoldStart={onHoldStart} onHoldEnd={onHoldEnd}>
+      <SwipeStage card={card} phase={s.phase} crossfade={quiet} transitionMs={session.timing.transition} onHoldStart={onHoldStart} onHoldEnd={onHoldEnd} onPress={onStagePress}>
         <div className="trainer-timer">
-          <PhaseTimer durationMs={s.durationMs} running={s.running} resetKey={s.timerKey} paused={timerPaused} hidden={s.timerHidden} waitNext={s.waitNext} phase={s.phase} onExpire={s.onExpire} />
+          <PhaseTimer durationMs={s.durationMs} running={s.running} resetKey={s.timerKey} paused={timerPaused} hidden={s.timerHidden} waitNext={s.waitNext} autoNext={s.autoNext} phase={s.phase} onExpire={s.onExpire} />
         </div>
 
         {!quiet && (
@@ -180,10 +235,14 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
         <CapsuleButton tone="neutral" size={s.waitNext ? 'xl' : 'lg'} className="trainer-controls__main" onClick={() => s.setSheetOpen(true)}>
           해설
         </CapsuleButton>
-        {s.waitNext ? (
-          <CapsuleButton tone="primary" size="xl" block className="trainer-next" icon={<IconNext />} onClick={s.next}>
-            다음
+        {/* 노출은 reveal이 계속 유지되지만 순간기억은 1.5초마다 think↔reveal을 오가므로 행이 흔들려요 — 차트 버튼을 빼요 */}
+        {reveal && (!quiet || session.config.exposure) && (
+          <CapsuleButton tone="neutral" size={s.waitNext ? 'xl' : 'lg'} className="trainer-controls__main trainer-chartbtn" onClick={openChart}>
+            차트
           </CapsuleButton>
+        )}
+        {s.waitNext ? (
+          <NextButton armed={s.autoNext} resetKey={s.autoNextKey} reduced={reduced} onNext={s.next} />
         ) : (
           <IconButton icon={<IconNext />} label="다음 카드" onClick={s.next} />
         )}
@@ -193,7 +252,9 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
         <ExplanationBody step={step} explanation={explanation} />
       </Sheet>
 
-      {s.sheetOpen && !confirmOpen && <ExplanationSheet step={step} explanation={explanation} onClose={() => s.setSheetOpen(false)} />}
+      {s.sheetOpen && !confirmOpen && !chartOpen && <ExplanationSheet step={step} explanation={explanation} onClose={() => s.setSheetOpen(false)} />}
+
+      <RevealChart open={chartOpen} step={step} onClose={closeChart} />
 
       <Sheet
         open={confirmOpen}

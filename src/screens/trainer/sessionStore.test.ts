@@ -21,6 +21,8 @@ import { getProgress, resetProgress } from '../../state/progress';
 import { resetSettings, updateSettings } from '../../state/settings';
 import { getCard, resetSrs } from '../../state/srs';
 import {
+  autoNextArmed,
+  cancelAutoNext,
   choose,
   currentCard,
   discardSession,
@@ -30,11 +32,13 @@ import {
   flagToggle,
   getSession,
   next,
+  NEXT_AUTO_MS,
   prev,
   rateCard,
   resetSessionStore,
   revealNow,
   setHolding,
+  setSheetOpen,
   startSession,
   togglePause,
   type SessionConfig,
@@ -96,7 +100,8 @@ describe('sessionStore', () => {
     expect(s.phase).toBe('reveal');
     expect(currentCard()).toMatchObject({ chosenAction: card.step.answer, grade: 'correct', rating: 'know', ratingSource: 'button' });
     expect(choose(card.step.answer)).toBe(false); // one choice per card
-    // no automatic advance: nothing scheduled, the reveal timer does not exist, expire() is a no-op
+    // with the 5 s auto-advance cancelled (the user did something else) nothing moves on its own: expire() is a no-op
+    cancelAutoNext();
     vi.advanceTimersByTime(60_000);
     expire();
     s = getSession()!;
@@ -149,7 +154,8 @@ describe('sessionStore', () => {
     expect(currentCard()).toMatchObject({ timedOut: true, rating: 'unsure', ratingSource: 'button' });
     expect(currentCard()!.chosenAction).toBeUndefined();
     expect(choose(currentCard()!.step.answer)).toBe(false);
-    // 시간 초과 also waits for 다음
+    // 시간 초과 also waits for 다음 (auto-advance cancelled → only the button moves on)
+    cancelAutoNext();
     expire();
     vi.advanceTimersByTime(60_000);
     expect(getSession()!.index).toBe(0);
@@ -230,26 +236,169 @@ describe('sessionStore', () => {
     expect(getSession()!.index).toBe(1);
   });
 
-  it('choose mode: a choice or 시간 초과 never advances by itself — 다음 (next) does, in manual and timed sessions alike', () => {
-    for (const manual of [false, true]) {
-      resetSessionStore();
-      start({ manual });
+  it('직접 넘기기 (manual): a choice or 시간 초과 never advances by itself — only 다음 does', () => {
+    start({ manual: true });
+    choose(currentCard()!.step.answer);
+    expect(getSession()!.autoNextAt).toBeNull();
+    expect(autoNextArmed()).toBe(false);
+    vi.advanceTimersByTime(120_000);
+    expire();
+    expire();
+    expect(getSession()!).toMatchObject({ index: 0, phase: 'reveal' });
+    next();
+    expect(getSession()!).toMatchObject({ index: 1, phase: 'think' });
+    expireThink();
+    expect(currentCard()!.timedOut).toBe(true);
+    expect(getSession()!.autoNextAt).toBeNull();
+    vi.advanceTimersByTime(120_000);
+    expire();
+    expect(getSession()!).toMatchObject({ index: 1, phase: 'reveal' });
+    next();
+    expect(getSession()!).toMatchObject({ index: 2, phase: 'think' });
+  });
+
+  /* ---------------------------------------------------------------- 5 s auto-advance (§5.4, NEXT_AUTO_MS) */
+
+  it('choose mode: the revealed card taps 다음 by itself after NEXT_AUTO_MS', () => {
+    start();
+    const card = currentCard()!;
+    choose(card.step.answer);
+    let s = getSession()!;
+    expect(s.autoNextAt).toBe(Date.now() + NEXT_AUTO_MS);
+    expect(autoNextArmed()).toBe(true);
+    vi.advanceTimersByTime(NEXT_AUTO_MS - 1);
+    expect(getSession()!.index).toBe(0);
+    vi.advanceTimersByTime(1);
+    s = getSession()!;
+    expect(s.index).toBe(1);
+    expect(s.phase).toBe('think');
+    expect(s.queue[0].committedRating).toBe('know'); // same code path as tapping 다음
+    expect(s.autoNextAt).toBeNull();
+    expect(s.autoNextCancelled).toBe(false); // the next card gets its own countdown
+    expect(getProgress(20).today).toMatchObject({ cards: 1, rated: 1, known: 1 });
+  });
+
+  it('the card does not turn over while the tab is hidden', () => {
+    // The store only registers the guard when a document exists; this suite runs in node, so shim one.
+    const doc = new EventTarget() as EventTarget & { hidden: boolean };
+    doc.hidden = false;
+    (globalThis as unknown as { document?: unknown }).document = doc;
+    try {
+      start();
       choose(currentCard()!.step.answer);
-      vi.advanceTimersByTime(120_000);
-      expire();
-      expire();
-      expect(getSession()!).toMatchObject({ index: 0, phase: 'reveal' });
-      next();
-      expect(getSession()!).toMatchObject({ index: 1, phase: 'think' });
-      expireThink();
-      expect(currentCard()!.timedOut).toBe(true);
-      vi.advanceTimersByTime(120_000);
-      expire();
-      expect(getSession()!).toMatchObject({ index: 1, phase: 'reveal' });
-      next();
-      expect(getSession()!).toMatchObject({ index: 2, phase: 'think' });
+      expect(autoNextArmed()).toBe(true);
+      doc.hidden = true;
+      doc.dispatchEvent(new Event('visibilitychange'));
+      expect(autoNextArmed()).toBe(false);
+      vi.advanceTimersByTime(NEXT_AUTO_MS * 3);
+      expect(getSession()!.index).toBe(0); // still waiting for a real 다음 tap
+    } finally {
+      delete (globalThis as unknown as { document?: unknown }).document;
+    }
+  });
+
+  it('a 시간 초과 reveal auto-advances the same way', () => {
+    start();
+    expireThink();
+    expect(autoNextArmed()).toBe(true);
+    vi.advanceTimersByTime(NEXT_AUTO_MS);
+    expect(getSession()!.index).toBe(1);
+  });
+
+  it('the 5 s auto-advance is independent of the speed preset', () => {
+    for (const speed of ['slow', 'fast'] as const) {
+      resetSessionStore();
+      start({ speed });
+      choose(currentCard()!.step.answer);
+      expect(getSession()!.autoNextAt).toBe(Date.now() + NEXT_AUTO_MS);
+      vi.advanceTimersByTime(NEXT_AUTO_MS);
+      expect(getSession()!.index).toBe(1);
       discardSession();
     }
+  });
+
+  it('opening 해설 / 차트 cancels the auto-advance for good — closing the sheet does not restart it', () => {
+    start();
+    choose(currentCard()!.step.answer);
+    setSheetOpen(true);
+    let s = getSession()!;
+    expect(s.autoNextAt).toBeNull();
+    expect(s.autoNextCancelled).toBe(true);
+    setSheetOpen(false);
+    vi.advanceTimersByTime(60_000);
+    s = getSession()!;
+    expect(s.index).toBe(0);
+    expect(s.autoNextCancelled).toBe(true); // sticky
+    next();
+    expect(getSession()!.index).toBe(1);
+    choose(currentCard()!.step.answer); // a fresh card counts down again
+    expect(autoNextArmed()).toBe(true);
+  });
+
+  it('헷갈려요로 표시 · 일시정지 · 길게 누르기 · 카드 탭 each cancel the auto-advance', () => {
+    const cancels: Array<[string, () => void]> = [
+      ['flag', () => flagToggle()],
+      ['pause', () => togglePause()],
+      ['hold', () => setHolding(true)],
+      ['tap', () => cancelAutoNext()],
+    ];
+    for (const [, act] of cancels) {
+      resetSessionStore();
+      start();
+      choose(currentCard()!.step.answer);
+      expect(autoNextArmed()).toBe(true);
+      act();
+      expect(getSession()!.autoNextAt).toBeNull();
+      expect(getSession()!.autoNextCancelled).toBe(true);
+      vi.advanceTimersByTime(60_000);
+      expect(getSession()!.index).toBe(0);
+      discardSession();
+    }
+  });
+
+  it('a hold / sheet during the think phase does not pre-cancel the countdown of the coming reveal', () => {
+    start();
+    setHolding(true);
+    setHolding(false);
+    setSheetOpen(true);
+    setSheetOpen(false);
+    expect(getSession()!.autoNextCancelled).toBe(false);
+    choose(currentCard()!.step.answer);
+    expect(autoNextArmed()).toBe(true);
+    vi.advanceTimersByTime(NEXT_AUTO_MS);
+    expect(getSession()!.index).toBe(1);
+  });
+
+  it('◀ lands on the revisited card with the auto-advance off', () => {
+    start();
+    choose(currentCard()!.step.answer);
+    next();
+    choose(currentCard()!.step.answer);
+    prev();
+    const s = getSession()!;
+    expect(s.index).toBe(0);
+    expect(s.phase).toBe('reveal');
+    expect(s.autoNextAt).toBeNull();
+    expect(s.autoNextCancelled).toBe(true);
+    vi.advanceTimersByTime(60_000);
+    expect(getSession()!.index).toBe(0);
+  });
+
+  it('노출 / 순간기억 never arm the 다음 countdown (their own reveal timer is unchanged)', () => {
+    start({ exposure: true });
+    expect(getSession()!.phase).toBe('reveal');
+    expect(getSession()!.autoNextAt).toBeNull();
+    vi.advanceTimersByTime(60_000);
+    expect(getSession()!.index).toBe(0); // only the component's expose timer (expire) moves 노출 on
+    expire();
+    expect(getSession()!.index).toBe(1);
+    discardSession();
+    start({ speed: 'flash' });
+    expireThink();
+    expect(getSession()!.phase).toBe('reveal');
+    expect(getSession()!.autoNextAt).toBeNull();
+    vi.advanceTimersByTime(60_000);
+    expect(getSession()!.index).toBe(0);
   });
 
   it('순간기억 has no choosing: the think timer just reveals, exposure only', () => {
