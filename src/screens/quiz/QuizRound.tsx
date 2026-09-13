@@ -180,7 +180,7 @@ function Question({ q, autoAdvance, showMix }: { q: QuizQuestion; autoAdvance: b
                 ))}
             </div>
             <p className="quiz-feedback__reason">
-              <PlainText text={explanation.easy.reason} />
+              <PlainText text={explanation.easy.oneLiner} />
             </p>
             <div className="quiz-feedback__row">
               <CapsuleButton tone="neutral" size="md" onClick={openSheet}>

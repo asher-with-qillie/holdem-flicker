@@ -1,12 +1,23 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
+import { Fragment, createContext, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { glossSentence } from '../poker/explain';
 import { GLOSSARY_WORDS, glossaryLookup, type GlossaryEntry } from '../poker/glossary';
 import '../styles/explain.css';
 
 /*
- * PlainText — renders a plain-Korean explanation string with every glossary term wrapped in a tappable
+ * PlainText — renders a Korean explanation string with glossary terms wrapped in a tappable
  * <button class="term"> (dotted underline). Tapping opens ONE small glass popover (module store: opening a term
  * closes any other). Only use it in explanation bodies and the one-line reason, never inside CapsuleButton labels.
+ *
+ * Inside a <TermScope> (one per explanation body) only the FIRST occurrence of a term is underlined — a page where
+ * every 셋/킥커/레인지 is underlined is harder to read than one with no underlines at all.
+ *
+ * Two occurrences never get an underline at all:
+ *   · one that already carries its "(…)" gloss (explain.ts applyGlosses) — the parentheses ARE the definition,
+ *     so a popover with the same words next to them is the same explanation twice (가이드 §2.4);
+ *   · one inside parentheses — that text is itself a gloss.
+ * Both still render inside `.term-plain` so a hyphenated term ("c-bet") keeps its nowrap and never wraps as
+ * "c-" / "bet"; the same wrapper carries the deduped later occurrences.
  */
 
 /* ---- tiny module store: which term is open (at most one popover in the whole app) ---- */
@@ -43,10 +54,38 @@ export function closeTerm() {
 /* ---- matcher ---- */
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-/** Longest spelling first so "폴드 에퀴티" wins over "폴드" + "에퀴티" and "체크-레이즈" over "체크". */
+/** Longest spelling first so "임플라이드 오즈" wins over "팟 오즈" and "셋마이닝" over "셋". */
 const TERM_RE = new RegExp(GLOSSARY_WORDS.map(escapeRe).join('|'), 'gi');
 
-type Piece = { text: string; entry?: GlossaryEntry };
+/* ---- per-body dedupe: only the first occurrence of a term gets an underline ---- */
+
+const TermScopeCtx = createContext<Set<string> | null>(null);
+
+/** Wrap one explanation body so each glossary term is underlined at most once inside it. */
+export function TermScope({ children }: { children: ReactNode }) {
+  // A fresh set per render of the owning body; children render right after, in document order.
+  const seen = new Set<string>();
+  return <TermScopeCtx.Provider value={seen}>{children}</TermScopeCtx.Provider>;
+}
+
+type Piece = {
+  text: string;
+  entry?: GlossaryEntry;
+  /** The term is written out here (gloss in parentheses, or inside one): show it plain, never underlined. */
+  glossed?: boolean;
+  /** This occurrence carries its own "(…)" gloss, so it also spends the one underline the body owes the term. */
+  defines?: boolean;
+};
+
+/** True when the match at `i` sits inside a "(…)" — that text is already a definition. */
+function insideParens(text: string, i: number): boolean {
+  let depth = 0;
+  for (let k = 0; k < i; k++) {
+    if (text[k] === '(') depth++;
+    else if (text[k] === ')' && depth > 0) depth--;
+  }
+  return depth > 0;
+}
 
 export function splitTerms(text: string): Piece[] {
   const out: Piece[] = [];
@@ -57,9 +96,15 @@ export function splitTerms(text: string): Piece[] {
     if (/^[A-Za-z-]+$/.test(m[0]) && !GLOSSARY_WORDS.includes(m[0])) continue;
     const entry = glossaryLookup(m[0]);
     if (!entry) continue;
+    const end = m.index + m[0].length;
+    // 풀이는 두 꼴 중 하나입니다: 괄호("백도어(…)", 차트 메모) 또는 바로 뒤 한 문장("c-bet은 … 벳입니다.", explain.ts).
+    // 뒤 문장 꼴이면 그 본문 안의 모든 등장이 이미 설명을 달고 있는 셈이라 밑줄을 긋지 않습니다.
+    const sentence = glossSentence(entry.term);
+    const defines = text[end] === '(' || (sentence != null && text.includes(sentence));
+    const glossed = defines || insideParens(text, m.index);
     if (m.index > last) out.push({ text: text.slice(last, m.index) });
-    out.push({ text: m[0], entry });
-    last = m.index + m[0].length;
+    out.push({ text: m[0], entry, glossed, defines });
+    last = end;
   }
   if (last < text.length) out.push({ text: text.slice(last) });
   return out;
@@ -68,7 +113,20 @@ export function splitTerms(text: string): Piece[] {
 /* ---- components ---- */
 
 export function PlainText({ text, className }: { text: string; className?: string }) {
-  const pieces = splitTerms(text);
+  const seen = useContext(TermScopeCtx);
+  const pieces = splitTerms(text).map((p): Piece => {
+    if (!p.entry) return p;
+    // A term that carries its own "(…)" gloss is explained right there; it also spends the one underline
+    // this body owes the term, so the popover never repeats what the reader just read.
+    if (p.glossed) {
+      if (seen && p.defines) seen.add(p.entry.term);
+      return { text: p.text, glossed: true };
+    }
+    if (!seen) return p;
+    if (seen.has(p.entry.term)) return { text: p.text, glossed: true };
+    seen.add(p.entry.term);
+    return p;
+  });
   return (
     <span className={className}>
       {pieces.map((p, i) =>
@@ -85,6 +143,10 @@ export function PlainText({ text, className }: { text: string; className?: strin
           >
             {p.text}
           </button>
+        ) : p.glossed ? (
+          <span key={i} className="term-plain">
+            {p.text}
+          </span>
         ) : (
           <Fragment key={i}>{p.text}</Fragment>
         ),
