@@ -117,8 +117,10 @@ Dark is the only theme (`color-scheme: dark`). Legacy aliases at the bottom keep
   --r-xs: 8px; --r-sm: 12px; --r-md: 16px; --r-lg: 22px; --r-xl: 28px; --r-capsule: 999px;
 
   /* ---- type scale (px / weight / line-height) ---- */
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Pretendard Variable",
-          Pretendard, "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  /* 본문 폰트는 셀프 호스팅한 Noto Sans KR 가변(400~800)이 1순위입니다 — src/styles/fonts.css,
+     public/fonts/noto-sans-kr/, 갱신은 scripts/fetch-fonts.sh. 뒤는 폰트가 아직 안 붙었을 때의 대체 스택. */
+  --font: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard Variable",
+          "Malgun Gothic", system-ui, sans-serif;
   --fs-display: 44px; --lh-display: 48px;   /* 800, -0.03em  summary "20장", ring number */
   --fs-title-l: 34px; --lh-title-l: 41px;   /* 700, -0.02em  screen titles */
   --fs-title-1: 28px; --lh-title-1: 34px;   /* 700, -0.02em  summary headline */

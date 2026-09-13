@@ -17,7 +17,22 @@ npm install
 npm run dev      # http://localhost:5173/holdem-flicker/
 npm test         # 레인지 표기 파서 + 차트 무결성 테스트
 npm run build    # dist/
+
+npm run preview                                                   # 빌드 결과를 :4173 에서 서빙
+npm run e2e -- http://localhost:4173/holdem-flicker/ work/e2e     # 폰 뷰포트 스모크 테스트
+npm run audit:layout -- http://localhost:4173/holdem-flicker/     # 마진·박스모델 감사 (360/390/430)
+npm run fonts                                                     # Noto Sans KR 파일 다시 받기
 ```
+
+## 폰트
+
+본문 폰트는 **Noto Sans KR 가변(굵기 400~800)** 이고, `public/fonts/noto-sans-kr/` 에 **셀프 호스팅**합니다.
+Google Fonts 가 내려주는 woff2 서브셋 124개를 그대로 담아 두고 `src/styles/fonts.css` 가 같은 `unicode-range` 로
+연결하므로, 브라우저는 화면에 실제로 쓰는 글자의 조각만 받아옵니다(홈 화면 기준 11개, 약 370KB).
+런타임에 제3자로 나가는 요청이 없어서 사내망·오프라인·프록시 환경에서도 글꼴이 항상 뜹니다.
+폰트 버전이 올라갔을 때만 `npm run fonts` 로 다시 받으면 됩니다(`src/styles/fonts.css` 는 그 스크립트가 만듭니다).
+
+폰트 자체의 라이선스는 **SIL Open Font License 1.1** 이고 전문은 `public/fonts/noto-sans-kr/OFL.txt` 에 함께 담았습니다.
 
 ## 배포
 
@@ -33,6 +48,10 @@ src/poker/data/   차트 데이터 (rfi, vsOpen, vs3bet, vs4bet, vs5bet, cold4be
 src/components/   카드(SVG), 포지션 스트립, 레인지 그리드, 액션 배지, 해설 시트, ui/(글래스 디자인 시스템)
 src/screens/      홈 / 훈련 / 퀴즈 / 차트 / 설정
 src/state/        설정, 기록, SRS(간격 반복), 일별 진행, 내비게이션 스토어
+src/styles/fonts.css  @font-face 124개 (scripts/fetch-fonts.sh 가 생성 — 직접 고치지 마세요)
+public/fonts/         셀프 호스팅 woff2
+scripts/e2e.mjs           폰 뷰포트 스모크 테스트
+scripts/layout-audit.mjs  마진·박스모델 감사
 docs/RANGE_SPEC.md    차트 표기법·게임 모델·작성 규칙
 docs/REDESIGN_SPEC.md v2 디자인 시스템·화면·훈련 루프 명세
 ```

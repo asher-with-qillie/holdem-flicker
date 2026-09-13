@@ -4,12 +4,15 @@
 
 /* ---- glossary term: dotted underline, tappable, inherits the surrounding text style ---- */
 .term {
-  display: inline; margin: 0; padding: 0 1px; border: 0; background: none; color: inherit; font: inherit; line-height: inherit;
+  position: relative; display: inline; margin: 0; padding: 0 1px; border: 0; background: none; color: inherit; font: inherit; line-height: inherit;
   text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--mint) 70%, transparent); text-decoration-thickness: 1.5px; text-underline-offset: 3px;
   border-radius: 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
   /* keeps "c-bet" from wrapping at its hyphen; every glossary term is short enough to stay on one line */
   white-space: nowrap;
 }
+/* 본문 한가운데 있는 인라인 버튼이라 44px 을 다 줄 수는 없습니다(윗줄·아랫줄을 덮어 버립니다).
+   글줄 높이는 그대로 두고, 위아래로 6px 씩만 눌리는 영역을 넓혀 30~37px 로 만듭니다. */
+.term::after { content: ''; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
 .term:active { background: color-mix(in srgb, var(--mint) 22%, transparent); }
 .term:focus-visible { outline: 2px solid var(--mint); outline-offset: 1px; }
 /* a glossary word that gets NO underline (already glossed in parentheses, or a repeat inside the same body):

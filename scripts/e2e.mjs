@@ -13,6 +13,12 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'ko-KR' });
 const page = await ctx.newPage();
 const errors = [];
+const externalFontReqs = [];
+const localFontReqs = [];
+page.on('response', (r) => {
+  if (!/\.woff2?(\?|$)/.test(r.url())) return;
+  (/^https?:\/\/(?!localhost|127\.0\.0\.1)/.test(r.url()) && !r.url().includes('/holdem-flicker/') ? externalFontReqs : localFontReqs).push(r.url());
+});
 page.on('pageerror', (e) => errors.push(`pageerror: ${e}`));
 page.on('console', (m) => { if (m.type() === 'error' && !/vibrate/i.test(m.text())) errors.push(`console: ${m.text()}`); });
 const fails = [];
@@ -38,6 +44,22 @@ await shot('01-home');
 await noHScroll('home');
 check((await page.locator('.ui-tabbar').count()) > 0, 'home: floating tab bar missing');
 check(/훈련|세션/.test(await page.locator('body').innerText()), 'home: CTA copy missing');
+
+// --- 본문 폰트: 셀프 호스팅한 Noto Sans KR 이 실제로 붙었는지 (외부 요청 없이)
+{
+  const font = await page.evaluate(async () => {
+    await document.fonts.ready;
+    const h1 = document.querySelector('h1') ?? document.body;
+    return {
+      family: getComputedStyle(h1).fontFamily,
+      loaded: [...document.fonts].filter((f) => f.status === 'loaded' && f.family === 'Noto Sans KR').length,
+    };
+  });
+  check(/^['"]?Noto Sans KR/.test(font.family), `font: --font should lead with Noto Sans KR (got ${font.family})`);
+  check(font.loaded > 0, 'font: no Noto Sans KR face finished loading');
+  check(localFontReqs.length > 0, 'font: no woff2 served from the app itself (self-hosting broken?)');
+  check(externalFontReqs.length === 0, `font: ${externalFontReqs.length} webfont request(s) left going to a third party (${externalFontReqs[0] ?? ''})`);
+}
 
 // --- Trainer setup → session
 await tapText(/^훈련$/);
@@ -231,6 +253,23 @@ if (await cell.count()) {
   check(/왜\?|예시|플랍에서는/.test(sheetText), 'charts: cell sheet lacks the plain explanation body');
   check(((await sheet.locator('.ui-explain__one').innerText().catch(() => '')).trim().length) > 0, 'charts: cell sheet lacks the one-line 결론 lead');
   check((await sheet.locator('.ui-explain__more-btn[aria-expanded="false"]').count()) === 1, 'charts: 더 자세히 disclosure missing or not collapsed by default');
+  // 불릿 간격은 ul 의 flex gap 하나로만 잡힙니다 — li 에 margin 이 또 붙으면 8px 가 12px 로 벌어집니다.
+  const listGaps = await sheet.evaluate((root) => {
+    const out = [];
+    for (const sel of ['.ui-explain__list', '.ui-explain__ex']) {
+      const ul = root.querySelector(sel);
+      if (!ul || ul.children.length < 2) continue;
+      const gap = parseFloat(getComputedStyle(ul).rowGap) || 0;
+      const a = ul.children[0].getBoundingClientRect(), b = ul.children[1].getBoundingClientRect();
+      out.push({ sel, gap, visual: +(b.top - a.bottom).toFixed(1), margin: getComputedStyle(ul.children[1]).marginTop });
+    }
+    return out;
+  });
+  for (const g of listGaps) {
+    check(Math.abs(g.visual - g.gap) <= 0.5, `charts: ${g.sel} bullets are ${g.visual}px apart but the gap is ${g.gap}px (li margin ${g.margin} stacking on top)`);
+  }
+  check(listGaps.length > 0, 'charts: no explanation list to measure spacing on');
+
   const term = sheet.locator('.term').first();
   check((await term.count()) > 0, 'charts: no glossary .term in the sheet body');
   if (await term.count()) {

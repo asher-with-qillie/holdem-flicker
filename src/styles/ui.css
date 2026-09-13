@@ -83,7 +83,8 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
 /* =============================================================== IconButton */
 .ui-ibtn { display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 50%; color: var(--ink); flex: none; touch-action: manipulation; }
 .ui-ibtn--44 { width: 44px; height: 44px; }
-.ui-ibtn--40 { width: 40px; height: 40px; }
+.ui-ibtn--40 { width: 40px; height: 40px; position: relative; }
+.ui-ibtn--40::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; } /* hit-slop → 44 */
 .ui-ibtn svg { width: 22px; height: 22px; }
 .ui-ibtn--ghost { background: transparent; border: 1px solid transparent; transition: background-color var(--dur-micro), transform var(--dur-std) var(--ease-spring); }
 .ui-ibtn--ghost:active { background: rgba(255, 255, 255, 0.10); }
@@ -241,8 +242,9 @@ button.ui-heat__cell:active { filter: brightness(1.25); }
 .ui-explain__hand { font-size: var(--fs-callout); font-weight: 600; color: var(--ink-2); }
 .ui-explain h3 { font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 700; margin: 16px 0 6px; color: var(--mint); }
 .ui-explain p, .ui-explain li { font-size: var(--fs-body); line-height: var(--lh-body); color: var(--ink); }
-.ui-explain ul { margin: 0; padding-left: 18px; }
-.ui-explain li + li { margin-top: 4px; }
+/* 목록 간격은 explain.css 의 ul(.ui-explain__list / __ex)이 flex gap 으로 잡습니다.
+   예전에 여기 있던 `ul { padding-left }` 와 `li + li { margin-top: 4px }` 는 그 gap 위에 또 얹혀서
+   불릿 간격을 8px → 12px, 예시 간격을 6px → 10px 로 벌려 놓고 있었습니다. */
 .ui-explain__dim { color: var(--ink-2); }
 
 /* =============================================================== SpeedPicker */
