@@ -47,6 +47,30 @@ const PROBE = () => {
     })();
     out.push({ kind, path, detail, text: (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40) });
   };
+  /** box-shadow 문자열에서 바깥 그림자가 각 변으로 번지는 최대 폭. inset 은 제외. 없으면 null. */
+  const shadowExtent = (bs) => {
+    if (!bs || bs === 'none') return null;
+    const parts = []; let depth = 0, cur = '';
+    for (const ch of bs) {
+      if (ch === '(') depth++;
+      else if (ch === ')') depth--;
+      if (ch === ',' && depth === 0) { parts.push(cur); cur = ''; } else cur += ch;
+    }
+    if (cur.trim()) parts.push(cur);
+    let t = 0, rr = 0, b = 0, l = 0, any = false;
+    for (const raw of parts) {
+      const p = raw.trim();
+      if (/(^|\s)inset(\s|$)/.test(p)) continue;
+      // 색 함수(rgba()/color()/color-mix())를 먼저 지워야 그 안의 숫자를 길이로 오해하지 않습니다.
+      const nums = p.replace(/[a-z-]+\([^)]*\)/g, '').match(/-?\d*\.?\d+px/g);
+      if (!nums || nums.length < 2) continue;
+      const [ox, oy, blur = 0, spread = 0] = nums.map(parseFloat);
+      any = true;
+      t = Math.max(t, -oy + blur + spread); b = Math.max(b, oy + blur + spread);
+      l = Math.max(l, -ox + blur + spread); rr = Math.max(rr, ox + blur + spread);
+    }
+    return any && (t > 0 || rr > 0 || b > 0 || l > 0) ? { t, r: rr, b, l } : null;
+  };
   const visible = (el, cs, r) => {
     if (r.width === 0 && r.height === 0) return false;
     if (cs.visibility === 'hidden' || cs.display === 'none') return false;
@@ -131,7 +155,38 @@ const PROBE = () => {
       }
     }
 
-    // 5. 패딩 있는 부모 밖으로 자식이 삐져나옴 (가로)
+    // 5. 바깥 그림자가 스크롤 컨테이너에 잘림.
+    //    overflow-y:auto 를 주면 overflow-x 도 auto 로 계산되므로, 거터보다 넓게 번지는 그림자는
+    //    화면 좌우에서 직선으로 싹둑 잘려 '버튼이 상자에 갇힌' 모양이 됩니다. 눈에는 잘 안 띄지만
+    //    화면 전체의 깊이감을 죽이는 종류라 사람이 아니라 도구가 잡아야 합니다.
+    //    스크롤로 나중에 보이게 될 영역은 잘림이 아니므로, 보이는 창이 아니라 scrollWidth/Height 와 견줍니다.
+    const ext = shadowExtent(cs.boxShadow);
+    if (ext) {
+      // 예산 위반은 '오늘 잘리는가'와 별개로 잡습니다 — 지금 안 잘려도 다른 화면·다른 폭에서 잘립니다.
+      // 붙박이(fixed)는 어떤 스크롤 컨테이너 안에도 들어 있지 않으므로 예산을 적용하지 않습니다
+      // (탭 바·시트·슬라이드오버는 화면 밖으로 번지는 게 정상입니다).
+      const room = cs.position === 'fixed' ? 0 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--glow-room')) || 0;
+      if (room > 0 && Math.max(ext.l, ext.r) > room + 0.5) {
+        push('glow-budget', el, `shadow bleeds ${Math.max(ext.l, ext.r).toFixed(0)}px sideways, budget --glow-room is ${room}`);
+      }
+      const box = { t: r.top - ext.t, rt: r.right + ext.r, b: r.bottom + ext.b, l: r.left - ext.l };
+      for (let p3 = el.parentElement; p3; p3 = p3.parentElement) {
+        const pcs3 = getComputedStyle(p3);
+        const clipX = pcs3.overflowX !== 'visible', clipY = pcs3.overflowY !== 'visible';
+        if (!clipX && !clipY) continue;
+        const pr3 = p3.getBoundingClientRect();
+        const cl = pr3.left + p3.clientLeft, ct = pr3.top + p3.clientTop;
+        const cut = [];
+        if (clipY && box.t - ct + p3.scrollTop < -0.5) cut.push(`top ${(ct - p3.scrollTop - box.t).toFixed(0)}`);
+        if (clipY && box.b - ct + p3.scrollTop > p3.scrollHeight + 0.5) cut.push(`bottom ${(box.b - ct + p3.scrollTop - p3.scrollHeight).toFixed(0)}`);
+        if (clipX && box.l - cl + p3.scrollLeft < -0.5) cut.push(`left ${(cl - p3.scrollLeft - box.l).toFixed(0)}`);
+        if (clipX && box.rt - cl + p3.scrollLeft > p3.scrollWidth + 0.5) cut.push(`right ${(box.rt - cl + p3.scrollLeft - p3.scrollWidth).toFixed(0)}`);
+        if (cut.length) push('glow-clip', el, `shadow cut ${cut.join(', ')} by ${p3.className || p3.tagName.toLowerCase()}`);
+        break;
+      }
+    }
+
+    // 6. 패딩 있는 부모 밖으로 자식이 삐져나옴 (가로)
     const p = el.parentElement;
     if (p && p !== document.body) {
       const pcs = getComputedStyle(p);
@@ -147,7 +202,7 @@ const PROBE = () => {
     }
   }
 
-  // 6. 좌우 여백(거터) 일관성: 화면 최상위 블록들의 왼쪽 시작점
+  // 7. 좌우 여백(거터) 일관성: 화면 최상위 블록들의 왼쪽 시작점
   const gutters = {};
   const root = document.querySelector('.app__view') ?? document.body;
   for (const el of root.querySelectorAll(':scope > * , :scope > * > *')) {
@@ -319,7 +374,7 @@ for (const r of report) for (const p of r.out) {
   if (!byKind.has(k)) byKind.set(k, { ...p, where: new Set() });
   byKind.get(k).where.add(`${r.size}/${r.screen}`);
 }
-const order = ['page-h-overflow', 'x-overflow', 'text-clip-x', 'text-clip-y', 'box-clip-y', 'escapes-padding', 'tap-target'];
+const order = ['page-h-overflow', 'x-overflow', 'glow-budget', 'glow-clip', 'text-clip-x', 'text-clip-y', 'box-clip-y', 'escapes-padding', 'tap-target'];
 const rows = [...byKind.values()].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
 console.log(`\n=== ${rows.length} distinct issues across ${report.length} screen×size probes ===\n`);
 for (const r of rows) {

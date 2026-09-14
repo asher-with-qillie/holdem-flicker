@@ -83,8 +83,9 @@ Dark is the only theme (`color-scheme: dark`). Legacy aliases at the bottom keep
   --bg-0: #0A0D13;            /* body */
   --bg-1: #10141C;            /* opaque raised (sheet body fallback) */
   --bg-2: #171C26;            /* opaque fallback for glass without backdrop-filter */
-  --glow-felt: #0F5C40;       /* top-center blob, 30% */
-  --glow-cool: #173B62;       /* bottom-right blob, 20% */
+  --glow-felt: #0F7A53;       /* top-center blob (green felt) */
+  --glow-cool: #1E4E86;       /* bottom-right blob + upper-right wash (cool) */
+  --glow-plum: #4B2A6E;       /* left-middle blob (violet) */
 
   /* ---- ink ---- */
   --ink: #F2F4F8;
@@ -136,7 +137,8 @@ Dark is the only theme (`color-scheme: dark`). Legacy aliases at the bottom keep
   /* ---- spacing (4-pt) ---- */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-11: 44px;
   --gutter: 16px;
-  --tab-h: 64px; --tab-inset: 16px; --tab-gap: 12px;
+  --glow-room: 14px;          /* max sideways bleed of ANY outer shadow — must stay ≤ --gutter */
+  --tab-h: 64px; --tab-inset: 16px; --tab-gap: 12px; --tab-padx: 10px; --tab-pady: 6px; --tab-pill-gap: 8px;
   --content-bottom: calc(var(--tab-h) + var(--tab-gap) + 16px + var(--safe-bottom));
   --tap: 44px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -176,11 +178,27 @@ body {
 .tnum, .t-display, .t-title-1, .t-title-2, .t-title-3 { font-variant-numeric: tabular-nums; }
 ```
 
-**Background gradient rules.** The two blobs are what make glass read as glass. They are painted once on
-`body` (`background-attachment: fixed`); screens never paint their own opaque background. Full-screen
+**Background gradient rules.** The blobs are what make glass read as glass — glass does not glow by
+itself, it only shows what is behind it, so a flat near-black ground makes every pane a grey box no
+matter how much blur it carries. Four blobs in **three** hues (felt green top, cool blue bottom-right
+and upper-right, violet left-middle) plus a very fine grain layer (`body::before`, opacity 0.055,
+an inline `feTurbulence` SVG, painted **under** `#root` so it never touches text). They are painted once on
+`body` (`background-attachment: fixed`); screens never paint their own opaque background. `.app__push`
+repaints the same blobs because it covers the body. Full-screen
 states (session, coach mark) may add one extra blob behind the cards:
 `radial-gradient(50% 30% at 50% 45%, rgba(77,227,166,0.10), transparent 70%)`. Sheets and the hold overlay
 add `rgba(0,0,0,0.35)` backdrop over everything else.
+
+**Shadow rule (`--glow-room`).** Every scroll container clips at its padding box, and setting
+`overflow-y: auto` makes `overflow-x` compute to `auto` too — so a shadow that bleeds wider than the
+gutter is sliced into a hard rectangle at both screen edges on every screen at once. Therefore **every
+outer shadow carries a negative spread**, sized so that `blur + spread − |offset-x| ≤ --glow-room` (14)
+and `blur + spread − offset-y ≤ 0` upward (a drop shadow must not bleed above its element). Downward
+bleed is the one that needs room reserved: panels 24 px, controls 12–14 px. Containers that clip
+(`.trainer-session`, `.trainer-summary`, `.ui-chiprow`, `.trainer-crumbs`) reserve it as padding, with a
+matching negative margin where the layout must not shift. `scripts/layout-audit.mjs` enforces this as
+the `glow-clip` check — it walks to the first clipping ancestor and compares against `scrollWidth/Height`,
+so "below the fold" is not reported and a real slice is.
 
 ### 2.1 Glass recipes (reusable classes, defined once in `global.css`)
 
@@ -188,56 +206,76 @@ add `rgba(0,0,0,0.35)` backdrop over everything else.
 .glass, .glass-strong, .glass-tint, .glass-clear {
   position: relative; isolation: isolate; border: 1px solid rgba(255,255,255,0.12); border-radius: var(--r-lg);
 }
-/* Regular — HUD, panels, tiles, chips-container, rating buttons */
+/* Regular — HUD, panels, tiles, chips-container, rating buttons.
+   `brightness()` is load-bearing: blurring a near-black ground returns a near-black pane, so the
+   backdrop has to be lifted for the inside of the pane to read lighter than the ground around it.
+   Target: ≥ 15 L (sRGB luma) between the pane's middle and the ground just outside it. */
 .glass {
-  background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 100%);
-  -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.28),
-              0 12px 32px rgba(0,0,0,0.42), 0 1px 2px rgba(0,0,0,0.30);
+  background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.055) 54%, rgba(255,255,255,0.09) 100%);
+  -webkit-backdrop-filter: blur(24px) saturate(185%) brightness(1.45); backdrop-filter: blur(24px) saturate(185%) brightness(1.45);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.32), inset 0 -1px 0 rgba(255,255,255,0.10),
+              0 12px 24px -12px rgba(0,0,0,0.66), 0 2px 6px -5px rgba(0,0,0,0.5);
 }
 /* Strong — tab bar, sheets, hold overlay, coach card (long text must stay readable) */
 .glass-strong {
-  background: linear-gradient(180deg, rgba(23,28,38,0.78), rgba(16,20,28,0.88));
-  -webkit-backdrop-filter: blur(32px) saturate(180%); backdrop-filter: blur(32px) saturate(180%);
-  border-color: rgba(255,255,255,0.14);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), 0 -12px 40px rgba(0,0,0,0.45);
+  background: linear-gradient(180deg, rgba(38,46,62,0.60) 0%, rgba(20,25,35,0.74) 100%);
+  -webkit-backdrop-filter: blur(34px) saturate(195%) brightness(1.38); backdrop-filter: blur(34px) saturate(195%) brightness(1.38);
+  border-color: rgba(255,255,255,0.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.26), inset 0 -1px 0 rgba(0,0,0,0.30),
+              0 16px 32px -18px rgba(0,0,0,0.72), 0 -8px 24px -12px rgba(0,0,0,0.55);
 }
 /* Tint — primary CTA (with .glass-solid), active tab pill, active segment, answer capsule, know/unsure buttons */
 .glass-tint {
   --tint: var(--mint);
-  background: color-mix(in srgb, var(--tint) 30%, rgba(255,255,255,0.05));
-  -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%);
-  border-color: color-mix(in srgb, var(--tint) 45%, rgba(255,255,255,0.10));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 8px 24px color-mix(in srgb, var(--tint) 30%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 42%, transparent) 0%, color-mix(in srgb, var(--tint) 26%, transparent) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.35); backdrop-filter: blur(20px) saturate(180%) brightness(1.35);
+  border-color: color-mix(in srgb, var(--tint) 55%, rgba(255,255,255,0.12));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.34), 0 8px 20px -9px color-mix(in srgb, var(--tint) 58%, transparent);
 }
 .glass-solid { background: var(--tint); color: var(--ink-on-tint); border-color: transparent; }  /* one per screen */
 /* Clear — sits over the card stage: answer slot, stat pills. Lower blur keeps the cards visible. */
 .glass-clear {
-  background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
-  -webkit-backdrop-filter: blur(12px) saturate(150%); backdrop-filter: blur(12px) saturate(150%);
-  border-color: rgba(255,255,255,0.10);
+  background: linear-gradient(180deg, rgba(255,255,255,0.125), rgba(255,255,255,0.045));
+  -webkit-backdrop-filter: blur(14px) saturate(170%) brightness(1.34); backdrop-filter: blur(14px) saturate(170%) brightness(1.34);
+  border-color: rgba(255,255,255,0.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.26), inset 0 -1px 0 rgba(255,255,255,0.08);
 }
-/* Refractive rim (regular + strong only) */
-.glass::before, .glass-strong::before {
+/* Turning the blur off also turns the brightness lift off, so .glass-flat has to pay for it itself —
+   otherwise small glass (chips, tiles, buttons) reads as a different, darker material on the same screen. */
+.glass-flat { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.glass.glass-flat { background: linear-gradient(180deg, rgba(255,255,255,0.175) 0%, rgba(255,255,255,0.085) 54%, rgba(255,255,255,0.115) 100%); }
+.glass-tint.glass-flat { background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 52%, transparent) 0%, color-mix(in srgb, var(--tint) 34%, transparent) 100%); }
+.glass-clear.glass-flat { background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.06)); }
+/* Refractive rim (regular + strong + clear) */
+.glass::before, .glass-strong::before, .glass-clear::before {
   content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
-  background: linear-gradient(135deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.06) 35%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.20) 100%);
+  background: linear-gradient(135deg, rgba(255,255,255,0.58) 0%, rgba(255,255,255,0.12) 32%, rgba(255,255,255,0) 58%, rgba(255,255,255,0.30) 100%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
 }
-/* Specular pool at the top (regular only) */
-.glass::after {
+/* Specular pool at the top (regular + clear) */
+.glass::after, .glass-clear::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: radial-gradient(120% 55% at 50% -10%, rgba(255,255,255,0.12), transparent 60%);
+  background: radial-gradient(125% 58% at 50% -12%, rgba(255,255,255,0.18), transparent 62%);
 }
+/* Controls sit shallower than panels — a button on the last row of a screen would otherwise demand
+   24 px of reserved space below it. Defined in ui.css next to .ui-btn / .ui-ibtn / .ui-chip. */
+.ui-btn.glass, .ui-ibtn.glass          { box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(255,255,255,0.09), 0 6px 14px -8px rgba(0,0,0,0.7); }
+.ui-btn.glass-tint, .ui-ibtn.glass-tint { box-shadow: inset 0 1px 0 rgba(255,255,255,0.34), 0 6px 16px -8px color-mix(in srgb, var(--tint) 58%, transparent); }
+.ui-chip.glass-tint                     { box-shadow: inset 0 1px 0 rgba(255,255,255,0.34), 0 5px 13px -6px color-mix(in srgb, var(--tint) 62%, transparent); }
 /* Press */
 .glass-press { transition: transform var(--dur-std) var(--ease-spring), background-color var(--dur-micro); }
 .glass-press:active { transform: scale(0.97); background-color: rgba(255,255,255,0.16); transition-duration: var(--dur-micro); }
 .glass-tint.glass-press:active { filter: brightness(1.12); }
 /* Flat fills for things inside a glass panel (no second blur) */
-.fill { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.10); }
+.fill {
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(255,255,255,0.06);
+}
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .glass-clear { background: rgba(23,28,38,0.92); }
-  .glass-strong { background: rgba(16,20,28,0.96); }
-  .glass-tint { background: color-mix(in srgb, var(--tint) 32%, var(--bg-2)); }
+  .glass, .glass-clear { background: rgba(30,37,50,0.94); }
+  .glass-strong { background: rgba(22,27,38,0.96); }
+  .glass-tint { background: color-mix(in srgb, var(--tint) 38%, var(--bg-2)); }
 }
 ```
 
@@ -292,11 +330,17 @@ and from the quiz round store (`useQuizActive()`); either hides the bar.
 
 - Class `.glass-strong`, radius capsule, **height 64**, `position: fixed; left/right: var(--tab-inset)` (16),
   `bottom: calc(var(--tab-gap) + var(--safe-bottom))` (12 + safe), `max-width: 488px; margin: 0 auto`,
-  `z-index: var(--z-tabbar)`. Padding 6 px; 4 equal columns.
-- Item: 52 h × full column, icon 24 px stroke 2, label `--fs-caption` 600 below (gap 2). Inactive color
-  `--ink-3`, active `--ink`.
-- Active indicator: one `.glass-tint` capsule (`--tint: var(--mint)`), 44 h, width = column width, absolutely
-  positioned, `transform: translateX(col × 100%)`, transition `var(--dur-std) var(--ease-spring)`.
+  `z-index: var(--z-tabbar)`. Padding `var(--tab-pady) var(--tab-padx)` (6 / 10); `--n` equal columns
+  (4 or 5 — `--n` is set inline from `items.length`).
+- Item: `calc(--tab-h − 2×--tab-pady)` (52) h × full column, icon 24 px stroke 2, label `--fs-caption` 600
+  below (gap 2). Inactive color `--ink-3`, active `--ink`.
+- Active indicator: one `.glass-tint` capsule (`--tint: var(--mint)`), inset 10 px top/bottom (→ 44 h) and
+  `--tab-pill-gap / 2` (4) left/right inside its column, so its width is `column − --tab-pill-gap`;
+  `transform: translateX(col × (100% + --tab-pill-gap))`, transition `var(--dur-std) var(--ease-spring)`.
+  **Why the pill is inset, not full-column:** a capsule pill inside a capsule bar is only concentric if
+  `dist(centres) + r_pill ≤ r_bar`. Full-column pills gave `6 + 22 > 32` at the two ends, so the first and
+  last pills poked through the bar's rounded ends and looked crushed — which is what a fifth tab exposed.
+  The inset makes it `4 + 22 ≤ 32`, ~6 px of clearance at every width from 360 up.
 - Hidden: `transform: translateY(140%)`, `transition: transform 260ms var(--ease-in)`; shown with `--ease-out`.
 - Screens add `padding-bottom: var(--content-bottom)` so the last row clears the bar. Never margin.
 - Tap: no haptic. `aria-current="page"` on the active item.

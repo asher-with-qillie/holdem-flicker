@@ -7,8 +7,11 @@
   --bg-0: #0A0D13;            /* body */
   --bg-1: #10141C;            /* opaque raised (sheet body fallback) */
   --bg-2: #171C26;            /* opaque fallback for glass without backdrop-filter */
-  --glow-felt: #0F5C40;       /* top-center blob, 30% */
-  --glow-cool: #173B62;       /* bottom-right blob, 20% */
+  /* 유리는 스스로 빛나지 않습니다 — 뒤에 비칠 것이 없으면 아무리 blur 를 걸어도 그냥 검은 판입니다.
+     그래서 바닥에 서로 다른 색 얼룩 셋을 깔고, 유리 레시피는 그걸 blur + brightness 로 끌어올립니다. */
+  --glow-felt: #0F7A53;       /* top-center blob (green felt) */
+  --glow-cool: #1E4E86;       /* bottom-right blob (cool) */
+  --glow-plum: #4B2A6E;       /* left-middle blob (violet) — 색이 둘뿐이면 유리가 회색으로 읽힙니다 */
 
   /* ---- ink ---- */
   --ink: #F2F4F8;
@@ -58,7 +61,14 @@
   /* ---- spacing (4-pt) ---- */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-11: 44px;
   --gutter: 16px;
-  --tab-h: 64px; --tab-inset: 16px; --tab-gap: 12px;
+  /**
+   * 바깥 그림자가 옆으로 번지는 최대 폭. 스크롤 컨테이너(.app__main 등)는 overflow 때문에
+   * 자기 테두리에서 내용을 잘라 내므로, 이 값이 --gutter 보다 크면 모든 패널의 그림자가
+   * 좌우에서 싹둑 잘립니다. 그래서 모든 바깥 그림자에 음수 spread 를 줘서 여기에 맞춥니다.
+   * 새 그림자를 추가할 때: (blur + spread − |offset-x|) ≤ 이 값.
+   */
+  --glow-room: 14px;
+  --tab-h: 64px; --tab-inset: 16px; --tab-gap: 12px; --tab-padx: 10px; --tab-pady: 6px; --tab-pill-gap: 8px;
   --content-bottom: calc(var(--tab-h) + var(--tab-gap) + 16px + var(--safe-bottom));
   --tap: 44px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -92,13 +102,22 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; font-family: var(--font); color: var(--ink);
   background:
-    radial-gradient(70% 40% at 50% -5%, color-mix(in srgb, var(--glow-felt) 30%, transparent), transparent 70%),
-    radial-gradient(60% 40% at 100% 100%, color-mix(in srgb, var(--glow-cool) 20%, transparent), transparent 70%),
+    radial-gradient(115% 52% at 50% -10%, color-mix(in srgb, var(--glow-felt) 58%, transparent), transparent 72%),
+    radial-gradient(95% 50% at 108% 104%, color-mix(in srgb, var(--glow-cool) 50%, transparent), transparent 72%),
+    radial-gradient(80% 46% at -18% 60%, color-mix(in srgb, var(--glow-plum) 38%, transparent), transparent 72%),
+    radial-gradient(75% 42% at 92% 30%, color-mix(in srgb, var(--glow-cool) 26%, transparent), transparent 70%),
     var(--bg-0);
   background-attachment: fixed;
   overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none;
   word-break: keep-all;
 }
+/* 아주 고운 그레인. 완전히 매끈한 바닥은 '검은 화면'으로 읽히고, 그 위의 유리도 같이 죽습니다.
+   글 위에 얹으면 가독성을 깎으므로 내용(#root) 아래에만 깝니다. */
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.055;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='0.6'/></svg>");
+}
+#root { position: relative; z-index: 1; }
 button { font: inherit; color: inherit; cursor: pointer; }
 a { color: inherit; }
 p { margin: 0; }
@@ -125,64 +144,82 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.01em; }
 .glass, .glass-strong, .glass-tint, .glass-clear {
   position: relative; isolation: isolate; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: var(--r-lg);
 }
-/* Regular — HUD, panels, tiles, chips-container, rating buttons */
+/* Regular — HUD, panels, tiles, chips-container, rating buttons.
+   `brightness` 가 핵심입니다: 거의 검은 바닥을 blur 만 걸면 결과도 거의 검정이라 유리가 '회색 판'으로
+   보입니다. 뒤를 끌어올려야 판 안쪽이 바깥보다 밝아지고, 그제야 '투명한 유리'로 읽힙니다.
+   바깥 그림자는 전부 음수 spread — 가로 번짐 ≤ --glow-room 이라야 스크롤 컨테이너가 안 자릅니다. */
 .glass {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.04) 100%);
-  -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 rgba(0, 0, 0, 0.28),
-              0 12px 32px rgba(0, 0, 0, 0.42), 0 1px 2px rgba(0, 0, 0, 0.30);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.055) 54%, rgba(255, 255, 255, 0.09) 100%);
+  -webkit-backdrop-filter: blur(24px) saturate(185%) brightness(1.45); backdrop-filter: blur(24px) saturate(185%) brightness(1.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -1px 0 rgba(255, 255, 255, 0.10),
+              0 12px 24px -12px rgba(0, 0, 0, 0.66), 0 2px 6px -5px rgba(0, 0, 0, 0.5);
 }
 /* Strong — tab bar, sheets, hold overlay, coach card (long text must stay readable) */
 .glass-strong {
-  background: linear-gradient(180deg, rgba(23, 28, 38, 0.78), rgba(16, 20, 28, 0.88));
-  -webkit-backdrop-filter: blur(32px) saturate(180%); backdrop-filter: blur(32px) saturate(180%);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 -12px 40px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, rgba(38, 46, 62, 0.60) 0%, rgba(20, 25, 35, 0.74) 100%);
+  -webkit-backdrop-filter: blur(34px) saturate(195%) brightness(1.38); backdrop-filter: blur(34px) saturate(195%) brightness(1.38);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 -1px 0 rgba(0, 0, 0, 0.30),
+              0 16px 32px -18px rgba(0, 0, 0, 0.72), 0 -8px 24px -12px rgba(0, 0, 0, 0.55);
 }
 /* Tint — primary CTA (with .glass-solid), active tab pill, active segment, answer capsule, know/unsure buttons */
 .glass-tint {
   --tint: var(--mint);
-  background: color-mix(in srgb, var(--tint) 30%, rgba(255, 255, 255, 0.05));
-  -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%);
-  border-color: color-mix(in srgb, var(--tint) 45%, rgba(255, 255, 255, 0.10));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 8px 24px color-mix(in srgb, var(--tint) 30%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 42%, transparent) 0%, color-mix(in srgb, var(--tint) 26%, transparent) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.35); backdrop-filter: blur(20px) saturate(180%) brightness(1.35);
+  border-color: color-mix(in srgb, var(--tint) 55%, rgba(255, 255, 255, 0.12));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 8px 20px -9px color-mix(in srgb, var(--tint) 58%, transparent);
 }
 /* one per screen; opaque, so it needs no blur */
 .glass-solid { background: var(--tint); color: var(--ink-on-tint); border-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
 /* Clear — sits over the card stage: answer slot, stat pills. Lower blur keeps the cards visible. */
 .glass-clear {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
-  -webkit-backdrop-filter: blur(12px) saturate(150%); backdrop-filter: blur(12px) saturate(150%);
-  border-color: rgba(255, 255, 255, 0.10);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.125), rgba(255, 255, 255, 0.045));
+  -webkit-backdrop-filter: blur(14px) saturate(170%) brightness(1.34); backdrop-filter: blur(14px) saturate(170%) brightness(1.34);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 -1px 0 rgba(255, 255, 255, 0.08);
 }
-/* Same look, no backdrop blur — for small/nested glass (chips, pills, tiles) so a screen stays within the ≤ 3 blur budget */
+/* Same look, no backdrop blur — for small/nested glass (chips, pills, tiles) so a screen stays within the ≤ 3 blur budget.
+   blur 을 끄면 뒤를 끌어올리던 brightness 도 같이 사라지므로, 그만큼을 자기 배경으로 직접 물어야
+   같은 화면 안에서 큰 유리와 작은 유리가 다른 재질로 보이지 않습니다. */
 .glass-flat { -webkit-backdrop-filter: none; backdrop-filter: none; }
-/* Refractive rim (regular + strong only) */
-.glass::before, .glass-strong::before {
+.glass.glass-flat {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.175) 0%, rgba(255, 255, 255, 0.085) 54%, rgba(255, 255, 255, 0.115) 100%);
+}
+.glass-tint.glass-flat {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint) 52%, transparent) 0%, color-mix(in srgb, var(--tint) 34%, transparent) 100%);
+}
+.glass-clear.glass-flat { background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06)); }
+/* Refractive rim (regular + strong + clear) */
+.glass::before, .glass-strong::before, .glass-clear::before {
   content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.06) 35%, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.20) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0.12) 32%, rgba(255, 255, 255, 0) 58%, rgba(255, 255, 255, 0.30) 100%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude;
 }
-/* Specular pool at the top (regular only) */
-.glass::after {
+/* Specular pool at the top (regular + clear) */
+.glass::after, .glass-clear::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: radial-gradient(120% 55% at 50% -10%, rgba(255, 255, 255, 0.12), transparent 60%);
+  background: radial-gradient(125% 58% at 50% -12%, rgba(255, 255, 255, 0.18), transparent 62%);
 }
 /* Press */
 .glass-press { transition: transform var(--dur-std) var(--ease-spring), background-color var(--dur-micro); }
 .glass-press:active { transform: scale(0.97); background-color: rgba(255, 255, 255, 0.16); transition-duration: var(--dur-micro); }
 .glass-tint.glass-press:active { filter: brightness(1.12); }
 /* Flat fills for things inside a glass panel (no second blur) */
-.fill { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.10); }
+.fill {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .glass-clear { background: rgba(23, 28, 38, 0.92); }
-  .glass-strong { background: rgba(16, 20, 28, 0.96); }
-  .glass-tint { background: color-mix(in srgb, var(--tint) 32%, var(--bg-2)); }
+  .glass, .glass-clear { background: rgba(30, 37, 50, 0.94); }
+  .glass-strong { background: rgba(22, 27, 38, 0.96); }
+  .glass-tint { background: color-mix(in srgb, var(--tint) 38%, var(--bg-2)); }
 }
 
 /* ---- legacy class aliases (v1 screens/components; restyled with the v2 tokens) ------------------ */
-.screen { padding: 12px var(--gutter) var(--content-bottom); display: flex; flex-direction: column; gap: 12px; }
+.screen { padding: 12px var(--gutter) var(--content-bottom); display: flex; flex-direction: column; gap: 14px; }
 .screen__title { font-size: var(--fs-title-l); line-height: var(--lh-title-l); letter-spacing: -0.02em; }
 .screen__sub { color: var(--ink-2); font-size: var(--fs-footnote); line-height: var(--lh-footnote); }
 

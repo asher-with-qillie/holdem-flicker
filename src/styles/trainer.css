@@ -6,14 +6,15 @@
 .trainer--running, .trainer--paused { overflow: hidden; }
 
 /* ================================================================ setup (§5.2) */
-.trainer-setup { display: flex; flex-direction: column; gap: 10px; padding: 4px var(--gutter) 24px; }
-.trainer-setup__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
+/* 버튼은 자기 글로우만큼 자리를 더 먹습니다 — 예전 gap 10px 은 글로우끼리 겹쳐서 서로 눌린 것처럼 보였습니다. */
+.trainer-setup { display: flex; flex-direction: column; gap: 10px; padding: 2px var(--gutter) 26px; }
+.trainer-setup__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .trainer-setup__head h1 { margin-top: 2px; }
-.trainer-setup__group { display: flex; flex-direction: column; gap: 2px; }
+.trainer-setup__group { display: flex; flex-direction: column; gap: 4px; }
 .trainer-setup__group--row { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
 .trainer-setup__label { color: var(--ink-3); }
 .trainer-setup__sizes { display: flex; gap: 8px; }
-.trainer-setup .ui-speed { gap: 6px; }
+.trainer-setup .ui-speed { gap: 4px; }
 .trainer-setup__hint { color: var(--ink-3); padding-left: 2px; }
 .trainer-preview { display: flex; flex-direction: column; gap: 6px; }
 .trainer-preview__counts { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); }
@@ -28,9 +29,9 @@
 /* ================================================================ session (§5.3–5.5) — nothing scrolls */
 .trainer-session {
   position: relative; isolation: isolate; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px;
-  padding: 6px var(--gutter) 8px; overflow: hidden; animation: trainer-fade-in var(--dur-std) var(--ease-out);
+  padding: 6px var(--gutter) 16px; overflow: hidden; animation: trainer-fade-in var(--dur-std) var(--ease-out);
 }
-.app__main--barless .trainer-session { padding-bottom: calc(8px + var(--safe-bottom)); }
+.app__main--barless .trainer-session { padding-bottom: calc(16px + var(--safe-bottom)); }
 /* extra felt blob behind the cards (§2 background rules) — the think / choose ground */
 .trainer-session::before {
   content: ''; position: absolute; inset: 0; z-index: -2; pointer-events: none;
@@ -80,7 +81,9 @@
 
 /* ---- StepCrumbs (kept) ---- */
 .trainer-crumbs-slot { flex: none; height: 24px; }
-.trainer-crumbs { height: 24px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+/* 24px 짜리 가로 스크롤러라 선택된 빵부스러기 칩의 글로우가 위아래로 잘립니다.
+   content-box 로 두어야 height 24 를 유지한 채 패딩만 덧댈 수 있습니다(음수 마진으로 되돌림). */
+.trainer-crumbs { box-sizing: content-box; height: 24px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: 10px 8px; margin: -10px -8px; }
 .trainer-crumbs::-webkit-scrollbar { display: none; }
 .trainer-crumbs__inner { display: flex; align-items: center; gap: 4px; width: max-content; min-width: 100%; justify-content: center; height: 100%; }
 .crumb-item { display: inline-flex; align-items: center; gap: 4px; }
@@ -92,7 +95,7 @@
   background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.10);
 }
 .crumb--done { color: var(--ink-2); background: rgba(255, 255, 255, 0.12); }
-.crumb--on { color: var(--ink-on-tint); background: var(--mint); border-color: transparent; box-shadow: 0 2px 10px color-mix(in srgb, var(--mint) 35%, transparent); }
+.crumb--on { color: var(--ink-on-tint); background: var(--mint); border-color: transparent; box-shadow: 0 3px 9px -3px color-mix(in srgb, var(--mint) 48%, transparent); }
 
 /* ---- stage (§6.3 v2.1: hold-to-pause only) ---- */
 .trainer-stage {
@@ -230,7 +233,7 @@
 .trainer-confirm { color: var(--ink-2); padding: 4px 0 8px; }
 
 /* ================================================================ summary (§5.6) */
-.trainer-summary { padding: 12px var(--gutter) 16px; }
+.trainer-summary { padding: 12px var(--gutter) 26px; }
 
 /* ================================================================ short viewports (Safari with its chrome ≈ 664px) */
 @media (max-height: 740px) {

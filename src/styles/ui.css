@@ -17,8 +17,9 @@
   position: fixed; inset: 0; z-index: var(--z-push); max-width: 520px; margin: 0 auto;
   display: flex; flex-direction: column;
   background:
-    radial-gradient(70% 40% at 50% -5%, color-mix(in srgb, var(--glow-felt) 30%, transparent), transparent 70%),
-    radial-gradient(60% 40% at 100% 100%, color-mix(in srgb, var(--glow-cool) 20%, transparent), transparent 70%),
+    radial-gradient(115% 52% at 50% -10%, color-mix(in srgb, var(--glow-felt) 58%, transparent), transparent 72%),
+    radial-gradient(95% 50% at 108% 104%, color-mix(in srgb, var(--glow-cool) 50%, transparent), transparent 72%),
+    radial-gradient(80% 46% at -18% 60%, color-mix(in srgb, var(--glow-plum) 38%, transparent), transparent 72%),
     var(--bg-0);
   transform: translateX(100%); transition: transform 240ms var(--ease-in), visibility 0s linear 240ms; visibility: hidden;
   box-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
@@ -115,12 +116,22 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
 }
 .ui-chip--selected .ui-chip__count { background: color-mix(in srgb, var(--tint) 45%, transparent); }
 
+/* 가로 스크롤이라 overflow-y 도 잘립니다 — 칩의 tint 글로우가 들어갈 만큼 위아래를 비워 두고
+   그만큼 음수 마진으로 되돌려야, 줄 간격은 그대로면서 글로우가 잘리지 않습니다.
+   여백(14px) ≥ 아래 .ui-chip.glass-tint 글로우의 세로 번짐(13px) 이어야 합니다. */
 .ui-chiprow {
   display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch;
   padding: 4px var(--gutter); margin-inline: calc(-1 * var(--gutter)); scroll-padding-inline: var(--gutter); overscroll-behavior-x: contain;
 }
 .ui-chiprow::-webkit-scrollbar { display: none; }
-.ui-chiprow:not(.ui-chiprow--wrap) { padding-block: 6px; margin-block: -6px; }
+.ui-chiprow:not(.ui-chiprow--wrap) { padding-block: 14px; margin-block: -14px; }
+/* 칩은 작아서 큰 글로우가 붙으면 글자보다 글로우가 커집니다. 그리고 그만큼 줄 여백도 잡아먹습니다. */
+.ui-chip.glass-tint { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 5px 13px -6px color-mix(in srgb, var(--tint) 62%, transparent); }
+
+/* 버튼은 화면 맨 아래 줄에 서는 일이 많습니다. 패널과 같은 깊이의 그림자를 주면 그 줄 아래로
+   24px 이 번져 나가고, 그만큼 컨테이너가 세로 자리를 내줘야 합니다. 컨트롤은 더 얕게 앉힙니다. */
+.ui-btn.glass, .ui-ibtn.glass { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.09), 0 6px 14px -8px rgba(0, 0, 0, 0.7); }
+.ui-btn.glass-tint, .ui-ibtn.glass-tint { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 6px 16px -8px color-mix(in srgb, var(--tint) 58%, transparent); }
 @media (max-width: 370px) { .ui-seg__opt { padding-inline: 2px; letter-spacing: -0.01em; } }
 .ui-chiprow--wrap { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
 
@@ -152,20 +163,28 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
 .ui-switch--on .ui-switch__knob { transform: translateX(22px); }
 .ui-switch[disabled] { opacity: 0.4; }
 
-/* =============================================================== FloatingTabBar (§3.1) */
+/* =============================================================== FloatingTabBar (§3.1)
+   캡슐 막대 안에 캡슐 알약이 들어앉는 구조라 여백을 잘못 잡으면 양 끝 알약이 막대의 둥근 모서리를
+   뚫고 나가 찌그러져 보입니다. 탭이 5개가 되면서 실제로 그랬습니다.
+   막대 반지름 = --tab-h/2 이므로, 알약 위아래를 --tab-pady 보다 더 안쪽으로 넣고(11px) 칸마다
+   --tab-pill-gap 만큼 좌우를 비워 두면 끝 알약도 모서리 곡선 안에 머무릅니다. */
 .ui-tabbar {
   position: fixed; left: var(--tab-inset); right: var(--tab-inset); bottom: calc(var(--tab-gap) + var(--safe-bottom));
-  max-width: 488px; margin: 0 auto; height: var(--tab-h); padding: 6px; z-index: var(--z-tabbar);
+  max-width: 488px; margin: 0 auto; height: var(--tab-h); padding: var(--tab-pady) var(--tab-padx); z-index: var(--z-tabbar);
   display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); border-radius: var(--r-capsule);
   transition: transform 260ms var(--ease-out), visibility 0s;
 }
 .ui-tabbar--hidden { transform: translateY(140%); visibility: hidden; transition: transform 260ms var(--ease-in), visibility 0s linear 260ms; }
 .ui-tabbar__pill {
-  position: absolute; top: 10px; bottom: 10px; left: 6px; width: calc((100% - 12px) / var(--n, 4)); z-index: 0;
-  border-radius: var(--r-capsule); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform var(--dur-std) var(--ease-spring);
+  position: absolute; top: 10px; bottom: 10px; z-index: 0;
+  left: calc(var(--tab-padx) + var(--tab-pill-gap) / 2);
+  width: calc((100% - 2 * var(--tab-padx)) / var(--n, 4) - var(--tab-pill-gap));
+  border-radius: var(--r-capsule);
+  transform: translateX(calc(var(--i, 0) * (100% + var(--tab-pill-gap))));
+  transition: transform var(--dur-std) var(--ease-spring);
 }
 .ui-tabbar__item {
-  position: relative; z-index: 1; height: 52px; padding: 0; border: 0; background: none; border-radius: var(--r-capsule);
+  position: relative; z-index: 1; height: calc(var(--tab-h) - 2 * var(--tab-pady)); padding: 0; border: 0; background: none; border-radius: var(--r-capsule);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   color: var(--ink-3); font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; letter-spacing: 0.01em;
   transition: color var(--dur-quick); touch-action: manipulation;

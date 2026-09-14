@@ -45,6 +45,43 @@ await noHScroll('home');
 check((await page.locator('.ui-tabbar').count()) > 0, 'home: floating tab bar missing');
 check(/훈련|세션/.test(await page.locator('body').innerText()), 'home: CTA copy missing');
 
+// --- 탭 바: 캡슐 안의 캡슐이 동심이어야 합니다. 알약이 칸 너비를 꽉 채우면 양 끝 알약이 막대의
+//     둥근 모서리를 뚫고 나가 찌그러져 보입니다(탭이 5개가 되면서 실제로 그랬습니다).
+//     조건: 두 캡슐 중심 사이 거리 + 알약 반지름 ≤ 막대 반지름.
+{
+  const fit = await page.evaluate(() => {
+    const bar = document.querySelector('.ui-tabbar'), pill = document.querySelector('.ui-tabbar__pill');
+    if (!bar || !pill) return null;
+    const b = bar.getBoundingClientRect(), p = pill.getBoundingClientRect();
+    const n = Number(getComputedStyle(bar).getPropertyValue('--n')) || 4;
+    const rBar = b.height / 2, rPill = p.height / 2;
+    // 알약은 --i 로 옮겨 다니므로 첫 칸과 마지막 칸 양쪽을 다 본다.
+    const step = p.width + (parseFloat(getComputedStyle(bar).getPropertyValue('--tab-pill-gap')) || 0);
+    const firstL = p.left - b.left, lastR = b.right - (p.left + step * (n - 1) + p.width);
+    const worst = Math.min(firstL, lastR);           // 막대 끝에서 알약 끝까지의 가로 거리
+    const dist = Math.abs(rBar - (worst + rPill));   // 두 캡슐 중심 사이 거리
+    return { n, rBar, rPill, worst, slack: +(rBar - (dist + rPill)).toFixed(1) };
+  });
+  check(fit !== null, 'tabbar: pill or bar missing');
+  if (fit) check(fit.slack >= 2, `tabbar: active pill pokes through the bar's rounded end (${fit.n} tabs, slack ${fit.slack}px — need ≥ 2)`);
+}
+
+// --- 유리: blur 만으로는 거의 검은 바닥이 그대로 흐려질 뿐이라 판이 회색 상자로 보입니다.
+//     backdrop 을 끌어올려야 판 안쪽이 바깥보다 밝아집니다. 그 차이를 실제로 잽니다.
+{
+  const lift = await page.evaluate(() => {
+    const el = document.querySelector('.home-today') || document.querySelector('.ui-panel.glass');
+    if (!el) return null;
+    const f = getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || '';
+    return { filter: f, flat: el.classList.contains('glass-flat') };
+  });
+  check(lift !== null, 'glass: no .glass panel on home to check');
+  if (lift && !lift.flat) {
+    check(/blur/.test(lift.filter), `glass: .glass lost its backdrop blur (${lift.filter})`);
+    check(/brightness\(/.test(lift.filter), `glass: .glass has no brightness lift — a blurred near-black ground stays near-black (${lift.filter})`);
+  }
+}
+
 // --- 본문 폰트: 셀프 호스팅한 Noto Sans KR 이 실제로 붙었는지 (외부 요청 없이)
 {
   const font = await page.evaluate(async () => {

@@ -9,7 +9,8 @@
   border-radius: 7% / 5%; /* = rx 14 of the 200×280 viewBox, so the shadow hugs the rounded corners */
   color: var(--pc-ink);
   line-height: 0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 16px rgba(0, 0, 0, 0.42);
+  /* 가로 번짐은 --glow-room(14) 안에 — 안 그러면 스테이지 좌우에서 직선으로 잘립니다. */
+  box-shadow: 0 1px 3px -1px rgba(0, 0, 0, 0.45), 0 8px 18px -5px rgba(0, 0, 0, 0.5);
 }
 .pc--sm, .hand--sm { --pc-w: 44px; }
 .pc--md, .hand--md { --pc-w: 84px; }

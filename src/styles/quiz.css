@@ -12,7 +12,7 @@
 .quiz-pill svg { color: var(--ink-3); }
 .quiz-pill--hot svg { color: var(--flame); }
 .quiz-sub { margin-top: -8px; color: var(--ink-2); font-size: var(--fs-callout); line-height: var(--lh-callout); }
-.quiz-group { display: flex; flex-direction: column; gap: 4px; }
+.quiz-group { display: flex; flex-direction: column; gap: 6px; }
 .quiz-label { color: var(--ink-3); padding-left: 4px; }
 .quiz-chip--locked { opacity: 0.45; }
 .quiz-start { display: flex; flex-direction: column; gap: 8px; }
