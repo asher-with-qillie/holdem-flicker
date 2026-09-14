@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ExplanationSheet } from '../../components/ExplanationSheet';
 import { SessionSummaryCard, type SummaryData, type SummaryRow } from '../../components/ui/SessionSummaryCard';
 import { toast } from '../../components/ui/Toast';
-import { explainStep } from '../../poker/explain';
+import { explainStep, suitOrientation } from '../../poker/explain';
 import { dealCardsFor } from '../../poker/hands';
 import type { Step } from '../../poker/trainer';
 import { getProgress, type ProgressView, type SessionResult } from '../../state/progress';
@@ -72,7 +72,10 @@ export function SummaryView({ result, partial, settings, onRetryUnsure, onAgain,
   }, [result, partial, settings.dailyGoal]);
 
   const rowStep = useMemo(() => (row ? stepForKey(row.key) : null), [row]);
-  const rowExplanation = useMemo(() => (rowStep ? explainStep(rowStep) : null), [rowStep]);
+  const rowExplanation = useMemo(
+    () => (rowStep && row ? explainStep(rowStep, suitOrientation(row.cards)) : null),
+    [rowStep, row],
+  );
 
   const onSpeedFeedback = (v: 'slower' | 'ok' | 'faster') => {
     if (v === 'ok') return;

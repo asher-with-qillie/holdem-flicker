@@ -3,7 +3,7 @@ import { ALL_HANDS, parseHandName, type HandInfo } from './hands';
 import { foldWeight, fullMix, rangeShare } from './range';
 import { heroInPosition } from './scenarios';
 import type { Step } from './trainer';
-import { ACTION_SHORT_KO, POS_INDEX, type Action, type ChartCells, type Pos, type Scenario, type ScenarioKind } from './types';
+import { ACTION_SHORT_KO, POS_INDEX, type Action, type Card, type ChartCells, type Pos, type Scenario, type ScenarioKind } from './types';
 
 /*
  * 해설 생성기. 모든 문장은 docs/PLAIN_KO_STYLE.md(v2)를 따릅니다.
@@ -1851,7 +1851,37 @@ function applyGlosses(exp: Explanation): void {
 /* Entry                                                               */
 /* ------------------------------------------------------------------ */
 
-export function explainStep(step: Step): Explanation {
+/**
+ * 예시 카드의 무늬 방향.
+ *
+ * 해설 안의 카드는 전부 "내 패는 ♠ 쪽"이라는 한 가지 배치로 만들어집니다(수티드 → ♠♠, 그 밖 → ♠ + ♦).
+ * 그런데 화면에 깔리는 카드는 매번 새로 뽑히므로 10♦9♦를 들고 있는데 예시만 10♠9♠라고 적히는 일이 생깁니다.
+ * 무늬가 ♠·♦ 둘뿐이라 ♠↔♦를 통째로 맞바꾸면 카드가 겹치는지, 무늬가 같은지 다른지가 전부 그대로 보존됩니다.
+ * 그래서 받은 카드가 ♦ 쪽이면 해설 전체를 한 번 뒤집어 화면의 카드와 맞춥니다.
+ */
+export type SuitOrientation = 'spade' | 'diamond';
+
+/** 받은 카드에서 무늬 방향을 읽습니다. `dealCardsFor`는 항상 높은 카드를 앞에 두므로 첫 장만 보면 됩니다. */
+export function suitOrientation(cards: readonly [Card, Card]): SuitOrientation {
+  return cards[0].suit === 'd' ? 'diamond' : 'spade';
+}
+
+const MIRRORED: Record<string, string> = { '♠': '♦', '♦': '♠' };
+const mirrorText = (t: string): string => t.replace(/[♠♦]/g, (c) => MIRRORED[c] ?? c);
+
+/** 해설 안의 모든 문자열에서 ♠와 ♦를 맞바꿉니다(문자열·배열·객체를 그대로 따라갑니다). */
+function mirrorSuits<T>(value: T): T {
+  if (typeof value === 'string') return mirrorText(value) as unknown as T;
+  if (Array.isArray(value)) return value.map(mirrorSuits) as unknown as T;
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = mirrorSuits(v);
+    return out as T;
+  }
+  return value;
+}
+
+export function explainStep(step: Step, orientation: SuitOrientation = 'spade'): Explanation {
   const info = parseHandName(step.hand);
   const cls = classifyHand(step.hand);
   const { scenario: s, answer } = step;
@@ -1869,7 +1899,8 @@ export function explainStep(step: Step): Explanation {
     easy: easyBlock(step, info, cls),
   };
   applyGlosses(out);
-  return out;
+  // 뒤집기는 용어 풀이까지 끝난 뒤 한 번만 — 예시·차트 메모·플랍 계획이 같은 무늬 배치로 맞춰집니다.
+  return orientation === 'diamond' ? mirrorSuits(out) : out;
 }
 
 export { fullMix };

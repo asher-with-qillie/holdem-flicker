@@ -6,7 +6,7 @@ import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { SessionSummaryCard, type SummaryData, type SummaryRow } from '../../components/ui/SessionSummaryCard';
 import { Sheet } from '../../components/ui/Sheet';
 import { toast } from '../../components/ui/Toast';
-import { explainStep } from '../../poker/explain';
+import { explainStep, suitOrientation } from '../../poker/explain';
 import { scenarioTitle } from '../../poker/scenarios';
 import { launch, setTab } from '../../state/nav';
 import { NO_CHARTS_HINT } from './DeckChips';
@@ -16,7 +16,7 @@ const KIND_LABEL = { rfi: '오픈', vs_open: '오픈 대응', vs_3bet: '3벳 대
 
 /** Row tap → sheet with 내 선택 vs 정답 above the full explanation (kept mounted for the exit slide). */
 function MistakeSheet({ q, open, onClose }: { q: QuizQuestion | null; open: boolean; onClose(): void }) {
-  const explanation = useMemo(() => (q ? explainStep(q.step) : null), [q]);
+  const explanation = useMemo(() => (q ? explainStep(q.step, suitOrientation(q.cards)) : null), [q]);
   if (!q || !explanation) return null;
   const kind = q.step.scenario.kind;
   return (

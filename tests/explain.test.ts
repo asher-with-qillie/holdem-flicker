@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hasChart } from '../src/poker/data';
-import { classifyHand, dominatedBy, dominatorOf, explainStep, glossSentence, type Explanation } from '../src/poker/explain';
-import { parseHandName, ALL_HANDS } from '../src/poker/hands';
+import { classifyHand, dominatedBy, dominatorOf, explainStep, glossSentence, suitOrientation, type Explanation } from '../src/poker/explain';
+import { parseHandName, ALL_HANDS, dealCardsFor } from '../src/poker/hands';
 import { GLOSSARY, glossaryLookup, GLOSSARY_WORDS } from '../src/poker/glossary';
 import { splitTerms } from '../src/components/Term';
 import { readFileSync } from 'node:fs';
@@ -1514,5 +1514,69 @@ describe('settings-respecting sequences', () => {
     const opts = { ...DEFAULT_SESSION_OPTIONS, positions: ['UTG'] as Pos[], kinds: ['vs_open'] as ScenarioKind[] };
     expect(nextHandSequence(opts).steps).toEqual([]);
     expect(() => randomQuizStep(opts)).toThrow();
+  });
+});
+
+
+/* ------------------------------------------------------------------ */
+/* 예시 카드의 무늬가 화면에 깔린 카드와 같은가                           */
+/* ------------------------------------------------------------------ */
+
+describe('suit orientation', () => {
+  it('reads the orientation off the dealt cards', () => {
+    expect(suitOrientation([{ rank: 'T', suit: 'd' }, { rank: '9', suit: 'd' }])).toBe('diamond');
+    expect(suitOrientation([{ rank: 'T', suit: 's' }, { rank: '9', suit: 's' }])).toBe('spade');
+    expect(suitOrientation([{ rank: 'K', suit: 'd' }, { rank: 'Q', suit: 's' }])).toBe('diamond');
+    expect(suitOrientation([{ rank: 'K', suit: 's' }, { rank: 'Q', suit: 'd' }])).toBe('spade');
+    // dealCardsFor 는 언제나 높은 카드를 앞에 둡니다 — 첫 장만 보면 방향이 정해집니다.
+    for (const hand of ['A5s', 'KQo', '77', 'T9s', '72o']) {
+      for (let i = 0; i < 40; i++) {
+        const cards = dealCardsFor(hand);
+        expect(suitOrientation(cards)).toBe(cards[0].suit === 'd' ? 'diamond' : 'spade');
+      }
+    }
+  });
+
+  it('내 패의 무늬가 화면 카드와 어긋나지 않는다 (T9s를 10♦9♦로 받으면 예시도 10♦9♦)', () => {
+    const t9 = explainStep(stepFor({ kind: 'rfi', hero: 'HJ' }, 'T9s'), 'diamond');
+    const joined = t9.easy.example.join(' ');
+    expect(joined).toContain('10♦9♦');
+    expect(joined).not.toContain('10♠9♠');
+    // 수티드 이야기는 들고 있는 무늬로 해야 합니다.
+    const all = allStrings(t9).join('\n');
+    expect(all).not.toMatch(/♠가 2장/);
+    if (/[♠♦]가 2장/.test(all)) expect(all).toMatch(/♦가 2장/);
+
+    const kq = explainStep(stepFor({ kind: 'rfi', hero: 'SB' }, 'KQo'), 'diamond').easy.example.join(' ');
+    expect(kq).toContain('K♦Q♠');
+    const p55 = explainStep(stepFor({ kind: 'rfi', hero: 'UTG' }, '55'), 'diamond').easy.example.join(' ');
+    expect(p55).toContain('5♦5♠');
+  });
+
+  it('뒤집기는 ♠↔♦ 맞바꾸기 하나뿐이다 — 그 밖의 글자는 한 자도 바뀌지 않는다', () => {
+    const swap = (t: string) => t.replace(/[♠♦]/g, (c) => (c === '♠' ? '♦' : '♠'));
+    for (const step of allSteps) {
+      const a = allStrings(explainStep(step, 'spade'));
+      const b = allStrings(explainStep(step, 'diamond'));
+      expect(b.length, step.hand).toBe(a.length);
+      for (let i = 0; i < a.length; i++) expect(b[i], `${step.scenario.kind}/${step.hand}`).toBe(swap(a[i]));
+    }
+  });
+
+  it('뒤집은 해설에도 같은 카드가 두 번 나오지 않고, 오프수트 상대 패는 오프수트로 읽힌다', () => {
+    for (const step of allSteps) {
+      const exp = explainStep(step, 'diamond');
+      for (const line of exp.easy.example) {
+        const seen = new Set<string>();
+        for (const m of line.matchAll(/((?:10|[2-9TJQKA]))([♠♦])/g)) {
+          const card = `${m[1]}${m[2]}`;
+          expect(seen.has(card), `${step.hand}: ${line}`).toBe(false);
+          seen.add(card);
+        }
+        for (const m of line.matchAll(/((?:10|[2-9TJQKA]))([♠♦])((?:10|[2-9TJQKA]))([♠♦])/g)) {
+          if (m[1] === m[3]) expect(m[2] === m[4], line).toBe(false);
+        }
+      }
+    }
   });
 });

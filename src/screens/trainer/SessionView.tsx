@@ -7,7 +7,7 @@ import { CoachMark, defaultCoachSteps } from '../../components/ui/CoachMark';
 import { IconButton } from '../../components/ui/IconButton';
 import { Sheet } from '../../components/ui/Sheet';
 import { IconNext, IconPrev } from '../../components/ui/icons';
-import { explainStep } from '../../poker/explain';
+import { explainStep, suitOrientation } from '../../poker/explain';
 import { scenarioSituation } from '../../poker/scenarios';
 import { SCENARIO_ACTIONS } from '../../poker/types';
 import { useProgress } from '../../state/progress';
@@ -114,7 +114,8 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
   const pv = useProgress(settings.dailyGoal);
   const reduced = useReducedMotion();
 
-  const explanation = useMemo(() => (step ? explainStep(step) : null), [step]);
+  // 해설 속 예시 카드는 지금 화면에 깔린 카드와 같은 무늬 배치로 나옵니다.
+  const explanation = useMemo(() => (step && card ? explainStep(step, suitOrientation(card.cards)) : null), [step, card]);
 
   const openConfirm = useCallback(() => {
     setConfirmOpen(true);

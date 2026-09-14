@@ -8,7 +8,7 @@ import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { GlassPanel } from '../../components/ui/GlassPanel';
 import { IconButton } from '../../components/ui/IconButton';
 import { IconClose } from '../../components/ui/icons';
-import { explainStep } from '../../poker/explain';
+import { explainStep, suitOrientation } from '../../poker/explain';
 import { cardLabel } from '../../poker/hands';
 import { scenarioSituation } from '../../poker/scenarios';
 import { SCENARIO_ACTIONS, type Card, type HandName } from '../../poker/types';
@@ -64,7 +64,7 @@ function Question({ q, autoAdvance, showMix }: { q: QuizQuestion; autoAdvance: b
   const { scenario } = step;
   const kind = scenario.kind;
   const actions = SCENARIO_ACTIONS[kind];
-  const explanation = useMemo(() => explainStep(step), [step]);
+  const explanation = useMemo(() => explainStep(step, suitOrientation(cards)), [step, cards]);
   const autoPending = grade === 'correct' && autoAdvance && !sheetOpen && !autoCancelled;
 
   useEffect(() => {
