@@ -1,13 +1,13 @@
 /* Linear position strip */
-.pstrip { width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px 6px 8px; border-radius: var(--r-md); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.10); }
+.pstrip { width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 10px 6px 8px; border-radius: var(--r-md); background: rgba(255, 255, 255, 0.06); border: 0.5px solid rgba(255, 255, 255, 0.12); }
 .pstrip__row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; align-items: start; }
 .pstrip__seat { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
-.pstrip__chip { position: relative; width: 100%; max-width: 54px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; background: rgba(255, 255, 255, 0.09); border: 1.5px solid rgba(255, 255, 255, 0.16); color: var(--ink); }
+.pstrip__chip { position: relative; width: 100%; max-width: 54px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; background: rgba(255, 255, 255, 0.09); border: 0.5px solid rgba(255, 255, 255, 0.14); color: var(--ink); }
 /* 900 은 Noto Sans KR 가변 축(400~800) 밖이라 브라우저가 가짜 굵게를 그립니다 — 800 으로 맞춥니다. */
 .pstrip__dealer { position: absolute; top: -7px; right: -6px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); color: var(--ink-on-tint); font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
-.pstrip__seat--hero .pstrip__chip { background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 80%, white), var(--gold)); color: var(--ink-on-tint); border-color: color-mix(in srgb, var(--gold) 60%, white); box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 30%, transparent), 0 4px 9px -6px rgba(0,0,0,0.55); }
+.pstrip__seat--hero .pstrip__chip { background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 80%, white), var(--gold)); color: var(--ink-on-tint); border-color: color-mix(in srgb, var(--gold) 45%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 24%, transparent), 0 4px 9px -6px rgba(0,0,0,0.55); }
 /* 링 2px + 그림자 가로 3px ≤ .pstrip 의 좌우 패딩 4px — .trainer-strip 이 overflow:hidden 이라 넘치면 잘립니다. */
-.pstrip__seat--villain .pstrip__chip { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.55); }
+.pstrip__seat--villain .pstrip__chip { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.20); }
 .pstrip__seat--folded { opacity: 0.42; }
 .pstrip__seat--waiting .pstrip__chip { border-style: dashed; }
 .pstrip__tags { display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 18px; }
@@ -17,7 +17,7 @@
 .pstrip__tag--fourbet { background: var(--act-fourbet); }
 .pstrip__tag--allin { background: var(--act-allin); color: var(--ink-on-tint); }
 .pstrip__tag--fold { background: rgba(255,255,255,0.14); color: var(--ink-2); }
-.pstrip__tag--wait { background: transparent; border: 1px dashed rgba(255,255,255,0.3); color: var(--ink-3); }
+.pstrip__tag--wait { background: transparent; border: 0.5px dashed rgba(255,255,255,0.18); color: var(--ink-3); }
 .pstrip__tag--hero { background: var(--gold); color: var(--ink-on-tint); }
 .pstrip__caption { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; font-size: 12.5px; color: var(--ink-2); text-align: center; line-height: 1.4; }
 .pstrip__hint { color: var(--ink-3); }

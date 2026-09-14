@@ -25,8 +25,8 @@
 .pc__g1 { stop-color: var(--card); }
 .pc__g2 { stop-color: #ebe5d3; }
 
-.pc__inner { fill: none; stroke: rgba(20, 22, 28, 0.06); stroke-width: 1.5; }
-.pc__edge { fill: none; stroke: var(--card-edge); stroke-width: 1.25px; vector-effect: non-scaling-stroke; }
+.pc__inner { fill: none; stroke: rgba(20, 22, 28, 0.06); stroke-width: 1; }
+.pc__edge { fill: none; stroke: var(--card-edge); stroke-width: 0.75px; vector-effect: non-scaling-stroke; }
 .pc__ink { fill: currentColor; }
 
 .pc__rank, .pc__big {

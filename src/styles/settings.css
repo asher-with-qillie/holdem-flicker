@@ -65,6 +65,7 @@ input[type='range'].st-range::-webkit-slider-runnable-track {
 input[type='range'].st-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 28px; height: 28px; margin-top: -11px; border-radius: 50%;
+  /* 이 링은 가장자리 선이 아니라 손잡이의 정체입니다(옆에 겨룰 글로우도 없습니다) — 규칙 carve-out. */
   background: #fff; border: 3px solid var(--mint); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 }
 input[type='range'].st-range::-moz-range-track { height: 6px; border-radius: var(--r-capsule); background: rgba(255, 255, 255, 0.16); }

@@ -69,7 +69,7 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
 .ui-btn--lg { min-height: 52px; }
 .ui-btn--xl { min-height: 56px; }
 .ui-btn--block { display: flex; width: 100%; }
-.ui-btn--ghost { background: transparent; border: 1px solid rgba(255, 255, 255, 0.14); transition: background-color var(--dur-micro), transform var(--dur-std) var(--ease-spring); }
+.ui-btn--ghost { background: transparent; border: 0.5px solid rgba(255, 255, 255, 0.16); transition: background-color var(--dur-micro), transform var(--dur-std) var(--ease-spring); }
 .ui-btn--ghost:active { background: rgba(255, 255, 255, 0.10); }
 .ui-btn--primary { font-weight: 700; }
 .ui-btn--primary:active { background: var(--mint-deep); }
@@ -126,12 +126,12 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
 .ui-chiprow::-webkit-scrollbar { display: none; }
 .ui-chiprow:not(.ui-chiprow--wrap) { padding-block: 14px; margin-block: -14px; }
 /* 칩은 작아서 큰 글로우가 붙으면 글자보다 글로우가 커집니다. 그리고 그만큼 줄 여백도 잡아먹습니다. */
-.ui-chip.glass-tint { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 5px 13px -6px color-mix(in srgb, var(--tint) 62%, transparent); }
+.ui-chip.glass-tint { box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--tint) 26%, transparent), inset 0 0.5px 0 rgba(255, 255, 255, 0.20), 0 5px 13px -6px color-mix(in srgb, var(--tint) 62%, transparent); }
 
 /* 버튼은 화면 맨 아래 줄에 서는 일이 많습니다. 패널과 같은 깊이의 그림자를 주면 그 줄 아래로
    24px 이 번져 나가고, 그만큼 컨테이너가 세로 자리를 내줘야 합니다. 컨트롤은 더 얕게 앉힙니다. */
-.ui-btn.glass, .ui-ibtn.glass { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.09), 0 6px 14px -8px rgba(0, 0, 0, 0.7); }
-.ui-btn.glass-tint, .ui-ibtn.glass-tint { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 6px 16px -8px color-mix(in srgb, var(--tint) 58%, transparent); }
+.ui-btn.glass, .ui-ibtn.glass { box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.16), 0 6px 14px -8px rgba(0, 0, 0, 0.7); }
+.ui-btn.glass-tint, .ui-ibtn.glass-tint { box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--tint) 26%, transparent), inset 0 0.5px 0 rgba(255, 255, 255, 0.20), 0 6px 16px -8px color-mix(in srgb, var(--tint) 58%, transparent); }
 @media (max-width: 370px) { .ui-seg__opt { padding-inline: 2px; letter-spacing: -0.01em; } }
 .ui-chiprow--wrap { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
 
@@ -164,19 +164,25 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
 .ui-switch[disabled] { opacity: 0.4; }
 
 /* =============================================================== FloatingTabBar (§3.1)
-   캡슐 막대 안에 캡슐 알약이 들어앉는 구조라 여백을 잘못 잡으면 양 끝 알약이 막대의 둥근 모서리를
-   뚫고 나가 찌그러져 보입니다. 탭이 5개가 되면서 실제로 그랬습니다.
-   막대 반지름 = --tab-h/2 이므로, 알약 위아래를 --tab-pady 보다 더 안쪽으로 넣고(11px) 칸마다
-   --tab-pill-gap 만큼 좌우를 비워 두면 끝 알약도 모서리 곡선 안에 머무릅니다. */
+   알약과 내용은 서로 다른 상자에서 크기를 받아 오면 안 됩니다. 예전에는 알약이 막대의 '패딩 상자'
+   에서(top/bottom: 10px), 내용은 막대의 '내용 상자'에서(item height = --tab-h − 2×--tab-pady)
+   크기를 받았습니다. box-sizing: border-box 에 .glass-strong 의 1px 테두리까지 겹쳐서 두 상자가
+   2px 어긋났고, 결과가 '알약 높이 42 = 내용 높이 42, 게다가 라벨이 알약 아래로 1px 삐져나옴'
+   이었습니다 — 안쪽 여백이 아예 0 이었던 겁니다.
+   이제 둘 다 --tab-content-h(42) 에서 나옵니다: 알약 = 내용 + 2×--tab-pill-pad = 50,
+   남는 위아래가 막대와의 링(7px)이 됩니다. 테두리가 1px 이든 0 이든 알약 높이와 안쪽 여백은 그대로입니다.
+   좌우는 칸마다 --tab-pill-gap 을 비워, 끝 알약의 글로우까지 막대 모서리 안에 머무르게 합니다. */
 .ui-tabbar {
   position: fixed; left: var(--tab-inset); right: var(--tab-inset); bottom: calc(var(--tab-gap) + var(--safe-bottom));
   max-width: 488px; margin: 0 auto; height: var(--tab-h); padding: var(--tab-pady) var(--tab-padx); z-index: var(--z-tabbar);
-  display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); border-radius: var(--r-capsule);
+  display: grid; grid-template-columns: repeat(var(--n, 4), 1fr); align-content: stretch; border-radius: var(--r-capsule);
   transition: transform 260ms var(--ease-out), visibility 0s;
 }
 .ui-tabbar--hidden { transform: translateY(140%); visibility: hidden; transition: transform 260ms var(--ease-in), visibility 0s linear 260ms; }
 .ui-tabbar__pill {
-  position: absolute; top: 10px; bottom: 10px; z-index: 0;
+  position: absolute; z-index: 0;
+  top: calc((100% - var(--tab-content-h) - 2 * var(--tab-pill-pad)) / 2);
+  bottom: calc((100% - var(--tab-content-h) - 2 * var(--tab-pill-pad)) / 2);
   left: calc(var(--tab-padx) + var(--tab-pill-gap) / 2);
   width: calc((100% - 2 * var(--tab-padx)) / var(--n, 4) - var(--tab-pill-gap));
   border-radius: var(--r-capsule);
@@ -184,14 +190,17 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
   transition: transform var(--dur-std) var(--ease-spring);
 }
 .ui-tabbar__item {
-  position: relative; z-index: 1; height: calc(var(--tab-h) - 2 * var(--tab-pady)); padding: 0; border: 0; background: none; border-radius: var(--r-capsule);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  position: relative; z-index: 1; min-height: var(--tab-content-h); padding: 0; border: 0; background: none; border-radius: var(--r-capsule);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--tab-icon-gap);
   color: var(--ink-3); font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; letter-spacing: 0.01em;
   transition: color var(--dur-quick); touch-action: manipulation;
 }
 .ui-tabbar__item--active { color: var(--ink); }
-.ui-tabbar__icon { display: inline-flex; width: 24px; height: 24px; }
-.ui-tabbar__icon svg { width: 24px; height: 24px; }
+.ui-tabbar__icon { display: inline-flex; flex: none; width: var(--tab-icon); height: var(--tab-icon); }
+.ui-tabbar__icon svg { width: 100%; height: 100%; }
+/* --tab-content-h 는 '내용이 이만큼'이라는 약속입니다. 라벨 줄 높이를 여기에 못박아 두지 않으면
+   폰트가 바뀔 때 실제 높이만 조용히 커지고 알약은 그대로여서 다시 꽉 끼게 됩니다. */
+.ui-tabbar__label { flex: none; line-height: var(--lh-caption); }
 
 /* =============================================================== ProgressRing */
 .ui-ring { position: relative; display: inline-grid; place-items: center; flex: none; }
@@ -216,8 +225,8 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
 .ui-heat__cell--2 { background: var(--heat-2); }
 .ui-heat__cell--3 { background: var(--heat-3); }
 .ui-heat__cell--4 { background: var(--heat-4); }
-.ui-heat__cell--today { box-shadow: 0 0 0 1px var(--mint); }
-.ui-heat__cell--selected { box-shadow: 0 0 0 2px var(--ink); }
+.ui-heat__cell--today { box-shadow: 0 0 0 1px color-mix(in srgb, var(--mint) 65%, transparent); }
+.ui-heat__cell--selected { box-shadow: 0 0 0 1px var(--ink); }
 .ui-heat__cell--future { visibility: hidden; }
 button.ui-heat__cell:active { filter: brightness(1.25); }
 .ui-heat__legend { grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 4px; font-size: var(--fs-caption); font-weight: 600; color: var(--ink-3); }

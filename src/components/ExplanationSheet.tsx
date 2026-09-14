@@ -52,8 +52,9 @@ export function ExplanationBody({ step, explanation }: { step: Step; explanation
   const e = explanation;
   const easy = e.easy;
   const [more, setMore] = useState(false);
+  // resetKey: 해설 객체가 바뀔 때만 용어 장부를 새로 만듭니다 (핸드가 바뀌면 밑줄이 다시 살아납니다).
   return (
-    <TermScope>
+    <TermScope resetKey={explanation}>
       <div className="ui-explain">
         <h3 className="ui-explain__h">결론</h3>
         <div className="ui-explain__lead">

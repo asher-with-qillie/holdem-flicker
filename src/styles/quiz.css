@@ -55,7 +55,7 @@
 .quiz-hud__close { flex: none; }
 .quiz-dots { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; overflow: hidden; }
 .quiz-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); flex: none; transition: background-color var(--dur-quick); }
-.quiz-dots i.now { background: transparent; box-shadow: inset 0 0 0 2px var(--ink-2); }
+.quiz-dots i.now { background: transparent; box-shadow: inset 0 0 0 1px var(--ink-2); }
 .quiz-dots i.correct { background: var(--mint); }
 .quiz-dots i.partial { background: var(--amber); }
 .quiz-dots i.wrong { background: var(--coral); }
@@ -94,9 +94,9 @@
 .quiz-answer.glass-solid { color: var(--ink-on-tint); animation: quiz-flash var(--dur-quick) ease-out; }
 .quiz-answers--done .quiz-answer[disabled] { opacity: 0.32; }
 .quiz-answers--done .quiz-answer--chosen[disabled], .quiz-answers--done .quiz-answer--answer[disabled] { opacity: 1; }
-.quiz-answer--answer { outline: 2px solid var(--mint); outline-offset: 2px; }
-.quiz-answer--chosen.quiz-answer--partial { outline: 2px solid var(--amber); outline-offset: 2px; }
-.quiz-answer--chosen.quiz-answer--wrong { outline: 2px solid var(--coral); outline-offset: 2px; animation: quiz-flash var(--dur-quick) ease-out, quiz-shake 320ms var(--ease-std); }
+.quiz-answer--answer { outline: 1px solid var(--mint); outline-offset: 2px; }
+.quiz-answer--chosen.quiz-answer--partial { outline: 1px solid var(--amber); outline-offset: 2px; }
+.quiz-answer--chosen.quiz-answer--wrong { outline: 1px solid var(--coral); outline-offset: 2px; animation: quiz-flash var(--dur-quick) ease-out, quiz-shake 320ms var(--ease-std); }
 @keyframes quiz-flash { from { filter: brightness(1.35); } to { filter: none; } }
 @keyframes quiz-shake {
   0%, 100% { transform: translateX(0); }
@@ -106,10 +106,11 @@
 }
 
 /* feedback slot — fixed height (badge 36 + mix 24 + reason 36 + row 44 + gaps/padding) so nothing jumps */
-.quiz-feedback { flex: none; min-height: 182px; display: flex; flex-direction: column; justify-content: center; perspective: 800px; transition: border-color var(--dur-quick); }
-.quiz-feedback--correct { border-color: color-mix(in srgb, var(--mint) 50%, transparent); }
-.quiz-feedback--partial { border-color: color-mix(in srgb, var(--amber) 55%, transparent); }
-.quiz-feedback--wrong { border-color: color-mix(in srgb, var(--coral) 50%, transparent); }
+.quiz-feedback { flex: none; min-height: 182px; display: flex; flex-direction: column; justify-content: center; perspective: 800px; transition: box-shadow var(--dur-quick); }
+/* box-shadow 는 합쳐지지 않고 통째로 갈아치우므로 .glass-clear 의 안쪽 선 두 줄을 다시 적습니다. */
+.quiz-feedback--correct { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mint) 45%, transparent), inset 0 0.5px 0 rgba(255, 255, 255, 0.16), inset 0 -0.5px 0 rgba(255, 255, 255, 0.05); }
+.quiz-feedback--partial { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 45%, transparent), inset 0 0.5px 0 rgba(255, 255, 255, 0.16), inset 0 -0.5px 0 rgba(255, 255, 255, 0.05); }
+.quiz-feedback--wrong { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 45%, transparent), inset 0 0.5px 0 rgba(255, 255, 255, 0.16), inset 0 -0.5px 0 rgba(255, 255, 255, 0.05); }
 .quiz-feedback__hint { text-align: center; color: var(--ink-3); font-size: var(--fs-footnote); line-height: var(--lh-footnote); }
 .quiz-feedback__in { display: flex; flex-direction: column; gap: 6px; transform-origin: 50% 0; animation: quiz-flip 240ms var(--ease-spring); }
 @keyframes quiz-flip { from { opacity: 0; transform: rotateX(-90deg); } to { opacity: 1; transform: none; } }

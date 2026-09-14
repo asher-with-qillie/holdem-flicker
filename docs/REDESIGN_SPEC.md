@@ -139,6 +139,9 @@ Dark is the only theme (`color-scheme: dark`). Legacy aliases at the bottom keep
   --gutter: 16px;
   --glow-room: 14px;          /* max sideways bleed of ANY outer shadow — must stay ≤ --gutter */
   --tab-h: 64px; --tab-inset: 16px; --tab-gap: 12px; --tab-padx: 10px; --tab-pady: 6px; --tab-pill-gap: 8px;
+  --tab-icon: 24px; --tab-icon-gap: 2px;
+  --tab-content-h: calc(var(--tab-icon) + var(--tab-icon-gap) + var(--lh-caption));  /* 42 — the pill sizes off THIS */
+  --tab-pill-pad: 4px;
   --content-bottom: calc(var(--tab-h) + var(--tab-gap) + 16px + var(--safe-bottom));
   --tap: 44px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -188,6 +191,32 @@ repaints the same blobs because it covers the body. Full-screen
 states (session, coach mark) may add one extra blob behind the cards:
 `radial-gradient(50% 30% at 50% 45%, rgba(77,227,166,0.10), transparent 70%)`. Sheets and the hold overlay
 add `rgba(0,0,0,0.35)` backdrop over everything else.
+
+**Stroke rule (one line, and it governs every edge in the app).**
+
+> **One edge per element. Never wider than 1px. The line draws the silhouette; the glow and the fill carry
+> the emphasis.**
+
+1. **One edge, never two.** An element that has the `::before` gradient rim has `border: 0`. An element with
+   no rim gets exactly one `inset 0 0 0 Npx` hairline. Never a `border` *and* an inset hairline.
+2. **Width.** Resting edges are `0.5px`. State edges (selected / correct / wrong / mastered / today) and
+   identity rings on elements ≤ 32px are `1px`. Nothing else is wider.
+3. **Alpha.** `width × alpha ≤ 0.30` for white, `≤ 0.55` for a saturated accent.
+4. **Carve-outs, all non-perimeter:** `:focus-visible` keeps `2px` for accessibility; `.ui-explain__ex > li`'s
+   left accent bar keeps 2px because it is a bar, not an outline; the range slider thumb keeps its 3px mint
+   ring because that ring *is* the control's identity and has no glow to compete with.
+5. **Glow values never change to fix an edge.** The fix is always to stop the *line* from out-valuing the glow.
+
+Why: the app used to draw `border: 1px solid rgba(255,255,255,0.12)` on every glass pane *and* a `::before`
+gradient rim landing just inside it — 2 CSS px, 6 device px at 3×, with a third bright line stacked on top
+from the inset highlight. That bright ring out-valued the glow it enclosed, which is what "테두리가 두꺼워서
+글로우가 못생겼다" was describing. Apple does not do this: grepping the full *Adopting Liquid Glass*
+overview for "border", "stroke" and "outline" returns **zero** hits — the edge is a moving specular
+highlight, not a constant ring (WWDC25 219: light "travel[s] around the material, defining its silhouette").
+Apple publishes no alpha values, so **the numbers here are ours**, derived from the doubling arithmetic.
+
+`0.5px` only renders as a half pixel at ≥ 2×; at 1× it rounds to 0 or 1. A
+`@media (max-resolution: 1.5dppx)` block restates the rim at 1px with half the alpha so the weight matches.
 
 **Shadow rule (`--glow-room`).** Every scroll container clips at its padding box, and setting
 `overflow-y: auto` makes `overflow-x` compute to `auto` too — so a shadow that bleeds wider than the
@@ -332,11 +361,20 @@ and from the quiz round store (`useQuizActive()`); either hides the bar.
   `bottom: calc(var(--tab-gap) + var(--safe-bottom))` (12 + safe), `max-width: 488px; margin: 0 auto`,
   `z-index: var(--z-tabbar)`. Padding `var(--tab-pady) var(--tab-padx)` (6 / 10); `--n` equal columns
   (4 or 5 — `--n` is set inline from `items.length`).
-- Item: `calc(--tab-h − 2×--tab-pady)` (52) h × full column, icon 24 px stroke 2, label `--fs-caption` 600
-  below (gap 2). Inactive color `--ink-3`, active `--ink`.
-- Active indicator: one `.glass-tint` capsule (`--tint: var(--mint)`), inset 10 px top/bottom (→ 44 h) and
-  `--tab-pill-gap / 2` (4) left/right inside its column, so its width is `column − --tab-pill-gap`;
+- Item: `min-height: var(--tab-content-h)` stretched by the grid row (52) × full column, icon `--tab-icon`
+  (24), label `--fs-caption` 600 below (gap `--tab-icon-gap`). Inactive `--ink-3`, active `--ink`.
+- Active indicator: one `.glass-tint` capsule (`--tint: var(--mint)`) whose height is
+  **derived from the content, not from the bar**: `top`/`bottom` = `(100% − --tab-content-h − 2×--tab-pill-pad) / 2`,
+  giving pill 50 = content 42 + 4 + 4, and whatever is left over (7) becomes the ring to the bar.
+  Left/right it is inset `--tab-pill-gap / 2` inside its column, width `column − --tab-pill-gap`;
   `transform: translateX(col × (100% + --tab-pill-gap))`, transition `var(--dur-std) var(--ease-spring)`.
+  **Why derived and not literal:** the pill used to be `top/bottom: 10px` (against the bar's *padding* box)
+  while the item was `height: calc(--tab-h − 2×--tab-pady)` (a *content* box figure). `box-sizing: border-box`
+  plus `.glass-strong`'s then-1px border made those two boxes disagree by 2px, so the pill came out exactly
+  42 — the same height as its own content, giving it **zero** padding, and the label's bottom edge landed
+  1px *outside* the pill. Sizing both from `--tab-content-h` makes the padding 4/4 whatever the border is.
+  Do not restyle this as `top: 50%; transform: translateY(-50%) …` — that runs `--ease-spring`'s overshoot
+  through the Y axis.
   **Why the pill is inset, not full-column:** the pill body was never actually outside the bar — measured,
   a full-column pill still had ~7 px of clearance against the bar's rounded end. What burst out was its
   **glow**: `.glass-tint` bled 24 px sideways into a 7 px gap, so the mint spilled past the capsule and the

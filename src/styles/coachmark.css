@@ -31,7 +31,7 @@
 
 /* hold: finger + 32 px pulsing ring on the card */
 .cm-touch { position: absolute; left: calc(50% + 4px); top: 44px; width: 32px; height: 32px; color: var(--ink); }
-.cm-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--mint); box-shadow: 0 0 12px color-mix(in srgb, var(--mint) 60%, transparent); animation: cm-pulse 1.2s var(--ease-out) infinite; }
+.cm-ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--mint) 70%, transparent); box-shadow: 0 0 12px color-mix(in srgb, var(--mint) 60%, transparent); animation: cm-pulse 1.2s var(--ease-out) infinite; }
 @keyframes cm-pulse { 0% { transform: scale(0.55); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
 .cm-finger { position: absolute; left: 9px; top: 9px; width: 30px; height: 38px; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)); }
 .cm-finger__fill { fill: rgba(242, 244, 248, 0.16); stroke: none; }
@@ -42,11 +42,11 @@
   position: relative; flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px;
   border-radius: var(--r-capsule); font-size: var(--fs-subhead); font-weight: 700; color: var(--ink); border: 1px solid;
 }
-.cm-choice--fold { color: var(--ink-2); border-color: color-mix(in srgb, var(--act-fold) 45%, transparent); background: color-mix(in srgb, var(--act-fold) 16%, transparent); }
-.cm-choice--call { border-color: color-mix(in srgb, var(--act-call) 45%, transparent); background: color-mix(in srgb, var(--act-call) 16%, transparent); animation: cm-choice-pick 1.8s var(--ease-std) infinite; }
-.cm-choice--threebet { border-color: color-mix(in srgb, var(--act-threebet) 45%, transparent); background: color-mix(in srgb, var(--act-threebet) 16%, transparent); }
+.cm-choice--fold { color: var(--ink-2); border-color: color-mix(in srgb, var(--act-fold) 26%, transparent); background: color-mix(in srgb, var(--act-fold) 16%, transparent); }
+.cm-choice--call { border-color: color-mix(in srgb, var(--act-call) 26%, transparent); background: color-mix(in srgb, var(--act-call) 16%, transparent); animation: cm-choice-pick 1.8s var(--ease-std) infinite; }
+.cm-choice--threebet { border-color: color-mix(in srgb, var(--act-threebet) 26%, transparent); background: color-mix(in srgb, var(--act-threebet) 16%, transparent); }
 .cm-choice__mark { font-size: 16px; font-weight: 800; opacity: 0; animation: cm-choice-mark 1.8s linear infinite; }
-@keyframes cm-choice-pick { 0%, 30% { background: color-mix(in srgb, var(--act-call) 16%, transparent); color: var(--ink); } 42%, 82% { background: var(--act-call); color: var(--ink-on-tint); box-shadow: 0 0 0 2px var(--mint); } 100% { background: color-mix(in srgb, var(--act-call) 16%, transparent); color: var(--ink); } }
+@keyframes cm-choice-pick { 0%, 30% { background: color-mix(in srgb, var(--act-call) 16%, transparent); color: var(--ink); } 42%, 82% { background: var(--act-call); color: var(--ink-on-tint); box-shadow: 0 0 0 1px var(--mint); } 100% { background: color-mix(in srgb, var(--act-call) 16%, transparent); color: var(--ink); } }
 @keyframes cm-choice-mark { 0%, 40% { opacity: 0; } 46%, 82% { opacity: 1; } 90%, 100% { opacity: 0; } }
 .cm-touch--choose { left: calc(50% + 2px); top: 46px; }
 .cm-touch--choose .cm-ring { animation: cm-pulse-late 1.8s var(--ease-out) infinite; }
@@ -67,7 +67,7 @@
   .cm-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
   .cm-dots i { transition: none; }
   .cm-ring { animation: none; transform: scale(1.1); opacity: 0.85; }
-  .cm-choice--call { animation: none; background: var(--act-call); color: var(--ink-on-tint); box-shadow: 0 0 0 2px var(--mint); }
+  .cm-choice--call { animation: none; background: var(--act-call); color: var(--ink-on-tint); box-shadow: 0 0 0 1px var(--mint); }
   .cm-choice__mark { animation: none; opacity: 1; }
   .cm-touch--choose .cm-ring { animation: none; }
 }

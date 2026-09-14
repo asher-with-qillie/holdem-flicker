@@ -52,7 +52,7 @@
 
 .coach-axis__track { position: relative; display: block; height: 6px; border-radius: var(--r-capsule); background: var(--heat-0); margin: 4px 0; }
 .coach-axis__track--locked { opacity: 0.35; }
-.coach-axis__tick { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--ink-4); }
+.coach-axis__tick { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 0.5px; background: rgba(242, 244, 248, 0.30); }
 .coach-axis__marker {
   position: absolute; top: 50%; left: calc(50% + var(--t) * 46%);
   width: 14px; height: 14px; border-radius: 50%;

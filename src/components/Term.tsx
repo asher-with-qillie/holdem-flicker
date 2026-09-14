@@ -59,16 +59,79 @@ const TERM_RE = new RegExp(GLOSSARY_WORDS.map(escapeRe).join('|'), 'gi');
 
 /* ---- per-body dedupe: only the first occurrence of a term gets an underline ---- */
 
-const TermScopeCtx = createContext<Set<string> | null>(null);
+export interface TermScopeState {
+  key: unknown;
+  /**
+   * 용어 → 이 본문에서 그 용어의 밑줄을 가져간 **글귀 그 자체**.
+   *
+   * 주인을 컴포넌트 인스턴스(useRef 토큰)로 잡아 봤지만 안 됩니다: StrictMode 의 첫 마운트에서는
+   * React 가 훅 초기화까지 두 번 돌려서 두 패스의 ref 객체가 서로 다릅니다. 그러면 두 번째 패스가
+   * 자기 것이 아닌 용어를 마주쳐 밑줄을 잃습니다(실측으로 확인). 글귀를 주인으로 쓰면 주인이
+   * 렌더 입력에서 바로 나오므로 패스가 몇 번이든 같은 답이 됩니다.
+   */
+  owners: Map<string, string>;
+}
+const TermScopeCtx = createContext<TermScopeState | null>(null);
 
-/** Wrap one explanation body so each glossary term is underlined at most once inside it. */
-export function TermScope({ children }: { children: ReactNode }) {
-  // A fresh set per render of the owning body; children render right after, in document order.
-  const seen = new Set<string>();
-  return <TermScopeCtx.Provider value={seen}>{children}</TermScopeCtx.Provider>;
+/**
+ * Wrap one explanation body so each glossary term is underlined at most once inside it.
+ *
+ * `resetKey` 로 본문을 식별합니다(해설 객체를 그대로 넘기세요). 이 값이 바뀔 때만 장부를 새로
+ * 만들기 때문에, React 가 같은 렌더를 두 번 호출해도(StrictMode·중단된 동시 렌더의 재실행)
+ * 같은 주장을 다시 해서 같은 결과가 나옵니다. 예전처럼 렌더마다 `new Set()` 을 만들고
+ * 자식이 그걸 `add` 하면, 두 번째 패스에서는 모든 용어가 '이미 본 것'이 되어 밑줄이 전부
+ * 사라집니다 — 개발 모드에서 실제로 그랬습니다.
+ */
+export function TermScope({ children, resetKey }: { children: ReactNode; resetKey?: unknown }) {
+  const ref = useRef<TermScopeState | null>(null);
+  if (ref.current === null || ref.current.key !== resetKey) {
+    ref.current = { key: resetKey, owners: new Map() };
+  }
+  return <TermScopeCtx.Provider value={ref.current}>{children}</TermScopeCtx.Provider>;
 }
 
-type Piece = {
+/**
+ * 같은 글귀가 다시 물어보면 같은 답이 나옵니다 — 그래서 렌더를 여러 번 돌려도 안전합니다.
+ *
+ * 알려진 한계: 한 본문에 **완전히 똑같은 글귀**가 두 번 들어가면 둘 다 밑줄을 받습니다.
+ * 렌더 입력만으로는 둘을 구분할 방법이 없고, 밑줄이 하나 더 그어지는 쪽이 전부 사라지는 쪽보다 낫습니다.
+ */
+export function claimTerm(scope: TermScopeState, term: string, owner: string): boolean {
+  const held = scope.owners.get(term);
+  if (held === undefined) {
+    scope.owners.set(term, owner);
+    return true;
+  }
+  return held === owner;
+}
+
+/**
+ * 문자열 하나를 조각으로 나누고, 어느 조각이 밑줄을 받을지 정합니다.
+ * 같은 (scope, text) 로 몇 번을 불러도 결과가 같아야 합니다 — tests/term-scope.test.ts 가 그걸 봅니다.
+ */
+export function resolveTerms(text: string, scope: TermScopeState | null): Piece[] {
+  const owner = text;
+  const here = new Set<string>(); // 이 호출 안에서만 쓰는 지역 상태라 바꿔도 순수합니다
+  return splitTerms(text).map((p): Piece => {
+    if (!p.entry) return p;
+    const term = p.entry.term;
+    // A term that carries its own "(…)" gloss is explained right there; it also spends the one underline
+    // this body owes the term, so the popover never repeats what the reader just read.
+    if (p.glossed) {
+      if (scope && p.defines && !here.has(term)) {
+        here.add(term);
+        claimTerm(scope, term, owner);
+      }
+      return { text: p.text, glossed: true };
+    }
+    if (!scope) return p;
+    if (here.has(term)) return { text: p.text, glossed: true };
+    here.add(term);
+    return claimTerm(scope, term, owner) ? p : { text: p.text, glossed: true };
+  });
+}
+
+export type Piece = {
   text: string;
   entry?: GlossaryEntry;
   /** The term is written out here (gloss in parentheses, or inside one): show it plain, never underlined. */
@@ -90,19 +153,20 @@ function insideParens(text: string, i: number): boolean {
 export function splitTerms(text: string): Piece[] {
   const out: Piece[] = [];
   let last = 0;
-  TERM_RE.lastIndex = 0;
-  for (let m = TERM_RE.exec(text); m; m = TERM_RE.exec(text)) {
+  // matchAll 은 정규식을 내부에서 복제하므로 모듈 전역 TERM_RE 의 lastIndex 를 건드리지 않습니다.
+  for (const m of text.matchAll(TERM_RE)) {
     // Latin spellings (SB, BB, SPR, c-bet …) must match case exactly: "2.5bb" is a bet size, not the blind.
     if (/^[A-Za-z-]+$/.test(m[0]) && !GLOSSARY_WORDS.includes(m[0])) continue;
     const entry = glossaryLookup(m[0]);
     if (!entry) continue;
-    const end = m.index + m[0].length;
+    const start = m.index ?? 0;
+    const end = start + m[0].length;
     // 풀이는 두 꼴 중 하나입니다: 괄호("백도어(…)", 차트 메모) 또는 바로 뒤 한 문장("c-bet은 … 벳입니다.", explain.ts).
     // 뒤 문장 꼴이면 그 본문 안의 모든 등장이 이미 설명을 달고 있는 셈이라 밑줄을 긋지 않습니다.
     const sentence = glossSentence(entry.term);
     const defines = text[end] === '(' || (sentence != null && text.includes(sentence));
-    const glossed = defines || insideParens(text, m.index);
-    if (m.index > last) out.push({ text: text.slice(last, m.index) });
+    const glossed = defines || insideParens(text, start);
+    if (start > last) out.push({ text: text.slice(last, start) });
     out.push({ text: m[0], entry, glossed, defines });
     last = end;
   }
@@ -113,20 +177,8 @@ export function splitTerms(text: string): Piece[] {
 /* ---- components ---- */
 
 export function PlainText({ text, className }: { text: string; className?: string }) {
-  const seen = useContext(TermScopeCtx);
-  const pieces = splitTerms(text).map((p): Piece => {
-    if (!p.entry) return p;
-    // A term that carries its own "(…)" gloss is explained right there; it also spends the one underline
-    // this body owes the term, so the popover never repeats what the reader just read.
-    if (p.glossed) {
-      if (seen && p.defines) seen.add(p.entry.term);
-      return { text: p.text, glossed: true };
-    }
-    if (!seen) return p;
-    if (seen.has(p.entry.term)) return { text: p.text, glossed: true };
-    seen.add(p.entry.term);
-    return p;
-  });
+  const scope = useContext(TermScopeCtx);
+  const pieces = resolveTerms(text, scope);
   return (
     <span className={className}>
       {pieces.map((p, i) =>
@@ -179,6 +231,10 @@ export function TermPopover({ open }: { open: OpenTerm }) {
   const boxRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
+    if (!open.anchor.isConnected) {
+      closeTerm();
+      return;
+    }
     const r = open.anchor.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -194,9 +250,11 @@ export function TermPopover({ open }: { open: OpenTerm }) {
   }, [open]);
 
   // If the text that owns the anchor unmounts (sheet closed), forget the open term.
+  // 스토어를 조용히 비우면 useSyncExternalStore 를 쓰는 다른 구독자가 이미 떨어져 나간 앵커에
+  // 붙은 팝오버를 계속 그립니다 — 이 훅이 막으려는 바로 그 상태입니다. closeTerm() 으로 알립니다.
   useEffect(
     () => () => {
-      if (current && current.anchor === open.anchor) current = null;
+      if (current && current.anchor === open.anchor) closeTerm();
     },
     [open],
   );
