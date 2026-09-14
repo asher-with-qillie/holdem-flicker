@@ -45,25 +45,39 @@ await noHScroll('home');
 check((await page.locator('.ui-tabbar').count()) > 0, 'home: floating tab bar missing');
 check(/훈련|세션/.test(await page.locator('body').innerText()), 'home: CTA copy missing');
 
-// --- 탭 바: 캡슐 안의 캡슐이 동심이어야 합니다. 알약이 칸 너비를 꽉 채우면 양 끝 알약이 막대의
-//     둥근 모서리를 뚫고 나가 찌그러져 보입니다(탭이 5개가 되면서 실제로 그랬습니다).
-//     조건: 두 캡슐 중심 사이 거리 + 알약 반지름 ≤ 막대 반지름.
+// --- 탭 바: 활성 알약이 '막대에서 터져 나온' 것처럼 보이지 않아야 합니다.
+//     알약 자체는 예전에도 막대 캡슐 안에 들어 있었습니다(여유 7px). 튀어 보인 건 알약의
+//     tint 글로우가 가로로 24px 번져서 막대 끝을 넘어간 것이고, 알약이 칸 너비를 꽉 채워
+//     막대 끝까지 7px 밖에 안 남았기 때문입니다. 그래서 재는 건 '알약 + 글로우'입니다.
 {
   const fit = await page.evaluate(() => {
     const bar = document.querySelector('.ui-tabbar'), pill = document.querySelector('.ui-tabbar__pill');
     if (!bar || !pill) return null;
+    const cs = getComputedStyle(pill);
+    // 바깥 그림자가 좌우로 번지는 폭 (inset 제외, 색 함수는 먼저 지움)
+    let bleed = 0;
+    for (const part of (cs.boxShadow || '').split(/,(?![^(]*\))/)) {
+      if (/(^|\s)inset(\s|$)/.test(part)) continue;
+      const n = part.replace(/[a-z-]+\([^)]*\)/g, '').match(/-?\d*\.?\d+px/g);
+      if (!n || n.length < 2) continue;
+      const [ox, , blur = 0, spread = 0] = n.map(parseFloat);
+      bleed = Math.max(bleed, Math.abs(ox) + blur + spread);
+    }
     const b = bar.getBoundingClientRect(), p = pill.getBoundingClientRect();
-    const n = Number(getComputedStyle(bar).getPropertyValue('--n')) || 4;
-    const rBar = b.height / 2, rPill = p.height / 2;
-    // 알약은 --i 로 옮겨 다니므로 첫 칸과 마지막 칸 양쪽을 다 본다.
-    const step = p.width + (parseFloat(getComputedStyle(bar).getPropertyValue('--tab-pill-gap')) || 0);
-    const firstL = p.left - b.left, lastR = b.right - (p.left + step * (n - 1) + p.width);
-    const worst = Math.min(firstL, lastR);           // 막대 끝에서 알약 끝까지의 가로 거리
-    const dist = Math.abs(rBar - (worst + rPill));   // 두 캡슐 중심 사이 거리
-    return { n, rBar, rPill, worst, slack: +(rBar - (dist + rPill)).toFixed(1) };
+    const n = Number(cs.getPropertyValue('--n')) || Number(getComputedStyle(bar).getPropertyValue('--n')) || 4;
+    const i = Number(getComputedStyle(bar).getPropertyValue('--i')) || 0;
+    const gap = parseFloat(getComputedStyle(bar).getPropertyValue('--tab-pill-gap')) || 0;
+    const step = p.width + gap;
+    const firstL = (p.left - step * i) - b.left;              // --i 위치를 0번 칸으로 되돌림
+    const lastR = b.right - ((p.left - step * i) + step * (n - 1) + p.width);
+    const col = (b.width - 2 * (parseFloat(getComputedStyle(bar).getPropertyValue('--tab-padx')) || 0)) / n;
+    return { n, bleed, worst: +Math.min(firstL, lastR).toFixed(1), colGap: +(col - p.width).toFixed(1) };
   });
   check(fit !== null, 'tabbar: pill or bar missing');
-  if (fit) check(fit.slack >= 2, `tabbar: active pill pokes through the bar's rounded end (${fit.n} tabs, slack ${fit.slack}px — need ≥ 2)`);
+  if (fit) {
+    check(fit.worst >= fit.bleed, `tabbar: the active pill's glow (${fit.bleed}px) spills past the bar's rounded end (only ${fit.worst}px of room, ${fit.n} tabs)`);
+    check(fit.colGap >= 4, `tabbar: the pill fills its whole column (gap ${fit.colGap}px) — neighbouring pills touch and the end pills crowd the bar's ends`);
+  }
 }
 
 // --- 유리: blur 만으로는 거의 검은 바닥이 그대로 흐려질 뿐이라 판이 회색 상자로 보입니다.

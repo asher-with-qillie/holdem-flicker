@@ -337,10 +337,13 @@ and from the quiz round store (`useQuizActive()`); either hides the bar.
 - Active indicator: one `.glass-tint` capsule (`--tint: var(--mint)`), inset 10 px top/bottom (→ 44 h) and
   `--tab-pill-gap / 2` (4) left/right inside its column, so its width is `column − --tab-pill-gap`;
   `transform: translateX(col × (100% + --tab-pill-gap))`, transition `var(--dur-std) var(--ease-spring)`.
-  **Why the pill is inset, not full-column:** a capsule pill inside a capsule bar is only concentric if
-  `dist(centres) + r_pill ≤ r_bar`. Full-column pills gave `6 + 22 > 32` at the two ends, so the first and
-  last pills poked through the bar's rounded ends and looked crushed — which is what a fifth tab exposed.
-  The inset makes it `4 + 22 ≤ 32`, ~6 px of clearance at every width from 360 up.
+  **Why the pill is inset, not full-column:** the pill body was never actually outside the bar — measured,
+  a full-column pill still had ~7 px of clearance against the bar's rounded end. What burst out was its
+  **glow**: `.glass-tint` bled 24 px sideways into a 7 px gap, so the mint spilled past the capsule and the
+  end pill read as crushed against it. A fifth tab made both numbers worse (narrower columns, same glow).
+  Two changes fix it and the guard measures both: the glow is now 11 px sideways (negative spread), and the
+  pill is inset so the end gap is ~15 px and neighbouring pills no longer touch (column − 8). Rule: the
+  end gap must be ≥ the pill's sideways glow, and the column must be ≥ 4 px wider than the pill.
 - Hidden: `transform: translateY(140%)`, `transition: transform 260ms var(--ease-in)`; shown with `--ease-out`.
 - Screens add `padding-bottom: var(--content-bottom)` so the last row clears the bar. Never margin.
 - Tap: no haptic. `aria-current="page"` on the active item.
