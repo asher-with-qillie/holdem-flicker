@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { classifyHand } from '../../../poker/explain';
 import type { Action, Pos, ScenarioKind } from '../../../poker/types';
 import { parseCoachCards } from '../claude';
-import { COACH_SYSTEM_PROMPT, buildDigestSummary, buildPrompt } from '../prompt';
+import { COACH_COPY_PROMPT, COACH_SYSTEM_PROMPT, buildDigestSummary, buildPrompt } from '../prompt';
 import type { AxisView, CoachDigest, CoachMistake } from '../types';
 
 const RECORD_HEADING = '# 이 사람의 기록';
@@ -125,7 +125,7 @@ function digest(mistakesUsed: number): CoachDigest {
 describe('buildPrompt', () => {
   it('시스템 규칙 전문과 기록을 이어 붙인다', () => {
     const out = buildPrompt(digest(42));
-    expect(out.startsWith(COACH_SYSTEM_PROMPT)).toBe(true);
+    expect(out.startsWith(COACH_COPY_PROMPT)).toBe(true);
     expect(out).toContain(RECORD_HEADING);
     expect(out).toContain(buildDigestSummary(digest(42)));
   });
@@ -245,5 +245,53 @@ describe('parseCoachCards', () => {
 
   it('배열이 아니면 빈 배열', () => {
     expect(parseCoachCards('{ "cards": [] }')).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 경로마다 출력 형식이 달라야 한다                                       */
+/* ------------------------------------------------------------------ */
+
+describe('출력 형식은 경로마다 다르다', () => {
+  it('복사 경로는 평문을 시킨다 — 그 답을 파싱하는 코드가 없다', () => {
+    // 사용자가 Claude·ChatGPT 화면에서 눈으로 읽는 답이다. 앱으로 돌아오는 길이 없으므로
+    // JSON 을 시킬 이유가 없고, 시키면 읽기만 나빠진다.
+    expect(COACH_COPY_PROMPT).toContain('한국어 글로 답해라');
+    expect(COACH_COPY_PROMPT).toContain('눈으로 읽는다');
+    expect(COACH_COPY_PROMPT).not.toContain('JSON 배열');
+    expect(COACH_COPY_PROMPT).not.toContain('"tone"');
+    // 카드 상자가 없으니 길이 제한도 뜻이 없다.
+    expect(COACH_COPY_PROMPT).not.toContain('20자 이내');
+    expect(COACH_COPY_PROMPT).not.toContain('25자 이내');
+    // 채팅이라 이어서 물어볼 수 있다는 점을 알려 준다 — 이 경로의 장점이다.
+    expect(COACH_COPY_PROMPT).toContain('물어보라고');
+  });
+
+  it('내 키 경로는 JSON 을 시킨다 — parseCoachCards 가 그걸 먹는다', () => {
+    expect(COACH_SYSTEM_PROMPT).toContain('JSON 배열');
+    expect(COACH_SYSTEM_PROMPT).toContain('"tone"');
+    expect(COACH_SYSTEM_PROMPT).toContain('20자 이내');
+  });
+
+  it('두 경로가 규칙은 똑같이 나눠 쓴다 — 개념적 조언이라는 제약은 형식과 무관하다', () => {
+    for (const rule of [
+      '차트를 다시 읽어 주지 마라',
+      'GTO, 솔버, EV, 에퀴티',
+      '레인지 표기(ATo+, KJs+ 같은 것)',
+      '사람을 평가하지 마라',
+      '데이터에 없는 건 지어내지 마라',
+    ]) {
+      expect(COACH_COPY_PROMPT, rule).toContain(rule);
+      expect(COACH_SYSTEM_PROMPT, rule).toContain(rule);
+    }
+    // 마지막을 질문으로 끝내라는 요구도 양쪽에 있다.
+    expect(COACH_COPY_PROMPT).toContain('질문');
+    expect(COACH_SYSTEM_PROMPT).toContain('질문');
+  });
+
+  it('복사 경로의 지시에도 금지어가 새어 나오지 않는다', () => {
+    // 금지어 목록 자체에는 그 말들이 나오지만, 그건 "쓰지 마라"는 줄이다.
+    const body = COACH_COPY_PROMPT.split('## 출력 형식')[1] ?? '';
+    for (const bad of ['GTO', '솔버', '에퀴티', 'MDF']) expect(body).not.toContain(bad);
   });
 });
