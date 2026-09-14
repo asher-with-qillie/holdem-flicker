@@ -18,9 +18,48 @@ const MARKER_COLOR: Record<AxisLevel, string> = {
   locked: 'var(--ink-3)',
 };
 
+/**
+ * 잠긴 축이 요구하는 것 한 줄. 화면 글씨와 aria-label 이 같은 사실을 말해야 둘이 어긋나지 않습니다.
+ *
+ * `needWhere` · `lockedBy` · `baselineNeed` 는 axes.ts 가 붙이는 **선택** 필드라 없으면 예전처럼
+ * "실수 N개 더"로 떨어집니다. 있으면 두 가지 거짓말을 막아 줍니다.
+ *   - 어디서 난 실수인지 안 적으면: seat 는 앞자리·뒷자리 실수만 세므로, BB 수비만 푸는 사람은
+ *     실수를 아무리 쌓아도 이 숫자가 1도 안 줄어듭니다. 채울 수 없는 숙제를 내는 셈입니다.
+ *   - 기준선이 없는데 "실수 N개 더"라고 적으면: 막고 있는 건 실수가 아니라 분모입니다. 실수를
+ *     채워도 안 열립니다. 이때는 셀 수 있는 척하지 않고 '문제부터 풀기'라고 말합니다.
+ */
+export function axisNeedText(a: AxisView): string {
+  const where = a.needWhere ? `${a.needWhere} ` : '';
+  if (a.lockedBy === 'no-baseline') return `${where}문제부터 풀기`;
+  if (a.lockedBy === 'baseline') return `${where}문제 ${a.baselineNeed ?? 0}개 더`;
+  return `${where}실수 ${a.need}개 더`;
+}
+
+/**
+ * 해금까지 남은 양. 어느 쪽이 먼저 열리는지를 고를 때 씁니다.
+ * 기준선을 아예 못 잡은 축은 셀 수가 없으므로 '가장 먼저'의 후보에서 맨 뒤로 보냅니다.
+ */
+export function axisRemaining(a: AxisView): number {
+  if (a.lockedBy === 'no-baseline') return Number.POSITIVE_INFINITY;
+  if (a.lockedBy === 'baseline') return a.baselineNeed ?? 0;
+  return a.need;
+}
+
+/** 진행 바가 그릴 [채운 것, 남은 것]. 무엇이 잠금을 쥐고 있느냐에 따라 세는 대상이 다릅니다. */
+export function axisProgress(a: AxisView): [done: number, left: number] {
+  if (a.lockedBy === 'no-baseline') return [0, 0];
+  if (a.lockedBy === 'baseline') return [a.baselineTrials ?? 0, a.baselineNeed ?? 0];
+  return [a.sample, a.need];
+}
+
 /** 스크린 리더가 읽을 값. 마커 위치는 눈으로만 읽히므로 세기와 방향을 말로 적어 둡니다. */
 function valueText(a: AxisView): string {
-  if (!a.unlocked) return `아직 잠겨 있어요. 실수 ${a.need}개가 더 모이면 열려요`;
+  if (!a.unlocked) {
+    const where = a.needWhere ? `${a.needWhere} ` : '';
+    if (a.lockedBy === 'no-baseline') return `아직 잠겨 있어요. ${where}문제를 푼 적이 없어서 잴 수가 없어요`;
+    if (a.lockedBy === 'baseline') return `아직 잠겨 있어요. ${where}문제를 ${a.baselineNeed ?? 0}개 더 풀면 기준이 잡혀요`;
+    return `아직 잠겨 있어요. ${where}실수 ${a.need}개가 더 모이면 열려요`;
+  }
   if (a.pole === null || a.level === 'flat') return '아직 한쪽으로 치우치지 않았어요';
   return `${a.level === 'confident' ? '뚜렷하게' : '조금'} ${a.pole}`;
 }
@@ -32,7 +71,7 @@ function AxisRow({ axis, entering, onOpen }: { axis: AxisView; entering: boolean
       <button type="button" className="coach-axis__btn" aria-label={`${axis.koLabel}. ${valueText(axis)}. 근거 보기`} onClick={() => onOpen(axis)}>
         <span className="coach-axis__head">
           <span className="coach-axis__label">{axis.koLabel}</span>
-          {!axis.unlocked && <span className="coach-axis__need tnum">실수 {axis.need}개 더</span>}
+          {!axis.unlocked && <span className="coach-axis__need tnum">{axisNeedText(axis)}</span>}
         </span>
 
         <span className={`coach-axis__track${marked ? '' : ' coach-axis__track--locked'}`} aria-hidden="true">

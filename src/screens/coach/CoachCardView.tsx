@@ -16,6 +16,11 @@ import { launch } from '../../state/nav';
  *
  * 퀴즈로 보낼 때만 문제 수를 셉니다. 상황 훈련은 덱에서 새로 뽑아 오므로 "12장"처럼 미리 셀 수 있는
  * 수가 없습니다 — 대신 어느 자리로 가는지를 적습니다. 없는 숫자를 지어내는 것보다 낫습니다.
+ *
+ * 여기서 자리를 적는 순간 그건 **약속**이 됩니다. 그래서 `drill` 이 집은 자리는 훈련 탭에서
+ * 설정 필터로 넓혀지지도, 진행 중인 세션 때문에 말없이 바뀌지도 않습니다(TrainerScreen 의
+ * `configFromIntent` · `sameAsRunning`). 라벨에 없는 값을 `drill` 에만 넣지 마세요 — 그 순간
+ * 버튼이 여는 화면과 버튼에 적힌 말이 갈라집니다.
  */
 export function drillLabel(d: CoachDrill): string {
   if (d.target === 'quiz') {

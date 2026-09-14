@@ -12,10 +12,16 @@ import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { GlassPanel } from '../../components/ui/GlassPanel';
 import { ProgressRing } from '../../components/ui/ProgressRing';
 import { launch } from '../../state/nav';
+import type { AxisView } from '../../state/coach/types';
+import { axisNeedText, axisProgress } from './TendencyAxes';
 
-/** aggression 축이 열리는 실수 수(axes.ts minSample). 게이트 문구가 이 숫자를 그대로 씁니다. */
+/**
+ * 화면을 단계로 가르는 실수 개수입니다. **축이 열리는 약속이 아닙니다** — 축은 전역 |M| 이 아니라
+ * 축마다 제 표본으로 열립니다(rfi 만 푼 사람은 |M| 이 12를 넘어도 aggression 이 안 열립니다).
+ * 그래서 "얼마나 더"를 말하는 곳은 전부 축의 need 를 읽고, 이 상수는 섹션을 켜고 끄는 데만 씁니다.
+ */
 export const AXIS_GATE = 12;
-/** entry 축까지 열려 화면이 다 차는 실수 수. 빈 화면의 목표치로 씁니다. */
+/** 집중 포인트를 세 장까지 여는 실수 수. 빈 화면의 목표치로도 씁니다. */
 export const FULL_GATE = 20;
 
 interface Basic {
@@ -50,15 +56,42 @@ const BASICS: Basic[] = [
   },
 ];
 
+export interface CoachEmptyProps {
+  /** stats.total — 퀴즈를 푼 적이 있는가. 문구를 훈련 탭 용어로 쓸지 가르는 기준입니다. */
+  quizTotal: number;
+  /** Σ(quizSeen + pickSeen) — 어느 탭에서든 실제로 답을 낸 횟수. */
+  trials: number;
+  /** 저장된 실수 전체 수. 분석에 못 쓴 실수도 여기엔 들어 있습니다. */
+  mistakesStored: number;
+  reducedMotion: boolean;
+}
+
 /**
- * 단계 0. `trainOnly` 는 훈련만 한 사용자 특례입니다 — 노출 모드와 스와이프 평가만으로는 방향이
- * 기록되지 않아서, 문제를 안 푼 게 아니라 '선택 버튼을 안 눌렀다'고 정확히 말해 줘야 합니다.
+ * 단계 0. 같은 "아직 없어요"라도 이유가 셋이라 문구를 갈라야 합니다.
+ *
+ *   - 실수가 저장은 돼 있는데 분석에 못 쓴 경우: 퀴즈 탭에는 그 실수가 그대로 보이므로 "아무것도
+ *     없다"고 하면 화면끼리 다른 말을 합니다. 제목을 '성향이 안 보인다'로 바꾸고, 왜 안 넣었는지는
+ *     머리말 각주가 이미 말하므로 여기서는 다음에 할 일만 적습니다.
+ *   - 훈련만 한 경우: 노출 모드와 스와이프 평가로는 방향이 기록되지 않으니 '선택 버튼'을 집어 말합니다.
+ *   - 퀴즈를 푼 적이 있는 경우: '선택 버튼'은 훈련 탭 용어라 뜻이 안 통합니다. 그냥 더 풀라고 합니다.
  */
-export function CoachEmpty({ trainOnly, reducedMotion }: { trainOnly: boolean; reducedMotion: boolean }): JSX.Element {
+export function CoachEmpty({ quizTotal, trials, mistakesStored, reducedMotion }: CoachEmptyProps): JSX.Element {
+  const mixedOnly = mistakesStored > 0;
+  const trainOnly = quizTotal === 0 && trials > 0;
+
+  const title = mixedOnly ? '아직 성향이 안 보여요' : '아직 볼 게 없어요';
+  const sub = mixedOnly
+    ? '답이 하나인 문제를 풀면 성향이 쌓입니다.'
+    : trainOnly
+      ? '아직 틀린 게 없어요. 선택 버튼으로 답을 고르면 성향이 쌓입니다.'
+      : quizTotal > 0
+        ? '아직 틀린 게 없어요. 문제를 더 풀면 성향이 쌓입니다.'
+        : `문제를 ${FULL_GATE}개쯤 풀면 성향이 보입니다`;
+
   return (
     <GlassPanel variant="strong" radius="lg" padding={20} className="coach-empty">
-      <p className="t-title-2">아직 볼 게 없어요</p>
-      <p className="coach-empty__sub">{trainOnly ? '아직 틀린 게 없어요. 선택 버튼으로 답을 고르면 성향이 쌓입니다.' : `문제를 ${FULL_GATE}개쯤 풀면 성향이 보입니다`}</p>
+      <p className="t-title-2">{title}</p>
+      <p className="coach-empty__sub">{sub}</p>
       <ProgressRing
         size={64}
         stroke={6}
@@ -101,16 +134,33 @@ export function BasicsCards(): JSX.Element {
   );
 }
 
-/** 단계 1의 얇은 진행 바. 무엇을 얼마나 더 하면 열리는지가 이 단계의 유일한 동기부여입니다. */
-export function GateBar({ used }: { used: number }): JSX.Element {
-  const left = Math.max(0, AXIS_GATE - used);
-  const ratio = Math.min(1, used / AXIS_GATE);
+/**
+ * 아직 한 축도 안 열렸을 때의 얇은 진행 바.
+ *
+ * 전역 실수 개수를 상수에 재면 바로 아래 축 줄과 숫자가 어긋납니다 — rfi 를 주로 푸는 사람은
+ * |M| 이 12를 넘어도 부호 검정 표본(L=3 상황)이 모자라 aggression 이 안 열리는데, 바는 다 찼다고
+ * 말하게 됩니다. 그래서 **가장 먼저 열릴 축**을 그대로 받아 그 축의 표본으로 그립니다.
+ */
+export function GateBar({ axis }: { axis: AxisView }): JSX.Element {
+  const [done, left] = axisProgress(axis);
+  const total = done + left;
+  const ratio = total > 0 ? Math.min(1, done / total) : 0;
   return (
     <div className="coach-gate">
-      <div className="coach-gate__bar" role="progressbar" aria-valuenow={used} aria-valuemin={0} aria-valuemax={AXIS_GATE} aria-label="성향 분석까지 남은 실수">
+      <div
+        className="coach-gate__bar"
+        role="progressbar"
+        aria-valuenow={done}
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-label={`${axis.koLabel} 축이 열리기까지 남은 것`}
+      >
         <i style={{ width: `${Math.round(ratio * 100)}%` }} />
       </div>
-      <p className="coach-gate__text tnum">성향 분석까지 {left}개 남음</p>
+      <p className="coach-gate__text tnum">
+        <span className="coach-gate__axis">{axis.koLabel}</span>
+        <span>{axisNeedText(axis)}</span>
+      </p>
     </div>
   );
 }

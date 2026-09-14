@@ -134,10 +134,20 @@ function volumeSection(d: CoachDigest): string {
   return `## 얼마나 풀었나\n${lines.join('\n')}`;
 }
 
+/** 왜 잠겼는지 한 문장. 화면(TendencyAxes)과 같은 갈래를 씁니다. */
+function lockReason(a: AxisView): string {
+  const where = a.needWhere ? `${a.needWhere} ` : '';
+  if (a.lockedBy === 'no-baseline') return `${where}문제를 푼 기록이 없어 아직 기준을 못 잡았어요.`;
+  if (a.lockedBy === 'baseline') return `${where}문제를 ${Math.max(a.baselineNeed ?? 1, 1)}개 더 풀면 기준이 잡혀요.`;
+  return `${where}실수 ${Math.max(a.need, 1)}개가 더 쌓여야 열려요.`;
+}
+
 function axesSection(axes: AxisView[]): string {
   if (axes.length === 0) return '';
   const lines = axes.map((a) => {
-    if (!a.unlocked) return `- ${a.koLabel} — ${LEVEL_KO.locked}. 실수 ${Math.max(a.need, 1)}개가 더 쌓여야 열려요.`;
+    // 잠긴 축도 '실수 N개 더'로만 적으면 안 됩니다 — seat·pressure 는 특정 자리·상황의 실수만 세고,
+    // 기준선이 아예 없으면 실수를 아무리 쌓아도 안 열립니다. 화면과 같은 사실을 AI에게도 말합니다.
+    if (!a.unlocked) return `- ${a.koLabel} — ${LEVEL_KO.locked}. ${lockReason(a)}`;
     const where = a.level === 'flat' || !a.pole ? LEVEL_KO.flat : `'${a.pole}' 쪽이고 그 기울기가 ${LEVEL_KO[a.level]}`;
     return `- ${a.koLabel} — ${where}. 실수 ${a.sample}개로 재 봤어요.`;
   });

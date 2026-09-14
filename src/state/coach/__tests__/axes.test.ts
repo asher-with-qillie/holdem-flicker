@@ -509,3 +509,254 @@ describe('되풀이되는 실수 — 설계효과 보정', () => {
     expect(aggression.z).toBeCloseTo(s / Math.sqrt(used.length), 6);
   });
 });
+
+/* ------------------------------------------------------------------ */
+/* 2차 검수 회귀                                                       */
+/* ------------------------------------------------------------------ */
+
+/** 실수 n개를 한 칸에 쌓습니다. 카드키를 손패마다 다르게 주어 설계효과 보정이 1 로 남게 합니다. */
+function pile(n: number, spec: { kind: ScenarioKind; hero: Pos; answer: Action; chosen: Action }): CoachMistake[] {
+  const out: CoachMistake[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const hand = `${HANDS[i % HANDS.length]}#${Math.floor(i / HANDS.length)}`;
+    out.push({
+      hand,
+      handClass: 'junk',
+      kind: spec.kind,
+      hero: spec.hero,
+      ip: false,
+      answer: spec.answer,
+      chosen: spec.chosen,
+      daysAgo: 0,
+      src: 'quiz',
+      key: `${spec.kind}:${spec.hero}|${hand}`,
+    });
+  }
+  return out;
+}
+
+/** 기준선 한 줄. weight 가 'seen' 의 Σ 이자 기준선 표본 수입니다. */
+function seenRow(kind: ScenarioKind, hero: Pos, answer: Action, weight: number): SeenRow {
+  return { kind, hero, answer, weight };
+}
+
+describe("잠긴 축의 '실수 N개 더' 는 어디서 필요한지를 같이 말한다", () => {
+  it('BB 수비만 푸는 사람은 seat 실수를 아무리 쌓아도 need 가 안 줄고, 화면은 그 이유를 받는다', () => {
+    // seat 은 UTG·HJ / CO·BTN 실수만 씁니다. BB 만 푸는 사람에게 "실수 24개 더"만 적으면
+    // 60개를 더 틀려도 1 도 줄지 않는 숫자를 보여 주는 것입니다 — 셀 수 없는 조건을 센 척하는 것.
+    const m = pile(60, { kind: 'vs_open', hero: 'BB', answer: 'fold', chosen: 'call' });
+    const seen = [seenRow('vs_open', 'BB', 'fold', 300), seenRow('vs_open', 'BB', 'call', 300)];
+    const seat = axisOf(computeAxes(m, seen), 'seat');
+
+    expect(seat.unlocked).toBe(false);
+    expect(seat.need).toBe(24);
+    expect(seat.needWhere).toBe('앞자리·뒷자리');
+  });
+
+  it('한쪽 그룹만 모자라면 그 쪽만 짚는다', () => {
+    // 앞자리는 다 채웠고 뒷자리만 비었으면 '앞자리·뒷자리' 가 아니라 '뒷자리' 여야 합니다.
+    const m = pile(20, { kind: 'rfi', hero: 'UTG', answer: 'fold', chosen: 'raise' });
+    const seen = [
+      seenRow('rfi', 'UTG', 'fold', 60),
+      seenRow('rfi', 'UTG', 'raise', 60),
+      seenRow('rfi', 'BTN', 'fold', 60),
+      seenRow('rfi', 'BTN', 'raise', 60),
+    ];
+    const seat = axisOf(computeAxes(m, seen), 'seat');
+
+    expect(seat.unlocked).toBe(false);
+    expect(seat.need).toBe(12);
+    expect(seat.needWhere).toBe('뒷자리');
+  });
+
+  it('pressure 는 큰 팟 쪽이 비었다고 말한다', () => {
+    const m = pile(30, { kind: 'vs_open', hero: 'CO', answer: 'fold', chosen: 'call' });
+    const seen = [
+      seenRow('vs_open', 'CO', 'fold', 200),
+      seenRow('vs_open', 'CO', 'call', 200),
+      seenRow('vs_3bet', 'CO', 'fold', 100),
+      seenRow('vs_3bet', 'CO', 'call', 100),
+    ];
+    const pressure = axisOf(computeAxes(m, seen), 'pressure');
+
+    expect(pressure.unlocked).toBe(false);
+    expect(pressure.need).toBe(12);
+    expect(pressure.needWhere).toBe('3벳·4벳 자리');
+  });
+
+  it('aggression 은 답이 셋인 자리 실수만 쓴다고 말하고, entry 는 전체라 말하지 않는다', () => {
+    // rfi 는 오답이 하나뿐이라 부호 검정에 못 들어갑니다. rfi 만 푼 사람의 aggression need 도
+    // 줄지 않는 숫자라서 같은 이유로 어디서 필요한지를 적어야 합니다.
+    const m = pile(40, { kind: 'rfi', hero: 'UTG', answer: 'fold', chosen: 'raise' });
+    const seen = [seenRow('rfi', 'UTG', 'fold', 200), seenRow('rfi', 'UTG', 'raise', 200)];
+    const axes = computeAxes(m, seen);
+
+    const aggression = axisOf(axes, 'aggression');
+    expect(aggression.unlocked).toBe(false);
+    expect(aggression.sample).toBe(0);
+    expect(aggression.need).toBe(12);
+    expect(aggression.needWhere).toBe('답이 셋인 자리');
+
+    // entry 는 실수 전체를 쓰므로 좁힐 자리가 없습니다 — 없는 조건을 붙이지 않습니다.
+    expect(axisOf(axes, 'entry').needWhere).toBeUndefined();
+  });
+});
+
+describe('기준선 표본 하한', () => {
+  it('seen 이 한 줄이면 entry 를 열지 않는다 (마커가 트랙 끝까지 가던 자리)', () => {
+    // 예전에는 b 가 계산만 되면 열렸습니다. b=1 → varQ=0 → z=0 → level 'flat' 이라 색만 회색이
+    // 되는데, t 는 그대로 q−b 라 마커가 극단에 붙었습니다. 사람이 읽는 건 마커 위치입니다.
+    const m = pile(25, { kind: 'vs_open', hero: 'BB', answer: 'call', chosen: 'fold' });
+    const entry = axisOf(computeAxes(m, [seenRow('vs_open', 'BB', 'fold', 1)]), 'entry');
+
+    expect(entry.unlocked).toBe(false);
+    expect(entry.level).toBe('locked');
+    expect(entry.t).toBeNull();
+    expect(entry.lockedBy).toBe('baseline');
+    expect(entry.baselineTrials).toBe(1);
+    expect(entry.baselineNeed).toBe(79);
+    // 실수는 넉넉하므로 '실수 N개 더'가 아닙니다 — 화면이 이 숫자로 문구를 고르면 안 됩니다.
+    expect(entry.need).toBe(0);
+  });
+
+  it('하한을 넘기면 그대로 열린다 (하한이 축을 영영 막지 않는다)', () => {
+    const m = [
+      ...pile(12, { kind: 'vs_open', hero: 'BB', answer: 'fold', chosen: 'call' }),
+      ...pile(8, { kind: 'vs_open', hero: 'BB', answer: 'call', chosen: 'fold' }),
+    ];
+    const seen = [seenRow('vs_open', 'BB', 'fold', 40), seenRow('vs_open', 'BB', 'call', 40)];
+    const entry = axisOf(computeAxes(m, seen), 'entry');
+
+    expect(entry.baselineTrials).toBe(80);
+    expect(entry.baselineNeed).toBe(0);
+    expect(entry.unlocked).toBe(true);
+    expect(entry.lockedBy).toBeUndefined();
+  });
+
+  it('seat·pressure 는 그룹마다 따로 하한을 본다', () => {
+    // 앞자리는 두껍고 뒷자리는 얇습니다. 실수는 양쪽 다 넉넉하지만 기준선이 한쪽만 서 있습니다.
+    const m = [
+      ...pile(20, { kind: 'rfi', hero: 'UTG', answer: 'fold', chosen: 'raise' }),
+      ...pile(20, { kind: 'rfi', hero: 'BTN', answer: 'fold', chosen: 'raise' }),
+    ];
+    const seen = [
+      seenRow('rfi', 'UTG', 'fold', 100),
+      seenRow('rfi', 'UTG', 'raise', 100),
+      seenRow('rfi', 'BTN', 'fold', 10),
+      seenRow('rfi', 'BTN', 'raise', 10),
+    ];
+    const seat = axisOf(computeAxes(m, seen), 'seat');
+
+    expect(seat.unlocked).toBe(false);
+    expect(seat.lockedBy).toBe('baseline');
+    expect(seat.need).toBe(0);
+    // 잠금을 쥐고 있는 건 뒷자리 20 회입니다. 진행도는 그 쪽 숫자여야 말이 됩니다.
+    expect(seat.baselineTrials).toBe(20);
+    expect(seat.baselineNeed).toBe(28);
+    expect(seat.needWhere).toBe('뒷자리');
+  });
+});
+
+describe("신호가 없으면(flat) 마커를 가운데로 눕힌다", () => {
+  it('flat 인 축의 t 는 0 이고, 잰 값은 tRaw 에 남는다', () => {
+    // b=0.5, q=0.6 → 편차 +0.1, t 0.2, z 0.894. 기울었다고 말할 만큼은 아닙니다.
+    const m = [
+      ...pile(12, { kind: 'vs_open', hero: 'BB', answer: 'fold', chosen: 'call' }),
+      ...pile(8, { kind: 'vs_open', hero: 'BB', answer: 'call', chosen: 'fold' }),
+    ];
+    const seen = [seenRow('vs_open', 'BB', 'fold', 40), seenRow('vs_open', 'BB', 'call', 40)];
+    const entry = axisOf(computeAxes(m, seen), 'entry');
+
+    expect(entry.level).toBe('flat');
+    expect(entry.t).toBe(0);
+    expect(entry.tRaw).toBeCloseTo(0.2, 10);
+  });
+
+  it('기준선이 한쪽으로만 몰려 신호가 0 이어도 마커가 극단으로 가지 않는다', () => {
+    // b=1 이면 varQ=0 이라 z 는 0 입니다. 그런데 t 는 (q−b)/max(b,1−b) = −0.4 로 왼쪽 끝 가까이 갑니다.
+    const m = [
+      ...pile(12, { kind: 'vs_open', hero: 'BB', answer: 'fold', chosen: 'call' }),
+      ...pile(8, { kind: 'vs_open', hero: 'BB', answer: 'call', chosen: 'fold' }),
+    ];
+    const entry = axisOf(computeAxes(m, [seenRow('vs_open', 'BB', 'fold', 80)]), 'entry');
+
+    expect(entry.unlocked).toBe(true);
+    expect(entry.z).toBe(0);
+    expect(entry.level).toBe('flat');
+    expect(entry.tRaw).toBeCloseTo(-0.4, 10);
+    expect(entry.t).toBe(0);
+  });
+
+  it('눕히기는 flat 에서만 한다 — 기운 축의 마커는 그대로다', () => {
+    const { m, seen } = simulate(makeRng(2002), CELLS, AGGRO, 900);
+    const a = axisOf(computeAxes(m, seen), 'aggression');
+    expect(a.level).toBe('confident');
+    expect(a.t).toBe(a.tRaw);
+  });
+
+  it('눕히기가 귀무 편향 검증을 대신 통과시키지 않는다', () => {
+    // t 를 0 으로 눕히면 중립 플레이어의 t 평균은 저절로 0 에 가까워집니다. 그래서 잰 값(tRaw)으로도
+    // 따로 못 박습니다 — 이 줄이 없으면 위의 편향 테스트들이 눕히기 덕에 통과하게 됩니다.
+    const runs = 60;
+    const sum: Record<AxisId, number> = { aggression: 0, entry: 0, seat: 0, pressure: 0 };
+    for (let r = 0; r < runs; r += 1) {
+      const { m, seen } = simulate(makeRng(9700 + r), CELLS, NEUTRAL, 900);
+      for (const a of computeAxes(m, seen)) {
+        expect(a.unlocked).toBe(true);
+        expect(a.tRaw).not.toBeNull();
+        sum[a.id] += a.tRaw ?? 0;
+      }
+    }
+    for (const id of ['aggression', 'entry', 'seat', 'pressure'] as const) {
+      expect(Math.abs(sum[id] / runs)).toBeLessThan(0.05);
+    }
+  });
+});
+
+describe("기준선이 '없는 것' 과 '얇은 것' 은 다른 말이다", () => {
+  const m = pile(30, { kind: 'vs_open', hero: 'BB', answer: 'fold', chosen: 'call' });
+
+  it('seen 이 비면 no-baseline — 기준을 못 잡은 것이지 덜 푼 것이 아니다', () => {
+    // 옛 저장 형식(13칸)에서 quizSeen·pickSeen 이 0 이던 사용자가 여기에 옵니다. srs 가
+    // reps+lapses 로 어림잡아 주지만, 스와이프 평가도 없던 카드는 여전히 분모가 0 입니다.
+    const axes = computeAxes(m, []);
+    for (const id of ['entry', 'seat', 'pressure'] as const) {
+      const a = axisOf(axes, id);
+      expect(a.unlocked).toBe(false);
+      expect(a.lockedBy).toBe('no-baseline');
+      expect(a.baselineTrials).toBe(0);
+    }
+  });
+
+  it('seen 이 얇으면 baseline — 문제를 더 풀면 잡힌다', () => {
+    const thin = [seenRow('vs_open', 'BB', 'fold', 25), seenRow('vs_open', 'BB', 'call', 15)];
+    const entry = axisOf(computeAxes(m, thin), 'entry');
+
+    expect(entry.lockedBy).toBe('baseline');
+    expect(entry.baselineTrials).toBe(40);
+    expect(entry.baselineNeed).toBe(40);
+  });
+
+  it('기준선이 서 있고 실수만 모자라면 mistakes', () => {
+    const few = pile(5, { kind: 'vs_open', hero: 'BB', answer: 'fold', chosen: 'call' });
+    const seen = [seenRow('vs_open', 'BB', 'fold', 60), seenRow('vs_open', 'BB', 'call', 60)];
+    const entry = axisOf(computeAxes(few, seen), 'entry');
+
+    expect(entry.lockedBy).toBe('mistakes');
+    expect(entry.need).toBe(15);
+    expect(entry.baselineNeed).toBe(0);
+  });
+
+  it('세 상태가 서로 구별된다 — 화면이 같은 문구를 쓰면 안 된다', () => {
+    const seen = [seenRow('vs_open', 'BB', 'fold', 60), seenRow('vs_open', 'BB', 'call', 60)];
+    const locks = [
+      axisOf(computeAxes(m, []), 'entry').lockedBy,
+      axisOf(computeAxes(m, [seenRow('vs_open', 'BB', 'fold', 10)]), 'entry').lockedBy,
+      axisOf(computeAxes(pile(5, { kind: 'vs_open', hero: 'BB', answer: 'fold', chosen: 'call' }), seen), 'entry').lockedBy,
+    ];
+    expect(new Set(locks).size).toBe(3);
+    // 열린 축에는 잠금 이유가 없습니다.
+    const { m: sm, seen: ss } = simulate(makeRng(2002), CELLS, AGGRO, 900);
+    for (const a of computeAxes(sm, ss)) expect(a.lockedBy).toBeUndefined();
+  });
+});

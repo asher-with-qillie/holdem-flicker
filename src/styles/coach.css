@@ -6,6 +6,8 @@
 .coach { gap: 16px; }
 .coach__head { display: flex; flex-direction: column; gap: 4px; }
 .coach__head .screen__sub { margin-top: 2px; }
+/* 분석에서 뺀 실수를 말해 주는 줄. 퀴즈 탭에는 보이는 실수가 여기만 없으면 화면끼리 다른 말을 합니다. */
+.coach__note { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-3); overflow-wrap: anywhere; }
 
 /* ---- 섹션 머리 (홈과 같은 리듬: t-title-3 + 10px gap) ---- */
 .coach-section { display: flex; flex-direction: column; gap: 10px; }
@@ -17,7 +19,12 @@
 .coach-gate { display: flex; flex-direction: column; gap: 6px; padding: 0 4px; }
 .coach-gate__bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.10); overflow: hidden; }
 .coach-gate__bar i { display: block; height: 100%; border-radius: inherit; background: var(--mint); transition: width var(--dur-ring) var(--ease-out); }
-.coach-gate__text { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-2); }
+/* 축 이름과 남은 개수를 양 끝에 두고, 360px 에서 한 줄에 안 들어가면 두 줄로 접힙니다. */
+.coach-gate__text {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px;
+  font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-2);
+}
+.coach-gate__axis { min-width: 0; color: var(--ink-3); overflow-wrap: anywhere; }
 
 /* ---- 한 줄 요약 ---- */
 .coach-summary { display: flex; flex-direction: column; gap: 6px; }
@@ -37,9 +44,11 @@
   transition: background-color var(--dur-micro);
 }
 .coach-axis__btn:active { background: rgba(255, 255, 255, 0.06); }
-.coach-axis__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.coach-axis__label { font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; color: var(--ink-3); min-width: 0; }
-.coach-axis__need { flex: none; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+/* 축 이름 + 잠금 문구. '앞자리·뒷자리 실수 24개 더'처럼 어디서 필요한지까지 적히면 한 줄에 안
+   들어갈 수 있어서, 그때는 잠금 문구가 아랫줄로 내려갑니다(가로로 넘치지 않습니다). */
+.coach-axis__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 8px; }
+.coach-axis__label { flex: 1 1 auto; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; color: var(--ink-3); min-width: 0; overflow-wrap: anywhere; }
+.coach-axis__need { flex: 0 1 auto; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; color: var(--ink-2); overflow-wrap: anywhere; }
 
 .coach-axis__track { position: relative; display: block; height: 6px; border-radius: var(--r-capsule); background: var(--heat-0); margin: 4px 0; }
 .coach-axis__track--locked { opacity: 0.35; }
@@ -72,6 +81,9 @@
 .coach-axissheet__acts { display: flex; align-items: center; gap: 4px; flex: none; font-size: var(--fs-caption); color: var(--ink-2); }
 .coach-axissheet__empty, .coach-axissheet__foot { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-3); }
 .coach-axissheet__foot { margin-top: 6px; }
+/* 그룹이 둘인 축(seat·pressure)은 목록을 두 덩이로 나눕니다 — 어느 쪽이 비었는지가 곧 왜 잠겼는지입니다. */
+.coach-axissheet__group { display: flex; flex-direction: column; }
+.coach-axissheet__grouphead { margin-top: 8px; font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-3); font-weight: 700; }
 
 /* ---- 집중할 포인트 카드 ---- */
 .coach-card { position: relative; display: flex; flex-direction: column; gap: 8px; }
@@ -96,9 +108,10 @@
 .coach-card__steps li:last-child::before { background: var(--accent); }
 .coach-card .ui-btn { margin-top: 4px; }
 
-/* ---- AI 카드 아래 줄: 받은 시각 + 새로 받기 ---- */
-.coach-again { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px; }
-.coach-again__at { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-3); }
+/* ---- AI 카드 아래 줄: 받은 시각 + 새로 받기 + 왜 지금은 못 누르는지 ---- */
+.coach-again { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; padding: 0 4px; }
+.coach-again__at { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-3); min-width: 0; overflow-wrap: anywhere; }
+.coach-again__why { margin-top: -4px; padding: 0 4px; font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-3); overflow-wrap: anywhere; }
 
 /* ---- AI에게 더 물어보기 ---- */
 .coach-ai { display: flex; flex-direction: column; gap: 10px; }
