@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ChartsScreen } from './screens/ChartsScreen';
+import { CoachScreen } from './screens/CoachScreen';
 import { QuizScreen } from './screens/QuizScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { TrainerScreen } from './screens/TrainerScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { FloatingTabBar } from './components/ui/FloatingTabBar';
 import { ToastHost } from './components/ui/Toast';
-import { IconBack, IconCards, IconGrid, IconHome, IconQuiz } from './components/ui/icons';
+import { IconBack, IconCards, IconCoach, IconGrid, IconHome, IconQuiz } from './components/ui/icons';
 import { openSettings, setTab, useNav, useUiChrome, type TabId } from './state/nav';
 
 export type { TabId } from './state/nav';
@@ -15,6 +16,7 @@ const TABS: Array<{ id: TabId; label: string; icon: JSX.Element }> = [
   { id: 'home', label: '홈', icon: <IconHome /> },
   { id: 'train', label: '훈련', icon: <IconCards /> },
   { id: 'quiz', label: '퀴즈', icon: <IconQuiz /> },
+  { id: 'coach', label: '코치', icon: <IconCoach /> },
   { id: 'charts', label: '차트', icon: <IconGrid /> },
 ];
 
@@ -48,6 +50,7 @@ export default function App() {
           {nav.tab === 'home' && <HomeScreen />}
           {nav.tab === 'train' && <TrainerScreen />}
           {nav.tab === 'quiz' && <QuizScreen />}
+          {nav.tab === 'coach' && <CoachScreen />}
           {nav.tab === 'charts' && <ChartsScreen />}
         </div>
       </main>

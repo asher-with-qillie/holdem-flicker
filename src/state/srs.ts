@@ -69,6 +69,10 @@ export interface SrsCard {
   /** every full showing, rated or not */
   exposures: number;
   quizWrong: number;
+  /** 퀴즈에서 이 카드로 답을 낸 횟수. 코치 탭 성향 축의 분모 — 노출(exposures)과 달리 '답을 낸 것'만 셉니다. */
+  quizSeen: number;
+  /** 훈련에서 선택 버튼으로 답을 낸 횟수. 노출 모드·스와이프 평가는 방향이 없으므로 세지 않습니다. */
+  pickSeen: number;
   quizWrongAt?: number;
   lastWrongAction?: Action;
   lastRating?: Rating;
@@ -168,8 +172,9 @@ function scenarioPart(key: CardKey): string {
 const STATE_CODES: CardState[] = ['new', 'learning', 'review', 'relearning'];
 const RATING_CODES: Array<Rating | undefined> = [undefined, 'know', 'unsure'];
 
-/** [state, ease, intervalDays, due, reps, lapses, exposures, quizWrong, quizWrongAt, lastWrongAction, lastRating, lastSeen, answer] */
-type Packed = [number, number, number, number, number, number, number, number, number, number, number, number, number];
+/** [state, ease, intervalDays, due, reps, lapses, exposures, quizWrong, quizWrongAt, lastWrongAction, lastRating, lastSeen, answer, quizSeen, pickSeen]
+ *  13·14번은 나중에 붙었습니다 — unpack 가드가 `length < 13`이라 예전 13칸 데이터도 그대로 읽히고 두 값만 0이 됩니다. */
+type Packed = [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number];
 
 function pack(c: SrsCard): Packed {
   return [
@@ -186,6 +191,8 @@ function pack(c: SrsCard): Packed {
     c.lastRating ? RATING_CODES.indexOf(c.lastRating) : 0,
     c.lastSeen,
     ACTIONS.indexOf(c.answer),
+    c.quizSeen,
+    c.pickSeen,
   ];
 }
 
@@ -208,6 +215,8 @@ function unpack(key: CardKey, p: unknown): SrsCard | null {
       lapses: n(5),
       exposures: n(6),
       quizWrong: n(7),
+      quizSeen: n(13),
+      pickSeen: n(14),
       lastSeen: n(11),
     };
     if (scenario.villain) card.villain = scenario.villain;
@@ -367,12 +376,19 @@ function ensure(step: Step, now: number): SrsCard {
       lapses: 0,
       exposures: 0,
       quizWrong: 0,
+      quizSeen: 0,
+      pickSeen: 0,
       lastSeen: now,
     };
     if (step.scenario.villain) card.villain = step.scenario.villain;
     store.cards[key] = card;
   }
   return card;
+}
+
+/** 저장된 카드 전체의 얕은 복사본. 코치 탭이 기준선(받은 문제의 폴드-정답 비중)을 구할 때 씁니다. */
+export function allCards(): SrsCard[] {
+  return Object.values(store.cards).map((c) => ({ ...c }));
 }
 
 export function getCard(key: CardKey): SrsCard | undefined {
@@ -429,11 +445,12 @@ function applyUnsure(card: SrsCard, now: number, source: RatingSource, chosen?: 
   }
   card.state = 'relearning';
   card.due = now + TEN_MIN;
+  // 어느 경로로 고른 답이든 '무엇을 골랐는지'는 남깁니다 — 코치 탭이 실수의 방향을 읽는 재료입니다.
+  if (chosen) card.lastWrongAction = chosen;
   if (source === 'quiz') {
     card.ease = clampEase(card.ease - 0.1);
     card.quizWrong += 1;
     card.quizWrongAt = now;
-    if (chosen) card.lastWrongAction = chosen;
   }
 }
 
@@ -447,6 +464,11 @@ export function rate(
   const card = ensure(step, now);
   card.exposures += 1;
   card.lastSeen = now;
+  // 성향 축의 분모: '실제로 답을 낸' 횟수만 셉니다. 답을 먼저 본 카드(peeked)는 어느 쪽도 아닙니다.
+  if (!opts.peeked) {
+    if (source === 'quiz') card.quizSeen += 1;
+    else if (source === 'button' && opts.chosen !== undefined) card.pickSeen += 1;
+  }
   if (rating === 'know' && opts.peeked) {
     // Answer was seen during the think phase: exposure only.
     touch();

@@ -36,11 +36,13 @@
  */
 import { useSyncExternalStore } from 'react';
 import { dealCardsFor } from '../../poker/hands';
+import { scenarioKey, scenarioTitle } from '../../poker/scenarios';
 import type { Step } from '../../poker/trainer';
 import type { Action, Card, Pos, ScenarioKind } from '../../poker/types';
 import { getProgress, logCards, logSeconds, logSession, setLastResult, type SessionResult } from '../../state/progress';
 import { COACH_VERSION, getSettings, vibrate, type DeckId, type SpeedPreset } from '../../state/settings';
 import { buildQueue, rate as srsRate, recordExposure, type CardKey, type QueueResult, type RatingSource } from '../../state/srs';
+import { recordMistake } from '../../state/stats';
 import { gradeAnswer, type Grade } from '../quiz/grade';
 import { timingFor, type Origin, type Timing } from './decks';
 
@@ -516,10 +518,28 @@ function leaveCard(i: number, at: number) {
   const rating: Rating | undefined = card.flagged ? 'unsure' : card.rating;
   const source: RatingSource = card.rating ? (card.ratingSource ?? 'button') : 'button';
   const partial = rating === 'know' && card.grade === 'partial';
-  const opts = { now: at, ...(card.peeked ? { peeked: true } : {}), ...(partial ? { partial: true } : {}) };
+  // 선택 버튼으로 고른 답은 코치 탭이 실수의 '방향'을 읽는 재료입니다 — 답을 먼저 봤거나 시간이 지난 카드는 방향이 없습니다.
+  const picked = !card.peeked && !card.timedOut ? card.chosenAction : undefined;
+  const opts = {
+    now: at,
+    ...(card.peeked ? { peeked: true } : {}),
+    ...(partial ? { partial: true } : {}),
+    ...(picked !== undefined ? { chosen: picked } : {}),
+  };
   if (!card.exposed) {
     if (rating) srsRate(card.step, rating, source, opts);
     else recordExposure(card.step, at);
+    // 훈련에서 틀린 것도 코치 탭에 쌓입니다. 정답률·연속 기록은 퀴즈 것만 세므로 건드리지 않습니다.
+    if (picked !== undefined && card.grade === 'wrong') {
+      recordMistake({
+        scenarioId: scenarioKey(card.step.scenario),
+        title: scenarioTitle(card.step.scenario),
+        hand: card.step.hand,
+        answer: card.step.answer,
+        chosen: picked,
+        src: 'train',
+      });
+    }
     logCards(1, { rated: rating ? 1 : 0, known: rating === 'know' ? 1 : 0, ts: at });
     updateCard(i, { exposed: true, committedRating: rating ?? 'none' });
     return;

@@ -22,7 +22,7 @@ import type { DeckId } from './settings';
 
 export type { DeckId } from './settings';
 
-export type TabId = 'home' | 'train' | 'quiz' | 'charts';
+export type TabId = 'home' | 'train' | 'quiz' | 'coach' | 'charts';
 
 export interface LaunchIntent {
   target: 'train' | 'quiz';
@@ -39,7 +39,7 @@ export interface NavState {
   launch: LaunchIntent | null;
 }
 
-const TAB_IDS: readonly TabId[] = ['home', 'train', 'quiz', 'charts'];
+const TAB_IDS: readonly TabId[] = ['home', 'train', 'quiz', 'coach', 'charts'];
 
 let nav: NavState = { tab: 'home', settingsOpen: false, launch: null };
 const navListeners = new Set<() => void>();

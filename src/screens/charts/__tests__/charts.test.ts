@@ -42,6 +42,8 @@ const card = (p: Partial<SrsCard>): SrsCard => ({
   lapses: 0,
   exposures: 1,
   quizWrong: 0,
+  quizSeen: 0,
+  pickSeen: 0,
   lastSeen: NOW,
   ...p,
 });

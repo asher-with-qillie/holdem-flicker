@@ -17,8 +17,16 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const { chromium } = require(`${execSync('npm root -g').toString().trim()}/playwright`);
 
-const [url = 'http://localhost:4450/holdem-flicker/', outDir = 'work/audit'] = process.argv.slice(2);
+const [url = 'http://localhost:4450/holdem-flicker/', outDir = 'work/audit', seedPath] = process.argv.slice(2);
 mkdirSync(outDir, { recursive: true });
+
+/** 선택: 코치 탭을 채우기 위한 저장소 씨앗 JSON ({ stats, srs }). work/seed-coach.ts 가 만듭니다. */
+let SEED = null;
+if (seedPath) {
+  const { readFileSync } = await import('node:fs');
+  const s = JSON.parse(readFileSync(seedPath, 'utf8'));
+  SEED = [JSON.stringify(s.stats), JSON.stringify(s.srs)];
+}
 
 const SIZES = [
   { w: 360, h: 780, name: '360' },
@@ -205,6 +213,14 @@ for (const size of SIZES) {
     await page.screenshot({ path: `${outDir}/${size.name}-${name}.png`, fullPage: false });
   };
 
+  // 코치 탭은 실수가 쌓여야 화면이 채워집니다. 감사용 씨앗이 있으면 심고, 없으면 빈 화면을 봅니다.
+  if (SEED) {
+    await ctx.addInitScript(([a, b]) => {
+      localStorage.setItem('holdem-flicker.stats.v1', a);
+      localStorage.setItem('holdem-flicker.srs.v1', b);
+    }, SEED);
+  }
+
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(600);
@@ -274,6 +290,18 @@ for (const size of SIZES) {
     await page.goto(url, { waitUntil: 'networkidle' });
     await page.waitForTimeout(600);
   }
+
+  await tap(/^코치$/);
+  await grab('coach');
+  {
+    const axis = page.locator('.coach-axis__btn');
+    if (await axis.count()) { await axis.first().tap(); await page.waitForTimeout(600); await grab('coach-evidence'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); }
+    const ask = page.getByRole('button', { name: /질문 복사/ });
+    if (await ask.count()) { await ask.first().tap(); await page.waitForTimeout(600); await grab('coach-ask'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); }
+    const key = page.getByRole('button', { name: /API 키/ });
+    if (await key.count()) { await key.first().tap(); await page.waitForTimeout(600); await grab('coach-key'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); }
+  }
+
   await tap(/^차트$/);
   await grab('charts');
   const cell = page.locator('.rgrid__cell[aria-label]');

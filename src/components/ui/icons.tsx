@@ -1,7 +1,7 @@
 import type { SVGProps } from 'react';
 
 /** 24px stroke icons (stroke 2, round caps). `<Icon name="home" />` or the named components. */
-export type IconName = 'home' | 'cards' | 'quiz' | 'grid' | 'gear' | 'pause' | 'play' | 'close' | 'back' | 'prev' | 'next' | 'more' | 'flame' | 'check' | 'question';
+export type IconName = 'home' | 'cards' | 'quiz' | 'grid' | 'gear' | 'pause' | 'play' | 'close' | 'back' | 'prev' | 'next' | 'more' | 'flame' | 'check' | 'question' | 'coach';
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   name: IconName;
@@ -21,6 +21,13 @@ const PATHS: Record<IconName, JSX.Element> = {
       <circle cx="12" cy="12" r="9" />
       <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7" />
       <circle cx="12" cy="17" r="0.6" fill="currentColor" />
+    </>
+  ),
+  // 코치: 나침반 — '어느 쪽으로 가야 하는지'가 이 탭이 하는 일입니다.
+  coach: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M15.5 8.5 13.6 13.6 8.5 15.5l1.9-5.1z" />
     </>
   ),
   grid: (
@@ -83,5 +90,6 @@ export const IconMore = (p: Named) => <Icon name="more" {...p} />;
 export const IconFlame = (p: Named) => <Icon name="flame" {...p} />;
 export const IconCheck = (p: Named) => <Icon name="check" {...p} />;
 export const IconQuestion = (p: Named) => <Icon name="question" {...p} />;
+export const IconCoach = (p: Named) => <Icon name="coach" {...p} />;
 
 export const ICON_NAMES: readonly IconName[] = ['home', 'cards', 'quiz', 'grid', 'gear', 'pause', 'play', 'close', 'back', 'prev', 'next', 'more', 'flame', 'check', 'question'];

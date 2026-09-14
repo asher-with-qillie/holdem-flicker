@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 
-export type TabId = 'home' | 'train' | 'quiz' | 'charts';
+export type TabId = 'home' | 'train' | 'quiz' | 'coach' | 'charts';
 
 export interface FloatingTabBarProps {
   items: Array<{ id: TabId; label: string; icon: ReactNode }>;

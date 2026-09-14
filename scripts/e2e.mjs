@@ -239,6 +239,22 @@ if (await qClose.count()) { await qClose.first().tap(); await page.waitForTimeou
 const qEnd = page.locator('.ui-sheet button, .quiz-confirm button', { hasText: /끝|종료|그만|요약/ });
 if (await qEnd.count()) { await qEnd.first().tap(); await page.waitForTimeout(500); }
 
+// --- Coach (실수가 없는 첫 방문 — 콜드 스타트가 비어 보이면 안 된다)
+await tapText(/^코치$/);
+await page.waitForTimeout(500);
+await shot('11b-coach');
+await noHScroll('coach');
+{
+  const body = await page.locator('.screen.coach').innerText().catch(() => '');
+  check(body.length > 0, 'coach: screen missing');
+  check(/아직 볼 게 없어요|내 성향/.test(body), `coach: neither the empty state nor the axes rendered ("${body.slice(0, 40)}")`);
+  // 실수가 없어도 읽을 것이 있어야 한다 (초보가 제일 많이 틀리는 곳 3장).
+  check(/초보가 제일 많이 틀리는 곳/.test(body), 'coach: cold-start cards missing');
+  check(/내 기록이 아니라 일반적인 이야기예요/.test(body), 'coach: cold-start cards must say they are not the user\'s own record');
+  // 실수가 0인데 성향을 단정하면 안 된다.
+  check(!/기웁니다|헐겁습니다|샙니다/.test(body), `coach: claimed a tendency with no mistakes ("${body.slice(0, 60)}")`);
+}
+
 // --- Charts
 await tapText(/^차트$/);
 await page.waitForTimeout(500);
