@@ -19,14 +19,24 @@ import type { CoachCard } from './types';
 export interface CoachAnswer {
   at: number;
   cards: CoachCard[];
+  /** 이 답을 받았을 때의 실수 개수. 다시 물어봐도 되는지는 hash 가 아니라 이 값으로 판단합니다. */
+  mistakesUsed: number;
+  /** 어떤 재료로 받은 답인지 화면에 적기 위해서만 씁니다. */
+  hash: string;
 }
 
 export interface CoachAiState {
   /** 없으면 L2 가 꺼진 상태입니다. 기본 꺼짐. */
   key?: string;
   model: string;
-  /** digest.hash → 그 다이제스트로 받은 답. */
-  answers: Record<string, CoachAnswer>;
+  /**
+   * 마지막으로 받은 답 하나.
+   *
+   * 예전에는 digest.hash 로 캐시했는데, 문제를 하나만 더 풀어도 hash 가 바뀌어 받아 둔 답이
+   * 사라지고 유료 버튼이 다시 열렸습니다. 캐시가 과금을 막지 못한 것입니다. 그래서 hash 일치가
+   * 아니라 '받은 뒤로 실수가 얼마나 늘었는가'로 다시 물어볼 때를 정합니다.
+   */
+  answer?: CoachAnswer;
 }
 
 const KEY = 'holdem-flicker.coach.v1';
@@ -40,10 +50,11 @@ export const COACH_MODELS: ReadonlyArray<{ id: string; label: string }> = [
   { id: 'claude-haiku-4-5', label: '값싼 쪽 · Haiku' },
 ];
 
-/** 남겨 두는 답의 개수. */
-const MAX_ANSWERS = 3;
+/** 다시 물어봐도 되는 기준: 받은 뒤로 새 실수가 이만큼 쌓였거나, 하루가 지났을 때(SPEC §4). */
+const ASK_AGAIN_MISTAKES = 10;
+const ASK_AGAIN_MS = 24 * 60 * 60 * 1000;
 
-const EMPTY: CoachAiState = { model: DEFAULT_COACH_MODEL, answers: {} };
+const EMPTY: CoachAiState = { model: DEFAULT_COACH_MODEL };
 
 function storage(): Storage | null {
   try {
@@ -68,27 +79,26 @@ function readCard(v: unknown): CoachCard | null {
 function normalize(parsed: unknown): CoachAiState {
   if (!parsed || typeof parsed !== 'object') return EMPTY;
   const r = parsed as Record<string, unknown>;
-  const answers: Record<string, CoachAnswer> = {};
-  if (r.answers && typeof r.answers === 'object') {
-    for (const [hash, v] of Object.entries(r.answers as Record<string, unknown>)) {
-      if (!v || typeof v !== 'object') continue;
-      const a = v as Record<string, unknown>;
-      if (typeof a.at !== 'number' || !Number.isFinite(a.at) || !Array.isArray(a.cards)) continue;
-      const cards = a.cards.map(readCard).filter((c): c is CoachCard => c !== null);
-      if (cards.length > 0) answers[hash] = { at: a.at, cards };
-    }
-  }
-  return {
+  const out: CoachAiState = {
     key: typeof r.key === 'string' && r.key !== '' ? r.key : undefined,
     model: typeof r.model === 'string' && r.model !== '' ? r.model : DEFAULT_COACH_MODEL,
-    answers: prune(answers),
   };
-}
-
-/** 최근 것부터 MAX_ANSWERS 개만 남깁니다. */
-function prune(answers: Record<string, CoachAnswer>): Record<string, CoachAnswer> {
-  const entries = Object.entries(answers).sort((a, b) => b[1].at - a[1].at);
-  return Object.fromEntries(entries.slice(0, MAX_ANSWERS));
+  const a = r.answer;
+  if (a && typeof a === 'object') {
+    const v = a as Record<string, unknown>;
+    if (typeof v.at === 'number' && Number.isFinite(v.at) && Array.isArray(v.cards)) {
+      const cards = v.cards.map(readCard).filter((c): c is CoachCard => c !== null);
+      if (cards.length > 0) {
+        out.answer = {
+          at: v.at,
+          cards,
+          mistakesUsed: typeof v.mistakesUsed === 'number' && Number.isFinite(v.mistakesUsed) ? v.mistakesUsed : 0,
+          hash: typeof v.hash === 'string' ? v.hash : '',
+        };
+      }
+    }
+  }
+  return out;
 }
 
 let current: CoachAiState | null = null;
@@ -141,13 +151,23 @@ export function setModel(model: string): void {
 }
 
 /** 같은 다이제스트로 이미 받아 둔 답. 없으면 null — 탭을 열 때마다 과금되지 않게 하는 장치입니다. */
-export function cached(hash: string): CoachCard[] | null {
-  return read().answers[hash]?.cards ?? null;
+/** 마지막으로 받아 둔 답. 재료가 조금 바뀌었어도 그대로 보여 줍니다 — 돈은 이미 냈습니다. */
+export function lastAnswer(): CoachAnswer | null {
+  return read().answer ?? null;
 }
 
-export function remember(hash: string, cards: CoachCard[], now: number = Date.now()): void {
-  const s = read();
-  write({ ...s, answers: prune({ ...s.answers, [hash]: { at: now, cards } }) });
+export function remember(hash: string, cards: CoachCard[], mistakesUsed: number, now: number = Date.now()): void {
+  write({ ...read(), answer: { at: now, cards, mistakesUsed, hash } });
+}
+
+/**
+ * 다시 물어봐도 되는가. hash 가 아니라 '받은 뒤로 실수가 얼마나 늘었는가'로 봅니다 —
+ * 문제 하나 더 풀었다고 같은 답을 돈 내고 다시 받게 하면 안 됩니다.
+ */
+export function canAskAgain(mistakesUsed: number, now: number = Date.now()): boolean {
+  const a = read().answer;
+  if (!a) return true;
+  return mistakesUsed - a.mistakesUsed >= ASK_AGAIN_MISTAKES || now - a.at >= ASK_AGAIN_MS;
 }
 
 /** 화면에 그려도 되는 형태 — 끝 4자만 남깁니다. 키 전체는 어디에도 그리지 않습니다. */
@@ -162,8 +182,10 @@ export interface CoachAiHandle {
   setKey: (key: string) => void;
   clearKey: () => void;
   setModel: (model: string) => void;
-  cached: (hash: string) => CoachCard[] | null;
-  remember: (hash: string, cards: CoachCard[]) => void;
+  /** 마지막으로 받아 둔 답 (없으면 null). */
+  answer: CoachAnswer | null;
+  canAskAgain: (mistakesUsed: number) => boolean;
+  remember: (hash: string, cards: CoachCard[], mistakesUsed: number) => void;
 }
 
 export function useCoachAi(): CoachAiHandle {
@@ -180,7 +202,8 @@ export function useCoachAi(): CoachAiHandle {
     setKey: useCallback((k: string) => setKey(k), []),
     clearKey: useCallback(() => clearKey(), []),
     setModel: useCallback((m: string) => setModel(m), []),
-    cached: useCallback((hash: string) => cached(hash), []),
-    remember: useCallback((hash: string, cards: CoachCard[]) => remember(hash, cards), []),
+    answer: s.answer ?? null,
+    canAskAgain: useCallback((used: number) => canAskAgain(used), []),
+    remember: useCallback((hash: string, cards: CoachCard[], used: number) => remember(hash, cards, used), []),
   };
 }

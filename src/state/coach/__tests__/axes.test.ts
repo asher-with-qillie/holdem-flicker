@@ -92,40 +92,88 @@ interface Run {
   seen: SeenRow[];
 }
 
+/**
+ * 카드 한 장. 앱과 같은 모양이어야 시뮬레이션이 의미가 있습니다 — 카드키 하나의 정답은 차트가
+ * 정해 놓아 **고정**이고, 매 시행 새로 뽑히는 값이 아닙니다.
+ */
+interface Card {
+  cell: Cell;
+  hand: string;
+  answer: Action;
+  key: string;
+}
+
+function buildDeck(rng: () => number, cells: Cell[]): Card[] {
+  const deck: Card[] = [];
+  for (const cell of cells) {
+    const acts = SCENARIO_ACTIONS[cell.kind];
+    for (const hand of HANDS) {
+      const isFold = rng() < cell.foldShare;
+      const answer: Action = isFold ? 'fold' : acts[1 + Math.floor(rng() * (acts.length - 1))];
+      deck.push({ cell, hand, answer, key: `${cell.kind}:${cell.hero}|${hand}` });
+    }
+  }
+  return deck;
+}
+
+/** srs 의 되풀이를 흉내 냅니다: 방금 틀린 카드는 곧 다시 나옵니다(due = now + 10분, '내 약점' 덱). */
+const REPEAT_BOOST = 6;
+
+/**
+ * 합성 세션. 앱의 모집단을 그대로 흉내 냅니다.
+ *  - 카드마다 정답이 고정이고, 같은 카드가 여러 번 나옵니다.
+ *  - 틀린 카드는 가중치가 올라가 더 자주 다시 나옵니다 — 그래서 실수는 서로 독립이 아닙니다.
+ * 이 되풀이를 빼고 시뮬레이션하면 axes.ts 의 설계효과 보정이 필요한지 아닌지를 시험할 수 없습니다.
+ */
 function simulate(rng: () => number, cells: Cell[], player: Player, trials: number): Run {
+  const deck = buildDeck(rng, cells);
+  const weight = new Map<string, number>(deck.map((c) => [c.key, 1]));
   const seen = new Map<string, SeenRow>();
   const m: CoachMistake[] = [];
 
+  const draw = (): Card => {
+    let total = 0;
+    for (const c of deck) total += weight.get(c.key) ?? 1;
+    let r = rng() * total;
+    for (const c of deck) {
+      r -= weight.get(c.key) ?? 1;
+      if (r < 0) return c;
+    }
+    return deck[deck.length - 1];
+  };
+
   for (let i = 0; i < trials; i += 1) {
-    const cell = cells[Math.floor(rng() * cells.length)];
-    const acts = SCENARIO_ACTIONS[cell.kind];
-    const isFold = rng() < cell.foldShare;
-    const answer: Action = isFold ? 'fold' : acts[1 + Math.floor(rng() * (acts.length - 1))];
-    const hand = HANDS[Math.floor(rng() * HANDS.length)];
+    const card = draw();
+    const acts = SCENARIO_ACTIONS[card.cell.kind];
+    const isFold = card.answer === 'fold';
 
     // seen 은 답을 실제로 낸 횟수의 집계입니다 — (kind, hero, answer) 한 줄에 몰아 셉니다.
-    const sk = `${cell.kind}|${cell.hero}|${answer}`;
+    const sk = `${card.cell.kind}|${card.cell.hero}|${card.answer}`;
     const row = seen.get(sk);
     if (row) row.weight += 1;
-    else seen.set(sk, { kind: cell.kind, hero: cell.hero, answer, weight: 1 });
+    else seen.set(sk, { kind: card.cell.kind, hero: card.cell.hero, answer: card.answer, weight: 1 });
 
-    if (rng() >= (isFold ? player.errFold : player.errEnter)) continue;
+    if (rng() >= (isFold ? player.errFold : player.errEnter)) {
+      weight.set(card.key, 1);
+      continue;
+    }
+    weight.set(card.key, REPEAT_BOOST);
 
     // SCENARIO_ACTIONS 는 공격성 오름차순이라 마지막 오답이 '더 공격적인 쪽'입니다.
-    const wrongs = acts.filter((a) => a !== answer);
+    const wrongs = acts.filter((a) => a !== card.answer);
     const chosen = wrongs.length === 1 ? wrongs[0] : wrongs[rng() < player.upBias ? wrongs.length - 1 : 0];
 
     m.push({
-      hand,
+      hand: card.hand,
       handClass: 'junk',
-      kind: cell.kind,
-      hero: cell.hero,
+      kind: card.cell.kind,
+      hero: card.cell.hero,
       ip: false,
-      answer,
+      answer: card.answer,
       chosen,
       daysAgo: 0,
       src: 'quiz',
-      key: `${cell.kind}:${cell.hero}|${hand}`,
+      key: card.key,
     });
   }
 
@@ -278,19 +326,28 @@ describe('감도 — entry', () => {
   });
 
   it('루즈 플레이어는 entry 가 양수이고 aggression 은 0 근처에 머문다', () => {
-    const { m, seen } = simulate(makeRng(3002), CELLS, LOOSE, 900);
-    const axes = computeAxes(m, seen);
-    const entry = axisOf(axes, 'entry');
-    const aggression = axisOf(axes, 'aggression');
+    // 한 판이 아니라 여러 판의 평균으로 봅니다 — 씨앗 하나에 임계를 맞추면 그 씨앗을 통과하는
+    // 테스트가 되지, 축이 루즈를 잡는다는 주장이 되지 않습니다.
+    let tSum = 0;
+    let confident = 0;
+    const runs = 20;
+    for (let r = 0; r < runs; r += 1) {
+      const { m, seen } = simulate(makeRng(3002 + r), CELLS, LOOSE, 900);
+      const axes = computeAxes(m, seen);
+      const entry = axisOf(axes, 'entry');
+      const aggression = axisOf(axes, 'aggression');
 
-    expect(entry.unlocked).toBe(true);
-    expect(entry.t).toBeGreaterThan(0.3);
-    expect(entry.z).toBeGreaterThan(2.2);
-    expect(entry.level).toBe('confident');
-    expect(entry.pole).toBe('접어야 할 자리에 들어간다');
+      expect(entry.unlocked).toBe(true);
+      expect(entry.t).toBeGreaterThan(0);
+      expect(entry.pole).toBe('접어야 할 자리에 들어간다');
+      expect(Math.abs(aggression.t ?? 1)).toBeLessThan(0.25);
 
-    expect(Math.abs(aggression.t ?? 1)).toBeLessThan(0.25);
-    expect(aggression.level).not.toBe('confident');
+      tSum += entry.t ?? 0;
+      if (entry.level === 'confident') confident += 1;
+    }
+    expect(tSum / runs).toBeGreaterThan(0.3);
+    // 되풀이 보정 뒤에도 루즈는 대부분의 판에서 단정으로 잡혀야 합니다.
+    expect(confident / runs).toBeGreaterThan(0.7);
   });
 
   it('타이트·루즈 플레이어의 aggression 은 평균적으로도 0 이다', () => {
@@ -409,5 +466,46 @@ describe('폴드 쪽으로 쏠린 출제 풀 — 이 설계 전체의 존재 이
     const entry = axisOf(computeAxes(m, seen), 'entry');
     expect(entry.t).toBeLessThan(-0.3);
     expect(entry.pole).toBe('접어야 할 자리는 잘 접는다');
+  });
+});
+
+describe('되풀이되는 실수 — 설계효과 보정', () => {
+  it('같은 카드를 여러 번 틀려도 단정이 쏟아지지 않는다', () => {
+    // srs 는 틀린 카드를 10분 뒤로 되돌리고 '내 약점' 덱은 그 카드들만 모읍니다. 그래서 실수는
+    // 서로 독립이 아닙니다. 보정을 빼면 같은 이야기를 세 번 센 것이 서로 다른 증거 세 개가 되어,
+    // 성향이 전혀 없는 사람의 1/3이 '뚜렷하다'는 말을 듣습니다. 이 테스트가 그걸 막습니다.
+    const runs = 120;
+    let confident = 0;
+    let repeatRatio = 0;
+    for (let r = 0; r < runs; r += 1) {
+      const { m, seen } = simulate(makeRng(9100 + r), CELLS, NEUTRAL, 900);
+      repeatRatio += m.length / new Set(m.map((x) => x.key)).size;
+      confident += computeAxes(m, seen).filter((a) => a.level === 'confident').length;
+    }
+    // 시뮬레이터가 실제로 되풀이를 만들어 내는지부터 확인합니다 — 되풀이가 없으면 이 테스트는 공회전입니다.
+    expect(repeatRatio / runs).toBeGreaterThan(1.5);
+    // 축 네 개 × 120판 = 480줄 중 우연한 단정은 5%(24줄) 아래여야 합니다.
+    expect(confident / (runs * 4)).toBeLessThan(0.05);
+  });
+
+  it('보정은 되풀이가 없을 때 아무 일도 하지 않는다', () => {
+    // 카드마다 한 번씩만 나오면 되풀이 비율이 1 이라 보정 계수도 1 입니다.
+    const { m, seen } = simulate(makeRng(9500), CELLS, AGGRO, 900);
+    const unique = new Map<string, CoachMistake>();
+    for (const x of m) if (!unique.has(x.key)) unique.set(x.key, x);
+    const once = [...unique.values()];
+    expect(once.length).toBeLessThan(m.length);
+
+    const axes = computeAxes(once, seen);
+    const aggression = axisOf(axes, 'aggression');
+    expect(aggression.unlocked).toBe(true);
+    // 되풀이가 없으니 z 는 부호 검정 그대로여야 합니다.
+    const used = once.filter((x) => SCENARIO_ACTIONS[x.kind].length === 3);
+    const s = used.reduce((acc, x) => {
+      const acts = SCENARIO_ACTIONS[x.kind];
+      const wrongs = acts.filter((a) => a !== x.answer);
+      return acc + (x.chosen === wrongs[wrongs.length - 1] ? 1 : -1);
+    }, 0);
+    expect(aggression.z).toBeCloseTo(s / Math.sqrt(used.length), 6);
   });
 });

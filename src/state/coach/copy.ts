@@ -136,36 +136,21 @@ function evidenceFor(p: PatternHit, mistakesUsed: number): string {
   }
 }
 
-/**
- * 규칙의 마지막 조언 문장이 25자를 넘을 때 쓰는 짧은 질문.
- *
- * patterns.ts 의 `advice` 는 SPEC §2의 조언을 문장 단위로 쪼갠 산문이라 카드의 한 줄
- * 예산(25자)보다 긴 문장이 섞여 있습니다. 질문은 카드의 마지막 장치라 빼놓을 수 없어서
- * 줄인 판을 여기 둡니다. 규칙 쪽 질문이 예산 안에 들어오면 그쪽을 그대로 씁니다.
- */
-const SHORT_QUESTION: Record<string, string> = {
-  call_not_raise: '3벳으로 갔을 때 뭐가 무서운가요?',
-  fold_to_3bet: '이 패는 그 줄에서 어디쯤인가요?',
-  early_seat_wide: '뒤에 다섯 명이 있어도 열 건가요?',
-  late_seat_tight: '이 패를 UTG처럼 보고 접었나요?',
-  bb_too_tight: '상대가 BTN에서 열었어도 접나요?',
-  offsuit_ace_trap: '상대도 A를 들었을 때 이기나요?',
-};
-
 const MAX_STEP_CHARS = 25;
 const MAX_BODY_STEPS = 2;
 
 const fits = (s: string): boolean => Array.from(s).length <= MAX_STEP_CHARS;
 
 /**
- * 조언 문장들에서 카드의 생각 절차를 뽑습니다.
+ * 조언 문장들에서 카드의 생각 절차를 뽑습니다: 앞부분 두 줄 + 질문 한 줄.
  *
- * 산문에서 예산 안에 들어오는 앞부분 두 줄 + 질문 한 줄. 문장을 기계로 자르지 않는 이유는
- * 잘린 문장이 린터는 통과하면서 뜻만 망가지기 때문입니다. 안 들어가면 통째로 버립니다.
+ * patterns.ts 의 advice 는 **처음부터 이 예산 안에서** 쓰여 있습니다(줄마다 25자 이하, 마지막 줄이 질문).
+ * 예전에는 긴 산문을 쓰고 여기서 걸렀는데, 그러면 규칙마다 살아남는 문장이 달라져 어떤 카드는 결론만,
+ * 어떤 카드는 전제만 남았습니다 — 뜻을 정하는 곳과 자르는 곳이 달라서 생긴 일이라 쓰는 쪽으로 옮겼습니다.
+ * 여기 남은 필터는 그 약속이 깨졌을 때 이상한 카드를 내보내지 않기 위한 안전장치입니다.
  */
-function stepsFor(id: string, advice: string[]): string[] | null {
-  const ownQuestion = [...advice].reverse().find((s) => s.endsWith('?'));
-  const question = ownQuestion !== undefined && fits(ownQuestion) ? ownQuestion : SHORT_QUESTION[id];
+function stepsFor(advice: string[]): string[] | null {
+  const question = [...advice].reverse().find((s) => s.endsWith('?') && fits(s));
   if (question === undefined) return null;
 
   const body = advice.filter((s) => !s.endsWith('?') && fits(s)).slice(0, MAX_BODY_STEPS);
@@ -176,7 +161,7 @@ function stepsFor(id: string, advice: string[]): string[] | null {
 function focusCard(p: PatternHit, mistakesUsed: number): CoachCard | null {
   const rule = PATTERN_RULES.find((r) => r.id === p.id);
   if (!rule) return null;
-  const steps = stepsFor(p.id, rule.advice);
+  const steps = stepsFor(rule.advice);
   if (!steps) return null;
   return {
     id: `focus:${p.id}`,

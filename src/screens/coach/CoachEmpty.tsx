@@ -33,14 +33,18 @@ const BASICS: Basic[] = [
     go: () => launch({ target: 'train', deck: 'rfi', positions: ['UTG', 'HJ'], autostart: true }),
   },
   {
-    title: 'BB를 접는 이유는 가격이 아니라 포지션이에요',
-    line: '플랍부터 리버까지 내가 먼저 액션합니다.',
+    // '이미 낸 돈이 아까워서'가 아니라 포지션이 이유입니다. 다만 SB 오픈에는 BB 가 포지션을 가지므로
+    // 자리를 싸잡아 말하지 않고 '대개'로 둡니다.
+    title: 'BB는 싸게 보지만 대개 먼저 액션해요',
+    line: '값이 싼 것과 치기 쉬운 것은 다릅니다.',
     cta: 'BB 수비 훈련',
     go: () => launch({ target: 'train', deck: 'vs_open', positions: ['BB'], autostart: true }),
   },
   {
-    title: '무늬는 마지막에 더하는 보너스예요',
-    line: '두 장이 높은지, 이어져 있는지를 먼저 보세요.',
+    // "무늬는 보너스"라고 하면 차트와 어긋납니다 — 수티드라서 플레이하는 패가 실제로 많습니다.
+    // 무늬의 값을 부정하지 않고, 그 값이 자리에 따라 달라진다는 쪽으로 말합니다.
+    title: '같은 패도 자리에 따라 값이 달라요',
+    line: '뒤에 몇 명이 남았는지를 먼저 보세요.',
     cta: '오픈 대응 훈련',
     go: () => launch({ target: 'train', deck: 'vs_open', autostart: true }),
   },

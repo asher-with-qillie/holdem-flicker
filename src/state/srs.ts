@@ -215,7 +215,10 @@ function unpack(key: CardKey, p: unknown): SrsCard | null {
       lapses: n(5),
       exposures: n(6),
       quizWrong: n(7),
-      quizSeen: n(13),
+      // 13·14번이 없던 시절의 기록은 '답을 낸 횟수'를 따로 세지 않았습니다. 0으로 두면 코치 탭의
+      // 분모가 통째로 비어 성향 축이 영영 안 열리므로, 평가 횟수(reps + lapses)로 어림잡습니다.
+      // 스와이프 평가가 섞여 있어 정확하지는 않지만 '내가 마주친 문제'의 비중을 재는 데는 충분합니다.
+      quizSeen: p.length >= 15 ? n(13) : n(4) + n(5),
       pickSeen: n(14),
       lastSeen: n(11),
     };

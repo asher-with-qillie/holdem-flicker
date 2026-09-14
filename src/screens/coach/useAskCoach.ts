@@ -2,9 +2,9 @@
  * L2(내 키로 바로 호출) 한 번을 감싸는 훅. COACH_SPEC §4·§6.7.
  *
  * 화면 쪽에서 지키는 약속은 두 가지입니다.
- *   1. **같은 다이제스트면 다시 묻지 않습니다.** 재료가 그대로면 답도 그대로인데 호출은 사용자 돈으로
- *      나갑니다. 그래서 캐시(hash 키)에 답이 있으면 [새로 받기]를 잠가 두고, 새 실수가 쌓여 hash 가
- *      바뀌면 저절로 풀립니다.
+ *   1. **돈이 나가는 버튼은 쉽게 열리지 않습니다.** 받아 둔 답은 재료가 조금 바뀌어도 그대로 보여 주고,
+ *      새 실수가 10개 쌓이거나 하루가 지나야 [새로 받기]가 열립니다. hash 일치로 캐시하면 문제를
+ *      하나만 더 풀어도 답이 사라지고 버튼이 다시 열려서, 캐시가 과금을 전혀 막지 못합니다.
  *   2. **실패해도 화면은 그대로입니다.** 오류는 토스트 한 줄로만 말하고 L0 카드는 건드리지 않습니다.
  *      askClaude 가 던지는 message 는 이미 한국어 한 줄이라 그대로 띄웁니다.
  */
@@ -17,11 +17,11 @@ import type { CoachCard, CoachDigest } from '../../state/coach/types';
 export interface AskCoach {
   hasKey: boolean;
   busy: boolean;
-  /** 누를 수 있는가. 키가 있고, 부르는 중이 아니고, 이 다이제스트로 받아 둔 답이 없을 때만. */
+  /** 누를 수 있는가. 키가 있고, 부르는 중이 아니고, 다시 물어볼 때가 됐을 때만. */
   canAsk: boolean;
-  /** 이 다이제스트로 받은 카드. 없으면 null. */
+  /** 마지막으로 받은 카드. 없으면 null. */
   answer: CoachCard[] | null;
-  /** 이번 세션에서 방금 받았을 때만 시각이 남습니다(캐시에서 꺼낸 답은 시각을 모릅니다). */
+  /** 그 답을 받은 시각. 없으면 null. */
   at: number | null;
   ask(): void;
 }
@@ -32,8 +32,10 @@ export function useAskCoach(digest: CoachDigest): AskCoach {
   const [local, setLocal] = useState<{ hash: string; cards: CoachCard[]; at: number } | null>(null);
 
   const hash = digest.hash;
+  const used = digest.volume.mistakesUsed;
+  const stored = ai.answer;
   const mine = local && local.hash === hash ? local : null;
-  const answer = mine ? mine.cards : ai.cached(hash);
+  const answer = mine ? mine.cards : (stored?.cards ?? null);
 
   function ask(): void {
     const key = ai.key;
@@ -46,7 +48,7 @@ export function useAskCoach(digest: CoachDigest): AskCoach {
           toast('AI 답변이 너무 어려워서 걸렀어요', 'amber');
           return;
         }
-        ai.remember(hash, cards);
+        ai.remember(hash, cards, used);
         setLocal({ hash, cards, at: Date.now() });
         toast('AI 코치 답이 왔어요', 'mint');
       })
@@ -59,9 +61,9 @@ export function useAskCoach(digest: CoachDigest): AskCoach {
   return {
     hasKey: ai.key !== undefined,
     busy,
-    canAsk: ai.key !== undefined && !busy && answer === null,
+    canAsk: ai.key !== undefined && !busy && ai.canAskAgain(used),
     answer,
-    at: mine ? mine.at : null,
+    at: mine ? mine.at : (stored?.at ?? null),
     ask,
   };
 }

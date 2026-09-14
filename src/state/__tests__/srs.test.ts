@@ -742,3 +742,26 @@ describe('storage', () => {
     }
   });
 });
+
+describe('예전 저장 형식 (13칸)', () => {
+  it('13칸 기록도 읽히고, 답을 낸 횟수를 평가 횟수로 어림잡는다', async () => {
+    // quizSeen/pickSeen 이 없던 시절의 기록. 0으로 두면 코치 탭의 분모가 통째로 비어
+    // 성향 축이 영영 안 열리므로 평가 횟수(reps + lapses)로 어림잡는다.
+    const legacy = { v: 1, c: { 'rfi:UTG|AKs': [2, 2.3, 3, 1, 4, 2, 9, 1, 0, -1, 1, 1, 2] } };
+    localStorage.setItem('holdem-flicker.srs.v1', JSON.stringify(legacy));
+    vi.resetModules();
+    const fresh = await import('../srs');
+    const card = fresh.getCard('rfi:UTG|AKs');
+    expect(card).toBeDefined();
+    expect(card!.reps).toBe(4);
+    expect(card!.lapses).toBe(2);
+    expect(card!.quizSeen).toBe(6);
+    expect(card!.pickSeen).toBe(0);
+    // 15칸 기록은 저장된 값을 그대로 읽는다.
+    localStorage.setItem('holdem-flicker.srs.v1', JSON.stringify({ v: 1, c: { 'rfi:UTG|AKs': [2, 2.3, 3, 1, 4, 2, 9, 1, 0, -1, 1, 1, 2, 7, 3] } }));
+    vi.resetModules();
+    const fresh2 = await import('../srs');
+    expect(fresh2.getCard('rfi:UTG|AKs')!.quizSeen).toBe(7);
+    expect(fresh2.getCard('rfi:UTG|AKs')!.pickSeen).toBe(3);
+  });
+});

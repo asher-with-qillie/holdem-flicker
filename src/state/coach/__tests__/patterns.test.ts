@@ -240,3 +240,100 @@ describe('조언 문구', () => {
     expect(list[list.length - 1]).toBe('seat_hotspot');
   });
 });
+
+/* ------------------------------------------------------------------ */
+/* 조언이 앱 차트와 어긋나지 않는가 (검수 지적 회귀)                      */
+/* ------------------------------------------------------------------ */
+
+describe('조언과 차트의 일치', () => {
+  it('조언은 처음부터 카드 예산 안에서 쓰인다 — 뜻이 조용히 잘려 나가지 않는다', () => {
+    // 예전에는 긴 산문을 쓰고 copy.ts 가 25자로 걸렀다. 그러면 규칙마다 살아남는 문장이 달라져
+    // 어떤 카드는 결론만, 어떤 카드는 전제만 남았다. 이제 쓰는 쪽에서 예산을 지킨다.
+    const len = (t: string) => Array.from(t).length;
+    for (const r of PATTERN_RULES) {
+      const body = r.advice.slice(0, -1);
+      const question = r.advice[r.advice.length - 1];
+      expect(body.length, r.id).toBeGreaterThanOrEqual(2);
+      for (const b of body) {
+        expect(len(b), `${r.id}: "${b}"`).toBeLessThanOrEqual(25);
+        expect(b.endsWith('?'), `${r.id}: "${b}"`).toBe(false);
+      }
+      expect(question.endsWith('?'), r.id).toBe(true);
+      expect(len(question), `${r.id}: "${question}"`).toBeLessThanOrEqual(25);
+    }
+  });
+
+  it('오픈 이야기를 하는 규칙은 오픈 실수만 잡는다', () => {
+    // kind 를 안 걸면 '3벳을 맞고 못 접은' 실수까지 끌어와 오픈 레인지 탓으로 오진하고,
+    // 훈련도 rfi 덱으로 잘못 보낸다.
+    const seat = ['early_seat_wide', 'late_seat_tight'];
+    for (const id of seat) {
+      const rule = PATTERN_RULES.find((r) => r.id === id)!;
+      for (const kind of ['vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet', 'cold_4bet'] as ScenarioKind[]) {
+        for (const [answer, chosen] of [['fold', 'call'], ['call', 'fold'], ['fold', 'threebet']] as Array<[Action, Action]>) {
+          if (!SCENARIO_ACTIONS[kind].includes(answer) || !SCENARIO_ACTIONS[kind].includes(chosen)) continue;
+          for (const hero of ['UTG', 'HJ', 'CO', 'BTN'] as Pos[]) {
+            expect(rule.match(mistake({ hand: 'T9s', kind, hero, answer, chosen })), `${id} / ${kind}`).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it('4벳 규칙과 5벳 규칙이 나뉘어 있다 — vs_5bet 히어로는 3벳한 적이 없다', () => {
+    const four = PATTERN_RULES.find((r) => r.id === 'stubborn_vs_4bet')!;
+    const five = PATTERN_RULES.find((r) => r.id === 'stubborn_vs_5bet')!;
+    const m5 = mistake({ hand: 'AJs', kind: 'vs_5bet', hero: 'UTG', answer: 'fold', chosen: 'call' });
+    const m4 = mistake({ hand: 'AJs', kind: 'vs_4bet', hero: 'HJ', answer: 'fold', chosen: 'call' });
+    expect(four.match(m5)).toBe(false);
+    expect(five.match(m5)).toBe(true);
+    expect(four.match(m4)).toBe(true);
+    expect(five.match(m4)).toBe(false);
+    // 4벳 규칙만 '3벳하기 전에'를 말할 수 있다.
+    expect(four.advice.join(' ')).toContain('3벳');
+    expect(five.advice.join(' ')).not.toContain('3벳하기');
+  });
+
+  it('센 패 규칙이 콜과 폴드를 갈라 말한다', () => {
+    // 한 규칙으로 묶으면 접은 사람에게 "지금 콜한 이 패"라고 하지도 않은 행동을 지적하게 된다.
+    const under = PATTERN_RULES.find((r) => r.id === 'premium_underplay')!;
+    const over = PATTERN_RULES.find((r) => r.id === 'premium_overfold')!;
+    const folded = mistake({ hand: 'AKo', kind: 'vs_3bet', hero: 'UTG', answer: 'fourbet', chosen: 'fold' });
+    const called = mistake({ hand: 'AKo', kind: 'vs_3bet', hero: 'UTG', answer: 'fourbet', chosen: 'call' });
+    expect(under.match(folded)).toBe(false);
+    expect(over.match(folded)).toBe(true);
+    expect(under.match(called)).toBe(true);
+    expect(over.match(called)).toBe(false);
+    expect(under.advice.join(' ')).toContain('콜');
+    expect(over.advice.join(' ')).not.toContain('콜한');
+  });
+
+  it('BB 규칙은 SB 오픈을 빼고 본다 — 그 자리에서는 BB가 포지션을 가진다', () => {
+    const rule = PATTERN_RULES.find((r) => r.id === 'bb_too_wide')!;
+    const vsSB = { ...mistake({ hand: 'K5o', kind: 'vs_open', hero: 'BB', answer: 'fold', chosen: 'call' }), villain: 'SB' as Pos, ip: true };
+    const vsBTN = { ...mistake({ hand: 'K5o', kind: 'vs_open', hero: 'BB', answer: 'fold', chosen: 'call' }), villain: 'BTN' as Pos, ip: false };
+    expect(rule.match(vsSB)).toBe(false);
+    expect(rule.match(vsBTN)).toBe(true);
+  });
+
+  it('수티드 함정 규칙은 휠 A를 잡지 않는다 — 그 패는 무늬가 아니라 블로커로 간다', () => {
+    const rule = PATTERN_RULES.find((r) => r.id === 'suited_trap')!;
+    expect(classifyHand('A5s')).toBe('wheel_ace');
+    expect(rule.match(mistake({ hand: 'A5s', kind: 'vs_open', hero: 'CO', answer: 'fold', chosen: 'threebet' }))).toBe(false);
+    expect(rule.match(mistake({ hand: 'J8s', kind: 'vs_open', hero: 'CO', answer: 'fold', chosen: 'call' }))).toBe(true);
+    // 무늬가 아니라 자리를 묻는다 — 차트대로면 "무늬가 달랐으면 접는다"가 맞는 판단이라서.
+    expect(rule.advice.join(' ')).not.toContain('무늬가 달랐');
+  });
+
+  it('차트와 어긋나는 옛 문구가 어느 규칙에도 남아 있지 않다', () => {
+    const all = PATTERN_RULES.flatMap((r) => r.advice).join('\n');
+    // vs_3bet 차트는 폴라라이즈드다 — A5s·A4s 가 AQs·JJ 보다 위(4벳)에 있다.
+    expect(all).not.toContain('센 순서로 줄 세');
+    // UTG 오픈 45칸 중 30칸이 이 기준에 걸린다.
+    expect(all).not.toContain('셋 중 두 개');
+    // 작은 페어는 UTG 부터 이미 22+ 로 전부 연다.
+    expect(all).not.toMatch(/수티드 커넥터와 작은 페어/);
+    // A5s~A2s 는 콜 빈도가 0이라 '접을 패가 3벳으로' 가는 패다.
+    expect(all).not.toContain('3벳으로 갈 일은 거의 없');
+  });
+});

@@ -169,7 +169,11 @@ function deckForKind(kind: ScenarioKind): DeckId {
   }
 }
 
-const SUITED_TRAP_CLASSES: HandClass[] = ['suited_gapper', 'suited_qj', 'suited_king', 'suited_connector', 'wheel_ace'];
+/**
+ * '무늬 때문에 들어간' 패. wheel_ace(A5s~A2s)는 넣지 않습니다 — 차트에서 그 패들은 무늬가 아니라
+ * A 블로커 때문에 3벳으로 가고 콜 빈도가 0이라, '무늬만 보고 들어간' 경우가 아닙니다.
+ */
+const SUITED_TRAP_CLASSES: HandClass[] = ['suited_gapper', 'suited_qj', 'suited_king', 'suited_connector'];
 const PREMIUM_CLASSES: HandClass[] = ['premium_pair', 'big_pair', 'ak'];
 
 /* ------------------------------------------------------------------ */
@@ -182,15 +186,15 @@ export const PATTERN_RULES: PatternRule[] = [
     family: 'line',
     koName: '3벳할 자리에서 콜합니다',
     minSample: 6,
+    /**
+     * 차트의 3벳 레인지는 두 덩어리입니다 — 제일 센 패, 그리고 콜 빈도가 0이라 3벳 아니면 접는 약한 패.
+     * '레인지 위쪽이면서 4벳에 접을 수 있어야 3벳'이라는 AND 조건은 그 둘이 배타적이라 성립하지 않습니다.
+     */
     match: (m) => m.answer === 'threebet' && m.chosen === 'call',
     advice: [
-      '3벳과 콜은 같은 패로 완전히 다른 판을 만듭니다.',
       '콜하면 주도권이 상대에게 넘어가요.',
-      '들어가기로 정했으면 순서를 이렇게 보세요.',
-      '첫째, 이 패가 내 오픈 레인지 위쪽인가.',
-      '둘째, 상대가 4벳으로 올 때 접을 수 있나.',
-      '둘 다 예면 3벳입니다.',
-      '지금 콜하려는 이 패, 3벳으로 갔을 때 뭐가 무서운가요?',
+      '3벳은 센 패와 접을 패로 갑니다.',
+      '이 패, 애매해서 콜한 건 아닌가요?',
     ],
     drillFor: deckDrill('vs_open', topHero),
   },
@@ -201,10 +205,8 @@ export const PATTERN_RULES: PatternRule[] = [
     minSample: 6,
     match: (m) => m.kind === 'vs_open' && m.answer === 'fold' && m.chosen === 'call',
     advice: [
-      '콜은 가장 조용하게 돈이 새는 선택입니다.',
-      '접을 패를 3벳으로 갈 일은 거의 없지만 콜로는 계속 들어가게 돼요.',
-      '액션을 고르기 전에 순서를 바꿔 보세요.',
-      '먼저 폴드인지 아닌지만 정하고, 폴드가 아닐 때만 콜과 3벳 중에 고르세요.',
+      '콜이 가장 조용하게 돈이 샙니다.',
+      '들어갈지부터 정하고 액션을 고르세요.',
       '이 패로 플랍에서 뭘 할 생각이었나요?',
     ],
     drillFor: deckDrill('vs_open', topHero),
@@ -214,15 +216,15 @@ export const PATTERN_RULES: PatternRule[] = [
     family: 'pressure',
     koName: '3벳을 맞으면 거의 다 접습니다',
     minSample: 6,
+    /**
+     * vs_3bet 차트는 폴라라이즈드입니다 — 4벳 칸이 AA·KK·QQ·AK 와 A5s·A4s 이고 AQs·JJ·TT 는 그보다 아래인 콜 칸입니다.
+     * 그래서 '센 순서로 줄 세워 맨 위가 4벳'이라는 선형 모델을 가르치면 차트와 어긋납니다.
+     */
     match: (m) => m.kind === 'vs_3bet' && m.chosen === 'fold' && m.answer !== 'fold',
     advice: [
       '상대도 블러프로 3벳합니다.',
-      '다 접으면 그걸 그대로 내주는 거예요.',
-      '3벳을 맞았을 때 이렇게 생각하세요.',
-      '내가 이 자리에서 오픈하는 패들을 센 순서로 줄 세운다.',
-      '맨 위 몇 개는 4벳, 그 아래 몇 개는 콜로 남긴다.',
-      '나머지만 접는다.',
-      '지금 접으려는 이 패는 그 줄에서 어디쯤인가요?',
+      '4벳은 제일 센 패와 약한 A입니다.',
+      '이 패, 콜로 볼 수는 없었나요?',
     ],
     drillFor: deckDrill('vs_3bet', topHero),
   },
@@ -231,14 +233,31 @@ export const PATTERN_RULES: PatternRule[] = [
     family: 'pressure',
     koName: '4벳을 맞고도 못 접습니다',
     minSample: 6,
-    match: (m) => (m.kind === 'vs_4bet' || m.kind === 'vs_5bet') && m.answer === 'fold' && m.chosen !== 'fold',
+    /**
+     * vs_5bet 은 히어로가 이미 4벳을 한 노드라 '3벳하기 전에'가 성립하지 않습니다 — stubborn_vs_5bet 이 맡습니다.
+     */
+    match: (m) => m.kind === 'vs_4bet' && m.answer === 'fold' && m.chosen !== 'fold',
     advice: [
       '4벳은 블러프가 훨씬 적습니다.',
-      '여기서 한 번 잘못 가면 스택이 통째로 나가요.',
-      '3벳을 누르기 전에 미리 정해 두세요.',
-      '이 패는 4벳이 오면 접을 패인지, 올인까지 갈 패인지.',
-      '미리 정하지 않고 4벳을 맞으면 거의 항상 잘못 갑니다.',
-      '지금 이 패, 3벳할 때 이미 정해 뒀나요?',
+      '3벳하기 전에 끝을 정해 두세요.',
+      '이 패, 3벳할 때 이미 정해 뒀나요?',
+    ],
+    drillFor: deckDrill('vs_4bet_allin', topHero),
+  },
+  {
+    /**
+     * vs_5bet 은 히어로가 오픈 → 상대 3벳 → 히어로 4벳 → 상대 올인까지 온 노드입니다.
+     * 히어로는 3벳을 한 적이 없으므로 4벳 규칙의 문구("3벳하기 전에")를 그대로 쓸 수 없습니다.
+     */
+    id: 'stubborn_vs_5bet',
+    family: 'pressure',
+    koName: '올인을 맞고도 못 접습니다',
+    minSample: 6,
+    match: (m) => m.kind === 'vs_5bet' && m.answer === 'fold' && m.chosen !== 'fold',
+    advice: [
+      '여기까지 오는 레인지는 아주 좁아요.',
+      '4벳하기 전에 끝을 정해 두세요.',
+      '이 패, 올인까지 갈 생각이었나요?',
     ],
     drillFor: deckDrill('vs_4bet_allin', topHero),
   },
@@ -247,14 +266,16 @@ export const PATTERN_RULES: PatternRule[] = [
     family: 'seat',
     koName: '앞자리에서 손이 헐겁습니다',
     minSample: 6,
-    match: (m) => (m.hero === 'UTG' || m.hero === 'HJ') && m.answer === 'fold' && m.chosen !== 'fold',
+    /**
+     * 오픈 판단으로 한정합니다. kind 를 안 걸면 '3벳을 맞고 못 접은' 실수까지 끌어와 오픈 레인지 탓으로 오진하고
+     * 훈련도 엉뚱한 덱으로 보냅니다. 기억용 기준(페어·둘 다 높음·수티드 중 둘)은 UTG 오픈 45칸 중 30칸을
+     * 접으라고 해서 쓰지 않습니다 — 차트는 22+ 와 A2s+ 와 ATo+ 를 전부 엽니다.
+     */
+    match: (m) => m.kind === 'rfi' && (m.hero === 'UTG' || m.hero === 'HJ') && m.answer === 'fold' && m.chosen !== 'fold',
     advice: [
-      'UTG에서는 뒤에 다섯 명이 남아 있습니다.',
-      '그중 한 명만 더 센 패를 들면 됩니다.',
-      '앞자리에서는 패를 보기 전에 기준을 먼저 세우세요.',
-      '페어인가, 두 장 다 높은가, 수티드인가.',
-      '셋 중 두 개는 되어야 엽니다.',
-      '지금 이 패, 뒤에 다섯 명이 있어도 열 건가요?',
+      'UTG 뒤에는 다섯 명이 남습니다.',
+      '그중 한 명만 세도 내 패는 밀려요.',
+      '이 패, 뒤에 다섯 명이 있어도 열까요?',
     ],
     drillFor: deckDrill('rfi', fixed(['UTG', 'HJ'])),
   },
@@ -263,13 +284,15 @@ export const PATTERN_RULES: PatternRule[] = [
     family: 'seat',
     koName: '뒷자리에서 너무 좁게 칩니다',
     minSample: 6,
-    match: (m) => (m.hero === 'CO' || m.hero === 'BTN') && m.answer !== 'fold' && m.chosen === 'fold',
+    /**
+     * CO−UTG 로 실제로 늘어나는 건 오프수트 브로드웨이(QJo·KTo·QTo·JTo), 낮은 수티드 K(K8s~K4s), 수티드 갭퍼입니다.
+     * 작은 페어는 UTG 부터 이미 22+ 로 전부 열고 수티드 커넥터는 54s 한 칸만 늘어나므로 그 둘을 지목하면 안 됩니다.
+     */
+    match: (m) => m.kind === 'rfi' && (m.hero === 'CO' || m.hero === 'BTN') && m.answer !== 'fold' && m.chosen === 'fold',
     advice: [
-      '버튼 뒤에는 블라인드 두 명뿐입니다.',
-      '앞자리와 같은 기준을 쓰면 매번 손해예요.',
-      '자리가 뒤로 갈수록 기준을 한 칸씩 내리세요.',
-      '앞자리에서 접던 수티드 커넥터와 작은 페어부터 넣으면 됩니다.',
-      '이 패를 UTG라고 생각하고 접은 건 아닌가요?',
+      '버튼 뒤에는 두 명뿐입니다.',
+      '오프수트 그림패와 낮은 수티드가 늘어요.',
+      '이 패를 UTG처럼 보고 접었나요?',
     ],
     drillFor: deckDrill('rfi', fixed(['CO', 'BTN'])),
   },
@@ -278,12 +301,13 @@ export const PATTERN_RULES: PatternRule[] = [
     family: 'seat',
     koName: 'BB를 너무 넓게 지킵니다',
     minSample: 6,
-    match: (m) => m.hero === 'BB' && m.kind === 'vs_open' && m.answer === 'fold' && m.chosen !== 'fold',
+    /**
+     * SB 오픈은 뺍니다 — 그 노드에서는 BB 가 포지션을 가져서(heroInPosition('BB','SB') === true) 조언의 전제가 반대입니다.
+     */
+    match: (m) => m.hero === 'BB' && m.kind === 'vs_open' && m.villain !== 'SB' && m.answer === 'fold' && m.chosen !== 'fold',
     advice: [
-      '이미 깐 블라인드는 팟에 살아 있는 돈이라 콜 가격은 원래 좋습니다.',
-      'BB를 접어야 하는 이유는 가격이 아니라 포지션이에요.',
-      '플랍부터 리버까지 내가 먼저 액션해야 하니 이겨도 다 못 받아냅니다.',
-      '콜하기 전에 한 번 물어보세요.',
+      'BB는 플랍부터 먼저 액션합니다.',
+      '이겨도 다 못 받아냅니다.',
       '이 패로 플랍에서 뭘 할 건가요?',
     ],
     drillFor: deckDrill('vs_open', fixed(['BB'])),
@@ -295,11 +319,9 @@ export const PATTERN_RULES: PatternRule[] = [
     minSample: 6,
     match: (m) => m.hero === 'BB' && m.kind === 'vs_open' && m.answer !== 'fold' && m.chosen === 'fold',
     advice: [
-      'BB는 이미 낸 돈이 있어서 남들보다 싸게 볼 수 있습니다.',
-      '전 좌석 중에 가장 넓게 지키는 자리예요.',
-      '상대가 어느 자리에서 열었는지부터 보세요.',
-      'BTN·CO 오픈은 넓으니 더 넓게 지키고, UTG 오픈에만 좁히면 됩니다.',
-      '이 패, 상대가 BTN에서 열었어도 접을 건가요?',
+      'BB는 이미 낸 돈이 있어 싸게 봅니다.',
+      '상대가 어느 자리에서 열었는지 보세요.',
+      '상대가 BTN에서 열었어도 접나요?',
     ],
     drillFor: deckDrill('vs_open', fixed(['BB'])),
   },
@@ -310,11 +332,9 @@ export const PATTERN_RULES: PatternRule[] = [
     minSample: 6,
     match: (m) => m.handClass === 'offsuit_ace' && m.answer === 'fold' && m.chosen !== 'fold',
     advice: [
-      'A가 한 장 있으면 세 보이지만, 킥커가 약하면 A가 깔리는 순간이 가장 위험합니다.',
-      '맞고도 지는 패예요.',
-      'A를 봤을 때 킥커부터 보세요.',
-      '킥커가 T 아래면 오프수트로는 앞자리에서 버리는 패입니다.',
-      '이 A, 상대도 A를 들었을 때 이길 수 있나요?',
+      'A만 보면 킥커에서 밀립니다.',
+      '맞고도 지는 게 제일 아픈 패예요.',
+      '상대도 A를 들었을 때 이기나요?',
     ],
     drillFor: quizDrill,
   },
@@ -323,13 +343,15 @@ export const PATTERN_RULES: PatternRule[] = [
     family: 'hand',
     koName: '수티드면 일단 들어갑니다',
     minSample: 6,
+    /**
+     * '무늬가 달랐어도 들어갔을까요?'는 묻지 않습니다 — 차트대로 답하면 '아니요'가 맞는 판단이라
+     * 옳은 사고를 실수로 되돌려 버립니다. 무늬가 아니라 자리를 묻습니다.
+     */
     match: (m) => SUITED_TRAP_CLASSES.includes(m.handClass) && m.answer === 'fold' && m.chosen !== 'fold',
     advice: [
-      '같은 무늬는 플러시까지 아직 멉니다.',
-      '무늬만으로 들어갈 만큼 크지 않아요.',
-      '순서를 바꾸세요.',
-      '두 장이 높은지, 이어져 있는지를 먼저 보고 무늬는 마지막에 더하는 보너스로 두세요.',
-      '이 패, 무늬가 달랐어도 들어갔을까요?',
+      '무늬는 계속 갈 이유는 됩니다.',
+      '다섯 명을 지나갈 이유는 아니에요.',
+      '한 자리 앞이었어도 들어갔을까요?',
     ],
     drillFor: quizDrill,
   },
@@ -340,17 +362,33 @@ export const PATTERN_RULES: PatternRule[] = [
     minSample: 6,
     match: (m) => {
       if (!PREMIUM_CLASSES.includes(m.handClass)) return false;
+      // 폴드는 premium_overfold 가 맡습니다 — 여기 문구는 '콜한 것'을 전제로 씁니다.
+      if (m.chosen === 'fold') return false;
       const chosen = rankOf(m.kind, m.chosen);
       const answer = rankOf(m.kind, m.answer);
       return chosen >= 0 && answer >= 0 && chosen < answer;
     },
     advice: [
-      '센 패로 조용히 가면 팟이 안 커집니다.',
-      '이길 판에서 적게 버는 게 질 판에서 잃는 것만큼 아파요.',
-      '센 패를 잡으면 먼저 물어보세요.',
-      '이 패로 스택을 다 넣어도 되는 자리인가.',
-      '답이 예면 지금부터 올려서 팟을 키우세요.',
-      '지금 콜한 이 패, 뭘 기다리고 있었나요?',
+      '센 패로 조용히 가면 팟이 안 커져요.',
+      '이길 판에서 적게 버는 것도 손해예요.',
+      '지금 콜한 이 패, 뭘 기다렸나요?',
+    ],
+    drillFor: quizDrill,
+  },
+  {
+    /**
+     * 같은 센 패라도 '콜로 얌전하게 간 것'과 '그냥 접은 것'은 고치는 방법이 반대라 규칙을 나눕니다.
+     * 한 규칙으로 묶으면 접은 사람에게 "지금 콜한 이 패"라고 하지도 않은 행동을 지적하게 됩니다.
+     */
+    id: 'premium_overfold',
+    family: 'line',
+    koName: '센 패를 그냥 접습니다',
+    minSample: 6,
+    match: (m) => PREMIUM_CLASSES.includes(m.handClass) && m.answer !== 'fold' && m.chosen === 'fold',
+    advice: [
+      '센 패를 접을 땐 이유가 있어야 해요.',
+      '상대도 블러프를 섞습니다.',
+      '이 패보다 센 패가 그렇게 많나요?',
     ],
     drillFor: quizDrill,
   },
@@ -367,10 +405,9 @@ export const PATTERN_RULES: PatternRule[] = [
     match: () => true,
     advice: [
       '실수가 한 자리에 몰려 있습니다.',
-      '방향이 정해지진 않았지만 여기부터 보면 됩니다.',
-      '이 상황만 모아서 열 문제만 돌려 보세요.',
+      '이 상황만 모아서 열 문제만 풀어 보세요.',
       // SPEC 의 마지막 문장은 평서문이지만 PLAIN_KO_STYLE §5 가 마지막 줄을 질문으로 못박습니다.
-      '여기서는 주로 어느 쪽으로 틀리고 있나요?',
+      '여기서는 주로 어느 쪽으로 틀리나요?',
     ],
     drillFor: (hits) => {
       const kind = hits[0]?.kind ?? 'vs_open';

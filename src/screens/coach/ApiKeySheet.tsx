@@ -87,7 +87,7 @@ export function ApiKeySheet({ open, onClose }: { open: boolean; onClose(): void 
           />
         </div>
 
-        <p className="coach-key__note">요금은 내 키로 나갑니다. 한 번 물어볼 때 1원 안팎이에요.</p>
+        <p className="coach-key__note">요금은 내 키로 나갑니다. 한 번에 수십 원 정도이고 고른 모델에 따라 달라져요.</p>
       </div>
     </Sheet>
   );

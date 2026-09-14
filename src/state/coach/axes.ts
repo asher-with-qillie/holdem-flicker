@@ -97,6 +97,22 @@ function baseline(rows: SeenRow[]): number | null {
   return total > 0 ? fold / total : null;
 }
 
+/**
+ * 설계효과 보정. 실수는 서로 독립이 아닙니다 — 카드키 하나의 정답은 차트가 정해 놓아 고정이고,
+ * srs 는 틀린 카드를 10분 뒤로 되돌려 다시 내보내며, '내 약점' 덱은 아예 그 카드들만 모읍니다.
+ * 그래서 같은 카드를 세 번 틀리면 같은 이야기를 세 번 센 것인데, z 는 서로 다른 관측 세 개로 읽습니다.
+ *
+ * 보정은 표본 하나가 평균 몇 번 되풀이됐는지(= 실수 수 ÷ 서로 다른 카드 수)의 제곱근으로 z 를 나누는 것입니다.
+ * 되풀이가 없으면 1 이라 아무 일도 일어나지 않고, 되풀이가 심할수록 단정이 어려워집니다.
+ * 이걸 빼면 성향이 전혀 없는 사람의 1/3이 '뚜렷하다'는 말을 듣습니다.
+ */
+function designEffect(ms: CoachMistake[]): number {
+  if (ms.length === 0) return 1;
+  const keys = new Set<string>();
+  for (const m of ms) keys.add(m.key);
+  return Math.sqrt(ms.length / keys.size);
+}
+
 /** q — 내 실수가 '접었어야 할 문제'에 몰린 비중. */
 function foldShare(ms: CoachMistake[]): number {
   let fold = 0;
@@ -125,7 +141,8 @@ function aggressionAxis(ms: CoachMistake[], minSample: number): Raw {
   }
   const need = Math.max(0, minSample - n);
   if (need > 0) return locked(need, n);
-  return { sample: n, need: 0, t: s / n, z: s / Math.sqrt(n) };
+  const used = ms.filter((m) => SCENARIO_ACTIONS[m.kind].length === 3);
+  return { sample: n, need: 0, t: s / n, z: s / Math.sqrt(n) / designEffect(used) };
 }
 
 /** 기준선 대비 편차 하나. 비율 검정이라 분산은 b(1−b)/n 입니다. */
@@ -141,7 +158,7 @@ function entryAxis(ms: CoachMistake[], seen: SeenRow[], minSample: number): Raw 
     need: 0,
     t: clamp((q - b) / Math.max(b, 1 - b), -1, 1),
     // b 가 0 이나 1 이면(그 모집단에 폴드-정답만, 혹은 하나도 없으면) 편차가 생길 수 없어 신호도 0입니다.
-    z: varQ > 0 ? (q - b) / Math.sqrt(varQ) : 0,
+    z: varQ > 0 ? (q - b) / Math.sqrt(varQ) / designEffect(ms) : 0,
   };
 }
 
@@ -169,7 +186,7 @@ function diffAxis(pos: Group, neg: Group, minSample: number): Raw {
     sample,
     need: 0,
     t: clamp(d / DIFF_SCALE, -1, 1),
-    z: varD > 0 ? d / Math.sqrt(varD) : 0,
+    z: varD > 0 ? d / Math.sqrt(varD) / designEffect([...pos.ms, ...neg.ms]) : 0,
   };
 }
 

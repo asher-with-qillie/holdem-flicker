@@ -91,6 +91,18 @@ const LEVEL_KO: Record<AxisView['level'], string> = {
   locked: '아직 못 재요',
 };
 
+/**
+ * 상황·자리별 정답률.
+ *
+ * trials 는 srs 카드가 센 '답을 낸 횟수'이고 mistakes 는 stats 가 센 '실수 기록 수'라 모집단이
+ * 다릅니다. 두 저장소가 어긋나면 분자가 음수가 되어 프롬프트에 "정답률 -800%"가 그대로 실립니다.
+ * 감추지 말고, 두 수를 같은 모집단으로 볼 수 없다는 뜻이므로 칸을 비웁니다.
+ */
+function accuracy(trials: number, mistakes: number): string {
+  if (trials <= 0 || mistakes > trials) return '—';
+  return pct(trials - mistakes, trials);
+}
+
 function pct(part: number, whole: number): string {
   if (whole <= 0) return '—';
   return `${Math.round((part / whole) * 100)}%`;
@@ -138,7 +150,7 @@ function axesSection(axes: AxisView[]): string {
 function kindSection(d: CoachDigest): string {
   const rows = d.byKind
     .filter((r) => r.trials > 0)
-    .map((r) => [KIND_SHORT_KO[r.kind], String(r.trials), String(r.mistakes), pct(r.trials - r.mistakes, r.trials)]);
+    .map((r) => [KIND_SHORT_KO[r.kind], String(r.trials), String(r.mistakes), accuracy(r.trials, r.mistakes)]);
   if (rows.length === 0) return '';
   return `## 상황별 기록\n${table(['상황', '푼 횟수', '틀린 횟수', '정답률'], rows)}`;
 }
@@ -146,7 +158,7 @@ function kindSection(d: CoachDigest): string {
 function heroSection(d: CoachDigest): string {
   const rows = d.byHero
     .filter((r) => r.trials > 0)
-    .map((r) => [r.hero, String(r.trials), String(r.mistakes), pct(r.trials - r.mistakes, r.trials)]);
+    .map((r) => [r.hero, String(r.trials), String(r.mistakes), accuracy(r.trials, r.mistakes)]);
   if (rows.length === 0) return '';
   return `## 자리별 기록\n${table(['자리', '푼 횟수', '틀린 횟수', '정답률'], rows)}`;
 }

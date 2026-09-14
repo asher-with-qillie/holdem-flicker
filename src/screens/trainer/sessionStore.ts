@@ -102,6 +102,11 @@ export interface SessionState {
   activeMs: number;
   /** key → times requeued (max 2). */
   requeues: Record<string, number>;
+  /**
+   * 이 세션에서 이미 '답을 낸 것'으로 센 카드키. 재큐잉·◀ 되돌아가기로 같은 카드가 다시 와도
+   * 코치 탭의 성향 축이 같은 결정을 여러 번 세지 않게 막습니다(분자도 분모도 한 번만).
+   */
+  counted: Set<CardKey>;
   holding: boolean;
   sheetOpen: boolean;
   coachOpen: boolean;
@@ -271,6 +276,7 @@ export function startSession(config: SessionConfig, at: number = now()): StartRe
     startedAt: at,
     activeMs: 0,
     requeues: {},
+    counted: new Set<CardKey>(),
     holding: false,
     sheetOpen: false,
     coachOpen: settings.coachSeen < COACH_VERSION,
@@ -519,18 +525,25 @@ function leaveCard(i: number, at: number) {
   const source: RatingSource = card.rating ? (card.ratingSource ?? 'button') : 'button';
   const partial = rating === 'know' && card.grade === 'partial';
   // 선택 버튼으로 고른 답은 코치 탭이 실수의 '방향'을 읽는 재료입니다 — 답을 먼저 봤거나 시간이 지난 카드는 방향이 없습니다.
+  //
+  // 카드키당 딱 한 번만 셉니다. 틀린 카드는 재큐잉으로 같은 세션에 최대 세 번 돌아오고 ◀로 되돌아가
+  // 다시 평가할 수도 있는데, 그건 결정 하나를 여러 번 한 게 아니라 같은 결정을 여러 번 본 것입니다.
+  // 그대로 세면 코치 탭의 성향 축이 한 사람의 한 가지 실수를 세 사람의 증거처럼 읽습니다.
+  const firstTime = !state.counted.has(card.key);
   const picked = !card.peeked && !card.timedOut ? card.chosenAction : undefined;
+  const countable = firstTime && picked !== undefined;
   const opts = {
     now: at,
     ...(card.peeked ? { peeked: true } : {}),
     ...(partial ? { partial: true } : {}),
-    ...(picked !== undefined ? { chosen: picked } : {}),
+    ...(countable ? { chosen: picked } : {}),
   };
+  if (countable) state.counted.add(card.key);
   if (!card.exposed) {
     if (rating) srsRate(card.step, rating, source, opts);
     else recordExposure(card.step, at);
     // 훈련에서 틀린 것도 코치 탭에 쌓입니다. 정답률·연속 기록은 퀴즈 것만 세므로 건드리지 않습니다.
-    if (picked !== undefined && card.grade === 'wrong') {
+    if (countable && card.grade === 'wrong') {
       recordMistake({
         scenarioId: scenarioKey(card.step.scenario),
         title: scenarioTitle(card.step.scenario),
@@ -558,12 +571,15 @@ function advance() {
   clearAuto();
   const at = now();
   const i = state.index;
+  // leaveCard 가 exposed 를 켜기 전에 읽어 둡니다 — ◀로 되돌아간 카드는 이미 커밋됐으므로
+  // 다시 '다음'을 눌러도 복사본을 또 만들면 안 됩니다(왕복할 때마다 큐가 불어납니다).
+  const wasExposed = !!state.queue[i]?.exposed;
   leaveCard(i, at);
   const card = state.queue[i];
   const isUnsure = card.rating === 'unsure' || !!card.flagged;
   let queue = state.queue;
   const requeues = { ...state.requeues };
-  if (isUnsure && (requeues[card.key] ?? 0) < REQUEUE_MAX) {
+  if (!wasExposed && isUnsure && (requeues[card.key] ?? 0) < REQUEUE_MAX) {
     requeues[card.key] = (requeues[card.key] ?? 0) + 1;
     const copy: SessionCard = { id: ++cardSeq, key: card.key, step: card.step, cards: card.cards, origin: 'requeue' };
     if (card.chainId !== undefined) copy.chainId = card.chainId;
