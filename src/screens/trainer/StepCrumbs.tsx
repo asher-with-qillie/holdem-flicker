@@ -9,12 +9,14 @@ const CRUMB_LABEL: Record<ScenarioKind, string> = {
   vs_4bet: '4벳 대응',
   vs_5bet: '5벳 대응',
   cold_4bet: '콜드 4벳',
+  vs_limp: '림프 대응',
 };
 
-/** Which betting line a step belongs to (see buildSteps): A = hero opens, B = hero faces an open, C = cold 4-bet. */
-function lineOf(kind: ScenarioKind): 'A' | 'B' | 'C' {
+/** Which betting line a step belongs to (see buildSteps): A = hero opens, B = hero faces an open, C = cold 4-bet, D = a limp. */
+function lineOf(kind: ScenarioKind): 'A' | 'B' | 'C' | 'D' {
   if (kind === 'rfi' || kind === 'vs_3bet' || kind === 'vs_5bet') return 'A';
   if (kind === 'cold_4bet') return 'C';
+  if (kind === 'vs_limp') return 'D';
   return 'B';
 }
 

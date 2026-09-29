@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ALL_CHART_DEFS, getChartCells, missingScenarios, hasChart } from '../src/poker/data';
+import { ALL_CHART_DEFS, getChartCells, getChartDef, missingScenarios, hasChart } from '../src/poker/data';
 import { allScenarios } from '../src/poker/scenarios';
-import { buildChart, primaryAction, rangeShare } from '../src/poker/range';
+import { buildChart, primaryAction, rangeShare, restAction } from '../src/poker/range';
 import { ALL_HANDS } from '../src/poker/hands';
 import { scenarioActions, type Action, type Scenario } from '../src/poker/types';
 
@@ -24,7 +24,8 @@ describe('chart data integrity', () => {
   });
 
   it('has a chart for every scenario', () => {
-    expect(scenarios.length).toBe(5 + 15 + 15 + 15 + 15 + 4);
+    // rfi 5 · vs_open 15 · vs_3bet 15 · vs_4bet 15 · vs_5bet 15 · cold_4bet 4 · vs_limp 5
+    expect(scenarios.length).toBe(5 + 15 + 15 + 15 + 15 + 4 + 5);
     expect(missingScenarios().map((s) => `${s.kind}:${s.hero}:${s.villain ?? ''}`)).toEqual([]);
   });
 
@@ -54,12 +55,17 @@ describe('chart data integrity', () => {
     expect(share('SB')).toBeLessThan(0.55);
   });
 
-  it('trash hands fold everywhere', () => {
+  // 쓰레기 패는 어디서도 '들어가지' 않습니다. 다만 '들어가지 않는다'가 곧 폴드는 아닙니다 —
+  // 빅블라인드는 이미 돈을 냈으니 접을 수 없고, 안 올린 패는 전부 체크입니다.
+  // 여기서 규칙을 끄지 말고(if kind !== 'vs_limp' 같은 식) 차트의 나머지와 견주세요 — 끄면
+  // 이 규칙이 그 차트를 영영 지켜 주지 않습니다.
+  it("trash hands take the chart's rest action everywhere", () => {
     for (const s of scenarios) {
       if (!hasChart(s)) continue;
       const cells = getChartCells(s);
+      const rest = restAction(getChartDef(s));
       for (const h of ['72o', '83o', '92o']) {
-        expect(primaryAction(cells[h]), `${s.kind} ${s.hero} ${s.villain ?? ''} plays ${h}`).toBe('fold');
+        expect(primaryAction(cells[h]), `${s.kind} ${s.hero} ${s.villain ?? ''} plays ${h}`).toBe(rest);
       }
     }
   });

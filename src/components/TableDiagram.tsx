@@ -9,7 +9,7 @@ import '../styles/table.css';
  */
 
 type Role = 'hero' | 'villain' | 'folded' | 'waiting';
-type Tag = '오픈' | '3벳' | '4벳' | '올인' | '폴드' | '대기' | '나';
+type Tag = '오픈' | '3벳' | '4벳' | '올인' | '폴드' | '대기' | '나' | '림프';
 
 interface Seat {
   pos: Pos;
@@ -18,6 +18,7 @@ interface Seat {
 }
 
 const TAG_CLASS: Record<Tag, string> = {
+  림프: 'pstrip__tag--limp',
   오픈: 'pstrip__tag--raise',
   '3벳': 'pstrip__tag--threebet',
   '4벳': 'pstrip__tag--fourbet',
@@ -40,13 +41,17 @@ export function seatsFor(s: Scenario): Seat[] {
       return { pos, role: 'hero', tags };
     }
     if (v && pos === v) {
-      const tags: Tag[] = s.kind === 'vs_open' ? ['오픈'] : s.kind === 'vs_3bet' ? ['3벳'] : s.kind === 'vs_4bet' ? ['오픈', '4벳'] : ['3벳', '올인'];
+      const tags: Tag[] =
+        s.kind === 'vs_open' ? ['오픈'] : s.kind === 'vs_3bet' ? ['3벳'] : s.kind === 'vs_4bet' ? ['오픈', '4벳'] : ['3벳', '올인'];
       return { pos, role: 'villain', tags };
     }
     if (s.kind === 'cold_4bet') {
       if (pos === opener) return { pos, role: 'villain', tags: ['오픈'] };
       if (pos === threeBettor) return { pos, role: 'villain', tags: ['3벳'] };
     }
+    // 림퍼는 villain 필드가 아니라 extras.limper 로 옵니다(차트가 자리를 안 가리므로).
+    // 여기서 안 잡으면 아래 '폴드' 로 내려가 림프한 사람이 폴드한 것처럼 그려집니다.
+    if (s.kind === 'vs_limp' && pos === s.extras?.limper) return { pos, role: 'villain', tags: ['림프'] };
     const everyoneActed = s.kind === 'vs_3bet' || s.kind === 'vs_4bet' || s.kind === 'vs_5bet';
     if (i < hi || everyoneActed) return { pos, role: 'folded', tags: ['폴드'] };
     return { pos, role: 'waiting', tags: ['대기'] };
@@ -73,6 +78,8 @@ export function captionFor(s: Scenario): string {
       return `내 오픈 → ${v} 3벳 → 내 4벳 → ${v} 올인`;
     case 'cold_4bet':
       return `${s.extras?.opener ?? '앞'} 오픈 → ${s.extras?.threeBettor ?? '앞'} 3벳 · ${waitingText}`;
+    case 'vs_limp':
+      return `${s.extras?.limper ?? '앞'} 림프 · ${waitingText}`;
   }
 }
 

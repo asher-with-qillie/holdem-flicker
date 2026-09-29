@@ -130,6 +130,7 @@ const KIND_SHORT_KO: Record<ScenarioKind, string> = {
   vs_4bet: '4벳 대응',
   vs_5bet: '5벳 올인 대응',
   cold_4bet: '콜드 4벳',
+  vs_limp: '림프 대응',
 };
 
 /** 축의 세기를 숫자 대신 한국어 한 단어로 넘깁니다 — z 를 주면 AI 가 그 숫자를 인용합니다. */

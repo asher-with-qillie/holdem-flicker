@@ -7,6 +7,7 @@ import { VS_3BET_CHARTS } from './vs3bet';
 import { VS_4BET_CHARTS } from './vs4bet';
 import { VS_5BET_CHARTS } from './vs5bet';
 import { COLD_4BET_CHARTS } from './cold4bet';
+import { VS_LIMP_CHARTS } from './vsLimp';
 
 export const ALL_CHART_DEFS: ChartDef[] = [
   ...RFI_CHARTS,
@@ -15,6 +16,7 @@ export const ALL_CHART_DEFS: ChartDef[] = [
   ...VS_4BET_CHARTS,
   ...VS_5BET_CHARTS,
   ...COLD_4BET_CHARTS,
+  ...VS_LIMP_CHARTS,
 ];
 
 const defsById = new Map<string, ChartDef>();

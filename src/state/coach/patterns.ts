@@ -164,6 +164,8 @@ function deckForKind(kind: ScenarioKind): DeckId {
       return 'vs_open';
     case 'vs_3bet':
       return 'vs_3bet';
+    case 'vs_limp':
+      return 'vs_limp';
     default:
       return 'vs_4bet_allin';
   }

@@ -40,7 +40,7 @@ import { allScenarios, positionsBefore, scenarioKey } from '../poker/scenarios';
 import { feasiblePositions, nextHandSequence, stepFor, type SessionOptions, type Step } from '../poker/trainer';
 import { ACTIONS, POSITIONS, SCENARIO_KINDS, type Action, type HandName, type Pos, type Scenario, type ScenarioKind } from '../poker/types';
 
-export type DeckId = 'all' | 'rfi' | 'vs_open' | 'vs_3bet' | 'vs_4bet_allin' | 'weak' | 'scenario';
+export type DeckId = 'all' | 'rfi' | 'vs_open' | 'vs_3bet' | 'vs_4bet_allin' | 'vs_limp' | 'weak' | 'scenario';
 
 export type CardKey = string; // `${scenarioKey(scenario)}|${hand}` e.g. "vs_open:BB:BTN|KTo", "cold_4bet:CO|AQs"
 export type Rating = 'know' | 'unsure';
@@ -106,6 +106,7 @@ export const DECK_KINDS: Record<Exclude<DeckId, 'weak' | 'scenario' | 'all'>, Sc
   vs_open: ['vs_open'],
   vs_3bet: ['vs_3bet'],
   vs_4bet_allin: ['vs_4bet', 'vs_5bet', 'cold_4bet'],
+  vs_limp: ['vs_limp'],
 };
 
 /* ------------------------------------------------------------------------------------------------

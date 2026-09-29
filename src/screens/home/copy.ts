@@ -13,6 +13,7 @@ export const KIND_SHORT_KO: Record<ScenarioKind, string> = {
   vs_4bet: '4벳 대응',
   vs_5bet: '5벳 올인 대응',
   cold_4bet: '콜드 4벳',
+  vs_limp: '림프 대응',
 };
 
 /** Focus deck that contains a scenario kind (§6.4). */
@@ -24,6 +25,8 @@ export function deckForKind(kind: ScenarioKind): DeckId {
       return 'vs_open';
     case 'vs_3bet':
       return 'vs_3bet';
+    case 'vs_limp':
+      return 'vs_limp';
     default:
       return 'vs_4bet_allin';
   }

@@ -57,8 +57,9 @@ export const ACTION_SHORT_KO: Record<Action, string> = {
  *  - vs_4bet  : villain opened, hero 3-bet, villain 4-bet.            villain: opener/4-bettor
  *  - vs_5bet  : hero opened, villain 3-bet, hero 4-bet, villain jams. villain: 3-bettor/jammer
  *  - cold_4bet: an open and a 3-bet happened in front of hero.        villain: none (generic)
+ *  - vs_limp  : exactly one player limped (called the BB) in front.   villain: none (generic — 자리를 안 가립니다)
  */
-export const SCENARIO_KINDS = ['rfi', 'vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet', 'cold_4bet'] as const;
+export const SCENARIO_KINDS = ['rfi', 'vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet', 'cold_4bet', 'vs_limp'] as const;
 export type ScenarioKind = (typeof SCENARIO_KINDS)[number];
 
 export const SCENARIO_LABEL_KO: Record<ScenarioKind, string> = {
@@ -68,6 +69,7 @@ export const SCENARIO_LABEL_KO: Record<ScenarioKind, string> = {
   vs_4bet: '내 3벳에 4벳',
   vs_5bet: '내 4벳에 5벳 올인',
   cold_4bet: '앞에서 오픈 + 3벳 (콜드 4벳)',
+  vs_limp: '앞에서 림프 (1bb만 내고 콜)',
 };
 
 /**
@@ -83,7 +85,12 @@ const KIND_ACTIONS: Record<ScenarioKind, Action[]> = {
   vs_4bet: ['fold', 'call', 'allin'],
   vs_5bet: ['fold', 'call'],
   cold_4bet: ['fold', 'call', 'fourbet'],
+  // 빅블라인드는 여기서 폴드가 없습니다 — scenarioActions 가 자리를 보고 갈아 끼웁니다.
+  vs_limp: ['fold', 'raise'],
 };
+
+/** 림프를 맞은 빅블라인드: 이미 돈을 냈으니 공짜로 접을 수 없습니다. 체크 아니면 레이즈. */
+const VS_LIMP_BB: Action[] = ['check', 'raise'];
 
 /**
  * 이 상황에서 고를 수 있는 액션 — **공격성 오름차순**입니다.
@@ -92,7 +99,8 @@ const KIND_ACTIONS: Record<ScenarioKind, Action[]> = {
  * 읽고, 여러 곳이 `.at(-1)` 로 '제일 공격적인 액션'을 꺼냅니다. 뒤집으면 전부 컴파일은 되지만
  * 코치 탭의 성향 축이 통째로 반대로 읽힙니다.
  */
-export function scenarioActions(kind: ScenarioKind, _hero: Pos): readonly Action[] {
+export function scenarioActions(kind: ScenarioKind, hero: Pos): readonly Action[] {
+  if (kind === 'vs_limp' && hero === 'BB') return VS_LIMP_BB;
   return KIND_ACTIONS[kind];
 }
 
@@ -146,6 +154,10 @@ export interface Scenario {
   kind: ScenarioKind;
   hero: Pos;
   villain?: Pos;
-  /** For cold_4bet: the opener and 3-bettor seats (for display only). */
-  extras?: { opener: Pos; threeBettor: Pos };
+  /**
+   * 화면에만 쓰는 상대 자리. 차트는 이 값을 보지 않습니다 —
+   * cold_4bet 은 두 상대를 뭉뚱그리고, vs_limp 는 림퍼의 자리를 가리지 않습니다
+   * (어느 자리에서 림프했는지로 레인지를 나누는 출처가 없습니다).
+   */
+  extras?: { opener?: Pos; threeBettor?: Pos; limper?: Pos };
 }

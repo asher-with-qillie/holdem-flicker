@@ -20,7 +20,8 @@ const { memStorage } = vi.hoisted(() => {
   return { memStorage };
 });
 
-import { getChartCells, hasChart } from '../../poker/data';
+import { getChartCells, getChartDef, hasChart } from '../../poker/data';
+import { restAction } from '../../poker/range';
 import { ALL_HANDS, gridHand, random, seedRandom } from '../../poker/hands';
 import { allScenarios, scenarioKey } from '../../poker/scenarios';
 import { stepFor, type Step } from '../../poker/trainer';
@@ -80,9 +81,11 @@ function drive(step: Step, ratings: Array<'know' | 'unsure'>, start = NOW) {
   return card;
 }
 
+/** 차트마다 '아무것도 안 적힌 나머지'가 다릅니다(빅블라인드는 체크). 그 나머지만 하는 패는 외울 게 없습니다. */
 const isNonFold = (s: Scenario, hand: string) => {
   const mix = getChartCells(s)[hand];
-  return !!mix && Object.values(mix).some((w) => (w ?? 0) > 0);
+  const rest = restAction(getChartDef(s));
+  return !!mix && Object.entries(mix).some(([a, w]) => a !== rest && (w ?? 0) > 0);
 };
 
 function seedRelearning(n: number, at = NOW - 3_600_000) {

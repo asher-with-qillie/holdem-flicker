@@ -37,6 +37,7 @@ const KIND_SHORT: Record<ScenarioKind, string> = {
   vs_4bet: '4벳 대응',
   vs_5bet: '올인 대응',
   cold_4bet: '콜드 4벳',
+  vs_limp: '림프 대응',
 };
 
 const MIN_HINT = '최소 1개는 남겨야 해요';

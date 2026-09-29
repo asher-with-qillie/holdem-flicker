@@ -771,6 +771,10 @@ function reasoning(step: Step, cls: HandClass): string[] {
   let handLines: string[];
   if (s.kind === 'vs_5bet' || answer === 'allin') handLines = allInRationale(step, cls);
   else if (s.kind === 'rfi' && answer === 'raise') handLines = OPEN[cls];
+  // 림프를 올리는 건 3벳·4벳과 다릅니다. AGGRESSIVE 카피는 "다시 올라오면 폴드가 기본입니다",
+  // "A 블로커로 상대의 최상위 레인지를 줄이는 블러프 레이즈입니다" 처럼 재-레이즈 싸움을 전제로
+  // 쓰여 있어서, 그냥 들어온 림퍼를 상대로는 사실이 아닌 말이 이유로 붙습니다. OPEN 쪽이 맞습니다.
+  else if (s.kind === 'vs_limp' && answer === 'raise') handLines = OPEN[cls];
   else if (isAggressive) handLines = AGGRESSIVE[cls];
   else if (answer === 'call') handLines = CALL[cls];
   else handLines = FOLD[cls].length ? FOLD[cls] : ['이 자리에서는 폴드가 가장 손해가 적습니다.'];
@@ -787,7 +791,7 @@ function reasoning(step: Step, cls: HandClass): string[] {
   const ip = heroIsIP(s);
   // BB는 싱글 레이즈 팟에서 마지막 차례라 "가장 넓게 콜합니다"가 맞는 자리입니다. 거기에 "강한 패 위주로만 콜"을
   // 덧붙이면 같은 목록이 두 가지 반대를 말합니다(SB는 이미 같은 이유로 빠져 있습니다).
-  if (answer === 'call' && !ip && s.kind !== 'vs_5bet' && !(s.kind === 'vs_open' && (s.hero === 'SB' || s.hero === 'BB'))) {
+  if (answer === 'call' && !ip && s.kind !== 'vs_5bet' && s.kind !== 'vs_limp' && !(s.kind === 'vs_open' && (s.hero === 'SB' || s.hero === 'BB'))) {
     out.push('포지션 없이 콜하니 체크-콜이나 체크-레이즈 계획이 필요합니다.');
     out.push('끝까지 싸우기 어려운 만큼 강한 패 위주로만 콜합니다.');
   }
@@ -852,6 +856,10 @@ function potTypeAfter(step: Step): { pot: PotType; aggressor: boolean } | null {
       return null;
     case 'cold_4bet':
       return answer === 'call' ? { pot: '3bp', aggressor: false } : answer === 'fourbet' ? { pot: '4bp', aggressor: true } : null;
+    case 'vs_limp':
+      // 림프를 올리면 싱글 레이즈 팟의 공격자입니다. 체크는 '내가 만든 팟'이 아니라 계획을 붙이지 않습니다.
+      // PotType 을 새로 만들면 POT_LABEL·SPR_LINES 가 전부 Record 라 같이 늘려야 합니다 — 그럴 이유가 없습니다.
+      return answer === 'raise' ? { pot: 'srp', aggressor: true } : null;
   }
 }
 
@@ -1051,6 +1059,11 @@ function situationText(s: Scenario): string {
       return `내(${s.hero}) 오픈 → ${v} 3벳 → 내 4벳 → ${v} 올인입니다. 콜할지 폴드할지 정하세요.`;
     case 'cold_4bet':
       return `${s.extras?.opener ?? '앞자리'} 오픈, ${s.extras?.threeBettor ?? '앞자리'} 3벳 뒤 ${s.hero} 차례입니다. 폴드·콜·4벳 중에 정하세요.`;
+    case 'vs_limp': {
+      const l = s.extras?.limper ?? '앞자리';
+      if (s.hero === 'BB') return `${l}가 1bb만 내고 들어왔습니다. 나는 BB라 접을 수 없습니다. 체크할지 올릴지 정하세요.`;
+      return `${l}가 1bb만 내고 들어왔습니다. ${s.hero}에서 폴드할지 올릴지 정하세요.`;
+    }
   }
 }
 
@@ -1058,11 +1071,15 @@ function situationText(s: Scenario): string {
 /* Easy block: 결론 · 왜? · 예시 · 플랍에서는                               */
 /* ------------------------------------------------------------------ */
 
-type Verb = 'fold' | 'open' | 'call' | 'threebet' | 'fourbet' | 'allin' | 'callJam' | 'foldJam';
+type Verb = 'fold' | 'open' | 'call' | 'threebet' | 'fourbet' | 'allin' | 'callJam' | 'foldJam' | 'limpraise' | 'check';
 
 function verbOf(step: Step): Verb {
   const { answer, scenario: s } = step;
   if (s.kind === 'vs_5bet') return answer === 'call' ? 'callJam' : 'foldJam';
+  // 림프를 올리는 건 '오픈'이 아닙니다. 그리고 체크가 여기서 안 잡히면 맨 아래 'allin' 으로
+  // 떨어져 빅블라인드 체크의 결론이 "올인하세요." 가 됩니다 — 해설 시트의 첫 줄입니다.
+  if (s.kind === 'vs_limp') return answer === 'raise' ? 'limpraise' : answer === 'check' ? 'check' : 'fold';
+  if (answer === 'check') return 'check';
   if (answer === 'fold') return 'fold';
   if (answer === 'raise') return 'open';
   if (answer === 'call') return 'call';
@@ -1081,6 +1098,8 @@ const VERDICT: Record<Verb, string> = {
   allin: '올인하세요.',
   callJam: '올인을 콜하세요.',
   foldJam: '올인에는 폴드하세요.',
+  limpraise: '레이즈하세요.',
+  check: '체크하세요.',
 };
 
 /**
@@ -1094,6 +1113,7 @@ const RAISE_WORD: Record<ScenarioKind, string> = {
   vs_4bet: '올인',
   vs_5bet: '올인',
   cold_4bet: '4벳',
+  vs_limp: '레이즈',
 };
 
 /** 결론의 이유 절. 액션(≤ 11자)을 더해 60자를 넘지 않게 씁니다. */
@@ -1203,6 +1223,30 @@ function shortReason(cls: HandClass, verb: Verb, kind: ScenarioKind, info: HandI
       if (cls === 'wheel_ace' || cls === 'suited_ace') return '4벳은 블러프였고 콜에 필요한 38%에 못 미칩니다.';
       if (cls === 'big_pair' || cls === 'ak') return '상대 올인은 KK 이상이라 승률이 모자랍니다.';
       return '상대 올인 레인지가 너무 강합니다.';
+    case 'limpraise':
+      // 림퍼를 올리는 이유는 '더 센 레인지를 이긴다'가 아니라 '약한 레인지에서 값을 뽑는다'입니다.
+      return {
+        premium_pair: '가장 강한 패라 팟을 키워야 합니다.',
+        big_pair: '림퍼가 들고 오는 패 대부분보다 앞섭니다.',
+        mid_pair: '페어라 든든하고 셋도 노립니다.',
+        small_pair: '셋을 맞추면 약한 패에서 값을 뽑습니다.',
+        ak: '가장 큰 카드 두 장이라 자주 앞섭니다.',
+        big_ace: '림퍼의 약한 A를 킥커로 이깁니다.',
+        wheel_ace: '휠 스트레이트와 플러시를 같이 노립니다.',
+        suited_ace: '가장 높은 플러시를 노립니다.',
+        offsuit_ace: '림퍼의 약한 A를 킥커로 이깁니다.',
+        suited_broadway: '탑페어도 되고 플러시·스트레이트도 노립니다.',
+        offsuit_broadway: '탑페어를 만들면 킥커가 앞섭니다.',
+        suited_king: '탑페어도 되고 플러시도 노립니다.',
+        suited_qj: '탑페어도 되고 플러시·스트레이트도 노립니다.',
+        suited_connector: '여러 명이 봐도 크게 맞을 수 있습니다.',
+        suited_gapper: '맞으면 크게 맞는 패입니다.',
+        offsuit_connector: '혼자 들어온 상대를 눌러 팟을 가져옵니다.',
+        junk: '혼자 들어온 상대를 눌러 팟을 가져옵니다.',
+      }[cls];
+    case 'check':
+      // 빅블라인드는 공짜로 플랍을 봅니다 — '못 이겨서'가 아니라 '굳이 키울 이유가 없어서'입니다.
+      return '공짜로 플랍을 볼 수 있어 굳이 키우지 않습니다.';
   }
 }
 
@@ -1336,6 +1380,10 @@ function situationReason(step: Step): string {
       return '올인 레인지는 AA·KK·AK 위주입니다.';
     case 'cold_4bet':
       return '앞에서 오픈과 3벳이 나와 둘 다 강합니다.';
+    case 'vs_limp':
+      // 림퍼는 '올릴 만큼은 아닌 패'로 들어온 겁니다 — 세다고도, 쓰레기라고도 단정하지 않습니다.
+      if (s.hero === 'BB') return fold ? '공짜로 보는 자리라 체크가 기본입니다.' : '공짜로 볼 수 있어 올릴 이유가 있어야 합니다.';
+      return fold ? '뒤에 사람이 남아 아무 패나 못 올립니다.' : '올릴 만한 패는 아니라 들어온 겁니다.';
   }
 }
 
@@ -1885,7 +1933,7 @@ export function explainStep(step: Step, orientation: SuitOrientation = 'spade'):
   const info = parseHandName(step.hand);
   const cls = classifyHand(step.hand);
   const { scenario: s, answer } = step;
-  const kindLabel: Record<ScenarioKind, string> = { rfi: '오픈', vs_open: '오픈 대응', vs_3bet: '3벳 대응', vs_4bet: '4벳 대응', vs_5bet: '올인 대응', cold_4bet: '콜드 4벳' };
+  const kindLabel: Record<ScenarioKind, string> = { rfi: '오픈', vs_open: '오픈 대응', vs_3bet: '3벳 대응', vs_4bet: '4벳 대응', vs_5bet: '올인 대응', cold_4bet: '콜드 4벳', vs_limp: '림프 대응' };
   const headline = `${s.hero} ${kindLabel[s.kind]} · ${step.hand} → ${ACTION_SHORT_KO[answer]}`;
   const out: Explanation = {
     headline,

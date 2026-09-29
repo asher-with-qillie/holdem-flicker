@@ -17,6 +17,7 @@ export const KIND_CHIP_LABEL: Record<ScenarioKind, string> = {
   vs_4bet: '4벳 대응',
   vs_5bet: '올인 대응',
   cold_4bet: '콜드 4벳',
+  vs_limp: '림프 대응',
 };
 
 /** Accessible label for the villain chip row, per kind (absent = the kind has no villain). */

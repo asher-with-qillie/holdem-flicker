@@ -24,6 +24,7 @@ const KIND_SHORT_KO: Record<ScenarioKind, string> = {
   vs_4bet: '4벳 대응',
   vs_5bet: '5벳 대응',
   cold_4bet: '콜드 4벳',
+  vs_limp: '림프 대응',
 };
 
 /* ------------------------------------------------------------------ */

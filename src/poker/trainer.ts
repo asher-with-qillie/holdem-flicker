@@ -60,6 +60,7 @@ export function interestingWeights(hero: Pos): Record<HandName, number> {
  *  Line A (hero opens): rfi → vs_3bet (random later villain) → vs_5bet
  *  Line B (hero faces an open): vs_open (random earlier villain) → vs_4bet
  *  Line C: cold_4bet (random opener + 3-bettor in front)
+ *  Line D: vs_limp (한 명이 림프한 뒤 hero 차례) — 다른 줄기와 이어지지 않는 별개의 손패입니다.
  * Later steps in a line only appear when the memorized answer of the previous step continues aggressively.
  */
 export function buildSteps(hero: Pos, hand: HandName, opts: SessionOptions, rng: () => number = random): Step[] {
@@ -128,6 +129,19 @@ export function buildSteps(hero: Pos, hand: HandName, opts: SessionOptions, rng:
     if (s) steps.push(s);
   }
 
+  // Line D — 림프는 앞의 어떤 줄기와도 이어지지 않습니다(오픈이 없었으니 3벳도 없습니다).
+  // 림퍼 자리는 화면에만 쓰고 차트는 hero 만 봅니다. SB 는 림퍼로 뽑지 않습니다 — 이 앱의
+  // rfi:SB 차트가 'SB 는 레이즈 아니면 폴드'라고 말하고 있어서, SB 가 림프하는 문제를 내면
+  // 앱이 스스로와 모순됩니다.
+  if (kinds.has('vs_limp') && hero !== 'UTG') {
+    const limpers = before.filter((p) => p !== 'SB');
+    if (limpers.length) {
+      const limper = pickFrom(limpers);
+      const s = makeStep({ kind: 'vs_limp', hero, extras: { limper } }, hand);
+      if (s) steps.push(s);
+    }
+  }
+
   steps.forEach((s, i) => {
     s.index = i;
     s.total = steps.length;
@@ -147,6 +161,8 @@ export function heroCanPlay(hero: Pos, kind: ScenarioKind): boolean {
       return hero !== 'UTG';
     case 'cold_4bet':
       return POS_INDEX[hero] >= 2;
+    case 'vs_limp':
+      return hero !== 'UTG';
   }
 }
 

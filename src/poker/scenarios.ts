@@ -30,6 +30,9 @@ export function allScenarios(): Scenario[] {
       out.push({ kind: 'vs_5bet', hero, villain });
     }
     if (POS_INDEX[hero] >= 2) out.push({ kind: 'cold_4bet', hero });
+    // 림프는 앞자리가 한 명이라도 있어야 가능합니다(UTG 제외). 차트는 hero 만으로 갈립니다 —
+    // 어느 자리에서 림프했는지로 레인지를 나누는 출처가 없습니다.
+    if (POS_INDEX[hero] >= 1) out.push({ kind: 'vs_limp', hero });
   }
   return out;
 }
@@ -53,6 +56,10 @@ export function scenarioTitle(s: Scenario): string {
       const t = s.extras?.threeBettor ?? '앞';
       return `${o} 오픈 → ${t} 3벳 → ${s.hero} 차례`;
     }
+    case 'vs_limp': {
+      const l = s.extras?.limper ?? '앞';
+      return `${s.hero} · ${l} 림프에 대응`;
+    }
   }
 }
 
@@ -74,6 +81,12 @@ export function scenarioSituation(s: Scenario): string {
       const o = s.extras?.opener ?? '앞';
       const t = s.extras?.threeBettor ?? '앞';
       return `${o} 오픈, ${t} 3벳. 아직 아무 액션도 하지 않은 ${s.hero}인 당신 차례입니다.`;
+    }
+    case 'vs_limp': {
+      const l = s.extras?.limper ?? '앞사람';
+      // 빅블라인드는 폴드가 없다는 걸 상황 문구에서 먼저 말해 줍니다 — 버튼만 보고 헷갈리지 않게.
+      if (s.hero === 'BB') return `${l}가 1bb만 내고 콜했습니다. 모두 폴드. BB인 당신은 체크 아니면 레이즈입니다.`;
+      return `${l}가 1bb만 내고 콜했습니다. ${s.hero}인 당신 차례입니다.`;
     }
   }
 }

@@ -6,7 +6,7 @@ import { feasiblePositions } from '../../poker/trainer';
 import { POSITIONS, SCENARIO_KINDS, type Pos, type ScenarioKind } from '../../poker/types';
 import { DECK_KINDS, SPEED_PRESETS, type DeckId, type Settings, type SpeedPreset } from '../../state/settings';
 
-export const DECK_ORDER: ReadonlyArray<Exclude<DeckId, 'scenario'>> = ['all', 'rfi', 'vs_open', 'vs_3bet', 'vs_4bet_allin', 'weak'];
+export const DECK_ORDER: ReadonlyArray<Exclude<DeckId, 'scenario'>> = ['all', 'rfi', 'vs_open', 'vs_3bet', 'vs_4bet_allin', 'vs_limp', 'weak'];
 
 export const DECK_LABEL: Record<DeckId, string> = {
   all: '전체',
@@ -14,6 +14,7 @@ export const DECK_LABEL: Record<DeckId, string> = {
   vs_open: '오픈 대응',
   vs_3bet: '3벳 대응',
   vs_4bet_allin: '4벳/올인',
+  vs_limp: '림프 대응',
   weak: '내 약점',
   scenario: '이 상황',
 };
@@ -26,6 +27,7 @@ export const KIND_SHORT: Record<ScenarioKind, string> = {
   vs_4bet: '4벳 대응',
   vs_5bet: '올인 대응',
   cold_4bet: '콜드 4벳',
+  vs_limp: '림프 대응',
 };
 
 /** 내 약점 needs at least this many weak cards (§6.4). */

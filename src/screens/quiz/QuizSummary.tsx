@@ -12,7 +12,7 @@ import { launch, setTab } from '../../state/nav';
 import { NO_CHARTS_HINT } from './DeckChips';
 import { discardRound, startRound, type QuizQuestion, type QuizRound } from './roundStore';
 
-const KIND_LABEL = { rfi: '오픈', vs_open: '오픈 대응', vs_3bet: '3벳 대응', vs_4bet: '4벳 대응', vs_5bet: '5벳 대응', cold_4bet: '콜드 4벳' } as const;
+const KIND_LABEL = { rfi: '오픈', vs_open: '오픈 대응', vs_3bet: '3벳 대응', vs_4bet: '4벳 대응', vs_5bet: '5벳 대응', cold_4bet: '콜드 4벳', vs_limp: '림프 대응' } as const;
 
 /** Row tap → sheet with 내 선택 vs 정답 above the full explanation (kept mounted for the exit slide). */
 function MistakeSheet({ q, open, onClose }: { q: QuizQuestion | null; open: boolean; onClose(): void }) {

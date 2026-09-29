@@ -10,7 +10,7 @@ import { DECK_KINDS, type DeckId } from '../../state/settings';
  * `settings.lastDeck` / `settings.lastPositions`.
  */
 
-export const DECK_ORDER: ReadonlyArray<Exclude<DeckId, 'scenario'>> = ['all', 'rfi', 'vs_open', 'vs_3bet', 'vs_4bet_allin', 'weak'];
+export const DECK_ORDER: ReadonlyArray<Exclude<DeckId, 'scenario'>> = ['all', 'rfi', 'vs_open', 'vs_3bet', 'vs_4bet_allin', 'vs_limp', 'weak'];
 
 export const DECK_LABELS: Record<DeckId, string> = {
   all: '전체',
@@ -18,6 +18,7 @@ export const DECK_LABELS: Record<DeckId, string> = {
   vs_open: '오픈 대응',
   vs_3bet: '3벳 대응',
   vs_4bet_allin: '4벳/올인',
+  vs_limp: '림프 대응',
   weak: '내 약점',
   scenario: '이 상황',
 };

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { POSITIONS, type Pos, type ScenarioKind } from '../poker/types';
+import { POSITIONS, SCENARIO_KINDS, type Pos, type ScenarioKind } from '../poker/types';
 
 export type SpeedPreset = 'slow' | 'normal' | 'fast' | 'flash' | 'custom';
-export type DeckId = 'all' | 'rfi' | 'vs_open' | 'vs_3bet' | 'vs_4bet_allin' | 'weak' | 'scenario';
+export type DeckId = 'all' | 'rfi' | 'vs_open' | 'vs_3bet' | 'vs_4bet_allin' | 'vs_limp' | 'weak' | 'scenario';
 
 export interface Settings {
   positions: Pos[];
@@ -52,11 +52,12 @@ export const DECK_KINDS: Record<Exclude<DeckId, 'weak' | 'scenario' | 'all'>, Sc
   vs_open: ['vs_open'],
   vs_3bet: ['vs_3bet'],
   vs_4bet_allin: ['vs_4bet', 'vs_5bet', 'cold_4bet'],
+  vs_limp: ['vs_limp'],
 };
 
 export const DEFAULT_SETTINGS: Settings = {
   positions: [...POSITIONS],
-  kinds: ['rfi', 'vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet'],
+  kinds: ['rfi', 'vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet', 'vs_limp'],
   thinkSeconds: 8,
   revealSeconds: 5,
   autoAdvance: true,
@@ -75,7 +76,7 @@ export const DEFAULT_SETTINGS: Settings = {
 const KEY = 'holdem-flicker.settings.v1';
 
 const SPEED_PRESET_IDS: readonly SpeedPreset[] = ['slow', 'normal', 'fast', 'flash', 'custom'];
-const DECK_IDS: readonly DeckId[] = ['all', 'rfi', 'vs_open', 'vs_3bet', 'vs_4bet_allin', 'weak', 'scenario'];
+const DECK_IDS: readonly DeckId[] = ['all', 'rfi', 'vs_open', 'vs_3bet', 'vs_4bet_allin', 'vs_limp', 'weak', 'scenario'];
 const SESSION_SIZES: ReadonlyArray<Settings['sessionSize']> = [10, 20, 40];
 const DAILY_GOALS: ReadonlyArray<Settings['dailyGoal']> = [10, 20, 40, 80];
 
@@ -86,6 +87,17 @@ function clampSeconds(v: unknown, range: { min: number; max: number }, fallback:
 function isPos(x: unknown): x is Pos {
   return typeof x === 'string' && (POSITIONS as readonly string[]).includes(x);
 }
+
+function isKind(x: unknown): x is ScenarioKind {
+  return typeof x === 'string' && (SCENARIO_KINDS as readonly string[]).includes(x);
+}
+
+/**
+ * 이 목록 **뒤에** 추가된 상황만 기존 사용자의 설정에 끼워 넣습니다.
+ * 여기 있는 것을 저장본에서 뺐다면 그건 사용자가 직접 끈 것이므로 되살리지 않습니다.
+ * 새 상황을 기본으로 켜고 싶으면 DEFAULT_SETTINGS.kinds 에 넣고, 이 목록은 **그대로 두세요**.
+ */
+const KNOWN_KINDS_AT_LAST_RELEASE: readonly ScenarioKind[] = ['rfi', 'vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet', 'cold_4bet'];
 
 /** Merge partial storage over the defaults and coerce the v2 fields; v1 storage (no `speedPreset`) is migrated. */
 function normalize(parsed: Partial<Settings>): Settings {
@@ -120,6 +132,17 @@ function normalize(parsed: Partial<Settings>): Settings {
     s.lastPositions = valid.length ? valid : null;
   }
   if (!Array.isArray(s.positions) || !s.positions.every(isPos) || s.positions.length === 0) s.positions = [...POSITIONS];
+  // kinds 는 {...DEFAULT, ...parsed} 에서 저장본이 통째로 이깁니다. 그래서 상황을 새로 추가하면
+  // **이미 쓰던 사람은 그 상황을 영영 못 봅니다** — 새로 깐 사람만 보이고요("내 폰에서는 되는데").
+  // 저장본에 아예 없던 상황만 기본값에서 끌어와 채웁니다. 사용자가 직접 끈 것은 건드리지 않습니다.
+  if (!Array.isArray(s.kinds) || !s.kinds.every(isKind) || s.kinds.length === 0) {
+    s.kinds = [...DEFAULT_SETTINGS.kinds];
+  } else if (Array.isArray(parsed.kinds)) {
+    const stored = new Set(parsed.kinds as string[]);
+    const known = new Set(KNOWN_KINDS_AT_LAST_RELEASE);
+    const added = DEFAULT_SETTINGS.kinds.filter((k) => !stored.has(k) && !known.has(k));
+    if (added.length) s.kinds = SCENARIO_KINDS.filter((k) => s.kinds.includes(k) || added.includes(k));
+  }
   return s;
 }
 

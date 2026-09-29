@@ -6,6 +6,8 @@ export function actionLabel(action: Action, kind?: ScenarioKind, short = false):
   if (kind === 'vs_5bet' && action === 'call') return short ? '콜' : '올인 콜';
   if (kind === 'cold_4bet' && action === 'fourbet') return short ? '4벳' : '콜드 4벳';
   if (kind === 'rfi' && action === 'raise') return short ? '오픈' : '오픈 레이즈';
+  // 림프에 올리는 건 오픈이 아닙니다. 이게 없으면 ACTION_LABEL_KO 의 '레이즈 (오픈)' 이 그대로 나옵니다.
+  if (kind === 'vs_limp' && action === 'raise') return short ? '레이즈' : '레이즈 (림프에 올리기)';
   return short ? ACTION_SHORT_KO[action] : ACTION_LABEL_KO[action];
 }
 

@@ -938,6 +938,7 @@ const NODE_RAISE: Record<ScenarioKind, string> = {
   vs_4bet: '올인',
   vs_5bet: '올인',
   cold_4bet: '4벳',
+  vs_limp: '레이즈',
 };
 
 /**
