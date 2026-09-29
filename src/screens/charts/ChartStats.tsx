@@ -1,6 +1,6 @@
 import { actionLabel } from '../../components/ActionBadge';
 import { rangeShare } from '../../poker/range';
-import { SCENARIO_ACTIONS, type Action, type ChartCells, type ScenarioKind } from '../../poker/types';
+import { scenarioActions, type Action, type ChartCells, type Pos, type ScenarioKind } from '../../poker/types';
 import { formatPct } from './selection';
 
 function swatchColor(action: Action): string {
@@ -8,8 +8,8 @@ function swatchColor(action: Action): string {
 }
 
 /** Share bar (8 px, aggressive → passive, the fold share is the track) + footnote "오픈 18.1% · 폴드 81.9%". */
-export function ActionShares({ cells, kind }: { cells: ChartCells; kind: ScenarioKind }) {
-  const actions = SCENARIO_ACTIONS[kind].filter((a) => a !== 'fold').reverse();
+export function ActionShares({ cells, kind, hero }: { cells: ChartCells; kind: ScenarioKind; hero: Pos }) {
+  const actions = scenarioActions(kind, hero).filter((a) => a !== 'fold').reverse();
   const shares = actions.map((action) => ({ action, share: rangeShare(cells, action) }));
   const cont = rangeShare(cells);
   return (
@@ -37,8 +37,8 @@ export function ActionShares({ cells, kind }: { cells: ChartCells; kind: Scenari
 }
 
 /** Colour legend: every action of the kind, how mixed cells and the pair diagonal are drawn, and (내 기록 on) the overlay marks. */
-export function ChartLegend({ kind, overlay }: { kind: ScenarioKind; overlay?: boolean }) {
-  const actions = [...SCENARIO_ACTIONS[kind]].reverse();
+export function ChartLegend({ kind, hero, overlay }: { kind: ScenarioKind; hero: Pos; overlay?: boolean }) {
+  const actions = [...scenarioActions(kind, hero)].reverse();
   const nonFold = actions.filter((a) => a !== 'fold');
   const mixA = swatchColor(nonFold[0] ?? 'fold');
   const mixB = swatchColor(nonFold[1] ?? 'fold');

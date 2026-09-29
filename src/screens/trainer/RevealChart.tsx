@@ -41,7 +41,7 @@ export function RevealChart({ open, step, onClose }: { open: boolean; step: Step
       }
     >
       <div className="trainer-chart">
-        <ActionShares cells={step.cells} kind={scenario.kind} />
+        <ActionShares cells={step.cells} kind={scenario.kind} hero={scenario.hero} />
         <div className="trainer-chart__grid glass glass-flat">
           <RangeGrid cells={step.cells} highlight={step.hand} />
         </div>
@@ -51,7 +51,7 @@ export function RevealChart({ open, step, onClose }: { open: boolean; step: Step
             내 패 <b>{step.hand}</b>는 여기
           </span>
         </p>
-        <ChartLegend kind={scenario.kind} />
+        <ChartLegend kind={scenario.kind} hero={scenario.hero} />
         {step.chart.summary && <p className="trainer-chart__summary t-subhead">{step.chart.summary}</p>}
       </div>
     </Sheet>

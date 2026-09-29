@@ -16,8 +16,9 @@ export interface RangeGridProps {
   overlay?: MasteryOverlay;
 }
 
-/** Slice order inside a cell: most aggressive on the left, fold (dim) on the right. */
-const SLICE_ORDER: Action[] = ['allin', 'fourbet', 'threebet', 'raise', 'call', 'fold'];
+/** Slice order inside a cell: most aggressive on the left, fold (dim) on the right.
+    손으로 적은 배열입니다 — 빠진 액션은 조용히 사라지고 그라데이션이 100%가 안 됩니다. */
+const SLICE_ORDER: Action[] = ['allin', 'fourbet', 'threebet', 'raise', 'call', 'check', 'fold'];
 
 function cellBackground(mix: Array<{ action: Action; weight: number }>): string | undefined {
   const parts = SLICE_ORDER.map((action) => ({ action, weight: mix.find((m) => m.action === action)?.weight ?? 0 })).filter((p) => p.weight > 0.0005);

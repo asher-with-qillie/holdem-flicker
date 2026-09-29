@@ -11,7 +11,7 @@ import { IconClose } from '../../components/ui/icons';
 import { explainStep, suitOrientation } from '../../poker/explain';
 import { cardLabel } from '../../poker/hands';
 import { scenarioSituation } from '../../poker/scenarios';
-import { SCENARIO_ACTIONS, type Card, type HandName } from '../../poker/types';
+import { scenarioActions, type Card, type HandName } from '../../poker/types';
 import { useSettings } from '../../state/settings';
 import { useStats } from '../../state/stats';
 import { FitBox } from '../trainer/FitBox';
@@ -63,7 +63,7 @@ function Question({ q, autoAdvance, showMix }: { q: QuizQuestion; autoAdvance: b
   const { step, cards, grade, chosen } = q;
   const { scenario } = step;
   const kind = scenario.kind;
-  const actions = SCENARIO_ACTIONS[kind];
+  const actions = scenarioActions(kind, step.scenario.hero);
   const explanation = useMemo(() => explainStep(step, suitOrientation(cards)), [step, cards]);
   const autoPending = grade === 'correct' && autoAdvance && !sheetOpen && !autoCancelled;
 

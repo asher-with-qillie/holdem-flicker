@@ -9,7 +9,7 @@ import { Sheet } from '../../components/ui/Sheet';
 import { IconNext, IconPrev } from '../../components/ui/icons';
 import { explainStep, suitOrientation } from '../../poker/explain';
 import { scenarioSituation } from '../../poker/scenarios';
-import { SCENARIO_ACTIONS } from '../../poker/types';
+import { scenarioActions } from '../../poker/types';
 import { useProgress } from '../../state/progress';
 import { COACH_VERSION, updateSettings, type Settings } from '../../state/settings';
 import { useReducedMotion } from '../home/useReducedMotion';
@@ -153,7 +153,7 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
   // Keyboard equivalents (desktop testing): 1–3 pick a choice · Space / Enter / → = 다음 in the reveal state.
   useEffect(() => {
     if (s.status !== 'running' || s.sheetOpen || s.coachOpen || !step) return;
-    const actions = SCENARIO_ACTIONS[step.scenario.kind];
+    const actions = scenarioActions(step.scenario.kind, step.scenario.hero);
     const onKey = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       const n = Number(e.key);

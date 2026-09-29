@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { buildChart, primaryAction, rangeShare } from '../src/poker/range';
 import { ALL_HANDS } from '../src/poker/hands';
 import { allScenarios, scenarioId } from '../src/poker/scenarios';
-import { ACTIONS, SCENARIO_ACTIONS, type Action, type ChartDef } from '../src/poker/types';
+import { ACTIONS, scenarioActions, type Action, type ChartDef } from '../src/poker/types';
 
 const path = process.argv[2];
 if (!path) {
@@ -23,7 +23,7 @@ for (const def of data.charts) {
   const expected = scenarioId(def.kind, def.hero, def.villain);
   if (def.id !== expected) errors.push(`${def.id}: id should be "${expected}"`);
   if (!validIds.has(expected)) errors.push(`${def.id}: not a valid scenario (hero/villain order?)`);
-  const legal = new Set<Action>(SCENARIO_ACTIONS[def.kind] ?? []);
+  const legal = new Set<Action>(scenarioActions(def.kind, def.hero));
   for (const a of Object.keys(def.actions ?? {})) if (!legal.has(a as Action)) errors.push(`${def.id}: action "${a}" not legal for ${def.kind}`);
   let cells;
   try {
@@ -32,7 +32,7 @@ for (const def of data.charts) {
     errors.push(`${def.id}: ${(e as Error).message}`);
     continue;
   }
-  const aggressive = SCENARIO_ACTIONS[def.kind].at(-1)!;
+  const aggressive = scenarioActions(def.kind, def.hero).at(-1)!;
   if (primaryAction(cells.AA) !== aggressive) errors.push(`${def.id}: AA must be ${aggressive}`);
   if (primaryAction(cells.KK) === 'fold') errors.push(`${def.id}: KK must not fold`);
   for (const h of ['72o', '83o', '92o']) if (primaryAction(cells[h]) !== 'fold') errors.push(`${def.id}: ${h} must fold`);

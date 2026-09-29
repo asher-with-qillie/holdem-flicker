@@ -19,7 +19,7 @@ const { memStorage } = vi.hoisted(() => {
 
 import { ALL_HANDS, seedRandom } from '../../../poker/hands';
 import { stepFor } from '../../../poker/trainer';
-import { POSITIONS, SCENARIO_ACTIONS, type Action } from '../../../poker/types';
+import { POSITIONS, scenarioActions, type Action } from '../../../poker/types';
 import { getProgress, resetProgress } from '../../../state/progress';
 import { resetSettings, updateSettings } from '../../../state/settings';
 import { cardKey, getCard, rate, resetSrs, flushSrs } from '../../../state/srs';
@@ -39,7 +39,7 @@ function pick(wanted: 'correct' | 'wrong'): Action {
   const r = getQuizRound()!;
   const step = r.queue[r.index].step;
   if (wanted === 'correct') return step.answer;
-  const legal = SCENARIO_ACTIONS[step.scenario.kind];
+  const legal = scenarioActions(step.scenario.kind, step.scenario.hero);
   const wrong = legal.filter((a) => gradeAnswer(step, a) === 'wrong');
   if (!wrong.length) throw new Error(`no wrong action for ${cardKey(step)}`);
   return wrong[0];
@@ -153,7 +153,7 @@ describe('answer', () => {
     let partialAction: Action | null = null;
     for (const hand of ALL_HANDS) {
       const step = stepFor(scenario, hand);
-      const a = SCENARIO_ACTIONS.vs_open.find((x) => gradeAnswer(step, x) === 'partial');
+      const a = scenarioActions('vs_open', scenario.hero).find((x) => gradeAnswer(step, x) === 'partial');
       if (a) {
         key = cardKey(step);
         partialAction = a;

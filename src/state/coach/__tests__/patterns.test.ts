@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { classifyHand } from '../../../poker/explain';
-import { POSITIONS, SCENARIO_ACTIONS, type Action, type Pos, type ScenarioKind } from '../../../poker/types';
+import { POSITIONS, scenarioActions, type Action, type Pos, type ScenarioKind } from '../../../poker/types';
 import { PATTERN_RULES, findPatterns } from '../patterns';
 import type { CoachMistake, SeenRow } from '../types';
 
@@ -57,7 +57,7 @@ function seenSpread(weight = 10): SeenRow[] {
   const rows: SeenRow[] = [];
   for (const kind of kinds) {
     for (const hero of POSITIONS) {
-      for (const answer of SCENARIO_ACTIONS[kind]) rows.push({ kind, hero, answer, weight });
+      for (const answer of scenarioActions(kind, hero)) rows.push({ kind, hero, answer, weight });
     }
   }
   return rows;
@@ -271,7 +271,7 @@ describe('조언과 차트의 일치', () => {
       const rule = PATTERN_RULES.find((r) => r.id === id)!;
       for (const kind of ['vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet', 'cold_4bet'] as ScenarioKind[]) {
         for (const [answer, chosen] of [['fold', 'call'], ['call', 'fold'], ['fold', 'threebet']] as Array<[Action, Action]>) {
-          if (!SCENARIO_ACTIONS[kind].includes(answer) || !SCENARIO_ACTIONS[kind].includes(chosen)) continue;
+          if (!scenarioActions(kind, 'CO').includes(answer) || !scenarioActions(kind, 'CO').includes(chosen)) continue;
           for (const hero of ['UTG', 'HJ', 'CO', 'BTN'] as Pos[]) {
             expect(rule.match(mistake({ hand: 'T9s', kind, hero, answer, chosen })), `${id} / ${kind}`).toBe(false);
           }

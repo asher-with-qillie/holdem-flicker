@@ -106,7 +106,8 @@ const EPS = 1e-6;
 export function buildChart(def: ChartDef): ChartCells {
   const cells: ChartCells = {};
   for (const action of ACTIONS) {
-    if (action === 'fold') continue;
+    // fold·check 는 레인지 문자열로 적지 않습니다 — 둘은 `rest` 로만 들어옵니다.
+    if (action === 'fold' || action === 'check') continue;
     const str = def.actions[action];
     if (!str) continue;
     const parsed = parseRange(str);
@@ -119,7 +120,23 @@ export function buildChart(def: ChartDef): ChartCells {
     const total = Object.values(mix).reduce((a, b) => a + (b ?? 0), 0);
     if (total > 1 + EPS) throw new Error(`Chart ${def.id}: weights for ${hand} sum to ${total.toFixed(2)} > 1`);
   }
+  // 나머지가 폴드가 아닌 차트(빅블라인드의 체크)는 그 나머지를 여기서 진짜 비중으로 만듭니다.
+  // 한 곳에서만 처리하면 foldWeight / fullMix / primaryAction 의 모양을 안 건드려도 되고,
+  // 아래 모든 소비자가 '없는 폴드'가 아니라 진짜 체크 비중을 보게 됩니다.
+  if (def.rest && def.rest !== 'fold') {
+    for (const hand of ALL_HANDS) {
+      const mix = (cells[hand] ??= {});
+      const total = Object.values(mix).reduce((a, b) => a + (b ?? 0), 0);
+      const left = 1 - total;
+      if (left > EPS) mix[def.rest] = (mix[def.rest] ?? 0) + left;
+    }
+  }
   return cells;
+}
+
+/** 이 차트에서 '아무것도 안 적힌 패'가 뜻하는 액션. */
+export function restAction(def: ChartDef): Action {
+  return def.rest ?? 'fold';
 }
 
 /** Fold weight of a mix (1 - sum of other weights). */
@@ -140,8 +157,16 @@ export function fullMix(mix: ActionMix | undefined): Array<{ action: Action; wei
       if (a !== 'fold' && w && w > EPS) out.push({ action: a, weight: w });
     }
   }
-  return out.sort((a, b) => (Math.abs(a.weight - b.weight) < EPS ? ACTIONS.indexOf(b.action) - ACTIONS.indexOf(a.action) : b.weight - a.weight));
+  return out.sort((a, b) => (Math.abs(a.weight - b.weight) < EPS ? aggression(b.action) - aggression(a.action) : b.weight - a.weight));
 }
+
+/**
+ * 공격성 오름차순. ACTIONS 는 '저장 형식' 순서라(check 가 맨 뒤) 그걸 공격성으로 쓰면
+ * 체크가 제일 공격적인 액션이 됩니다 — 50/50 체크·레이즈 패가 체크로 굳어지고, 트레이너는
+ * 맞게 레이즈한 사람을 틀렸다고 합니다. 두 순서를 영영 갈라 둡니다.
+ */
+const AGGRESSION_ORDER: readonly Action[] = ['fold', 'check', 'call', 'raise', 'threebet', 'fourbet', 'allin'];
+const aggression = (a: Action): number => AGGRESSION_ORDER.indexOf(a);
 
 /** The action to memorize: highest weight; ties go to the more aggressive action. */
 export function primaryAction(mix: ActionMix | undefined): Action {
@@ -179,7 +204,7 @@ export function continueWeights(cells: ChartCells, actions?: Action[]): Record<H
 
 /** Debug helper: cells → compact per-action range string. */
 export function describeChart(cells: ChartCells): Record<Action, string> {
-  const by: Record<Action, string[]> = { fold: [], call: [], raise: [], threebet: [], fourbet: [], allin: [] };
+  const by: Record<Action, string[]> = { fold: [], check: [], call: [], raise: [], threebet: [], fourbet: [], allin: [] };
   for (const h of ALL_HANDS) {
     for (const { action, weight } of fullMix(cells[h])) {
       if (action === 'fold') continue;

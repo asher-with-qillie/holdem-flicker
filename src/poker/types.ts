@@ -20,10 +20,17 @@ export const POS_LABEL_KO: Record<Pos, string> = {
  *  - fourbet : 4-bet (vs 3-bet, or cold 4-bet) — not all-in at 100bb
  *  - allin   : 5-bet jam (vs 4-bet)
  */
-export const ACTIONS = ['fold', 'call', 'raise', 'threebet', 'fourbet', 'allin'] as const;
+/**
+ * `check` 는 **반드시 맨 뒤**에 둡니다. src/state/srs.ts 가 저장할 때 `ACTIONS.indexOf(...)` 를 그대로
+ * 숫자로 적고 불러올 때 `ACTIONS[n]` 으로 되읽는데, 버전 표시가 없습니다. 중간에 끼워 넣으면 이미
+ * 저장된 모든 카드의 정답이 한 칸씩 밀려 조용히 다른 액션이 됩니다 — 에러도 안 납니다.
+ * 이 배열의 순서는 '저장 형식'이지 '공격성 순서'가 아닙니다. 공격성은 range.ts 의 AGGRESSION_ORDER 입니다.
+ */
+export const ACTIONS = ['fold', 'call', 'raise', 'threebet', 'fourbet', 'allin', 'check'] as const;
 export type Action = (typeof ACTIONS)[number];
 
 export const ACTION_LABEL_KO: Record<Action, string> = {
+  check: '체크',
   fold: '폴드',
   call: '콜',
   raise: '레이즈 (오픈)',
@@ -33,6 +40,7 @@ export const ACTION_LABEL_KO: Record<Action, string> = {
 };
 
 export const ACTION_SHORT_KO: Record<Action, string> = {
+  check: '체크',
   fold: '폴드',
   call: '콜',
   raise: '오픈',
@@ -62,8 +70,13 @@ export const SCENARIO_LABEL_KO: Record<ScenarioKind, string> = {
   cold_4bet: '앞에서 오픈 + 3벳 (콜드 4벳)',
 };
 
-/** Which actions are legal (offered) in each scenario, in display order. */
-export const SCENARIO_ACTIONS: Record<ScenarioKind, Action[]> = {
+/**
+ * Which actions are legal (offered) in each scenario, in display order.
+ *
+ * 직접 쓰지 말고 `scenarioActions(kind, hero)` 를 쓰세요. 어떤 상황은 legal action 이 자리에
+ * 따라 달라집니다(빅블라인드는 이미 돈을 냈으므로 폴드가 없습니다).
+ */
+const KIND_ACTIONS: Record<ScenarioKind, Action[]> = {
   rfi: ['fold', 'raise'],
   vs_open: ['fold', 'call', 'threebet'],
   vs_3bet: ['fold', 'call', 'fourbet'],
@@ -71,6 +84,17 @@ export const SCENARIO_ACTIONS: Record<ScenarioKind, Action[]> = {
   vs_5bet: ['fold', 'call'],
   cold_4bet: ['fold', 'call', 'fourbet'],
 };
+
+/**
+ * 이 상황에서 고를 수 있는 액션 — **공격성 오름차순**입니다.
+ *
+ * 순서가 값을 가집니다. `src/state/coach/patterns.ts` 는 이 배열의 인덱스를 그대로 '공격성 등수'로
+ * 읽고, 여러 곳이 `.at(-1)` 로 '제일 공격적인 액션'을 꺼냅니다. 뒤집으면 전부 컴파일은 되지만
+ * 코치 탭의 성향 축이 통째로 반대로 읽힙니다.
+ */
+export function scenarioActions(kind: ScenarioKind, _hero: Pos): readonly Action[] {
+  return KIND_ACTIONS[kind];
+}
 
 export const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'] as const;
 export type Rank = (typeof RANKS)[number];
@@ -99,8 +123,19 @@ export interface ChartDef {
   hero: Pos;
   /** Opener (vs_open, vs_4bet) or 3-bettor (vs_3bet, vs_5bet). Absent for rfi and cold_4bet. */
   villain?: Pos;
-  /** Range strings per non-fold action. See src/poker/range.ts for notation. */
-  actions: Partial<Record<Exclude<Action, 'fold'>, string>>;
+  /**
+   * Range strings per action. See src/poker/range.ts for notation.
+   * `fold` 와 `check` 는 여기 못 씁니다 — 둘은 '적지 않은 나머지'(`rest`)로만 들어갑니다.
+   */
+  actions: Partial<Record<Exclude<Action, 'fold' | 'check'>, string>>;
+  /**
+   * 아무 액션에도 안 적힌 나머지 비중이 무엇인가. 기본은 폴드입니다.
+   *
+   * 빅블라인드는 이미 돈을 냈으니 **공짜로 폴드할 수 없습니다** — 레이즈하지 않는 패는 전부
+   * 체크입니다. 이 칸을 안 두면 앱이 "빅블라인드에서 폴드"를 가르치게 됩니다.
+   * `buildChart` 가 이 값을 실제 비중으로 만들어 주므로, 아래 소비자들은 그냥 진짜 액션으로 봅니다.
+   */
+  rest?: Action;
   /** Short Korean strategic summary of the chart (1–3 sentences). */
   summary?: string;
   /** Optional hand-specific notes (hand name → Korean note). Shown in explanations. */

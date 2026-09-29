@@ -34,7 +34,7 @@
   --card: #FFFDF7; --card-edge: #D9D3C2; --spade: #14161C; --diamond: #D3262B;
 
   /* ---- actions (chroma tuned for the dark ground) ---- */
-  --act-fold: #7C8594; --act-call: #34C77B; --act-raise: #FF8A3D;
+  --act-fold: #7C8594; --act-check: #8FA0B8; --act-call: #34C77B; --act-raise: #FF8A3D;
   --act-threebet: #FF5A5A; --act-fourbet: #A46BFF; --act-allin: #FFD23F;
 
   /* ---- heatmap ramp ---- */
@@ -266,6 +266,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.01em; }
 .badge--md { height: 36px; padding: 0 16px; font-size: 15px; }
 .badge--lg { height: 56px; padding: 0 28px; font-size: var(--fs-title-2); }
 .badge--fold { background: var(--act-fold); }
+.badge--check { background: var(--act-check); }
 .badge--call { background: var(--act-call); }
 .badge--raise { background: var(--act-raise); }
 .badge--threebet { background: var(--act-threebet); }

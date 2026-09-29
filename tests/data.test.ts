@@ -3,7 +3,7 @@ import { ALL_CHART_DEFS, getChartCells, missingScenarios, hasChart } from '../sr
 import { allScenarios } from '../src/poker/scenarios';
 import { buildChart, primaryAction, rangeShare } from '../src/poker/range';
 import { ALL_HANDS } from '../src/poker/hands';
-import { SCENARIO_ACTIONS, type Action, type Scenario } from '../src/poker/types';
+import { scenarioActions, type Action, type Scenario } from '../src/poker/types';
 
 const scenarios = allScenarios();
 
@@ -11,7 +11,7 @@ describe('chart data integrity', () => {
   it('every chart parses and only uses actions legal in its scenario', () => {
     for (const def of ALL_CHART_DEFS) {
       const cells = buildChart(def);
-      const legal = new Set<Action>(SCENARIO_ACTIONS[def.kind]);
+      const legal = new Set<Action>(scenarioActions(def.kind, def.hero));
       for (const [action, str] of Object.entries(def.actions)) {
         expect(legal.has(action as Action), `${def.id}: action ${action} not legal for ${def.kind}`).toBe(true);
         expect(typeof str).toBe('string');
@@ -36,7 +36,7 @@ describe('chart data integrity', () => {
         expect(primaryAction(cells[h]), `${s.kind} ${s.hero} ${s.villain ?? ''} folds ${h}`).not.toBe('fold');
       }
       // AA takes the most aggressive available action
-      const aggressive = SCENARIO_ACTIONS[s.kind].at(-1)!;
+      const aggressive = scenarioActions(s.kind, s.hero).at(-1)!;
       expect(primaryAction(cells.AA), `${s.kind} ${s.hero} ${s.villain ?? ''} AA should ${aggressive}`).toBe(aggressive);
     }
   });

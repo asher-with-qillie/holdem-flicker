@@ -7,6 +7,7 @@ import type { Action } from '../../poker/types';
 import type { Phase } from './sessionStore';
 
 const ACT_COLOR: Record<Action, string> = {
+  check: 'var(--act-check)',
   fold: 'var(--act-fold)',
   call: 'var(--act-call)',
   raise: 'var(--act-raise)',

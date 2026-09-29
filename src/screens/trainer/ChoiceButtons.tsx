@@ -1,7 +1,7 @@
 import { actionLabel } from '../../components/ActionBadge';
 import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import type { Step } from '../../poker/trainer';
-import { SCENARIO_ACTIONS, type Action } from '../../poker/types';
+import { scenarioActions, type Action } from '../../poker/types';
 import { actionWeight, PARTIAL_THRESHOLD, type Grade } from '../quiz/grade';
 
 const MARK: Record<Grade, string> = { correct: '✓', partial: '△', wrong: '✕' };
@@ -23,7 +23,7 @@ export interface ChoiceButtonsProps {
  */
 export function ChoiceButtons({ step, chosen, grade, revealed, onChoose }: ChoiceButtonsProps): JSX.Element {
   const kind = step.scenario.kind;
-  const actions = SCENARIO_ACTIONS[kind];
+  const actions = scenarioActions(kind, step.scenario.hero);
   const partial = actions.filter((a) => a !== step.answer && actionWeight(step, a) >= PARTIAL_THRESHOLD).join(',');
   return (
     <div className={`trainer-choices${revealed ? ' trainer-choices--done' : ''}`} role="group" aria-label="액션 선택" data-answer={step.answer} data-partial={partial}>

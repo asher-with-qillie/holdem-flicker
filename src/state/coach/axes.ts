@@ -13,7 +13,7 @@
  * 순수 함수입니다. 저장소도 시계도 읽지 않습니다 — 재료는 digest.ts 가 모아서 넘깁니다.
  * `pure()` 필터(부분 정답이 가능한 문제 제외)도 digest.ts 가 이미 양쪽에 걸어서 넘깁니다.
  */
-import { SCENARIO_ACTIONS, type Pos, type ScenarioKind } from '../../poker/types';
+import { scenarioActions, type Pos, type ScenarioKind } from '../../poker/types';
 import type { AxisId, AxisLevel, AxisLock, AxisView, CoachMistake, SeenRow } from './types';
 
 /** SB·BB 는 seat 축에서 완전히 제외합니다 — BB 는 rfi 자체가 없고 수비 자리라 BTN 과 성격이 정반대입니다. */
@@ -166,7 +166,7 @@ function aggressionAxis(ms: CoachMistake[], minSample: number, where: string): R
   let n = 0;
   let s = 0;
   for (const m of ms) {
-    const acts = SCENARIO_ACTIONS[m.kind];
+    const acts = scenarioActions(m.kind, m.hero);
     if (acts.length !== 3) continue;
     const chosen = acts.indexOf(m.chosen);
     const answer = acts.indexOf(m.answer);
@@ -181,7 +181,7 @@ function aggressionAxis(ms: CoachMistake[], minSample: number, where: string): R
   // rfi·vs_5bet 은 오답이 하나뿐이라 이 축에 안 들어갑니다. 그 둘만 푸는 사람에게 "실수 N개 더"만
   // 적으면 영영 안 줄어드는 숫자를 보여 주는 셈이라, 어디서 필요한지를 같이 싣습니다.
   if (need > 0) return { ...locked(need, n), needWhere: where, lock: 'mistakes' };
-  const used = ms.filter((m) => SCENARIO_ACTIONS[m.kind].length === 3);
+  const used = ms.filter((m) => scenarioActions(m.kind, m.hero).length === 3);
   return { sample: n, need: 0, t: s / n, z: s / Math.sqrt(n) / designEffect(used), needWhere: where };
 }
 

@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { SCENARIO_ACTIONS, type Action, type Pos, type ScenarioKind } from '../../../poker/types';
+import { scenarioActions, type Action, type Pos, type ScenarioKind } from '../../../poker/types';
 import { computeAxes } from '../axes';
 import type { AxisId, AxisView, CoachMistake, SeenRow } from '../types';
 
@@ -106,7 +106,7 @@ interface Card {
 function buildDeck(rng: () => number, cells: Cell[]): Card[] {
   const deck: Card[] = [];
   for (const cell of cells) {
-    const acts = SCENARIO_ACTIONS[cell.kind];
+    const acts = scenarioActions(cell.kind, cell.hero);
     for (const hand of HANDS) {
       const isFold = rng() < cell.foldShare;
       const answer: Action = isFold ? 'fold' : acts[1 + Math.floor(rng() * (acts.length - 1))];
@@ -144,7 +144,7 @@ function simulate(rng: () => number, cells: Cell[], player: Player, trials: numb
 
   for (let i = 0; i < trials; i += 1) {
     const card = draw();
-    const acts = SCENARIO_ACTIONS[card.cell.kind];
+    const acts = scenarioActions(card.cell.kind, card.cell.hero);
     const isFold = card.answer === 'fold';
 
     // seen 은 답을 실제로 낸 횟수의 집계입니다 — (kind, hero, answer) 한 줄에 몰아 셉니다.
@@ -500,9 +500,9 @@ describe('되풀이되는 실수 — 설계효과 보정', () => {
     const aggression = axisOf(axes, 'aggression');
     expect(aggression.unlocked).toBe(true);
     // 되풀이가 없으니 z 는 부호 검정 그대로여야 합니다.
-    const used = once.filter((x) => SCENARIO_ACTIONS[x.kind].length === 3);
+    const used = once.filter((x) => scenarioActions(x.kind, x.hero).length === 3);
     const s = used.reduce((acc, x) => {
-      const acts = SCENARIO_ACTIONS[x.kind];
+      const acts = scenarioActions(x.kind, x.hero);
       const wrongs = acts.filter((a) => a !== x.answer);
       return acc + (x.chosen === wrongs[wrongs.length - 1] ? 1 : -1);
     }, 0);

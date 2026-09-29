@@ -145,11 +145,11 @@ export function ChartsScreen() {
 
         {cells ? (
           <>
-            <ActionShares cells={cells} kind={sel.kind} />
+            <ActionShares cells={cells} kind={sel.kind} hero={sel.hero} />
             <GlassPanel radius="md" padding={0} className="glass-flat charts__panel">
               <RangeGrid cells={cells} highlight={lastHand} onSelect={openHand} overlay={mastery?.overlay} />
             </GlassPanel>
-            <ChartLegend kind={sel.kind} overlay={overlayOn} />
+            <ChartLegend kind={sel.kind} hero={sel.hero} overlay={overlayOn} />
             {mastery && (
               <p className="charts__mastery t-footnote">
                 {rated === 0 ? (

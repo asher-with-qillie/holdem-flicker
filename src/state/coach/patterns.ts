@@ -14,7 +14,7 @@
  * (최신성은 호출부가 계산해 넣어 준 `CoachMistake.daysAgo` 로만 봅니다).
  */
 import { HAND_CLASS_KO, classifyHand, type HandClass } from '../../poker/explain';
-import { RANKS, SCENARIO_ACTIONS, type Action, type Pos, type ScenarioKind } from '../../poker/types';
+import { RANKS, scenarioActions, type Action, type Pos, type ScenarioKind } from '../../poker/types';
 import type { DeckId } from '../settings';
 import type { CoachDrill, CoachMistake, PatternHit, SeenRow } from './types';
 
@@ -105,9 +105,9 @@ function buildClassPrior(): Array<{ cls: HandClass; hand: string; p: number }> {
 /* 작은 도구                                                            */
 /* ------------------------------------------------------------------ */
 
-/** SCENARIO_ACTIONS 는 공격성 오름차순입니다 — 그래서 인덱스가 곧 공격성 순위입니다. */
-function rankOf(kind: ScenarioKind, a: Action): number {
-  return SCENARIO_ACTIONS[kind].indexOf(a);
+/** scenarioActions 는 공격성 오름차순입니다 — 그래서 인덱스가 곧 공격성 순위입니다. */
+function rankOf(kind: ScenarioKind, hero: Pos, a: Action): number {
+  return scenarioActions(kind, hero).indexOf(a);
 }
 
 /** 많이 나온 순. Map 이 삽입 순서를 지키고 sort 가 안정 정렬이라 동점은 처음 본 순서로 남습니다. */
@@ -364,8 +364,8 @@ export const PATTERN_RULES: PatternRule[] = [
       if (!PREMIUM_CLASSES.includes(m.handClass)) return false;
       // 폴드는 premium_overfold 가 맡습니다 — 여기 문구는 '콜한 것'을 전제로 씁니다.
       if (m.chosen === 'fold') return false;
-      const chosen = rankOf(m.kind, m.chosen);
-      const answer = rankOf(m.kind, m.answer);
+      const chosen = rankOf(m.kind, m.hero, m.chosen);
+      const answer = rankOf(m.kind, m.hero, m.answer);
       return chosen >= 0 && answer >= 0 && chosen < answer;
     },
     advice: [
@@ -468,7 +468,7 @@ function expectedShare(rule: PatternRule, buckets: SeenBucket[], total: number):
   if (total <= 0) return 0;
   let acc = 0;
   for (const b of buckets) {
-    const wrong = SCENARIO_ACTIONS[b.kind].filter((a) => a !== b.answer);
+    const wrong = scenarioActions(b.kind, b.hero).filter((a: Action) => a !== b.answer);
     if (wrong.length === 0) continue;
     let p = 0;
     for (const { cls, hand, p: prior } of CLASS_PRIOR) {

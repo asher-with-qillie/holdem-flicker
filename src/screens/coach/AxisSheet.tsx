@@ -15,7 +15,7 @@
  */
 import { ActionBadge } from '../../components/ActionBadge';
 import { Sheet } from '../../components/ui/Sheet';
-import { SCENARIO_ACTIONS, type Pos, type ScenarioKind } from '../../poker/types';
+import { scenarioActions, type Pos, type ScenarioKind } from '../../poker/types';
 import type { AxisId, AxisView, CoachMistake } from '../../state/coach/types';
 import { KIND_SHORT_KO } from '../home/copy';
 
@@ -76,7 +76,7 @@ function belongs(id: AxisId, m: CoachMistake): boolean {
   switch (id) {
     // 오답 선택지가 둘인 상황만 방향을 말해 줍니다(rfi·vs_5bet 은 선택지가 하나뿐입니다).
     case 'aggression':
-      return SCENARIO_ACTIONS[m.kind].length === 3;
+      return scenarioActions(m.kind, m.hero).length === 3;
     // 거르는 조건이 없는 유일한 축입니다 — 실수 전체가 그대로 재료입니다.
     case 'entry':
       return true;
