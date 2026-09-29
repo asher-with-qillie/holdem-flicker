@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { expandToken, parseRange, buildChart, primaryAction, rangeShare, fullMix } from '../src/poker/range';
-import { ALL_HANDS, gridHand, handNameFromCards, dealCardsFor, combos, seedRandom } from '../src/poker/hands';
+import { ALL_HANDS, RANK_VALUE, gridHand, handNameFromCards, dealCardsFor, combos, seedRandom } from '../src/poker/hands';
 
 describe('range notation', () => {
   it('expands pairs with + and -', () => {
@@ -70,6 +70,55 @@ describe('hands', () => {
         expect(['s', 'd']).toContain(b.suit);
         expect(handNameFromCards(a, b)).toBe(h);
       }
+    }
+  });
+});
+
+/**
+ * 무늬는 '수딧이냐 오프수딧이냐'를 한눈에 보이게 하려고 ♠·♦ 두 가지만 씁니다.
+ * 그래서 무늬가 **손패 이름에서 결정론적으로** 나와야 합니다. 예전에는 매번 무작위로 뽑아서
+ * 같은 페어가 7♠7♦ 로도 7♦7♠ 로도 나왔고, 페어는 두 장의 숫자가 같으니 눈에 보이는 차이가
+ * '왼쪽이 스페이드냐'뿐이라 같은 문제가 두 개로 읽혔습니다. 요약·홈 목록은 렌더할 때마다
+ * 다시 뽑아서 세션에서 본 카드와 어긋나기도 했습니다.
+ */
+describe('dealCardsFor 무늬는 패마다 고정', () => {
+  const str = (h: string) => dealCardsFor(h).map((c) => `${c.rank}${c.suit}`).join('');
+
+  it('같은 패는 몇 번을 뽑아도 같은 카드', () => {
+    for (const h of ALL_HANDS) {
+      const first = str(h);
+      for (let i = 0; i < 20; i++) expect(str(h)).toBe(first);
+    }
+  });
+
+  it('페어는 언제나 ♠ 먼저, ♦ 나중 — 무늬로 두 가지 문제가 되지 않는다', () => {
+    for (const h of ALL_HANDS) {
+      if (h.length !== 2) continue;
+      const [a, b] = dealCardsFor(h);
+      expect(a.suit).toBe('s');
+      expect(b.suit).toBe('d');
+    }
+  });
+
+  it('수딧은 두 장이 같은 무늬, 오프수트는 다른 무늬', () => {
+    for (const h of ALL_HANDS) {
+      const [a, b] = dealCardsFor(h);
+      if (h.endsWith('s')) expect(a.suit).toBe(b.suit);
+      else expect(a.suit).not.toBe(b.suit);
+    }
+  });
+
+  it('수딧이 전부 스페이드로 쏠리지 않는다 (화면이 단조로워지지 않게)', () => {
+    const suited = ALL_HANDS.filter((h) => h.endsWith('s'));
+    const spades = suited.filter((h) => dealCardsFor(h)[0].suit === 's').length;
+    expect(spades).toBeGreaterThan(suited.length * 0.25);
+    expect(spades).toBeLessThan(suited.length * 0.75);
+  });
+
+  it('높은 카드가 언제나 앞 — suitOrientation 이 첫 장만 보고 판단한다', () => {
+    for (const h of ALL_HANDS) {
+      const [a, b] = dealCardsFor(h);
+      expect(RANK_VALUE[a.rank]).toBeGreaterThanOrEqual(RANK_VALUE[b.rank]);
     }
   });
 });

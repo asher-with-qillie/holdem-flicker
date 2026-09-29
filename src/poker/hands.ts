@@ -74,24 +74,42 @@ export function pick<T>(arr: readonly T[], rng: () => number = random): T {
   return arr[Math.floor(rng() * arr.length)];
 }
 
+/** 손패 이름에서 뽑는 작은 해시 (FNV-1a). 무늬를 고르는 데만 씁니다. */
+function nameHash(name: HandName): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < name.length; i++) {
+    h ^= name.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h;
+}
+
 /**
  * Deal two concrete cards for a canonical hand.
- * Suits: only ♠ and ♦ (user preference). Suited → both ♠ or both ♦; offsuit/pair → one ♠ one ♦.
+ * Suits: only ♠ and ♦ (user preference) — 수딧인지 오프수딧인지 한눈에 갈리게 하려는 것이므로,
+ * 무늬는 **손패 이름에서 결정론적으로** 나옵니다. 같은 패는 언제 어디서 봐도 같은 그림입니다.
+ *
+ * 예전에는 무늬를 매번 무작위로 뽑았습니다. 그래서 같은 페어가 7♠7♦ 로도, 7♦7♠ 로도 나왔는데,
+ * 페어는 두 장의 숫자가 같아서 눈에 보이는 차이가 '왼쪽이 스페이드냐 다이아냐' 뿐입니다 —
+ * 같은 문제가 '스페이드 페어'와 '다이아 페어' 두 개로 읽혔습니다. 게다가 요약·홈 목록은
+ * 렌더할 때마다 다시 뽑아서 세션에서 본 카드와 무늬가 어긋나기도 했습니다.
+ *
+ *   · 페어·오프수트 → 언제나 ♠ 먼저, ♦ 나중 (두 장의 무늬가 다르다 = 수딧이 아니다)
+ *   · 수딧          → 두 장 모두 ♠ 이거나 모두 ♦ (어느 쪽인지는 패마다 고정)
  */
-export function dealCardsFor(name: HandName, rng: () => number = random): [Card, Card] {
+export function dealCardsFor(name: HandName): [Card, Card] {
   const info = parseHandName(name);
   if (info.kind === 'suited') {
-    const s: Suit = rng() < 0.5 ? 's' : 'd';
+    // 화면이 온통 스페이드가 되지 않게 패마다 갈라 두되, 그 선택은 패에 고정합니다.
+    const s: Suit = nameHash(name) % 2 === 0 ? 's' : 'd';
     return [
       { rank: info.high, suit: s },
       { rank: info.low, suit: s },
     ];
   }
-  const first: Suit = rng() < 0.5 ? 's' : 'd';
-  const second: Suit = first === 's' ? 'd' : 's';
   return [
-    { rank: info.high, suit: first },
-    { rank: info.low, suit: second },
+    { rank: info.high, suit: 's' },
+    { rank: info.low, suit: 'd' },
   ];
 }
 
