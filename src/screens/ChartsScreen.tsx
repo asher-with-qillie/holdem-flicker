@@ -6,6 +6,7 @@ import { GlassPanel } from '../components/ui/GlassPanel';
 import { Switch } from '../components/ui/Switch';
 import { IconCards } from '../components/ui/icons';
 import { getChartCells, getChartDef, hasChart } from '../poker/data';
+import { restAction } from '../poker/range';
 import { explainStep, type Explanation } from '../poker/explain';
 import { scenarioKey, scenarioSituation, scenarioTitle } from '../poker/scenarios';
 import { stepFor, type Step } from '../poker/trainer';
@@ -145,7 +146,7 @@ export function ChartsScreen() {
 
         {cells ? (
           <>
-            <ActionShares cells={cells} kind={sel.kind} hero={sel.hero} />
+            <ActionShares cells={cells} kind={sel.kind} hero={sel.hero} rest={restAction(getChartDef(sel))} />
             <GlassPanel radius="md" padding={0} className="glass-flat charts__panel">
               <RangeGrid cells={cells} highlight={lastHand} onSelect={openHand} overlay={mastery?.overlay} />
             </GlassPanel>

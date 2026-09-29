@@ -33,9 +33,9 @@
  *  - `flushSrs()` is exported so the trainer can persist at summary time and tests can assert storage.
  */
 import { useSyncExternalStore } from 'react';
-import { getChartCells, hasChart } from '../poker/data';
+import { getChartCells, getChartDef, hasChart } from '../poker/data';
 import { ALL_HANDS, dealWeightedHand, gridHand, pick, random } from '../poker/hands';
-import { continueWeights } from '../poker/range';
+import { continueWeights, restAction } from '../poker/range';
 import { allScenarios, positionsBefore, scenarioKey } from '../poker/scenarios';
 import { feasiblePositions, nextHandSequence, stepFor, type SessionOptions, type Step } from '../poker/trainer';
 import { ACTIONS, POSITIONS, SCENARIO_KINDS, type Action, type HandName, type Pos, type Scenario, type ScenarioKind } from '../poker/types';
@@ -509,10 +509,14 @@ export function learnableHands(scenario: Scenario): HandName[] {
   if (memo) return memo;
   if (!hasChart(scenario)) return [];
   const cells = getChartCells(scenario);
+  // '아무것도 안 적힌 나머지'가 무엇인지는 차트마다 다릅니다(빅블라인드는 체크). 그 나머지만
+  // 하는 패는 외울 게 없으므로 학습 대상이 아닙니다 — 그냥 '비중이 있는 패'로 세면 체크가
+  // 실제 비중으로 들어간 빅블라인드 차트에서 169개가 전부 학습 대상이 됩니다.
+  const rest = restAction(getChartDef(scenario));
   const nonFold = new Set<HandName>();
   for (const h of ALL_HANDS) {
     const mix = cells[h];
-    if (mix && Object.values(mix).some((w) => (w ?? 0) > 0)) nonFold.add(h);
+    if (mix && Object.entries(mix).some(([a, w]) => a !== rest && (w ?? 0) > 0)) nonFold.add(h);
   }
   const out: HandName[] = [];
   for (let r = 0; r < 13; r++) {

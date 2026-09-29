@@ -1,6 +1,6 @@
 import { actionLabel } from '../../components/ActionBadge';
 import { rangeShare } from '../../poker/range';
-import { scenarioActions, type Action, type ChartCells, type Pos, type ScenarioKind } from '../../poker/types';
+import { ACTION_SHORT_KO, scenarioActions, type Action, type ChartCells, type Pos, type ScenarioKind } from '../../poker/types';
 import { formatPct } from './selection';
 
 function swatchColor(action: Action): string {
@@ -8,7 +8,8 @@ function swatchColor(action: Action): string {
 }
 
 /** Share bar (8 px, aggressive → passive, the fold share is the track) + footnote "오픈 18.1% · 폴드 81.9%". */
-export function ActionShares({ cells, kind, hero }: { cells: ChartCells; kind: ScenarioKind; hero: Pos }) {
+/** `rest` = 이 차트에서 '아무 액션에도 안 적힌 패'가 뜻하는 것. 기본은 폴드, 빅블라인드 차트는 체크. */
+export function ActionShares({ cells, kind, hero, rest = 'fold' }: { cells: ChartCells; kind: ScenarioKind; hero: Pos; rest?: Action }) {
   const actions = scenarioActions(kind, hero).filter((a) => a !== 'fold').reverse();
   const shares = actions.map((action) => ({ action, share: rangeShare(cells, action) }));
   const cont = rangeShare(cells);
@@ -29,7 +30,7 @@ export function ActionShares({ cells, kind, hero }: { cells: ChartCells; kind: S
           </span>
         ))}
         <span className="share share--fold">
-          폴드 <b>{formatPct(1 - cont)}</b>
+          {ACTION_SHORT_KO[rest]} <b>{formatPct(1 - cont)}</b>
         </span>
       </p>
     </div>

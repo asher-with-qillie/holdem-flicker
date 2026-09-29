@@ -1,6 +1,8 @@
 import { RangeGrid } from '../../components/RangeGrid';
 import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { Sheet } from '../../components/ui/Sheet';
+import { getChartDef } from '../../poker/data';
+import { restAction } from '../../poker/range';
 import { scenarioTitle } from '../../poker/scenarios';
 import type { Step } from '../../poker/trainer';
 import { setTab } from '../../state/nav';
@@ -41,7 +43,7 @@ export function RevealChart({ open, step, onClose }: { open: boolean; step: Step
       }
     >
       <div className="trainer-chart">
-        <ActionShares cells={step.cells} kind={scenario.kind} hero={scenario.hero} />
+        <ActionShares cells={step.cells} kind={scenario.kind} hero={scenario.hero} rest={restAction(getChartDef(scenario))} />
         <div className="trainer-chart__grid glass glass-flat">
           <RangeGrid cells={step.cells} highlight={step.hand} />
         </div>
