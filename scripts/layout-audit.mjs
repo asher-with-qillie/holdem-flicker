@@ -108,7 +108,12 @@ const PROBE = () => {
     const hasText = el.childElementCount === 0 && (el.textContent || '').trim().length > 0;
     if (hasText) {
       const clampLines = cs.webkitLineClamp && cs.webkitLineClamp !== 'none';
-      if (/hidden|clip/.test(cs.overflowX) && el.scrollWidth > el.clientWidth + 1 && cs.textOverflow !== 'ellipsis') {
+      // text-overflow: ellipsis 는 '일부러 줄였고 …로 표가 난다'는 뜻이라 봐주고 넘어갑니다.
+      // 그런데 flex·grid 컨테이너에서는 ellipsis 가 **아예 듣지 않습니다** — CSS 에 적혀만
+      // 있고 브라우저는 … 없이 그냥 싹둑 자릅니다. 그런 곳까지 봐주면 검사가 진짜 잘림을
+      // 놓칩니다(.ui-btn__label 이 inline-flex + ellipsis 라 실제로 놓쳤습니다).
+      const ellipsisWorks = cs.textOverflow === 'ellipsis' && !/flex|grid/.test(cs.display);
+      if (/hidden|clip/.test(cs.overflowX) && el.scrollWidth > el.clientWidth + 1 && !ellipsisWorks) {
         push('text-clip-x', el, `scrollW ${el.scrollWidth} > clientW ${el.clientWidth}`);
       }
       if (/hidden|clip/.test(cs.overflowY) && !clampLines && el.scrollHeight > el.clientHeight + 2) {
@@ -255,6 +260,8 @@ const PROBE = () => {
 
 const browser = await chromium.launch();
 const report = [];
+/** 검사가 '보러 간 화면에 도착하지 못한' 경우. 조용히 건너뛰면 검사가 도는 척만 합니다. */
+const missed = [];
 
 for (const size of SIZES) {
   const ctx = await browser.newContext({
@@ -338,6 +345,43 @@ for (const size of SIZES) {
   if (await endBtn.count()) { await endBtn.first().tap(); await page.waitForTimeout(800); }
   await grab('train-summary');
 
+  // 림프 대응 덱을 한 번 더 돌립니다. 이 덱의 선택 버튼 이름이 앱에서 제일 길어서
+  // (2단 그리드 한 칸에 들어가야 합니다), text-clip-x 가 여기를 꼭 봐야 합니다.
+  // 기본 덱만 돌리면 이 화면은 운에 맡겨집니다 — 상황이 일곱 가지 중 하나로 뽑히니까요.
+  {
+    // 지금은 훈련 탭에 요약이 떠 있습니다. 탭을 다시 눌러도, 홈을 들렀다 와도 요약이 그대로
+    // 살아 있어서 설정 화면으로 안 돌아옵니다(세션 상태가 화면 안에 남아 있습니다).
+    // 새로고침이 확실합니다. 이걸 안 하면 아래 조건이 조용히 건너뛰어져서 검사가 도는 척만
+    // 합니다 — 실제로 한 번 그랬고, 그래서 missed 로 소리내게 해 뒀습니다.
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(500);
+    await tap(/^훈련$/);
+    await page.waitForTimeout(500);
+    const deck = page.locator('.trainer-setup').getByText(/림프/);
+    if (!(await deck.count())) {
+      missed.push(`${size.name}/train-limp: 훈련 설정에서 림프 덱을 못 찾았습니다`);
+    } else {
+      await deck.first().tap();
+      await page.waitForTimeout(300);
+      await tap(/시작/);
+      await page.waitForTimeout(700);
+      for (let i = 0; i < 5; i++) {
+        const skip = page.getByRole('button', { name: /건너뛰기|시작할게요/ });
+        if (!(await skip.count())) break;
+        await skip.first().tap();
+        await page.waitForTimeout(350);
+      }
+      if (!(await page.locator('.trainer-choice').count())) {
+        missed.push(`${size.name}/train-limp: 세션이 시작되지 않아 선택 버튼이 없습니다`);
+      }
+      await grab('train-limp');
+      await page.locator('.trainer-hud__btn').first().tap();
+      await page.waitForTimeout(450);
+      const stop = page.locator('.ui-sheet button, .trainer-confirm button', { hasText: /끝|종료|그만|요약/ });
+      if (await stop.count()) { await stop.first().tap(); await page.waitForTimeout(800); }
+    }
+  }
+
   await tap(/^퀴즈$/);
   await grab('quiz');
   const qStart = page.getByRole('button', { name: /시작|출제|풀기/ });
@@ -379,6 +423,10 @@ for (const r of report) for (const p of r.out) {
 }
 const order = ['page-h-overflow', 'x-overflow', 'glow-budget', 'glow-clip', 'text-clip-x', 'text-clip-y', 'box-clip-y', 'escapes-padding', 'tap-target'];
 const rows = [...byKind.values()].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+if (missed.length) {
+  console.log('\n=== 못 본 화면 (검사가 헛돌았습니다) ===\n');
+  for (const m of missed) console.log(`  ! ${m}`);
+}
 console.log(`\n=== ${rows.length} distinct issues across ${report.length} screen×size probes ===\n`);
 for (const r of rows) {
   console.log(`[${r.kind}] ${r.path}`);

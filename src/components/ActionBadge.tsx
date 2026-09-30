@@ -7,7 +7,10 @@ export function actionLabel(action: Action, kind?: ScenarioKind, short = false):
   if (kind === 'cold_4bet' && action === 'fourbet') return short ? '4벳' : '콜드 4벳';
   if (kind === 'rfi' && action === 'raise') return short ? '오픈' : '오픈 레이즈';
   // 림프에 올리는 건 오픈이 아닙니다. 이게 없으면 ACTION_LABEL_KO 의 '레이즈 (오픈)' 이 그대로 나옵니다.
-  if (kind === 'vs_limp' && action === 'raise') return short ? '레이즈' : '레이즈 (림프에 올리기)';
+  // 긴 이름은 선택 버튼(2단 그리드)에 그대로 들어갑니다. 360px 에서 한 칸의 속너비가 143px 뿐이라
+  // '레이즈 (림프에 올리기)'(166px)는 잘렸습니다. 지금 이름은 101px 로, 기존 최장 이름인
+  // '레이즈 (오픈)'(97px) 과 같은 칸에 들어갑니다. 여기를 늘릴 때는 360px 에서 재 보세요.
+  if (kind === 'vs_limp' && action === 'raise') return short ? '레이즈' : '림프에 레이즈';
   return short ? ACTION_SHORT_KO[action] : ACTION_LABEL_KO[action];
 }
 
