@@ -797,6 +797,8 @@ const VERDICT_WORD: Record<string, string> = {
   '올인하세요.': '올인',
   '올인을 콜하세요.': '콜',
   '올인에는 폴드하세요.': '폴드',
+  '레이즈하세요.': '레이즈',
+  '체크하세요.': '체크',
 };
 
 const ALL_SPOTS: Scenario[] = (() => {
@@ -810,6 +812,10 @@ const ALL_SPOTS: Scenario[] = (() => {
     { kind: 'cold_4bet', hero: 'BB', extras: { opener: 'HJ', threeBettor: 'BTN' } },
     { kind: 'cold_4bet', hero: 'CO', extras: { opener: 'UTG', threeBettor: 'HJ' } },
   );
+  // 림프 대응. 안 넣으면 이 덱의 한국어 문장이 길이·금지어·문체 검사를 한 번도 안 받습니다.
+  for (const hero of ['HJ', 'CO', 'BTN', 'SB', 'BB'] as Pos[]) {
+    out.push({ kind: 'vs_limp', hero, extras: { limper: 'UTG' } } as Scenario);
+  }
   return out.filter(hasChart);
 })();
 

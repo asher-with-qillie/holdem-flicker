@@ -16,6 +16,7 @@ export interface GlossaryEntry {
 
 export const GLOSSARY: GlossaryEntry[] = [
   /* ---- 어려운 개념 (B단계) ---- */
+  { term: '림프', aliases: ['오버림프'], def: '올리지 않고 빅블라인드만큼만 내고 들어가는 것' },
   { term: '블로커', def: '내가 그 카드를 들어 상대 조합이 줄어드는 효과' },
   { term: '도미네이트', aliases: ['도미네이션'], def: '같은 카드를 맞춰도 킥커에서 지는 상태' },
   { term: '셋마이닝', def: '셋을 노리고 콜하는 것. 플랍에서 셋이 될 확률은 12%' },

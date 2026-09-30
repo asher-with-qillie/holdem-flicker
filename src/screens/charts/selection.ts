@@ -31,7 +31,8 @@ export const VILLAIN_LABEL: Partial<Record<ScenarioKind, string>> = {
 const SCENARIOS: Scenario[] = allScenarios();
 
 export function kindHasVillain(kind: ScenarioKind): boolean {
-  return kind !== 'rfi' && kind !== 'cold_4bet';
+  // vs_limp 은 림퍼 자리로 차트가 갈리지 않습니다 — 상대 칩 줄을 띄우면 고를 게 없는 줄이 뜹니다.
+  return kind !== 'rfi' && kind !== 'cold_4bet' && kind !== 'vs_limp';
 }
 
 /** Hero seats that exist for `kind`, in preflop order. */

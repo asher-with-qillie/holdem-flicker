@@ -20,11 +20,41 @@ Every chart in `src/poker/data/*.ts` follows it. Use it verbatim when authoring 
 | `vs_4bet` | villain opened, hero 3-bet, villain 4-bet. | opener | `fold`, `call`, `allin` (5-bet jam) |
 | `vs_5bet` | hero opened, villain 3-bet, hero 4-bet, villain 5-bet all-in. | 3-bettor | `fold`, `call` |
 | `cold_4bet` | an open and a 3-bet happened before hero; hero has not acted. Generic over the two villains. | none | `fold`, `call`, `fourbet` |
+| `vs_limp` | exactly ONE player limped (called the BB) in front of hero. Generic over the limper's seat. | none | `fold`, `raise` — **BB: `check`, `raise`** (already posted, cannot fold) |
 
 Valid (hero, villain) pairs: `vs_open`/`vs_4bet` need villain **before** hero; `vs_3bet`/`vs_5bet` need villain **after** hero.
-`rfi` exists for UTG..SB (not BB). `cold_4bet` exists for CO, BTN, SB, BB.
+`rfi` exists for UTG..SB (not BB). `cold_4bet` exists for CO, BTN, SB, BB. `vs_limp` exists for HJ..BB (UTG cannot face a limp).
 
 Chart `id` is always `${kind}:${hero}` or `${kind}:${hero}:${villain}` (e.g. `vs_open:BTN:CO`).
+
+## `vs_limp` — a different evidence class, and it must stay labelled that way
+
+Everything else in this document targets published solver output. **`vs_limp` does not, and must never claim to.**
+
+- Solvers do not open-limp in a raked 6-max 100bb tree (this spec's own model says `SB is raise-or-fold,
+  no limping`), so the node does not exist in any presolved cash solution.
+- GTO Wizard AI *can* solve a limp tree, but only with **exactly one limper** (`No limps` / `SB complete` /
+  `1 limp + SB complete`). That ceiling is why this deck covers one limper and no more.
+- Open the branch and solve it anyway and the solver limps ~0%, leaving the whole facing-limp subtree
+  unrefined. To get a usable strategy you must nodelock an assumed limping range — which makes the output a
+  **best response to an assumption**, not an equilibrium.
+
+So `vs_limp` charts are transcribed from published human charts, and where no chart exists for a seat, derived
+by a rule the source states. Each chart's `summary` names its provenance. Two consequences for authors:
+
+1. **`:0.5` means something different in `vsLimp.ts`.** Elsewhere it is a solver mixing frequency. There it
+   marks hands where the two published BTN charts disagree (Upswing's "optional, depends on the limper" band).
+2. **`ChartsScreen` must keep a separate disclaimer for this kind.** The shared one
+   (「솔버 결과를 단순화한 근사치예요」) is false here, and the moment it is applied to `vs_limp` the app is
+   claiming backing it does not have.
+
+## `rest` — when "not written down" is not a fold
+
+`ChartDef.rest` (default `'fold'`) says what an unwritten hand does. `vs_limp:BB` sets `rest: 'check'`:
+the big blind has already posted and cannot fold for free. `buildChart` materialises it into a real weight,
+so every consumer sees a `check` share rather than a phantom fold. Rules that assert "trash folds everywhere"
+compare against `restAction(def)`, never the literal `'fold'` — turning the rule off per-kind would leave the
+BB chart unprotected by it forever.
 
 ## Range notation
 

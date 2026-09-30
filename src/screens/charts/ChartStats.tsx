@@ -29,9 +29,13 @@ export function ActionShares({ cells, kind, hero, rest = 'fold' }: { cells: Char
             {actionLabel(action, kind, true)} <b>{formatPct(share)}</b>
           </span>
         ))}
-        <span className="share share--fold">
-          {ACTION_SHORT_KO[rest]} <b>{formatPct(1 - cont)}</b>
-        </span>
+        {/* 나머지가 폴드일 때만 붙입니다. 폴드가 아닌 나머지(빅블라인드의 체크)는 buildChart 가 이미
+            실제 비중으로 만들어 위 목록에 들어가 있어서, 여기 또 쓰면 「체크 88% · 체크 0%」가 됩니다. */}
+        {rest === 'fold' && (
+          <span className="share share--fold">
+            {ACTION_SHORT_KO[rest]} <b>{formatPct(1 - cont)}</b>
+          </span>
+        )}
       </p>
     </div>
   );

@@ -125,10 +125,19 @@ interface Base {
   b: number | null;
 }
 
+/**
+ * 진입 축의 기준선 — '내가 받은 문제 중 정답이 폴드였던 비중'.
+ *
+ * 폴드가 **선택지에 없는** 문제는 이 계산에서 빼야 합니다. 빅블라인드에서 림프를 맞는 문제가
+ * 그렇습니다(이미 돈을 냈으니 접을 수 없고, 정답은 체크 아니면 레이즈입니다). 넣어 두면 그 문제는
+ * 분모에만 들어가고 분자에는 절대 안 들어가서, 그 자리를 연습할수록 기준선이 가짜로 내려가고
+ * 화면은 성향이 없는 사람에게 「루즈합니다」라고 말합니다 — COACH_SPEC §1 이 말하는 '계산 가능한 거짓말'.
+ */
 function baseline(rows: SeenRow[]): Base {
   let total = 0;
   let fold = 0;
   for (const r of rows) {
+    if (!scenarioActions(r.kind, r.hero).includes('fold')) continue;
     total += r.weight;
     if (r.answer === 'fold') fold += r.weight;
   }
@@ -151,11 +160,17 @@ function designEffect(ms: CoachMistake[]): number {
   return Math.sqrt(ms.length / keys.size);
 }
 
-/** q — 내 실수가 '접었어야 할 문제'에 몰린 비중. */
+/**
+ * q — 내 실수가 '접었어야 할 문제'에 몰린 비중.
+ * baseline() 과 같은 이유로 폴드가 선택지에 없던 문제(빅블라인드 림프 대응)는 빼고 셉니다 —
+ * 분모에만 들어가고 분자에는 못 들어가면 q 가 가짜로 내려갑니다.
+ */
 function foldShare(ms: CoachMistake[]): number {
+  const usable = ms.filter((m) => scenarioActions(m.kind, m.hero).includes('fold'));
+  if (!usable.length) return 0;
   let fold = 0;
-  for (const m of ms) if (m.answer === 'fold') fold += 1;
-  return fold / ms.length;
+  for (const m of usable) if (m.answer === 'fold') fold += 1;
+  return fold / usable.length;
 }
 
 /**

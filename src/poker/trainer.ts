@@ -47,6 +47,9 @@ export function interestingWeights(hero: Pos): Record<HandName, number> {
   const scenarios: Scenario[] = [];
   if (hero !== 'BB') scenarios.push({ kind: 'rfi', hero });
   for (const v of positionsBefore(hero)) scenarios.push({ kind: 'vs_open', hero, villain: v });
+  // 림프 대응도 넣습니다. BB 는 rfi 차트가 없어서 이게 없으면 표본이 vs_open 수비 레인지(아주 넓고
+  // 콜 위주)만으로 뽑혀, 림프만 연습하는 세션이 정작 올리는 쪽 패를 잘 안 내보냅니다.
+  if (hero !== 'UTG') scenarios.push({ kind: 'vs_limp', hero });
   for (const s of scenarios) {
     if (!hasChart(s)) continue;
     const w = continueWeights(getChartCells(s));

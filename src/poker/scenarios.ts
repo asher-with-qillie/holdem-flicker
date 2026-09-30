@@ -1,5 +1,13 @@
 import { POSITIONS, POS_INDEX, type Pos, type Scenario, type ScenarioKind } from './types';
 
+/**
+ * 자리 이름 뒤의 주격 조사. 소리 내어 읽을 때 자음으로 끝나는 자리는 BTN(비티엔) 하나뿐입니다
+ * (UTG 유티지 · HJ 하이잭 · CO 컷오프 · SB 에스비 · BB 비비는 모두 모음으로 끝납니다).
+ */
+export function seatSubject(p: Pos): string {
+  return p === 'BTN' ? `${p}이` : `${p}가`;
+}
+
 export function scenarioId(kind: ScenarioKind, hero: Pos, villain?: Pos): string {
   return villain ? `${kind}:${hero}:${villain}` : `${kind}:${hero}`;
 }
@@ -57,8 +65,8 @@ export function scenarioTitle(s: Scenario): string {
       return `${o} 오픈 → ${t} 3벳 → ${s.hero} 차례`;
     }
     case 'vs_limp': {
-      const l = s.extras?.limper ?? '앞';
-      return `${s.hero} · ${l} 림프에 대응`;
+      const l = s.extras?.limper;
+      return l ? `${s.hero} · ${l} 림프에 대응` : `${s.hero} · 림프에 대응`;
     }
   }
 }
@@ -83,10 +91,11 @@ export function scenarioSituation(s: Scenario): string {
       return `${o} 오픈, ${t} 3벳. 아직 아무 액션도 하지 않은 ${s.hero}인 당신 차례입니다.`;
     }
     case 'vs_limp': {
-      const l = s.extras?.limper ?? '앞사람';
+      const l = s.extras?.limper;
+      const who = l ? seatSubject(l) : '앞에서 한 명이';
       // 빅블라인드는 폴드가 없다는 걸 상황 문구에서 먼저 말해 줍니다 — 버튼만 보고 헷갈리지 않게.
-      if (s.hero === 'BB') return `${l}가 1bb만 내고 콜했습니다. 모두 폴드. BB인 당신은 체크 아니면 레이즈입니다.`;
-      return `${l}가 1bb만 내고 콜했습니다. ${s.hero}인 당신 차례입니다.`;
+      if (s.hero === 'BB') return `${who} 1bb만 내고 콜했습니다. BB인 당신은 체크 아니면 레이즈입니다.`;
+      return `${who} 1bb만 내고 콜했습니다. ${s.hero}인 당신 차례입니다.`;
     }
   }
 }

@@ -758,6 +758,21 @@ function scenarioLines(step: Step): string[] {
       }
       break;
     }
+    case 'vs_limp': {
+      // villainChart(s) 가 null 이라 vPct 는 '?' 입니다 — 여기서 절대 쓰지 마세요.
+      // (림퍼의 레인지를 담은 차트가 없습니다. 있는 척하면 「약 ?로 오픈합니다」가 화면에 뜹니다.)
+      const who = s.extras?.limper ? seat(s.extras.limper, '가') : '앞에서 한 명이';
+      out.push(`${who} 올리지 않고 1bb만 내고 들어왔습니다.`);
+      out.push('올릴 만큼 센 패는 아니라고 보는 게 보통입니다.');
+      if (hero === 'BB') {
+        out.push('나는 이미 1bb를 냈으니 공짜로 플랍을 봅니다.');
+        out.push(answer === 'raise' ? '그래도 올리는 건 값을 뽑을 수 있는 패뿐입니다.' : '굳이 팟을 키울 이유가 없으면 체크합니다.');
+      } else {
+        out.push(`뒤에 ${seatsBehind(hero)}명이 남아 있어 아무 패나 올릴 수는 없습니다.`);
+        out.push(answer === 'raise' ? '올릴 때는 4bb로 크게 올려 둘만 남기려 합니다.' : '올리지 않을 패는 콜하지 말고 접습니다.');
+      }
+      break;
+    }
   }
   return out;
 }
@@ -1060,9 +1075,9 @@ function situationText(s: Scenario): string {
     case 'cold_4bet':
       return `${s.extras?.opener ?? '앞자리'} 오픈, ${s.extras?.threeBettor ?? '앞자리'} 3벳 뒤 ${s.hero} 차례입니다. 폴드·콜·4벳 중에 정하세요.`;
     case 'vs_limp': {
-      const l = s.extras?.limper ?? '앞자리';
-      if (s.hero === 'BB') return `${l}가 1bb만 내고 들어왔습니다. 나는 BB라 접을 수 없습니다. 체크할지 올릴지 정하세요.`;
-      return `${l}가 1bb만 내고 들어왔습니다. ${s.hero}에서 폴드할지 올릴지 정하세요.`;
+      const who = s.extras?.limper ? seat(s.extras.limper, '가') : '앞에서 한 명이';
+      if (s.hero === 'BB') return `${who} 1bb만 내고 들어왔습니다. 나는 BB라 접을 수 없습니다. 체크할지 올릴지 정하세요.`;
+      return `${who} 1bb만 내고 들어왔습니다. ${s.hero}에서 폴드할지 올릴지 정하세요.`;
     }
   }
 }
