@@ -111,3 +111,11 @@
   .term-pop, .ui-explain__more-body { animation: none; }
   .ui-explain__more-btn svg { transition: none; }
 }
+
+/* ---- 자리별 보기 입구: 결론 바로 아래 한 줄 (44px, 민트) ---- */
+.ui-explain__across {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; width: 100%; margin-top: 4px; padding: 0;
+  border: 0; background: transparent; color: var(--mint); font-size: var(--fs-callout); font-weight: 600; text-align: left;
+}
+.ui-explain__across span:last-child { font-size: 20px; line-height: 1; color: color-mix(in srgb, var(--mint) 70%, transparent); }
+.ui-explain__across:active { opacity: 0.7; }

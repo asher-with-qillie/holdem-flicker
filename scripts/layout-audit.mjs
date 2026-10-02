@@ -8,6 +8,9 @@
 //
 // 남는 항목이 전부 근거가 있는지 한 번씩 확인하세요. 지금 남겨 둔 것들:
 //   - .rgrid__cell 22px  : 13×13 레인지 그리드. 폰 너비에서 44px 을 줄 방법이 없습니다.
+//   - .atlas__cell        : 자리별 보기의 타일. 스트립은 52px 정사각(360px 기준), 삼각형 칸은 52×44 — 한 줄에 라벨 열 +
+//                          5칸을 328px 안에 넣어야 해서 삼각형 칸 높이를 44 아래로 내릴 수는 없지만, 폭이 더 좁아지면
+//                          (320px) 44 미만이 됩니다. .rgrid__cell 과 같은 사유로 남겨 둡니다.
 //   - .ui-seg__opt 34~38px: iOS 세그먼트 컨트롤과 같은 높이. 옵션끼리 붙어 있어 빗맞아도 옆 옵션으로 갑니다.
 //   - button.term 25~37px : 본문 한가운데 있는 인라인 용어 버튼. 44px 을 주면 윗줄·아랫줄을 덮습니다.
 //                          explain.css 에서 ::after 로 위아래 6px 씩 눌리는 영역만 넓혀 뒀습니다.
@@ -408,6 +411,34 @@ for (const size of SIZES) {
   await grab('charts');
   const cell = page.locator('.rgrid__cell[aria-label]');
   if (await cell.count()) { await cell.nth(40).tap(); await page.waitForTimeout(600); await grab('charts-cell'); }
+
+  // 자리별 보기(HandAtlas): 셀 시트의 「이 패, 다른 자리에서는? ›」 → 아틀라스 한 장(셀 시트는 닫힘) → UTG 타일 → 비교 블록.
+  // 셀 시트가 닫히지 않았거나 아틀라스가 안 열리면 조용히 넘어가지 않고 missed 로 소리냅니다.
+  {
+    const across = page.getByRole('button', { name: /다른 자리에서는/ });
+    if (!(await across.count())) {
+      missed.push(`${size.name}/atlas: 셀 시트에 「이 패, 다른 자리에서는?」 링크가 없습니다`);
+    } else {
+      await across.first().tap();
+      await page.waitForTimeout(800);
+      const sheets = await page.locator('.ui-sheet').count();
+      if (!(await page.locator('.atlas').count())) missed.push(`${size.name}/atlas: 아틀라스가 열리지 않았습니다`);
+      else if (sheets !== 1) missed.push(`${size.name}/atlas: 시트가 ${sheets}장 떠 있습니다 (한 장이어야 합니다)`);
+      await grab('atlas');
+      // 들어온 칸이 UTG 면 이미 선택돼 있습니다(다시 누르면 해제) — 그때는 그대로 비교 블록을 봅니다.
+      const utg = page.locator('.atlas__cell[aria-label^="UTG ·"]').first();
+      if (await utg.count()) {
+        if (!(await page.locator('.atlas__cell--sel[aria-label^="UTG ·"]').count())) { await utg.tap(); await page.waitForTimeout(500); }
+        if (!(await page.locator('.atlas__detail').count())) missed.push(`${size.name}/atlas-detail: UTG 타일을 눌렀는데 비교 블록이 없습니다`);
+        await page.locator('.atlas__detail').first().scrollIntoViewIfNeeded().catch(() => {});
+        await grab('atlas-detail');
+      } else {
+        missed.push(`${size.name}/atlas-detail: UTG 타일이 없습니다`);
+      }
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(400);
+    }
+  }
 
   await ctx.close();
 }

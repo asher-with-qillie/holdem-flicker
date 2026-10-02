@@ -5,6 +5,7 @@ import { QuizScreen } from './screens/QuizScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { TrainerScreen } from './screens/TrainerScreen';
 import { HomeScreen } from './screens/HomeScreen';
+import { HandAtlasSheet } from './screens/atlas/HandAtlasSheet';
 import { FloatingTabBar } from './components/ui/FloatingTabBar';
 import { ToastHost } from './components/ui/Toast';
 import { IconBack, IconCards, IconCoach, IconGrid, IconHome, IconQuiz } from './components/ui/icons';
@@ -56,6 +57,8 @@ export default function App() {
       </main>
 
       <FloatingTabBar items={TABS} active={nav.tab} onChange={setTab} hidden={barHidden} />
+      {/* 자리별 보기 — 시트는 portal 이라 어디서 렌더하든 같습니다. 모든 진입점이 이 한 장을 씁니다. */}
+      <HandAtlasSheet />
       <ToastHost />
 
       {settingsPresent && (

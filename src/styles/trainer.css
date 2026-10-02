@@ -224,6 +224,8 @@
 
 /* ---- 차트 sheet on the reveal screen (§5.4): shares · 13×13 grid · 내 패 caption · legend · summary ---- */
 .trainer-chart { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+/* 푸터 두 버튼(전체 차트 보기 · 이 패 자리별)이 나란히 — 라벨 각 ≤ 7자라 360px 에서도 안 잘립니다. */
+.trainer-chart__foot { flex: 1 1 0; min-width: 0; padding-inline: 10px; }
 .trainer-chart__grid { padding: 6px; border-radius: var(--r-md); } /* 6px: 360px 폭에서도 칸이 22px 이상 */
 .trainer-chart__grid .rgrid__cell { font-size: clamp(9px, 2.6vw, 11px); }
 .trainer-chart__you { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--ink-2); text-align: center; }

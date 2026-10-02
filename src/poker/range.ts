@@ -165,7 +165,7 @@ export function fullMix(mix: ActionMix | undefined): Array<{ action: Action; wei
  * 체크가 제일 공격적인 액션이 됩니다 — 50/50 체크·레이즈 패가 체크로 굳어지고, 트레이너는
  * 맞게 레이즈한 사람을 틀렸다고 합니다. 두 순서를 영영 갈라 둡니다.
  */
-const AGGRESSION_ORDER: readonly Action[] = ['fold', 'check', 'call', 'raise', 'threebet', 'fourbet', 'allin'];
+export const AGGRESSION_ORDER: readonly Action[] = ['fold', 'check', 'call', 'raise', 'threebet', 'fourbet', 'allin'];
 const aggression = (a: Action): number => AGGRESSION_ORDER.indexOf(a);
 
 /** The action to memorize: highest weight; ties go to the more aggressive action. */

@@ -541,3 +541,29 @@ export interface RangeGridProps { /* 기존 */ paint?: (hand: HandName) => strin
 ### 구현 체크리스트 (파일 단위)
 신규: `src/poker/atlas.ts`, `src/poker/priceFacts.ts`, `src/state/atlas.ts`, `src/screens/charts/disclaimer.ts`, `src/screens/atlas/{HandAtlasSheet,SeatStrip,SeatTriangle,AtlasDetail,HandPicker}.tsx`, `src/styles/atlas.css`, `tests/atlas.test.ts`, `tests/data-invariants.test.ts`, `tests/explain-golden.test.ts`, `src/state/__tests__/atlas.test.ts`.
 수정: `src/poker/explain.ts`(export 4개 + OPEN 카피 4클래스 + scenarioLines 가격을 priceFacts 에서 읽기), `src/poker/range.ts`(AGGRESSION_ORDER export), `src/components/RangeGrid.tsx`(cellBackground export, paint prop), `src/components/ExplanationSheet.tsx`(onAcross prop 두 컴포넌트), `src/screens/charts/CellSheet.tsx`, `src/screens/ChartsScreen.tsx`(DISCLAIMER import, 헤더 IconButton), `src/screens/trainer/{RevealChart,SessionView,SummaryView}.tsx`, `src/screens/quiz/{QuizRound,QuizSummary}.tsx`, `src/screens/home/LastSession.tsx`, `src/App.tsx`(`<HandAtlasSheet/>` 1줄), `scripts/layout-audit.mjs`(.atlas__cell 근거 주석). 작업 순서: 테스트 16(골든 해시 기록) → priceFacts hoist → atlas.ts + 테스트 1~15 → UI → 진입점 → 레이아웃 감사 360/390/430.
+---
+
+## 9. 구현 메모 (스펙과 다른 점 — 2026-10-02 구현 시점)
+
+구현하면서 스펙을 그대로 따를 수 없었거나, 검수에서 고친 자리입니다. 코드가 기준이고 이 절은 그 이유입니다.
+
+| 자리 | 스펙 | 구현 | 이유 |
+|---|---|---|---|
+| `rfiProfile` 개수 | always 45 · entry 41 · half 12 · … (합 174) | always 42 · entry 43 · half 8 · partial 4 · sbOnly 1 · never 71 (합 169) | 스펙 표가 169를 넘었습니다. 실측값을 테스트 3에 고정. |
+| `behind` 레버 | hero ≠ BB | **양쪽 hero 모두** 블라인드가 아닐 때만 | 학습 감사 정정: SB가 BTN보다 좁은 건 값·포지션 때문이라 "뒤에 남은 사람"으로 SB를 설명하면 틀린 포커. |
+| 레버 우선순위 | position > behind > 역할(bbPrice…) | hero 축에서 블라인드 ↔ 비블라인드면 **역할 > position** | "BB 콜 ↔ BTN 폴드"에 포지션(BTN 유리)을 먼저 붙이면 결론과 반대로 읽힘(검수 지적). |
+| `heroIsIP` (explain.ts) | 동작 변경 없음 | `vs_limp` 는 hero가 SB·BB가 아닐 때만 IP | 학습 감사가 찾은 기존 버그 — BB 림프 대응 전 카드가 "플랍 이후 내가 나중에 액션"이었음. 골든 해시는 reasoning만 재서 영향 없음. |
+| 반반 폴드 | `절반만 {act}합니다` | 1순위가 폴드·체크면 `절반은 폴드, 절반은 4벳이나 콜입니다` | "절반만 폴드"는 폴드를 말리는 말로 읽힘(검수). |
+| partial · sbOnly thesis | `{s}에서 {w} 오픈합니다` / `SB에서만 {w}오픈합니다` | SB 포함 `BTN과 SB에서 절반만 오픈합니다` / `SB에서 절반만 오픈합니다. 다른 자리에서는 폴드입니다.` | Q8o·J8o·T8o·98o 는 SB 에서도 절반을 엽니다. '에서만 … 절반만'은 '만'이 겹침. |
+| partial · sbOnly 질문 | `내가 BB인가요? {seat}라면 …` | `내 자리가 BTN이나 SB인가요? 그러면 절반만 오픈, 아니면 폴드입니다.` | 묻는 자리와 답하는 자리가 달랐음. |
+| entry 질문 (HJ·CO) | `내 자리가 {first}인가요?` | `내 자리가 {first}보다 앞인가요? 그러면 폴드입니다.` | 스펙 문장은 CO·BTN 에서 거짓. BTN 은 스펙 그대로. |
+| 요약의 앞쪽 폴드 구간 | `{v} 오픈에는 폴드` | 여러 상대면 `{v} 오픈까지는 폴드` | "CO 오픈에는 폴드"만 쓰면 UTG·HJ 오픈은 다른 줄 알게 됨. 테스트 (d)가 요약의 '까지는 폴드'를 단조 조건으로 허용. |
+| 같은 1순위 결론 | `둘 다 {act}입니다` | 한쪽 `절반만`·한쪽 항상이면 두 문장 | 스펙 예시 ①④⑥ 이 그렇게 쓰여 있고 그 대비가 배울 점. |
+| 혼합 차이 문장 | `CO 오픈에는 폴드를 50% 섞습니다` | `CO 상대로는 폴드를 50% 섞습니다` / `{X} 자리에서는 …` | 스펙 정규식 (b)가 (CO, 폴드)를 뽑아 1순위가 아닌 주장으로 걸림. |
+| 다이제스트 'most' | `올인 섞는 곳 6` | `6곳은 올인도 섞음` | 숫자에 `곳` 단위가 붙어야 정규식 (c)를 통과. |
+| `blind3bet` | vs_3bet · vs_5bet | vs_3bet 만 | vs_5bet 해설은 올인 레인지를 말하지 3벳 레인지를 말하지 않아 (e) 상수 검사에 걸림. |
+| `어느 자리에서든 {act}입니다` | (명시 없음) | `uniformLine(sec)` 로 엔진에서 생성 | UI 가 직접 조립하던 유일한 차트 주장 문장 — 속성 테스트가 보게 옮김. |
+| 길이 린트 | ≤ 30자 | 한글 음절 수 ≤ 30 (요약 45) | 스펙 자체의 레버 예시가 30자를 넘음. seatSummary 는 절 3개까지라 길어질 수 있고, 상세 블록에서 2~3줄로 접힘 — 수용. |
+| 비중 글자 | 11px 라벨에 포함 | 비중 줄 11px (10px 에서 올림) | 가독성 바닥. |
+| BTN 의 D | 타일 안 | 자리 이름 옆 | 타일 안에 두면 두 줄 라벨('레이즈 50%')의 첫 글자를 덮음. |
+| 추가 export | — | `sectionDigestDetail` · `anchorCell` · `gateText` · `closeAtlas({resume})` | 테스트 7 과 UI 가 씀. |

@@ -6,6 +6,7 @@ import { Sheet } from '../../components/ui/Sheet';
 import { explainStep } from '../../poker/explain';
 import { dealCardsFor } from '../../poker/hands';
 import { scenarioTitle } from '../../poker/scenarios';
+import { openAtlas } from '../../state/atlas';
 import { launch } from '../../state/nav';
 import type { SessionResult } from '../../state/progress';
 import { SPEED_PRESETS } from '../../state/settings';
@@ -104,7 +105,19 @@ export function LastSession({ result, goal, todayCards, weekDots }: LastSessionP
           onOpenRow={setRow}
         />
       </Sheet>
-      {row && step && <ExplanationSheet step={step} explanation={explainStep(step)} onClose={() => setRow(null)} />}
+      {row && step && (
+        <ExplanationSheet
+          step={step}
+          explanation={explainStep(step)}
+          onClose={() => setRow(null)}
+          onAcross={() => {
+            // 해설 시트와 그 밑의 '지난 세션' 시트를 둘 다 닫습니다 — 화면 위의 시트는 늘 한 장(ATLAS_SPEC §2).
+            setRow(null);
+            close();
+            openAtlas({ hand: step.hand, origin: step.scenario });
+          }}
+        />
+      )}
     </>
   );
 }

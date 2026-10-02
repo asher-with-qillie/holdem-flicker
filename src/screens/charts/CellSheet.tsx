@@ -6,6 +6,7 @@ import { toast } from '../../components/ui/Toast';
 import { IconCheck } from '../../components/ui/icons';
 import type { Explanation } from '../../poker/explain';
 import type { Step } from '../../poker/trainer';
+import { openAtlas } from '../../state/atlas';
 import { vibrate } from '../../state/settings';
 import { rate } from '../../state/srs';
 
@@ -16,6 +17,12 @@ import { rate } from '../../state/srs';
  */
 export function CellSheet({ step, explanation, open, onClose }: { step: Step; explanation: Explanation; open: boolean; onClose: () => void }) {
   const [flagged, setFlagged] = useState(false);
+
+  // 「이 패, 다른 자리에서는?」 — 이 시트를 닫고 아틀라스로 바꿉니다(시트는 한 장만).
+  const across = () => {
+    onClose();
+    openAtlas({ hand: step.hand, origin: step.scenario });
+  };
 
   const flag = () => {
     if (flagged) return;
@@ -49,7 +56,7 @@ export function CellSheet({ step, explanation, open, onClose }: { step: Step; ex
         </>
       }
     >
-      <ExplanationBody step={step} explanation={explanation} />
+      <ExplanationBody step={step} explanation={explanation} onAcross={across} />
     </Sheet>
   );
 }

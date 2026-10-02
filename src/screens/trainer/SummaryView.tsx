@@ -5,6 +5,7 @@ import { toast } from '../../components/ui/Toast';
 import { explainStep, suitOrientation } from '../../poker/explain';
 import { dealCardsFor } from '../../poker/hands';
 import type { Step } from '../../poker/trainer';
+import { openAtlas } from '../../state/atlas';
 import { getProgress, type ProgressView, type SessionResult } from '../../state/progress';
 import { applySpeedPreset, SPEED_PRESET_ORDER, type Settings } from '../../state/settings';
 import { stepForKey, weakSpots } from '../../state/srs';
@@ -98,7 +99,17 @@ export function SummaryView({ result, partial, settings, onRetryUnsure, onAgain,
         onOpenRow={setRow}
         onSpeedFeedback={data.firstSession ? onSpeedFeedback : undefined}
       />
-      {rowStep && rowExplanation && <ExplanationSheet step={rowStep} explanation={rowExplanation} onClose={() => setRow(null)} />}
+      {rowStep && rowExplanation && (
+        <ExplanationSheet
+          step={rowStep}
+          explanation={rowExplanation}
+          onClose={() => setRow(null)}
+          onAcross={() => {
+            setRow(null);
+            openAtlas({ hand: rowStep.hand, origin: rowStep.scenario });
+          }}
+        />
+      )}
     </div>
   );
 }

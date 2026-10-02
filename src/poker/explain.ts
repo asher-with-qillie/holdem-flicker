@@ -1,6 +1,7 @@
 import { getChartCells, hasChart } from './data';
 import { ALL_HANDS, parseHandName, type HandInfo } from './hands';
 import { foldWeight, fullMix, rangeShare } from './range';
+import { priceFacts } from './priceFacts';
 import { heroInPosition } from './scenarios';
 import type { Step } from './trainer';
 import { ACTION_SHORT_KO, POS_INDEX, type Action, type Card, type ChartCells, type Pos, type Scenario, type ScenarioKind } from './types';
@@ -125,7 +126,7 @@ export interface Explanation {
 
 const pct = (x: number) => `${(x * 100).toFixed(x * 100 >= 10 ? 0 : 1)}%`;
 /** 정수 퍼센트. 스타일 가이드 §2.6: 빈도는 "10번 중 2번"이 아니라 "18%". */
-const pctInt = (x: number) => `${Math.round(x * 100)}%`;
+export const pctInt = (x: number) => `${Math.round(x * 100)}%`;
 
 /** Seat names read out loud: only BTN (비티엔) ends in a consonant. */
 function seat(p: Pos, particle: '가' | '는' | '를' | '와'): string {
@@ -137,7 +138,7 @@ function seat(p: Pos, particle: '가' | '는' | '를' | '와'): string {
 const isBlind = (p?: Pos) => p === 'SB' || p === 'BB';
 const isEarly = (p?: Pos) => p === 'UTG' || p === 'HJ';
 const seatsBetween = (a: Pos, b: Pos) => Math.max(0, Math.abs(POS_INDEX[a] - POS_INDEX[b]) - 1);
-const seatsBehind = (hero: Pos) => 5 - POS_INDEX[hero];
+export const seatsBehind = (hero: Pos) => 5 - POS_INDEX[hero];
 
 /** Compact hand list for a chart action, e.g. "QQ+ · AKs · AKo · A5s(50%)". */
 function summarizeRange(cells: ChartCells, action: Action, max = 9): string {
@@ -151,7 +152,7 @@ function summarizeRange(cells: ChartCells, action: Action, max = 9): string {
   return items.length > max ? `${items.slice(0, max).join(' · ')} 등 ${items.length}종` : items.join(' · ');
 }
 
-function villainChart(s: Scenario): { cells: ChartCells; action: Action } | null {
+export function villainChart(s: Scenario): { cells: ChartCells; action: Action } | null {
   const v = s.villain;
   if (!v) return null;
   switch (s.kind) {
@@ -199,8 +200,12 @@ function previousRange(s: Scenario): { cells: ChartCells; action: Action; label:
   }
 }
 
-function heroIsIP(s: Scenario): boolean {
+export function heroIsIP(s: Scenario): boolean {
   if (s.kind === 'rfi') return s.hero !== 'SB'; // assume the BB (or a later caller) defends
+  // 림퍼는 언제나 내 앞자리(UTG~BTN)에 앉아 있습니다. 그러니 블라인드가 아닌 나는 항상 포지션이 있고,
+  // SB·BB 는 항상 먼저 액션합니다. extras.limper 를 보지 않는 이유: 림퍼 자리는 화면용이라 비어 있을 수 있는데,
+  // 비어 있다고 BB 가 "나중에 액션"으로 읽히면 모든 BB 림프 카드가 거짓말을 합니다.
+  if (s.kind === 'vs_limp') return !isBlind(s.hero);
   const v = s.villain ?? s.extras?.threeBettor;
   return v ? heroInPosition(s.hero, v) : s.hero !== 'SB';
 }
@@ -521,7 +526,7 @@ function handProfile(info: HandInfo, cls: HandClass): string {
  * 자세히 · "자세한 이유"의 첫 불릿들. 한 항목 = 한 문장(가이드 §2.1)이라 배열로 두고 그대로 불릿이 됩니다.
  * 손패 블록이 이미 말한 패 설명은 여기서 빼고, "이 자리에서 왜 그 결정인가"만 남깁니다(가이드 §2.4).
  */
-const OPEN: Record<HandClass, string[]> = {
+export const OPEN: Record<HandClass, string[]> = {
   premium_pair: ['가장 강한 패라 오픈으로 팟을 키웁니다.', '3벳을 받으면 4벳으로 더 받아 냅니다.'],
   big_pair: ['대부분의 레인지보다 앞서 밸류로 오픈합니다.', '3벳을 받아도 편하게 계속 갑니다.'],
   mid_pair: ['오픈 레인지에서 안정적인 패입니다.', '끝까지 가도 페어로 이길 때가 있습니다.'],
@@ -532,11 +537,13 @@ const OPEN: Record<HandClass, string[]> = {
   wheel_ace: ['넛 가능성과 A 블로커로 오픈 레인지에 항상 들어갑니다.', '3벳을 받으면 4벳 블러프 후보입니다.'],
   offsuit_ace: ['뒷자리에서 블라인드를 노리고 오픈합니다.', '킥커가 약해 3벳에는 폴드합니다.'],
   suited_broadway: ['앞자리부터 뒷자리까지 어디서든 오픈하는 패입니다.', '3벳을 받아도 콜로 플랍을 봅니다.'],
-  offsuit_broadway: ['뒷자리에서만 오픈합니다.', '앞자리 레인지에는 들어가지 않습니다.'],
-  suited_king: ['뒷자리에서 오픈하는 아래쪽 패입니다.', '3벳에는 대부분 폴드합니다.'],
-  suited_qj: ['뒷자리에서만 오픈하는 아래쪽 패입니다.', '3벳에는 폴드가 기본입니다.'],
+  // 아래 네 클래스는 앞자리에서 오픈하는 패(KQo·KJo·K9s·Q9s·T8s…)와 뒷자리에서만 오픈하는 패가 섞여 있습니다.
+  // "뒷자리에서만"이라고 쓰면 UTG 에서 KQo 를 여는 카드가 스스로 틀렸다고 말합니다 (tests/atlas.test.ts 가 차트와 대조).
+  offsuit_broadway: ['자리가 뒤로 갈수록 더 많이 오픈합니다.', '킥커가 약한 쪽일수록 늦게 들어갑니다.'],
+  suited_king: ['큰 수티드 K는 앞자리, 작은 쪽은 뒷자리에서 오픈합니다.', '3벳에는 대부분 폴드합니다.'],
+  suited_qj: ['Q9s는 앞자리부터, 나머지는 뒷자리에서 오픈합니다.', '3벳에는 폴드가 기본입니다.'],
   suited_connector: ['넛을 만들 수 있어 오픈 레인지의 균형을 잡아 줍니다.', '낮은 보드에서 강합니다.'],
-  suited_gapper: ['뒷자리 오픈 레인지의 아래쪽입니다.', '플랍에서 드로우가 붙어야 계속 갑니다.'],
+  suited_gapper: ['높은 갭퍼는 앞자리, 낮은 갭퍼는 뒷자리에서 오픈합니다.', '플랍에서 드로우가 붙어야 계속 갑니다.'],
   offsuit_connector: ['아주 넓게 오픈하는 자리에서만 씁니다.', '노리는 것은 블라인드입니다.'],
   junk: ['아주 넓게 오픈하는 자리에서만 씁니다.', '노리는 것은 블라인드입니다.'],
 };
@@ -653,6 +660,8 @@ function scenarioLines(step: Step): string[] {
   const vShare = vc ? rangeShare(vc.cells, vc.action) : null;
   const ip = heroIsIP(s);
   const vPct = vShare == null ? '?' : pct(vShare);
+  // 가격이 없는 상황(rfi·cold_4bet·vs_limp)은 아래 분기가 price 를 읽지 않습니다.
+  const price = priceFacts(s) ?? {};
 
   switch (s.kind) {
     case 'rfi': {
@@ -680,20 +689,15 @@ function scenarioLines(step: Step): string[] {
         out.push('뒷자리라 약한 패가 많이 섞여 있습니다.');
         out.push('그래서 더 넓게 방어하고 3벳도 더 자주 합니다.');
       }
+      // 가격 숫자(더 낼 금액·팟·필요 승률)는 priceFacts 한 곳에서 옵니다 — 자리별 보기가 같은 값을 읽습니다.
       if (hero === 'BB') {
-        if (v === 'SB') {
-          out.push('BB는 이미 1bb를 냈으니 2bb만 더 내고 약 6bb 팟을 봅니다.');
-          out.push('필요 승률은 33%입니다.');
-          out.push('SB 상대로는 포지션이 있어 가장 넓게 방어합니다.');
-        } else {
-          out.push('BB는 이미 1bb를 냈으니 1.5bb만 더 내고 약 5.5bb 팟을 봅니다.');
-          out.push('필요 승률은 27%입니다.');
-          out.push('마지막 차례라 스퀴즈 걱정 없이 가장 넓게 콜합니다.');
-        }
+        out.push(`BB는 이미 1bb를 냈으니 ${price.toCall}만 더 내고 약 ${price.pot} 팟을 봅니다.`);
+        out.push(`필요 승률은 ${price.needPct}%입니다.`);
+        out.push(v === 'SB' ? 'SB 상대로는 포지션이 있어 가장 넓게 방어합니다.' : '마지막 차례라 스퀴즈 걱정 없이 가장 넓게 콜합니다.');
       } else if (hero === 'SB') {
         if (answer === 'call') {
           out.push('SB는 보통 3벳 아니면 폴드지만 이 패는 예외로 콜합니다.');
-          out.push('2bb를 더 내고 약 6bb 팟을 봅니다.');
+          out.push(`${price.toCall}를 더 내고 약 ${price.pot} 팟을 봅니다.`);
           out.push('BB의 스퀴즈와 포지션 불리는 감수합니다.');
         } else {
           out.push('SB는 콜하면 BB의 스퀴즈와 포지션 불리가 겹칩니다.');
@@ -702,24 +706,18 @@ function scenarioLines(step: Step): string[] {
       } else {
         out.push(`${seat(hero, '는')} 포지션은 있지만 뒤에 ${seatsBehind(hero)}명이 남습니다.`);
         out.push('그래서 스퀴즈를 맞아도 버틸 패로 콜 레인지를 제한합니다.');
-        out.push('2.5bb를 내고 약 6.5bb 팟을 봅니다.');
+        out.push(`${price.toCall}를 내고 약 ${price.pot} 팟을 봅니다.`);
       }
       break;
     }
     case 'vs_3bet': {
       out.push(`${seat(v!, '는')} 전체의 약 ${vPct}로 3벳합니다.`);
       out.push(isBlind(v) ? '밸류와 블러프가 섞인 레인지입니다.' : '밸류 위주의 레인지입니다.');
-      if (isBlind(v)) {
-        out.push('블라인드의 3벳은 약 10~11bb입니다.');
-        out.push('8bb를 더 내고 약 22bb 팟을 봅니다.');
-        out.push('필요 승률은 36%입니다.');
-        out.push(ip ? '포지션이 있어 콜해도 끝까지 싸우기 좋습니다.' : '포지션이 없어 콜 레인지를 좁히고 4벳이나 폴드를 늘립니다.');
-      } else {
-        out.push('뒷자리의 3벳은 약 7.5bb입니다.');
-        out.push('5bb를 더 내고 약 16.5bb 팟을 봅니다.');
-        out.push('필요 승률은 30%입니다.');
-        out.push('다만 플랍 이후 먼저 액션해야 해서 실제로는 더 어렵습니다.');
-      }
+      out.push(isBlind(v) ? '블라인드의 3벳은 약 10~11bb입니다.' : '뒷자리의 3벳은 약 7.5bb입니다.');
+      out.push(`${price.toCall}를 더 내고 약 ${price.pot} 팟을 봅니다.`);
+      out.push(`필요 승률은 ${price.needPct}%입니다.`);
+      if (isBlind(v)) out.push(ip ? '포지션이 있어 콜해도 끝까지 싸우기 좋습니다.' : '포지션이 없어 콜 레인지를 좁히고 4벳이나 폴드를 늘립니다.');
+      else out.push('다만 플랍 이후 먼저 액션해야 해서 실제로는 더 어렵습니다.');
       break;
     }
     case 'vs_4bet': {
@@ -729,7 +727,7 @@ function scenarioLines(step: Step): string[] {
       out.push(`콜하는 패: ${summarizeRange(step.cells, 'call', 6)}. 나머지는 폴드합니다.`);
       out.push('4벳 사이즈는 약 22~25bb입니다.');
       out.push('콜하면 남은 스택이 팟의 1~1.5배인 큰 팟이 됩니다.');
-      out.push('필요 승률은 30%입니다.');
+      out.push(`필요 승률은 ${price.needPct}%입니다.`);
       out.push('다만 SPR이 낮아 플랍에서 사실상 올인까지 갑니다.');
       break;
     }
@@ -739,6 +737,7 @@ function scenarioLines(step: Step): string[] {
       out.push(`내 4벳 레인지 중 콜하는 패: ${summarizeRange(step.cells, 'call', 6)}.`);
       out.push('블러프로 4벳한 패(A5s 등)는 당연히 폴드합니다.');
       out.push('4벳 22~25bb 뒤 100bb 올인입니다.');
+      // priceFacts 의 needPct(39)는 이 범위의 대표값입니다 — 해설 원문은 범위 그대로 둡니다.
       out.push('콜에 필요한 승률은 38~40%입니다.');
       out.push('이미 넣은 4벳 칩은 돌아오지 않으니 잊습니다.');
       break;

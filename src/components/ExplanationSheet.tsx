@@ -45,10 +45,13 @@ function ExampleLine({ text }: { text: string }) {
 
 /**
  * 해설 본문 (docs/PLAIN_KO_STYLE.md §4):
- *   결론 (액션 뱃지 + 한 줄) → 왜? → 예시 → 플랍에서는 (폴드가 아닐 때) → 자세히 (항상 접힌 채로 시작)
+ *   결론 (액션 뱃지 + 한 줄) → [이 패, 다른 자리에서는? ›] → 왜? → 예시 → 플랍에서는 (폴드가 아닐 때) → 자세히 (항상 접힌 채로 시작)
  * 모든 문장은 `PlainText`를 거쳐 용어집 단어가 눌러지도록 합니다. 같은 용어는 한 본문에서 처음 한 번만 밑줄(`TermScope`).
+ *
+ * `onAcross` — 자리별 보기(HandAtlas) 입구. 호출자가 자기 시트를 닫고 `openAtlas()` 를 부릅니다(시트는 한 장만).
+ * prop 이 없으면 링크 줄 자체를 그리지 않습니다 — 길게 누르는 held 시트(pointer-events none)에는 주지 않습니다.
  */
-export function ExplanationBody({ step, explanation }: { step: Step; explanation: Explanation }) {
+export function ExplanationBody({ step, explanation, onAcross }: { step: Step; explanation: Explanation; onAcross?: () => void }) {
   const e = explanation;
   const easy = e.easy;
   const [more, setMore] = useState(false);
@@ -63,6 +66,13 @@ export function ExplanationBody({ step, explanation }: { step: Step; explanation
             <PlainText text={easy.oneLiner} />
           </p>
         </div>
+
+        {onAcross && (
+          <button type="button" className="ui-explain__across" onClick={onAcross}>
+            <span>이 패, 다른 자리에서는?</span>
+            <span aria-hidden="true">›</span>
+          </button>
+        )}
 
         <h3 className="ui-explain__h">왜?</h3>
         <ul className="ui-explain__list">
@@ -181,8 +191,8 @@ export function ExplanationBody({ step, explanation }: { step: Step; explanation
   );
 }
 
-/** 해설 bottom sheet (detent half, scrollable) with a sticky 닫기 footer. */
-export function ExplanationSheet({ step, explanation, onClose }: { step: Step; explanation: Explanation; onClose: () => void }) {
+/** 해설 bottom sheet (detent half, scrollable) with a sticky 닫기 footer. `onAcross` 는 본문의 링크 줄로 그대로 넘깁니다. */
+export function ExplanationSheet({ step, explanation, onClose, onAcross }: { step: Step; explanation: Explanation; onClose: () => void; onAcross?: () => void }) {
   return (
     <Sheet
       open
@@ -195,7 +205,7 @@ export function ExplanationSheet({ step, explanation, onClose }: { step: Step; e
         </CapsuleButton>
       }
     >
-      <ExplanationBody step={step} explanation={explanation} />
+      <ExplanationBody step={step} explanation={explanation} onAcross={onAcross} />
     </Sheet>
   );
 }

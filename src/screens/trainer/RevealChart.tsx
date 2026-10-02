@@ -5,6 +5,7 @@ import { getChartDef } from '../../poker/data';
 import { restAction } from '../../poker/range';
 import { scenarioTitle } from '../../poker/scenarios';
 import type { Step } from '../../poker/trainer';
+import { openAtlas } from '../../state/atlas';
 import { setTab } from '../../state/nav';
 import { ActionShares, ChartLegend } from '../charts/ChartStats';
 import { saveSelection, type ChartSelection } from '../charts/selection';
@@ -30,6 +31,11 @@ export function RevealChart({ open, step, onClose }: { open: boolean; step: Step
     if (getSession()?.status === 'running') togglePause();
     setTab('charts');
   };
+  /** 「이 패 자리별」 — 이 시트를 닫고 아틀라스로. 세션 일시정지는 openAtlas 가 처리합니다. */
+  const openAcross = () => {
+    onClose();
+    openAtlas({ hand: step.hand, origin: scenario });
+  };
   return (
     <Sheet
       open={open}
@@ -37,9 +43,14 @@ export function RevealChart({ open, step, onClose }: { open: boolean; step: Step
       detent="full"
       title={scenarioTitle(scenario)}
       footer={
-        <CapsuleButton tone="neutral" size="lg" block onClick={openCharts}>
-          전체 차트 보기
-        </CapsuleButton>
+        <>
+          <CapsuleButton tone="neutral" size="lg" className="trainer-chart__foot" onClick={openCharts}>
+            전체 차트 보기
+          </CapsuleButton>
+          <CapsuleButton tone="neutral" size="lg" className="trainer-chart__foot" onClick={openAcross}>
+            이 패 자리별
+          </CapsuleButton>
+        </>
       }
     >
       <div className="trainer-chart">

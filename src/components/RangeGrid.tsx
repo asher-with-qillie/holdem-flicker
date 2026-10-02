@@ -14,13 +14,19 @@ export interface RangeGridProps {
   onSelect?: (hand: HandName) => void;
   /** When given, hands missing from the map render as 'unseen'. */
   overlay?: MasteryOverlay;
+  /**
+   * 손패 고르기 색칠(자리별 보기 §3). 주면 `cells` 의 혼합 대신 이 색을 칸 배경으로 씁니다 — undefined 는 폴드 칸처럼 흐리게.
+   * 그리드 모양·라벨·링은 그대로라서 '같은 13×13' 으로 읽힙니다.
+   */
+  paint?: (hand: HandName) => string | undefined;
 }
 
 /** Slice order inside a cell: most aggressive on the left, fold (dim) on the right.
     손으로 적은 배열입니다 — 빠진 액션은 조용히 사라지고 그라데이션이 100%가 안 됩니다. */
 const SLICE_ORDER: Action[] = ['allin', 'fourbet', 'threebet', 'raise', 'call', 'check', 'fold'];
 
-function cellBackground(mix: Array<{ action: Action; weight: number }>): string | undefined {
+/** 혼합 비중 → 칸 배경. 단색이면 `var(--act-*)`, 폴드뿐이면 undefined(칸의 --rg-fold 가 보임), 섞였으면 좌→우 분할 그라데이션. */
+export function cellBackground(mix: Array<{ action: Action; weight: number }>): string | undefined {
   const parts = SLICE_ORDER.map((action) => ({ action, weight: mix.find((m) => m.action === action)?.weight ?? 0 })).filter((p) => p.weight > 0.0005);
   if (parts.length === 1) return parts[0].action === 'fold' ? undefined : `var(--act-${parts[0].action})`;
   let acc = 0;
@@ -39,18 +45,22 @@ function cellBackground(mix: Array<{ action: Action; weight: number }>): string 
  * Mixed cells are painted as proportional vertical slices; the pair diagonal is outlined; `highlight` gets a
  * 2 px mint ring. Labels stay ≥ 10 px down to 360 px wide (cells are `--r-xs` inside the `--r-md` panel).
  */
-export function RangeGrid({ cells, highlight, onSelect, overlay }: RangeGridProps) {
+export function RangeGrid({ cells, highlight, onSelect, overlay, paint }: RangeGridProps) {
   const rows = useMemo(
     () =>
       RANKS.map((_, r) =>
         RANKS.map((_, c) => {
           const hand = gridHand(r, c);
+          if (paint) {
+            const background = paint(hand);
+            return { hand, pair: r === c, playable: background !== undefined, background };
+          }
           const mix = fullMix(cells[hand]);
           const playable = mix.some((m) => m.action !== 'fold');
           return { hand, pair: r === c, playable, background: cellBackground(mix) };
         }),
       ),
-    [cells],
+    [cells, paint],
   );
   return (
     <div className={`rgrid${overlay ? ' rgrid--overlay' : ''}`} role="group" aria-label="핸드 레인지 차트">

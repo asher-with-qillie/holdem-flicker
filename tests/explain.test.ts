@@ -1499,6 +1499,26 @@ describe('trainer sequences', () => {
   });
 });
 
+describe('림프 대응의 포지션 (heroIsIP)', () => {
+  // 림퍼는 언제나 내 앞자리에 앉아 있습니다. 블라인드는 플랍 이후 먼저, 나머지는 나중에 액션합니다.
+  // 예전에는 BB 가 "나중에 액션"으로 읽혀 모든 BB 림프 카드에 '플랍 이후 내가 나중에 액션합니다'가 붙었습니다.
+  it('BB·SB 림프 카드에는 "나중에 액션"이, CO·BTN 림프 카드에는 "먼저 액션"이 없다', () => {
+    for (const hand of ALL_HANDS) {
+      for (const hero of ['SB', 'BB'] as Pos[]) {
+        const text = allStrings(explainStep(stepFor({ kind: 'vs_limp', hero, extras: { limper: 'HJ' } }, hand))).join('\n');
+        expect(text, `${hero} ${hand}`).not.toContain('나중에 액션');
+      }
+      for (const hero of ['CO', 'BTN'] as Pos[]) {
+        const text = allStrings(explainStep(stepFor({ kind: 'vs_limp', hero, extras: { limper: 'HJ' } }, hand))).join('\n');
+        expect(text, `${hero} ${hand}`).not.toContain('먼저 액션');
+      }
+    }
+    // extras.limper 가 없어도 같은 답이어야 합니다 — 차트 탭의 셀 시트는 림퍼 자리를 모릅니다.
+    const bare = allStrings(explainStep(stepFor({ kind: 'vs_limp', hero: 'BB' }, 'AA'))).join('\n');
+    expect(bare).not.toContain('나중에 액션');
+  });
+});
+
 describe('settings-respecting sequences', () => {
   it('never produces a scenario kind that the settings exclude', () => {
     seedRandom(11);

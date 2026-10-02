@@ -102,3 +102,7 @@
   .charts__chart { animation-duration: 150ms; }
   .rgrid__cell { transition: none; }
 }
+
+/* 헤더: 제목 · [핸드로 보기] · 내 기록 — 아이콘 버튼은 스위치 왼쪽에 붙고 제목이 남는 폭을 가져갑니다. */
+.charts__head h1 { flex: 1 1 auto; min-width: 0; }
+.charts__atlas { flex: none; margin-bottom: 2px; }

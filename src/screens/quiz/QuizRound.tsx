@@ -8,10 +8,12 @@ import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { GlassPanel } from '../../components/ui/GlassPanel';
 import { IconButton } from '../../components/ui/IconButton';
 import { IconClose } from '../../components/ui/icons';
+import { nearestCellWithAction } from '../../poker/atlas';
 import { explainStep, suitOrientation } from '../../poker/explain';
 import { cardLabel } from '../../poker/hands';
 import { scenarioSituation } from '../../poker/scenarios';
 import { scenarioActions, type Card, type HandName } from '../../poker/types';
+import { openAtlas } from '../../state/atlas';
 import { useSettings } from '../../state/settings';
 import { useStats } from '../../state/stats';
 import { FitBox } from '../trainer/FitBox';
@@ -102,6 +104,12 @@ function Question({ q, autoAdvance, showMix }: { q: QuizQuestion; autoAdvance: b
   const openSheet = () => {
     setAutoCancelled(true);
     setSheetOpen(true);
+  };
+  /** 코치 규칙 "이 패를 UTG라고 생각하고 접은 건 아닌가요?" 를 그림으로: 오답이면 고른 답이 정답인 가장 가까운 칸을 비교로. */
+  const across = () => {
+    setSheetOpen(false);
+    const compare = grade === 'wrong' && chosen ? nearestCellWithAction(scenario, step.hand, chosen) : null;
+    openAtlas({ hand: step.hand, origin: scenario, ...(compare ? { compare } : {}) });
   };
 
   return (
@@ -196,7 +204,7 @@ function Question({ q, autoAdvance, showMix }: { q: QuizQuestion; autoAdvance: b
         )}
       </GlassPanel>
 
-      {sheetOpen && <ExplanationSheet step={step} explanation={explanation} onClose={() => setSheetOpen(false)} />}
+      {sheetOpen && <ExplanationSheet step={step} explanation={explanation} onClose={() => setSheetOpen(false)} onAcross={across} />}
     </div>
   );
 }

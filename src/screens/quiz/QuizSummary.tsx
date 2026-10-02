@@ -6,8 +6,10 @@ import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { SessionSummaryCard, type SummaryData, type SummaryRow } from '../../components/ui/SessionSummaryCard';
 import { Sheet } from '../../components/ui/Sheet';
 import { toast } from '../../components/ui/Toast';
+import { nearestCellWithAction } from '../../poker/atlas';
 import { explainStep, suitOrientation } from '../../poker/explain';
 import { scenarioTitle } from '../../poker/scenarios';
+import { openAtlas } from '../../state/atlas';
 import { launch, setTab } from '../../state/nav';
 import { NO_CHARTS_HINT } from './DeckChips';
 import { discardRound, startRound, type QuizQuestion, type QuizRound } from './roundStore';
@@ -19,6 +21,11 @@ function MistakeSheet({ q, open, onClose }: { q: QuizQuestion | null; open: bool
   const explanation = useMemo(() => (q ? explainStep(q.step, suitOrientation(q.cards)) : null), [q]);
   if (!q || !explanation) return null;
   const kind = q.step.scenario.kind;
+  const across = () => {
+    onClose();
+    const compare = q.grade === 'wrong' && q.chosen ? nearestCellWithAction(q.step.scenario, q.step.hand, q.chosen) : null;
+    openAtlas({ hand: q.step.hand, origin: q.step.scenario, ...(compare ? { compare } : {}) });
+  };
   return (
     <Sheet
       open={open}
@@ -41,7 +48,7 @@ function MistakeSheet({ q, open, onClose }: { q: QuizQuestion | null; open: bool
           <ActionBadge action={q.step.answer} kind={kind} size="sm" short />
         </span>
       </div>
-      <ExplanationBody step={q.step} explanation={explanation} />
+      <ExplanationBody step={q.step} explanation={explanation} onAcross={across} />
     </Sheet>
   );
 }

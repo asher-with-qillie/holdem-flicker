@@ -4,17 +4,20 @@ import { CapsuleButton } from '../components/ui/CapsuleButton';
 import { Chip } from '../components/ui/Chip';
 import { GlassPanel } from '../components/ui/GlassPanel';
 import { Switch } from '../components/ui/Switch';
-import { IconCards } from '../components/ui/icons';
+import { IconButton } from '../components/ui/IconButton';
+import { IconCards, IconGrid } from '../components/ui/icons';
 import { getChartCells, getChartDef, hasChart } from '../poker/data';
 import { restAction } from '../poker/range';
 import { explainStep, type Explanation } from '../poker/explain';
 import { scenarioKey, scenarioSituation, scenarioTitle } from '../poker/scenarios';
 import { stepFor, type Step } from '../poker/trainer';
 import { SCENARIO_KINDS, type HandName, type Pos, type ScenarioKind } from '../poker/types';
+import { openAtlas } from '../state/atlas';
 import { launch } from '../state/nav';
 import { useSettings } from '../state/settings';
 import { useSrs } from '../state/srs';
 import { CellSheet } from './charts/CellSheet';
+import { DISCLAIMER } from './charts/disclaimer';
 import { ChartFilters, FilterRow } from './charts/ChartFilters';
 import { ActionShares, ChartLegend } from './charts/ChartStats';
 import { masteryFor } from './charts/mastery';
@@ -53,23 +56,6 @@ function EmptyPanel() {
  * the 13×13 RangeGrid on a glass panel, legend, chart summary and "이 상황으로 훈련하기". Selection lives in
  * sessionStorage; a cell tap opens the explanation sheet with the 헷갈려요 flag.
  */
-/**
- * 차트 아래 한 줄. 예전에는 한 문장을 모든 덱에 똑같이 붙였는데, 림프 대응이 생기면서
- * 그 문장이 그 덱에는 **거짓**이 됩니다 — 솔버는 레이크 있는 6맥스 트리에서 림프를 하지 않아서
- * '앞사람이 림프했다'는 노드 자체가 기성 솔루션에 없습니다. 덱마다 근거를 그대로 적습니다.
- */
-const SOLVER_NOTE = '솔버 결과를 단순화한 근사치예요. 레이크·상대 성향에 따라 경계 핸드는 달라질 수 있어요.';
-const DISCLAIMER: Record<ScenarioKind, string> = {
-  rfi: SOLVER_NOTE,
-  vs_open: SOLVER_NOTE,
-  vs_3bet: SOLVER_NOTE,
-  vs_4bet: SOLVER_NOTE,
-  vs_5bet: SOLVER_NOTE,
-  cold_4bet: SOLVER_NOTE,
-  vs_limp:
-    '림프는 솔버가 하지 않는 플레이라 이 상황은 솔버 기준이 없어요. 공개된 사람 작성 차트를 옮긴 기준선이고, 림프한 사람이 한 명일 때만 맞아요.',
-};
-
 export function ChartsScreen() {
   const [sel, setSel] = useState<ChartSelection>(loadSelection);
   const [overlayOn, setOverlayOn] = useState<boolean>(loadOverlay);
@@ -119,6 +105,7 @@ export function ChartsScreen() {
     <div className="screen charts">
       <header className="charts__head">
         <h1 className="t-title-l">차트</h1>
+        <IconButton icon={<IconGrid />} label="핸드로 보기" className="charts__atlas" onClick={() => openAtlas({ hand: lastHand ?? 'KJo', mode: 'pick' })} />
         <label className="charts__toggle">
           내 기록
           <Switch checked={overlayOn} onChange={setOverlayOn} label="내 기록 표시" />

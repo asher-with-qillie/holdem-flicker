@@ -7,9 +7,11 @@ import { CoachMark, defaultCoachSteps } from '../../components/ui/CoachMark';
 import { IconButton } from '../../components/ui/IconButton';
 import { Sheet } from '../../components/ui/Sheet';
 import { IconNext, IconPrev } from '../../components/ui/icons';
+import { nearestCellWithAction } from '../../poker/atlas';
 import { explainStep, suitOrientation } from '../../poker/explain';
 import { scenarioSituation } from '../../poker/scenarios';
 import { scenarioActions } from '../../poker/types';
+import { openAtlas } from '../../state/atlas';
 import { useProgress } from '../../state/progress';
 import { COACH_VERSION, updateSettings, type Settings } from '../../state/settings';
 import { useReducedMotion } from '../home/useReducedMotion';
@@ -139,6 +141,14 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
     s.setSheetOpen(false);
   }, [s.setSheetOpen]);
 
+  /** 해설 시트의 「이 패, 다른 자리에서는?」 — 시트를 닫고 아틀라스로. 오답이면 고른 답이 정답인 가장 가까운 칸을 비교로 넘깁니다. */
+  const across = useCallback(() => {
+    if (!step || !card) return;
+    s.setSheetOpen(false);
+    const compare = card.grade === 'wrong' && card.chosenAction ? nearestCellWithAction(step.scenario, step.hand, card.chosenAction) : null;
+    openAtlas({ hand: step.hand, origin: step.scenario, ...(compare ? { compare } : {}) });
+  }, [s.setSheetOpen, step, card]);
+
   const coachDone = useCallback(() => {
     updateSettings({ coachSeen: COACH_VERSION });
     setCoachOpen(false);
@@ -253,7 +263,7 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
         <ExplanationBody step={step} explanation={explanation} />
       </Sheet>
 
-      {s.sheetOpen && !confirmOpen && !chartOpen && <ExplanationSheet step={step} explanation={explanation} onClose={() => s.setSheetOpen(false)} />}
+      {s.sheetOpen && !confirmOpen && !chartOpen && <ExplanationSheet step={step} explanation={explanation} onClose={() => s.setSheetOpen(false)} onAcross={across} />}
 
       <RevealChart open={chartOpen} step={step} onClose={closeChart} />
 
