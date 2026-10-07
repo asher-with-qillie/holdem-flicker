@@ -2,9 +2,10 @@ import { getChartCells, getChartDef } from './data';
 import { classifyHand, heroIsIP, seatsBehind, type HandClass } from './explain';
 import { ALL_HANDS, parseHandName } from './hands';
 import { priceFacts } from './priceFacts';
-import { AGGRESSION_ORDER, foldWeight, fullMix, primaryAction, rangeShare, restAction } from './range';
+import { AGGRESSION_ORDER, fullMix, primaryAction, rangeShare } from './range';
 import { positionsAfter, positionsBefore, scenarioKey } from './scenarios';
-import { ACTION_SHORT_KO, POS_INDEX, RANKS, type Action, type ActionMix, type HandName, type Pos, type Scenario, type ScenarioKind } from './types';
+import { actWord, josa } from './ko';
+import { POS_INDEX, type Action, type ActionMix, type HandName, type Pos, type Scenario, type ScenarioKind } from './types';
 import type { CardKey } from '../state/srs'; // 타입만 — srs.ts 는 react 를 import 하므로 값은 가져오지 않습니다.
 
 /*
@@ -78,19 +79,6 @@ export interface HandAtlas {
   sections: Record<ScenarioKind, AtlasSection>;
 }
 
-export interface RowBoundary {
-  /** 포켓페어 / 수티드 K / 오프수트 K */
-  label: string;
-  /** 줄의 패들, 킥커 내림차순 */
-  hands: HandName[];
-  /** contWeight 가 킥커 내림차순으로 비증가 */
-  monotone: boolean;
-  /** contWeight ≥ 1 인 마지막 패 */
-  lastFull: HandName | null;
-  /** contWeight > 0 인 마지막 패 */
-  lastAny: HandName | null;
-}
-
 export type LeverId =
   | 'behind'
   | 'openWidth'
@@ -104,7 +92,7 @@ export type LeverId =
   | 'earlyOpener'
   | 'sbOpen';
 
-/** 한 칸의 자리 사실. constant = 숫자 없는 고정 문장(explain.ts 에 이미 있고 검수된 문장과 글자가 같음). */
+/** 한 칸의 자리 사실. constant = 숫자 없는 고정 문장(docs/EXPLAIN_SPEC.md §5.4 표의 문구와 글자가 같음). */
 export interface Lever {
   id: LeverId;
   text: string;
@@ -126,41 +114,8 @@ export interface Line {
 }
 
 /* ------------------------------------------------------------------ */
-/* 한국어 조사 · 액션 이름                                                 */
+/* 한국어 조사 · 액션 이름 — src/poker/ko.ts 한 곳에서                       */
 /* ------------------------------------------------------------------ */
-
-/** 자리 이름 뒤 조사. 소리 내어 읽을 때 자음으로 끝나는 자리는 BTN(비티엔) 하나뿐입니다 (explain.ts seat 와 같은 규칙). */
-function seatP(p: Pos, particle: '가' | '는' | '를' | '와'): string {
-  if (p !== 'BTN') return `${p}${particle}`;
-  const consonant: Record<typeof particle, string> = { 가: '이', 는: '은', 를: '을', 와: '과' };
-  return `${p}${consonant[particle]}`;
-}
-
-/** 손패 이름 뒤 조사. 페어는 글자 단위로 읽어 88(팔팔)·77·66·33 만 받침이 있습니다 (explain.ts hp 와 같은 규칙). */
-function handP(hand: HandName, particle: '는' | '를'): string {
-  const consonant = hand.length === 2 && '8763'.includes(hand[0]);
-  if (!consonant) return `${hand}${particle}`;
-  return `${hand}${particle === '는' ? '은' : '을'}`;
-}
-
-/** 액션 뒤 조사. 콜·3벳·4벳·오픈·올인(받침) → 과/을, 레이즈·체크·폴드(모음) → 와/를. */
-function actP(word: string, particle: '과' | '을'): string {
-  const vowel = word.endsWith('즈') || word.endsWith('크') || word.endsWith('드');
-  if (particle === '과') return `${word}${vowel ? '와' : '과'}`;
-  return `${word}${vowel ? '를' : '을'}`;
-}
-
-/** 랭크 뒤 조사(을/를). 10=십, 8=팔, 7=칠, 6=육, 3=삼 만 받침이 있습니다 (explain.ts rp 와 같은 규칙). */
-function rankP(rank: string): string {
-  const consonant = 'T8763'.includes(rank);
-  return `${rank}${consonant ? '을' : '를'}`;
-}
-
-/** 림프를 올리는 건 '오픈'이 아니라 '레이즈'입니다. 그 밖은 ACTION_SHORT_KO 그대로. */
-function actWord(action: Action, kind: ScenarioKind): string {
-  if (kind === 'vs_limp' && action === 'raise') return '레이즈';
-  return ACTION_SHORT_KO[action];
-}
 
 /** villain 축 결론의 머리말: "BTN 오픈에는" / "SB 3벳에는" / "CO 4벳에는" / "HJ 올인에는". */
 const VILLAIN_WORD: Partial<Record<ScenarioKind, string>> = { vs_open: '오픈', vs_3bet: '3벳', vs_4bet: '4벳', vs_5bet: '올인' };
@@ -360,41 +315,6 @@ export function entrySeat(hand: HandName): Pos | 'SB' | null {
   return p.seats[4].raise > EPS ? 'SB' : null;
 }
 
-/**
- * 줄의 경계. 같은 줄을 킥커 내림차순으로 훑어 contWeight = 1 − rest 비중의 {monotone, lastFull, lastAny}.
- * 수티드 A 줄은 A5s·A4s 가 A8s~A6s 보다 넓어 비단조입니다 — 문장은 monotone 일 때만 만듭니다.
- */
-export function rowBoundary(s: Scenario, hand: HandName): RowBoundary {
-  const info = parseHandName(hand);
-  let hands: HandName[];
-  let label: string;
-  if (info.kind === 'pair') {
-    hands = RANKS.map((r) => `${r}${r}`);
-    label = '포켓페어';
-  } else {
-    const suf = info.kind === 'suited' ? 's' : 'o';
-    const hi = RANKS.indexOf(info.high);
-    hands = RANKS.slice(hi + 1).map((r) => `${info.high}${r}${suf}`);
-    label = `${info.kind === 'suited' ? '수티드' : '오프수트'} ${info.high}`;
-  }
-  const cells = getChartCells(s);
-  const rest = restAction(getChartDef(s));
-  const cont = (h: HandName): number => {
-    const mix = cells[h];
-    const restW = rest === 'fold' ? foldWeight(mix) : (mix?.[rest] ?? 0);
-    return 1 - restW;
-  };
-  const weights = hands.map(cont);
-  const monotone = weights.every((w, i) => i === 0 || w <= weights[i - 1] + EPS);
-  let lastFull: HandName | null = null;
-  let lastAny: HandName | null = null;
-  hands.forEach((h, i) => {
-    if (weights[i] >= 0.999) lastFull = h;
-    if (weights[i] > EPS) lastAny = h;
-  });
-  return { label, hands, monotone, lastFull, lastAny };
-}
-
 /* ------------------------------------------------------------------ */
 /* 레버 (자리 사실)                                                      */
 /* ------------------------------------------------------------------ */
@@ -409,42 +329,42 @@ export function seatLevers(s: Scenario): Lever[] {
   const { kind, hero } = s;
   const v = s.villain;
   if (v && kind !== 'vs_5bet') {
-    out.push({ id: 'position', text: heroIsIP(s) ? '플랍 이후 내가 나중에 액션합니다.' : '플랍 이후 내가 먼저 액션합니다.', nums: [], constant: true });
+    out.push({ id: 'position', text: heroIsIP(s) ? '포지션이 있어요.' : '포지션이 없어요.', nums: [], constant: true });
   }
   if ((kind === 'rfi' || kind === 'vs_open' || kind === 'vs_limp' || kind === 'cold_4bet') && !isBlind(hero)) {
     const n = seatsBehind(hero);
-    out.push({ id: 'behind', text: `뒤에 ${n}명이 남아 있습니다.`, nums: [n], constant: false });
+    out.push({ id: 'behind', text: `뒤에 ${n}명이 남아 있어요.`, nums: [n], constant: false });
   }
   if (kind === 'vs_open' && hero === 'BB') {
     const price = priceFacts(s)!;
-    const tail = v === 'SB' ? 'SB 상대로는 포지션이 있어 가장 넓게 방어합니다.' : '마지막 차례라 스퀴즈 걱정 없이 가장 넓게 콜합니다.';
-    out.push({ id: 'bbPrice', text: `BB는 이미 1bb를 냈으니 ${price.toCall}만 더 내고 약 ${price.pot} 팟을 봅니다. ${tail}`, nums: [], constant: false });
+    const tail = v === 'SB' ? 'SB 상대로는 포지션도 있어요.' : '마지막 차례라 제일 넓게 콜해요.';
+    out.push({ id: 'bbPrice', text: `BB는 이미 1bb를 냈으니 ${price.toCall}만 더 내면 돼요. ${tail}`, nums: [], constant: false });
   }
   if (kind === 'vs_open' && hero === 'SB') {
-    out.push({ id: 'sbRaiseOrFold', text: 'SB는 콜하면 BB의 스퀴즈와 포지션 불리가 겹칩니다. 그래서 3벳 아니면 폴드 위주로 대응합니다.', nums: [], constant: true });
+    out.push({ id: 'sbRaiseOrFold', text: 'SB는 콜하면 BB에게 스퀴즈당하기 쉬워요. 그래서 3벳 아니면 폴드예요.', nums: [], constant: true });
   }
-  if (kind === 'vs_limp' && hero === 'BB') out.push({ id: 'bbFree', text: '나는 이미 1bb를 냈으니 공짜로 플랍을 봅니다.', nums: [], constant: true });
+  if (kind === 'vs_limp' && hero === 'BB') out.push({ id: 'bbFree', text: 'BB는 이미 1bb를 냈으니 체크하면 공짜로 플랍을 봐요.', nums: [], constant: true });
   // 3벳 레인지의 성격은 vs_3bet 에서만 — vs_5bet 해설은 올인 레인지를 말하지 3벳 레인지를 말하지 않습니다.
   if (kind === 'vs_3bet' && v) {
-    out.push({ id: 'blind3bet', text: isBlind(v) ? `${v}의 3벳은 밸류와 블러프가 섞입니다.` : `${v}의 3벳은 밸류 위주입니다.`, nums: [], constant: true });
+    out.push({ id: 'blind3bet', text: isBlind(v) ? `${v} 3벳엔 블러프도 섞여 있어요.` : `${v} 3벳은 밸류 위주예요.`, nums: [], constant: true });
   }
   if ((kind === 'vs_open' || kind === 'vs_4bet') && v) {
     const p = openPct(v);
-    out.push({ id: 'openWidth', text: `${seatP(v, '는')} 전체의 약 ${p}%로 오픈합니다.`, nums: [p], constant: false });
+    out.push({ id: 'openWidth', text: `${josa(v, '은/는')} ${p}%를 오픈해요.`, nums: [p], constant: false });
   }
   if (kind === 'rfi') {
     const p = openPct(hero);
-    out.push({ id: 'openWidth', text: `${seatP(hero, '는')} 전체의 약 ${p}%로 오픈합니다.`, nums: [p], constant: false });
+    out.push({ id: 'openWidth', text: `${josa(hero, '은/는')} ${p}%를 오픈해요.`, nums: [p], constant: false });
   }
   if ((kind === 'vs_3bet' || kind === 'vs_5bet') && v) {
     const p = threebetPct(v, hero);
-    out.push({ id: 'threebetWidth', text: `${seatP(v, '는')} 전체의 약 ${p}%로 3벳합니다.`, nums: [p], constant: false });
+    out.push({ id: 'threebetWidth', text: `${josa(v, '은/는')} ${p}%를 3벳해요.`, nums: [p], constant: false });
   }
   if (kind === 'vs_open' && v) {
-    if (isEarly(v)) out.push({ id: 'earlyOpener', text: '앞자리라 레인지가 강합니다.', nums: [], constant: true });
-    else out.push({ id: 'lateOpener', text: '뒷자리라 약한 패가 많이 섞여 있습니다.', nums: [], constant: true });
+    if (isEarly(v)) out.push({ id: 'earlyOpener', text: '앞자리 오픈은 강한 패 위주예요.', nums: [], constant: true });
+    else out.push({ id: 'lateOpener', text: '뒷자리 오픈엔 약한 패도 많이 섞여 있어요.', nums: [], constant: true });
   }
-  if (kind === 'rfi' && hero === 'SB') out.push({ id: 'sbOpen', text: 'SB는 BB 한 명만 남아 따로 봅니다.', nums: [], constant: true });
+  if (kind === 'rfi' && hero === 'SB') out.push({ id: 'sbOpen', text: 'SB는 뒤에 BB 한 명뿐이라 따로 외워요.', nums: [], constant: true });
   return out;
 }
 
@@ -496,8 +416,8 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
     const oop = ip === a ? b : a;
     const text =
       axis === 'villain'
-        ? `${seatOf(ip)} 상대로는 플랍 이후 내가 나중에, ${seatOf(oop)} 상대로는 먼저 액션합니다.`
-        : `${seatOf(ip)}에서는 플랍 이후 내가 나중에, ${seatOf(oop)}에서는 먼저 액션합니다.`;
+        ? `${seatOf(ip)} 상대로는 포지션이 있고, ${seatOf(oop)} 상대로는 없어요.`
+        : `${seatOf(ip)}에서는 포지션이 있고, ${seatOf(oop)}에서는 없어요.`;
     position = { id: 'position', text, nums: [], constant: false };
   }
   // 2. behind — 양쪽 다 블라인드가 아닐 때만 후보입니다.
@@ -505,7 +425,7 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
   const ba = lA.get('behind');
   const bb = lB.get('behind');
   if (ba && bb && ba.nums[0] !== bb.nums[0]) {
-    behind = { id: 'behind', text: `${seatP(A.scenario.hero, '는')} 뒤에 ${ba.nums[0]}명, ${seatP(B.scenario.hero, '는')} ${bb.nums[0]}명이 남습니다.`, nums: [ba.nums[0], bb.nums[0]], constant: false };
+    behind = { id: 'behind', text: `${josa(A.scenario.hero, '은/는')} 뒤에 ${ba.nums[0]}명, ${josa(B.scenario.hero, '은/는')} ${bb.nums[0]}명이 남아요.`, nums: [ba.nums[0], bb.nums[0]], constant: false };
   }
   // 3. bbPrice / sbRaiseOrFold / bbFree — 한쪽에만 있는 자리 문장을 결론 순서(더 공격적인 쪽 먼저)로 나란히.
   const [first, second] = orderPair(a, b, axis);
@@ -540,8 +460,8 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
   if (oa && ob && Math.abs(oa.nums[0] - ob.nums[0]) >= 2) {
     const text =
       sa.kind === 'rfi'
-        ? `오픈 레인지는 ${A.scenario.hero} ${oa.nums[0]}%, ${B.scenario.hero} ${ob.nums[0]}%입니다.`
-        : `${seatP(A.scenario.villain!, '는')} ${oa.nums[0]}%, ${seatP(B.scenario.villain!, '는')} ${ob.nums[0]}%를 오픈합니다.`;
+        ? `오픈 레인지는 ${A.scenario.hero} ${oa.nums[0]}%, ${B.scenario.hero} ${ob.nums[0]}%예요.`
+        : `${josa(A.scenario.villain!, '은/는')} ${oa.nums[0]}%, ${josa(B.scenario.villain!, '은/는')} ${ob.nums[0]}%를 오픈해요.`;
     out.push({ id: 'openWidth', text, nums: [oa.nums[0], ob.nums[0]], constant: false });
   }
   const wa = lA.get('threebetWidth');
@@ -549,8 +469,8 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
   if (wa && wb && Math.abs(wa.nums[0] - wb.nums[0]) >= 2) {
     const text =
       axis === 'villain'
-        ? `${seatP(A.scenario.villain!, '는')} ${wa.nums[0]}%, ${seatP(B.scenario.villain!, '는')} ${wb.nums[0]}%를 3벳합니다.`
-        : `${seatP(sa.villain!, '는')} ${A.scenario.hero} 오픈에 ${wa.nums[0]}%, ${B.scenario.hero} 오픈에 ${wb.nums[0]}%를 3벳합니다.`;
+        ? `${josa(A.scenario.villain!, '은/는')} ${wa.nums[0]}%, ${josa(B.scenario.villain!, '은/는')} ${wb.nums[0]}%를 3벳해요.`
+        : `${josa(sa.villain!, '은/는')} ${A.scenario.hero} 오픈에 ${wa.nums[0]}%, ${B.scenario.hero} 오픈에 ${wb.nums[0]}%를 3벳해요.`;
     out.push({ id: 'threebetWidth', text, nums: [wa.nums[0], wb.nums[0]], constant: false });
   }
   // 6. early / late — 한쪽만 뒷자리 오프너면 두 상수를 나란히(앞자리 먼저).
@@ -568,23 +488,23 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
 
 const claimOf = (c: AtlasCell): Claim => ({ scenario: c.scenario, action: c.primary, weight: c.weightClass });
 
-/** 비중 수식어. 결론 프레임(마침표 없음): "{act}합니다" / "주로 {act}합니다" / "절반만 {act}합니다" / "{act}과 {act2}를 반반 섞습니다". */
+/** 비중 수식어. 결론 프레임(마침표 없음): "{act}해요" / "주로 {act}해요" / "절반만 {act}해요" / "{act}과 {act2}를 반반 섞어요". */
 function weightPhrase(cell: AtlasCell): string {
   const kind = cell.scenario.kind;
   const act = actWord(cell.primary, kind);
   switch (cell.weightClass) {
     case 'always':
-      return `${act}합니다`;
+      return `${act}해요`;
     case 'most':
-      return `주로 ${act}합니다`;
+      return `주로 ${act}해요`;
     case 'half':
-      if (isTieMix(cell)) return `${actP(act, '과')} ${actP(actWord(cell.mixList[1].action, kind), '을')} 반반 섞습니다`;
+      if (isTieMix(cell)) return `${josa(act, '과/와')} ${josa(actWord(cell.mixList[1].action, kind), '을/를')} 반반 섞어요`;
       // 1순위가 폴드·체크인 반반(폴드 50 / 4벳 25 / 콜 25): "절반만 폴드합니다"는 폴드를 말리는 말로 읽힙니다.
       // 나머지 절반이 뭘 하는지까지 말해야 배울 수 있는 문장이 됩니다.
-      if (cell.primary === 'fold' || cell.primary === 'check') return `절반은 ${act}, 절반은 ${restWords(cell)}입니다`;
-      return `절반만 ${act}합니다`;
+      if (cell.primary === 'fold' || cell.primary === 'check') return `절반은 ${act}, 절반은 ${josa(restWords(cell), '이에요/예요')}`;
+      return `절반만 ${act}해요`;
     case 'some':
-      return `${pctInt(cell.mixList[0].weight)}%만 ${act}합니다`;
+      return `${pctInt(cell.mixList[0].weight)}%만 ${act}해요`;
   }
 }
 
@@ -627,7 +547,7 @@ interface Digest {
 function digest(sec: AtlasSection): Digest {
   const live = sec.cells.filter((c) => c.reachable);
   const claims = live.map(claimOf);
-  if (!live.length) return { text: '생기지 않는 상황', claims, nums: [], uniform: null, named: null };
+  if (!live.length) return { text: '이 패로는 안 오는 상황', claims, nums: [], uniform: null, named: null };
   const kind = sec.kind;
   const groups = new Map<Action, AtlasCell[]>();
   for (const c of live) groups.set(c.primary, [...(groups.get(c.primary) ?? []), c]);
@@ -639,14 +559,14 @@ function digest(sec: AtlasSection): Digest {
     const nums = [live.length];
     let text = `${live.length}곳 전부 ${actWord(act, kind)}`;
     if (halfN) {
-      text += ` · 절반만 ${halfN}곳`;
+      text += ` · 그중 ${halfN}곳은 절반만`;
       nums.push(halfN);
     } else if (mixed.length) {
       // 반반은 아니지만 2순위를 섞는 칸(폴드 75 / 올인 25 같은 것). 가장 흔한 2순위 액션으로 말합니다.
       const alts = new Map<Action, number>();
       for (const c of mixed) alts.set(c.mixList[1].action, (alts.get(c.mixList[1].action) ?? 0) + 1);
       const alt = [...alts.entries()].sort((x, y) => y[1] - x[1])[0][0];
-      text += ` · ${mixed.length}곳은 ${actWord(alt, kind)}도 섞음`;
+      text += ` · 그중 ${mixed.length}곳은 ${actWord(alt, kind)}도 섞음`;
       nums.push(mixed.length);
     }
     return { text, claims, nums, uniform: act, named: null };
@@ -661,14 +581,14 @@ function digest(sec: AtlasSection): Digest {
   const nums: number[] = [];
   const raises = groups.get('raise') ?? [];
   const btnOnlyHalf = kind === 'vs_limp' && raises.length === 1 && raises[0].scenario.hero === 'BTN' && raises[0].weightClass === 'half';
-  if (btnOnlyHalf) parts.push('BTN만 절반 레이즈');
+  if (btnOnlyHalf) parts.push('BTN에서만 절반 레이즈');
   else {
     for (const [act, cells] of entries.slice(0, 3)) {
       parts.push(`${actWord(act, kind)} ${cells.length}곳`);
       nums.push(cells.length);
     }
   }
-  if (bbCheck) parts.push('BB는 폴드 없이 체크');
+  if (bbCheck) parts.push('BB는 체크');
   // 이름을 붙일 소수 그룹: 가장 작은 non-check 그룹이 3곳 이하일 때 (BTN만 … 은 이미 이름이 들어 있습니다).
   let named: Digest['named'] = null;
   if (!btnOnlyHalf) {
@@ -682,7 +602,7 @@ function digest(sec: AtlasSection): Digest {
 export function uniformLine(sec: AtlasSection): Line | null {
   const d = digest(sec);
   if (!d.uniform) return null;
-  return { text: `어느 자리에서든 ${actWord(d.uniform, sec.kind)}입니다.`, claims: d.claims, nums: [], source: 'computed' };
+  return { text: `어느 자리에서나 ${actWord(d.uniform, sec.kind)}해요.`, claims: d.claims, nums: [], source: 'computed' };
 }
 
 /** D. 섹션 한 줄 요약 (≤ 30자). */
@@ -709,39 +629,39 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
   const { hand, rfi } = atlas;
   const strip = atlas.sections.rfi;
   const cell = (pos: Pos) => cellAt(strip, pos)!;
-  const subject = handP(hand, '는');
+  const subject = josa(hand, '은/는');
   const out: Line[] = [];
   const sbCell = cell('SB');
   // SB 절: primary(SB) ≠ primary(BTN) 일 때만 덧붙입니다.
-  const sbClause = rfi.sbDiffers ? ` SB에서는 ${weightPhrase(sbCell)}.` : '';
+  const sbClause = rfi.sbDiffers ? ` 단, SB에서는 ${weightPhrase(sbCell)}.` : '';
   const sbClaims = rfi.sbDiffers ? [claimOf(sbCell)] : [];
 
   switch (rfi.pattern) {
     case 'always': {
       if (sbCell.primary === 'raise') {
-        out.push({ text: `${subject} 어느 자리에서든 오픈합니다.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
+        out.push({ text: `${subject} 어느 자리에서나 오픈해요.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
       } else {
         // 데이터에 없는 경우지만, 생기면 "어느 자리에서든"이 거짓이 되므로 SB 를 빼고 말합니다.
-        out.push({ text: `${subject} UTG에서도 오픈합니다.${sbClause}`, claims: [claimOf(cell('UTG')), ...sbClaims], nums: [], source: 'computed' });
+        out.push({ text: `${subject} UTG에서도 오픈해요.${sbClause}`, claims: [claimOf(cell('UTG')), ...sbClaims], nums: [], source: 'computed' });
       }
       break;
     }
     case 'never':
-      out.push({ text: `${subject} 어느 자리에서도 오픈하지 않습니다.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
+      out.push({ text: `${subject} 어느 자리에서도 오픈하지 않아요.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
       break;
     case 'sbOnly': {
-      // "SB에서만 절반만" 은 '만'이 겹칩니다. 두 문장으로 — 어디서 여는지, 나머지는 폴드.
+      // "SB에서만 절반만" 은 '만'이 겹칩니다. 두 절로 — 어디서 오픈하는지, 나머지는 폴드.
       const w = weightWord(sbCell);
-      out.push({ text: `${subject} SB에서 ${w.word ? `${w.word} ` : ''}오픈합니다. 다른 자리에서는 폴드입니다.`, claims: strip.cells.map(claimOf), nums: w.nums, source: 'computed' });
+      out.push({ text: `${subject} SB에서 ${w.word ? `${w.word} ` : ''}오픈하고, 나머지는 폴드예요.`, claims: strip.cells.map(claimOf), nums: w.nums, source: 'computed' });
       break;
     }
     case 'entry': {
       const first = rfi.firstAny!;
       const before = CORE_SEATS.slice(0, CORE_SEATS.indexOf(first));
       const after = CORE_SEATS.slice(CORE_SEATS.indexOf(first));
-      const tail = before.length ? ' 앞에서는 폴드입니다.' : '';
+      // 앞자리 폴드는 '부터'가 이미 말합니다 — 문장으로 되풀이하지 않습니다(claims 에는 남깁니다).
       out.push({
-        text: `${subject} ${first}부터 오픈합니다.${tail}${sbClause}`,
+        text: `${subject} ${first}부터 오픈해요.${sbClause}`,
         claims: [...after.map((p) => claimOf(cell(p))), ...before.map((p) => claimOf(cell(p))), ...sbClaims],
         nums: [],
         source: 'computed',
@@ -758,7 +678,7 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
         return `${p}에서 ${w.word}`;
       });
       out.push({
-        text: `${subject} ${parts.join(', ')}, ${rfi.firstAlways}부터 항상 오픈합니다.${sbClause}`,
+        text: `${subject} ${parts.join(', ')}, ${rfi.firstAlways}부터는 항상 오픈해요.${sbClause}`,
         claims: [...CORE_SEATS.slice(start).map((p) => claimOf(cell(p))), ...sbClaims],
         nums,
         source: 'computed',
@@ -767,7 +687,7 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
     }
     case 'partial':
     case 'irregular': {
-      // 전부 열거. '부터'·'어디서든' 금지.
+      // 전부 열거. '부터'·'어디서나' 금지.
       const opens = (p: Pos) => cell(p).mixList.some((m) => m.action === 'raise' && m.weight > EPS);
       const seats = CORE_SEATS.filter(opens);
       const nums: number[] = [];
@@ -784,10 +704,10 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
           if (last && last.word === words[i].word) last.seats.push(p);
           else groups.push({ word: words[i].word, seats: [p] });
         });
-        const parts = groups.map((g) => `${g.seats.join('과 ')}에서 ${g.word}`);
-        out.push({ text: `${subject} ${parts.join(', ')} 오픈합니다.${sbClause}`, claims: [...all.map((p) => claimOf(cell(p))), ...sbClaims], nums, source: 'computed' });
+        const parts = groups.map((g) => `${[...g.seats.slice(0, -1).map((p) => josa(p, '과/와')), g.seats[g.seats.length - 1]].join(' ')}에서 ${g.word}`);
+        out.push({ text: `${subject} ${parts.join(', ')} 오픈하고, 나머지는 폴드예요.${sbClause}`, claims: [...all.map((p) => claimOf(cell(p))), ...sbClaims], nums, source: 'computed' });
       } else {
-        out.push({ text: `${subject} ${seats.join('·')}에서만 오픈합니다.${sbClause}`, claims: [...seats.map((p) => claimOf(cell(p))), ...sbClaims], nums, source: 'computed' });
+        out.push({ text: `${subject} ${seats.join('·')}에서만 오픈해요.${sbClause}`, claims: [...seats.map((p) => claimOf(cell(p))), ...sbClaims], nums, source: 'computed' });
       }
       break;
     }
@@ -795,181 +715,23 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
 
   if (rfi.pattern === 'always' || rfi.pattern === 'never') {
     const d = digest(atlas.sections.vs_open);
-    if (d.uniform) out.push({ text: `오픈을 맞으면 어디서든 ${actWord(d.uniform, 'vs_open')}합니다.`, claims: d.claims, nums: [], source: 'computed' });
-    else out.push({ text: `오픈을 맞으면 ${d.text}입니다.`, claims: d.claims, nums: d.nums, source: 'computed' });
+    if (d.uniform) out.push({ text: `앞에서 오픈하면 어디서나 ${actWord(d.uniform, 'vs_open')}해요.`, claims: d.claims, nums: [], source: 'computed' });
+    else out.push({ text: `앞에서 오픈하면 ${josa(d.text, '이에요/예요')}.`, claims: d.claims, nums: d.nums, source: 'computed' });
   }
   return out;
 }
 
-/** Q. 마지막 자기 질문. */
-export function selfQuestion(atlas: HandAtlas): Line {
-  const { hand, rfi } = atlas;
-  const strip = atlas.sections.rfi;
-  const cell = (pos: Pos) => cellAt(strip, pos)!;
-  const head = `다음에 ${handP(hand, '를')} 받으면:`;
-  switch (rfi.pattern) {
-    case 'entry': {
-      const first = rfi.firstAny!;
-      const before = CORE_SEATS.slice(0, CORE_SEATS.indexOf(first));
-      const sbOpens = cell('SB').primary === 'raise';
-      if (first === 'BTN') {
-        const claims = [claimOf(cell('BTN')), ...(sbOpens ? [claimOf(cell('SB'))] : []), ...before.map((p) => claimOf(cell(p)))];
-        return { text: `${head} 내 자리가 BTN${sbOpens ? '이나 SB' : ''}인가요? 아니면 폴드입니다.`, claims, nums: [], source: 'computed' };
-      }
-      return { text: `${head} 내 자리가 ${first}보다 앞인가요? 그러면 폴드입니다.`, claims: before.map((p) => claimOf(cell(p))), nums: [], source: 'computed' };
-    }
-    case 'half': {
-      const w = weightWord(cell(rfi.firstAny!));
-      return {
-        text: `${head} 내 자리가 ${rfi.firstAlways}보다 앞인가요? ${rfi.firstAny}라면 ${w.word ? `${w.word} ` : ''}오픈합니다.`,
-        claims: [claimOf(cell(rfi.firstAny!)), claimOf(cell(rfi.firstAlways!))],
-        nums: w.nums,
-        source: 'computed',
-      };
-    }
-    case 'always': {
-      const d = digest(atlas.sections.vs_open);
-      if (d.uniform) {
-        return {
-          text: `${head} 앞에 오픈한 사람이 있나요? 있으면 ${actWord(d.uniform, 'vs_open')}, 없으면 오픈입니다.`,
-          claims: [...strip.cells.map(claimOf), ...d.claims],
-          nums: [],
-          source: 'computed',
-        };
-      }
-      return { text: `${head} 앞에 오픈한 사람이 있나요? 누가 했나요?`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' };
-    }
-    case 'sbOnly':
-    case 'partial':
-    case 'irregular': {
-      // 묻는 자리와 답하는 자리가 같아야 합니다 — "내가 BB인가요? BTN이라면 …"은 질문과 답이 안 이어집니다.
-      const seats = (['UTG', 'HJ', 'CO', 'BTN', 'SB'] as Pos[]).filter((p) => cell(p).mixList.some((m) => m.action === 'raise' && m.weight > EPS));
-      const words = seats.map((p) => weightWord(cell(p)));
-      const sameWord = words.every((w) => w.word === words[0].word);
-      // "CO나 BTN이나 SB" — 받침 있는 자리(BTN)는 '이나'.
-      const list = seats.map((p, i) => (i < seats.length - 1 ? `${p}${p === 'BTN' ? '이나' : '나'}` : p)).join(' ');
-      const w = words[0]?.word ?? '';
-      const tail = sameWord ? `그러면 ${w ? `${w} ` : ''}오픈, 아니면 폴드입니다.` : '아니면 폴드입니다.';
-      return { text: `${head} 내 자리가 ${list}인가요? ${tail}`, claims: strip.cells.map(claimOf), nums: sameWord ? words[0]?.nums ?? [] : [], source: 'computed' };
-    }
-    case 'never':
-      return { text: `${head} 내가 BB인가요? 아니면 폴드입니다.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' };
-  }
-}
-
 /**
- * villain 축 절. 같은 (primary, 절반 여부) 구간으로 나눠 구간이 시작하는 상대를 말합니다:
- * `{v} {word}부터 {act}` / 절반이면 `{v} {word}에는 절반만 {act}` / 전부 같으면 `{word}에는 {act}`.
- * '부터'는 그 뒤로 primary 가 같다는 뜻이라, 축이 단조(불변식 테스트 12)일 때만 참입니다.
- */
-function villainClause(cells: AtlasCell[], word: string): { text: string; claims: Claim[] } | null {
-  const live = cells.filter((c) => c.reachable);
-  if (!live.length) return null;
-  const segKey = (c: AtlasCell) => `${c.primary}|${c.weightClass === 'half' ? 'h' : ''}`;
-  const segs: AtlasCell[][] = [];
-  for (const c of live) {
-    const last = segs[segs.length - 1];
-    if (last && segKey(last[0]) === segKey(c)) last.push(c);
-    else segs.push([c]);
-  }
-  const claims = live.map(claimOf);
-  // 반반 수식어: 1순위가 폴드·체크면 '절반은'(나머지 절반은 계속 간다는 뜻), 아니면 '절반만'.
-  const halfWord = (c: AtlasCell) => (c.weightClass !== 'half' ? '' : c.primary === 'fold' || c.primary === 'check' ? '절반은 ' : '절반만 ');
-  if (segs.length === 1) {
-    const c = live[0];
-    return { text: `${word}에는 ${halfWord(c)}${actWord(c.primary, c.scenario.kind)}`, claims };
-  }
-  const parts: string[] = [];
-  segs.forEach((seg, i) => {
-    const c = seg[0];
-    const v = c.scenario.villain!;
-    const act = actWord(c.primary, c.scenario.kind);
-    const lastSeg = i === segs.length - 1;
-    if (c.primary === 'fold' && i === 0) {
-      // 앞쪽 폴드 구간은 다음 구간이 '에는 절반만' 꼴일 때만 적습니다 — '부터'가 폴드를 이미 품고 있습니다.
-      const next = segs[1][0];
-      if (next.weightClass === 'half') {
-        const last = seg[seg.length - 1].scenario.villain;
-        // 폴드 구간이 여러 상대면 '…까지는' — "CO 오픈에는 폴드"라고만 쓰면 UTG·HJ 오픈은 다른 줄 알게 됩니다.
-        parts.push(seg.length > 1 ? `${last} ${word}까지는 폴드` : `${last} ${word}에는 폴드`);
-      }
-      return;
-    }
-    // 마지막 상대 한 칸짜리 구간에는 '부터'가 어색합니다 — "SB 오픈에는 3벳".
-    if (c.weightClass === 'half' || (lastSeg && seg.length === 1)) parts.push(`${v} ${word}에는 ${halfWord(c)}${act}`);
-    else parts.push(`${v} ${word}부터 ${act}`);
-  });
-  return { text: parts.join(', '), claims };
-}
-
-/** S. 전치 읽기 — `{hero}에서 {hand}: {rfi절} · {vs_open절} · {vs_3bet절}` (절 ≤ 3, 전체 ≤ 45자). */
-export function seatSummary(atlas: HandAtlas, hero: Pos): Line {
-  const { hand, sections } = atlas;
-  const clauses: string[] = [];
-  const claims: Claim[] = [];
-  const rfiCell = cellAt(sections.rfi, hero);
-  if (rfiCell) {
-    const w = weightWord(rfiCell);
-    clauses.push(rfiCell.primary === 'raise' ? `${w.word ? `${w.word} ` : ''}오픈` : '폴드');
-    claims.push(claimOf(rfiCell));
-  }
-  const open = villainClause(
-    sections.vs_open.cells.filter((c) => c.scenario.hero === hero),
-    '오픈',
-  );
-  if (open) {
-    clauses.push(open.text);
-    claims.push(...open.claims);
-  }
-  const limp = hero === 'BB' ? cellAt(sections.vs_limp, 'BB') : undefined;
-  if (limp && limp.primary === 'check') {
-    clauses.push('림프엔 체크');
-    claims.push(claimOf(limp));
-  } else {
-    const three = villainClause(
-      sections.vs_3bet.cells.filter((c) => c.scenario.hero === hero),
-      '3벳',
-    );
-    if (three) {
-      clauses.push(three.text);
-      claims.push(...three.claims);
-    }
-  }
-  return { text: `${hero}에서 ${hand}: ${clauses.slice(0, 3).join(' · ')}`, claims, nums: [], source: 'computed' };
-}
-
-/** R. 줄 경계 문장 (rfi, monotone 일 때만). */
-function rowBoundaryLine(cell: AtlasCell, hand: HandName): Line | null {
-  const s = cell.scenario;
-  const r = rowBoundary(s, hand);
-  if (!r.monotone) return null;
-  const subj = seatP(s.hero, '는');
-  const obj = r.label === '포켓페어' ? '포켓페어를' : `${r.label.slice(0, -1)}${rankP(r.label.slice(-1))}`;
-  let text: string;
-  if (!r.lastAny) text = `${subj} ${obj} 오픈하지 않습니다.`;
-  else if (!r.lastFull) {
-    const w = weightWord(makeCell(s, r.lastAny));
-    text = `${subj} ${obj} ${r.lastAny}까지 ${w.word ? `${w.word} ` : ''}오픈합니다.`;
-  } else if (r.lastAny === r.lastFull) text = `${subj} ${obj} ${r.lastFull}까지 오픈합니다.`;
-  else {
-    const w = weightWord(makeCell(s, r.lastAny));
-    text = `${subj} ${obj} ${r.lastFull}까지 항상, ${handP(r.lastAny, '는')} ${w.word ? `${w.word} ` : ''}오픈합니다.`;
-  }
-  return { text, claims: [claimOf(cell)], nums: [], source: 'computed' };
-}
-
-/**
- * C. 두 칸 비교. [결론 1~2문장] + differingLevers 텍스트(≤ 2) + (rfi 면 rowBoundary 두 줄).
- * 같은 primary 면 결론 = "둘 다 {act}입니다." + 혼합 차이 1줄. 축이 다르거나 미도달 칸이 끼면 빈 배열.
+ * C. 두 칸 비교. [결론 1~2문장] + differingLevers 텍스트(≤ 2). 줄 경계는 lineSentence 가 따로 말합니다(§5.3).
+ * 같은 primary 면 결론 = "둘 다 {act}예요." + 혼합 차이 1줄. 축이 다르거나 미도달 칸이 끼면 빈 배열.
  */
 export function compareCells(a: AtlasCell, b: AtlasCell): Line[] {
   const axis = compareAxis(a.scenario, b.scenario);
   if (axis === 'none' || !a.reachable || !b.reachable) return [];
   const kind = a.scenario.kind;
-  const hand = a.key.slice(a.key.indexOf('|') + 1);
-  const out: Line[] = [];
+    const out: Line[] = [];
   const head = (c: AtlasCell) => (axis === 'hero' ? `${c.scenario.hero}에서는` : `${c.scenario.villain} ${VILLAIN_WORD[kind]}에는`);
-  const where = (c: AtlasCell) => (axis === 'hero' ? `${c.scenario.hero} 자리에서는` : `${c.scenario.villain} 상대로는`);
+  const where = (c: AtlasCell) => (axis === 'hero' ? `${c.scenario.hero}에서는` : `${c.scenario.villain} 상대로는`);
   const [B, A] = orderPair(a, b, axis);
   // 같은 primary 라도 한쪽은 '절반만', 한쪽은 항상이면 그 대비가 배울 점입니다("UTG에서 절반, HJ부터 항상") — 두 문장으로 말합니다.
   const halfContrast = A.primary === B.primary && [A.weightClass, B.weightClass].sort().join() === 'always,half';
@@ -977,7 +739,7 @@ export function compareCells(a: AtlasCell, b: AtlasCell): Line[] {
   if (A.primary !== B.primary || halfContrast) {
     out.push({ text: `${head(B)} ${weightPhrase(B)}. ${head(A)} ${weightPhrase(A)}.`, claims: [claimOf(B), claimOf(A)], nums: [], source: 'computed' });
   } else {
-    out.push({ text: `둘 다 ${actWord(A.primary, kind)}입니다.`, claims: [claimOf(B), claimOf(A)], nums: [], source: 'computed' });
+    out.push({ text: `둘 다 ${josa(actWord(A.primary, kind), '이에요/예요')}.`, claims: [claimOf(B), claimOf(A)], nums: [], source: 'computed' });
     // 혼합이 다르면: 2순위 비중이 더 큰 쪽을 집어 말합니다.
     const altA = A.mixList[1];
     const altB = B.mixList[1];
@@ -988,18 +750,12 @@ export function compareCells(a: AtlasCell, b: AtlasCell): Line[] {
       const X = wB > wA || (wB === wA && B === a) ? B : A;
       const alt = X.mixList[1];
       const p = pctInt(alt.weight);
-      out.push({ text: `${where(X)} ${actP(actWord(alt.action, kind), '을')} ${p}% 섞습니다.`, claims: [claimOf(X)], nums: [p], source: 'computed' });
+      out.push({ text: `${where(X)} ${actWord(alt.action, kind)}도 ${p}% 섞어요.`, claims: [claimOf(X)], nums: [p], source: 'computed' });
     }
   }
 
   for (const lever of differingLevers(a, b)) {
     out.push({ text: lever.text, claims: [claimOf(a), claimOf(b)], nums: lever.nums, source: lever.constant ? 'constant' : 'computed' });
-  }
-  if (kind === 'rfi') {
-    for (const c of [a, b]) {
-      const line = rowBoundaryLine(c, hand);
-      if (line) out.push(line);
-    }
   }
   return out;
 }
@@ -1095,7 +851,7 @@ export function gateText(cell: AtlasCell): string | null {
   const g = cell.gate;
   if (!g) return null;
   const { hero, villain } = cell.scenario;
-  if (g.kind === 'rfi') return `${hero}에서 오픈하지 않으니 이 상황은 생기지 않습니다.`;
-  if (g.kind === 'vs_3bet') return `${hero}에서 4벳하지 않으니 올인을 맞을 일이 없습니다.`;
-  return `${villain} 오픈에 3벳하지 않으니 4벳을 맞을 일이 없습니다.`;
+  if (g.kind === 'rfi') return `${hero}에서 오픈하지 않으니 이 상황은 안 생겨요.`;
+  if (g.kind === 'vs_3bet') return `${hero}에서 4벳하지 않으니 올인을 받을 일이 없어요.`;
+  return `${villain} 오픈에 3벳하지 않으니 4벳을 받을 일이 없어요.`;
 }

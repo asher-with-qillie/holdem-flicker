@@ -16,7 +16,6 @@ import {
   seatLevers,
   sectionDigest,
   sectionDigestDetail,
-  selfQuestion,
   type AtlasCell,
   type AtlasSection,
   type HandAtlas,
@@ -43,7 +42,7 @@ import '../../styles/atlas.css';
 type OpenSeg = 'vs_open' | 'vs_4bet';
 type ThreeSeg = 'vs_3bet' | 'vs_5bet';
 
-const TIE_NOTE = '반반이면 앱은 더 공격적인 쪽을 정답으로 봅니다.';
+const TIE_NOTE = '반반일 때는 더 공격적인 쪽을 정답으로 쳐요.';
 const NEWCOMER_MAX = 9;
 /** 섹션 row 문장으로 쓰는 레버(자리만 보는 것). 숫자 레버·상대 레버는 비교 블록이 맡습니다. */
 const ROW_LEVERS: LeverId[] = ['behind', 'bbPrice', 'sbRaiseOrFold', 'bbFree'];
@@ -65,7 +64,7 @@ function gateLegend(sec: AtlasSection): string | null {
   for (const c of sec.cells) if (!c.reachable && c.gate) kinds.add(c.gate.kind);
   if (!kinds.size) return null;
   const reasons = [...kinds].map((k) => GATE_REASON[k]).filter((x): x is string => !!x);
-  return `— 는 ${reasons.join('거나 ')}라 생기지 않는 상황`;
+  return `— 표시: ${reasons.join('거나 ')}라서 안 생기는 칸`;
 }
 
 function Section({ title, tag, control, children }: { title: string; tag?: string; control?: ReactNode; children: ReactNode }) {
@@ -224,7 +223,7 @@ function AtlasSheetInner({ intent, open }: { intent: AtlasIntent; open: boolean 
     ) : (
       <>
         <CapsuleButton tone="primary" size="lg" className="atlas__quiz" disabled={!quizKeys.length} onClick={startQuiz}>
-          {quizKeys.length ? `이 패로 퀴즈 · ${quizKeys.length}문제` : '다를 게 없는 패'}
+          {quizKeys.length ? `이 패로 퀴즈 · ${quizKeys.length}문제` : '자리마다 답이 같은 패'}
         </CapsuleButton>
         <CapsuleButton tone="neutral" size="lg" icon={<IconGrid />} onClick={() => setSt((s) => ({ ...s, view: 'pick' }))}>
           다른 패
@@ -299,7 +298,6 @@ function AtlasBody({
   const coldShown = !coldAllFold || coldOpen || selected?.scenario.kind === 'cold_4bet';
 
   const limp = sections.vs_limp;
-  const question = selfQuestion(atlas).text;
 
   return (
     <div className="atlas">
@@ -331,10 +329,10 @@ function AtlasBody({
             onSelect={onTap}
           />
           <p className="atlas__lever-core t-footnote ink-2">
-            <PlainText text="뒤에 남은 사람이 줄수록 넓게 오픈합니다." />
+            <PlainText text="뒤에 남은 사람이 적을수록 넓게 오픈해요." />
           </p>
           <p className="t-footnote ink-2">
-            <PlainText text="SB는 BB 한 명만 남아 따로 봅니다." />
+            <PlainText text="SB는 뒤에 BB 한 명뿐이라 따로 외워요." />
           </p>
           {hasTie(sections.rfi) && (
             <p className="t-footnote ink-3">
@@ -343,7 +341,7 @@ function AtlasBody({
           )}
           {entry && newcomers.length > 0 && (
             <p className="atlas__hands t-footnote ink-2">
-              <PlainText text={`${entry}부터 새로 들어오는 패:`} />
+              <PlainText text={`${entry}에서 새로 오픈하는 패:`} />
               {newcomers.slice(0, NEWCOMER_MAX).map((h) => (
                 <button key={h} type="button" className="atlas__hand-btn tnum" onClick={() => onHand(h)}>
                   {h}
@@ -380,7 +378,7 @@ function AtlasBody({
           ))}
           <Digest sec={openSec} />
           <p className="t-footnote ink-3">
-            <PlainText text={`${st.seg.open === 'vs_open' ? '4벳까지 가면' : '오픈을 맞으면'}: ${sectionDigest(otherOpen).text}`} />
+            <PlainText text={`${st.seg.open === 'vs_open' ? '4벳까지 가면' : '앞에서 오픈하면'}: ${sectionDigest(otherOpen).text}`} />
           </p>
           {gateLegend(openSec) && <p className="t-footnote ink-3">{gateLegend(openSec)}</p>}
           {hasTie(openSec) && (
@@ -411,7 +409,7 @@ function AtlasBody({
           <SeatTriangle section={threeSec} marks={marks} onSelect={onTap} />
           <Digest sec={threeSec} />
           <p className="t-footnote ink-3">
-            <PlainText text={`${st.seg.three === 'vs_3bet' ? '올인까지 가면' : '3벳을 맞으면'}: ${sectionDigest(otherThree).text}`} />
+            <PlainText text={`${st.seg.three === 'vs_3bet' ? '올인까지 가면' : '3벳을 받으면'}: ${sectionDigest(otherThree).text}`} />
           </p>
           {gateLegend(threeSec) && <p className="t-footnote ink-3">{gateLegend(threeSec)}</p>}
           {hasTie(threeSec) && (
@@ -447,10 +445,6 @@ function AtlasBody({
           </button>
         )}
       </div>
-
-      <p className="atlas__question t-callout">
-        <PlainText text={question} />
-      </p>
     </div>
   );
 }

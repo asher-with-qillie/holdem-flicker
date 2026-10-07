@@ -16,11 +16,13 @@
  * `flagged`, which always commits as 'unsure'.
  *
  * Leaving the reveal state: in choose mode the card waits for the 다음 button (`next()`, see `awaitsNext`) however the
- * reveal was reached (choice or 시간 초과); `expire()` is a no-op there. On top of that the reveal arms a fixed
- * `NEXT_AUTO_MS` (5 s) auto-advance (`autoNextAt`) that taps 다음 for the user — the countdown is drawn inside the
- * button. Any other interaction on the revealed card (해설 / 차트 sheet, ◀, 헷갈려요로 표시, 일시정지, 길게 누르기,
- * 카드 탭) calls `cancelAutoNext()`, which is sticky for that card: closing the sheet does not restart it. The same
- * gestures during the think phase are ignored — the countdown does not exist yet, so the reveal still gets it. 직접 넘기기
+ * reveal was reached (choice or 시간 초과); `expire()` is a no-op there. On top of that a card rated 'know' (정답 ·
+ * 부분 정답, not peeked) arms a fixed `NEXT_AUTO_MS` (5 s) auto-advance (`autoNextAt`) that taps 다음 for the user — the
+ * countdown is drawn inside the button. 오답 · 시간 초과 · 엿본 카드는 다음을 누를 때까지 기다립니다(퀴즈와 같은 정책):
+ * 내 선택과 정답을 맞대 볼 시간이 5초로 잘리면 교정이 머리에 남지 않습니다. Any other interaction on the revealed
+ * card (해설 / 차트 sheet, ◀, 헷갈려요로 표시, 일시정지, 길게 누르기, 카드 탭) calls `cancelAutoNext()`, which is sticky
+ * for that card: closing the sheet does not restart it. A sheet during the think phase is ignored — the countdown does
+ * not exist yet, so a correct reveal still gets it (a hold there peeks, so that card waits for 다음 anyway). 직접 넘기기
  * (`config.manual`, also forced by 헷갈린 것만 다시) opts out of the auto-advance entirely — the user turns the pages.
  * 노출 / 순간기억 keep the automatic reveal / expose timer (`expire` → next) unless `config.manual`, which waits for ▶.
  *
@@ -112,7 +114,7 @@ export interface SessionState {
   coachOpen: boolean;
   /** Card transition in progress — the next card's timer waits. */
   settling: boolean;
-  /** When the reveal auto-advance fires (epoch ms); null = not armed (think phase, quiet / manual, cancelled). */
+  /** When the reveal auto-advance fires (epoch ms); null = not armed (think phase, quiet / manual, cancelled, not 'know'). */
   autoNextAt: number | null;
   /** The user did something else on this card — the auto-advance stays off until the card changes. */
   autoNextCancelled: boolean;
@@ -123,7 +125,7 @@ export interface SessionState {
   result?: SessionResult;
 }
 
-/** Reveal → 다음 auto-advance in choose mode (§5.4). Fixed: independent of the speed presets. */
+/** Reveal → 다음 auto-advance in choose mode, 'know' cards only (§5.4). Fixed: independent of the speed presets. */
 export const NEXT_AUTO_MS = 5000;
 
 const REQUEUE_MAX = 2;
@@ -367,18 +369,21 @@ export function awaitsNext(s: SessionState): boolean {
   return s.phase === 'reveal' && (!quiet(s) || s.config.manual);
 }
 
-/** True while the reveal is counting down to 다음 (choose mode, armed, not cancelled) — drives the button countdown. */
+/** True while the reveal is counting down to 다음 (choose mode, 'know' card, armed, not cancelled) — drives the button countdown. */
 export function autoNextArmed(s: SessionState | null = state): boolean {
   return !!s && s.status === 'running' && s.phase === 'reveal' && s.autoNextAt !== null;
 }
 
 /**
  * Arm the reveal auto-advance (choose mode only). Called whenever a card enters the reveal state; refuses in
- * 노출 / 순간기억, in 직접 넘기기 sessions and once the card's auto-advance was cancelled.
+ * 노출 / 순간기억, in 직접 넘기기 sessions, once the card's auto-advance was cancelled, and unless the card is rated
+ * 'know'. 틀렸거나(오답) 못 골랐거나(시간 초과) 답을 먼저 본(엿보기) 카드는 자동으로 넘기지 않습니다 — 고칠 내용을
+ * 읽는 시간이 학습의 핵심이라서, 사용자가 다음을 누를 때까지 그대로 둡니다. 판정은 이번 선택만 봅니다(origin 무관).
  */
 function armAutoNext(at: number = now()): void {
   if (!state || state.status !== 'running' || state.phase !== 'reveal') return;
   if (quiet(state) || state.config.manual || state.autoNextCancelled) return;
+  if (currentCard()?.rating !== 'know') return;
   clearAuto();
   const id = state.id;
   autoPending = setTimeout(() => {
@@ -403,7 +408,7 @@ function armAutoNext(at: number = now()): void {
  */
 export function cancelAutoNext(): void {
   if (!state) return;
-  if (state.phase !== 'reveal') return; // nothing is counting down while thinking (a peek there still gets its 5 s)
+  if (state.phase !== 'reveal') return; // nothing is counting down while thinking (a sheet there does not pre-cancel the reveal)
   clearAuto();
   if (state.autoNextCancelled && state.autoNextAt === null) return;
   commit({ autoNextAt: null, autoNextCancelled: true });
@@ -417,7 +422,7 @@ function userActive(): boolean {
   }
 }
 
-/** think → reveal without a choice (순간기억 timer, tests). No rating — the card commits as exposure. */
+/** think → reveal without a choice (순간기억 timer, tests). No rating — the card commits as exposure and waits for 다음. */
 export function revealNow(): void {
   if (!state || state.status !== 'running' || state.phase !== 'think') return;
   if (!quiet(state) && userActive()) vibrate(12);
@@ -428,7 +433,7 @@ export function revealNow(): void {
 /**
  * Choice button in the think phase: grade, rate, reveal. Correct / partial → 'know' (partial noted for srs),
  * wrong → 'unsure'; a peeked card is 'unsure' whatever was picked. Not available in 순간기억 / 노출.
- * Nothing is scheduled: the card stays revealed until `next()` (다음).
+ * The card stays revealed until `next()` (다음); only a 'know' card also arms the 5 s auto-advance.
  */
 export function choose(action: Action): boolean {
   if (!state || state.status !== 'running' || state.phase !== 'think' || quiet(state)) return false;
@@ -445,7 +450,7 @@ export function choose(action: Action): boolean {
 
 /**
  * Think timer ran out with no choice: 시간 초과 → reveal, rated 'unsure' (not in 순간기억 / 노출: exposure only).
- * Like a choice, the 시간 초과 reveal waits for `next()` (다음).
+ * The 시간 초과 reveal waits for `next()` (다음) — no auto-advance (an unattended screen must not run the session out).
  */
 export function expireThink(): void {
   if (!state || state.status !== 'running' || state.phase !== 'think') return;

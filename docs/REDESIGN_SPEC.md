@@ -697,7 +697,12 @@ pre-selects chips and, with `autostart`, starts immediately. Estimated time = si
   the card leaves with the primary `다음` capsule (`.trainer-next`, block ≥ 56, mint, in place of ▶ next to ◀, 해설 and
   차트; Space / Enter / →). Same after 시간 초과. No swipe, no stamps, no fly-out.
 - **5 s auto-advance inside the 다음 button** (v2.3, `NEXT_AUTO_MS = 5000` in `sessionStore.ts`, independent of the
-  speed presets): entering the reveal arms `autoNextAt`; the button reads `다음 · 5` → `다음 · 1` (tabular figures)
+  speed presets) — **only for a card rated `know`** (정답 · 부분 정답, not peeked; v2.4). 오답, 시간 초과, a peeked card
+  and a reveal without a choice wait for 다음 with no countdown — the same policy as the quiz: reading my pick against
+  the answer is the correction, and 5 s is about the time it takes to read the line once (an unattended 시간 초과 must
+  not run the session out either). The rule looks only at this card's rating, never at its origin (a requeued or
+  quiz-wrong card answered correctly is a successful retrieval and counts down). No fixed longer timer and no
+  temporarily disabled 다음 on a miss. A `know` reveal arms `autoNextAt`; the button reads `다음 · 5` → `다음 · 1` (tabular figures)
   over a lighter-mint `::before` layer (`--next-fill`) that drains left → right under the label within the capsule
   radius — per frame from `useRafTimer`, in 1 s steps under `prefers-reduced-motion` (the fill reaches empty; only the
   visible number is clamped at 1). The armed button announces itself as `다음 · 5초 뒤 자동으로 넘어가요` (static, so the
@@ -706,7 +711,9 @@ pre-selects chips and, with `autostart`, starts immediately. Estimated time = si
   일시정지, 길게 누르기, a tap on the card area — calls `cancelAutoNext()`, which is **sticky**: the button falls back
   to a plain `다음` (no number, no fill, `data-auto="off"`) and closing the sheet does not restart it; the next card
   counts down again. 직접 넘기기 (`manual`, also forced for onlyKeys) opts out entirely, and the same gestures during
-  the think phase do not pre-cancel the coming reveal. 노출 / 순간기억 are untouched (their own reveal timer below).
+  the think phase do not pre-cancel the coming reveal (a hold there peeks, so that card waits anyway). 노출 / 순간기억
+  are untouched (their own reveal timer below). The timer row reads `그대로 두면 자동으로 넘어가요` while armed and
+  `다음을 눌러 넘어가요` otherwise (miss, 시간 초과, cancelled).
 - 차트 (v2.3): next to 해설 in the reveal row (both ≥ 44, the row fits at 360 with the chevron dropped ≤ 380 px).
   Shown in choose mode and in 노출 (a stable reveal) but **not in 순간기억**, whose 1.5 s think ⇄ reveal flip would
   mount and unmount it — and so re-lay-out the whole row — twice per card for a button too short-lived to use.

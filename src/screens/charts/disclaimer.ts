@@ -7,7 +7,7 @@ import type { ScenarioKind } from '../../poker/types';
  *
  * 차트 탭과 자리별 보기(HandAtlas)가 같은 원문을 씁니다 — 두 군데가 다른 말을 하면 안 됩니다.
  */
-export const SOLVER_NOTE = '솔버 결과를 단순화한 근사치예요. 레이크·상대 성향에 따라 경계 핸드는 달라질 수 있어요.';
+export const SOLVER_NOTE = '솔버 결과를 단순하게 줄인 차트예요. 경계에 있는 패는 상황에 따라 달라질 수 있어요.';
 
 export const DISCLAIMER: Record<ScenarioKind, string> = {
   rfi: SOLVER_NOTE,
@@ -16,6 +16,5 @@ export const DISCLAIMER: Record<ScenarioKind, string> = {
   vs_4bet: SOLVER_NOTE,
   vs_5bet: SOLVER_NOTE,
   cold_4bet: SOLVER_NOTE,
-  vs_limp:
-    '림프는 솔버가 하지 않는 플레이라 이 상황은 솔버 기준이 없어요. 공개된 사람 작성 차트를 옮긴 기준선이고, 림프한 사람이 한 명일 때만 맞아요.',
+  vs_limp: '솔버는 림프를 하지 않아서, 이 차트는 사람이 만든 차트예요. 림프한 사람이 한 명일 때만 맞아요.',
 };

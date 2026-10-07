@@ -85,8 +85,8 @@ export function captionFor(s: Scenario): string {
 
 function postflopHint(s: Scenario): string | null {
   const v = s.villain ?? (s.kind === 'cold_4bet' ? s.extras?.threeBettor : undefined);
-  if (!v) return s.kind === 'rfi' && s.hero === 'SB' ? '플랍 이후 아웃오브포지션' : null;
-  return heroInPosition(s.hero, v) ? '플랍 이후 인포지션' : '플랍 이후 아웃오브포지션';
+  if (!v) return s.kind === 'rfi' && s.hero === 'SB' ? '포지션 없음' : null;
+  return heroInPosition(s.hero, v) ? '포지션 있음' : '포지션 없음';
 }
 
 export function TableDiagram({ scenario, compact }: { scenario: Scenario; compact?: boolean }) {

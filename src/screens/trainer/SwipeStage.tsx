@@ -43,7 +43,7 @@ function reducedMotion(): boolean {
 
 export function HandLabel({ cards, hand }: { cards: [Card, Card]; hand: HandName }) {
   return (
-    <div className="trainer-handlabel t-title-3" aria-label={`핸드 ${hand}`}>
+    <div className="trainer-handlabel t-title-3" aria-label={`패 ${hand}`}>
       <span className={`trainer-handlabel__card trainer-handlabel__card--${cards[0].suit}`}>{cardLabel(cards[0])}</span>
       <span className={`trainer-handlabel__card trainer-handlabel__card--${cards[1].suit}`}>{cardLabel(cards[1])}</span>
       <span className="trainer-handlabel__sep">·</span>

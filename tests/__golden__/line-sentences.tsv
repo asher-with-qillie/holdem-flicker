@@ -886,7 +886,7 @@ vs_open:BB:UTG	sQ	P2m	32.6	BB는 UTG 오픈에 수티드 Q를 Q6s까지 콜하�
 vs_open:BB:UTG	oQ	P2	21.5	BB는 UTG 오픈에 오프수트 Q를 QTo까지 콜해요.
 vs_open:BB:UTG	sJ	P2m	30.5	BB는 UTG 오픈에 수티드 J를 J7s까지 콜하고, J6s는 절반만 콜해요.
 vs_open:BB:UTG	oJ	P2	20.5	BB는 UTG 오픈에 오프수트 J를 JTo만 콜해요.
-vs_open:BB:UTG	conn	P2m	33.9	BB는 UTG 오픈에 수티드 커넥터를 87s까지 콜하고, 76s부터는 콜을 섞어요.
+vs_open:BB:UTG	conn	P2m	38.0	BB는 UTG 오픈에 수티드 커넥터를 87s까지 콜하고, 76s부터 43s까지는 콜을 섞어요.
 vs_open:BB:UTG	sT	P2m	29.5	BB는 UTG 오픈에 수티드 T을 T7s까지 콜하고, T6s는 주로 콜해요.
 vs_open:BB:UTG	oT	P2h	33.0	BB는 UTG 오픈에 오프수트 T 중 T9o는 절반만 콜하고, 나머지는 폴드해요.
 vs_open:BB:UTG	s9	P2	20.5	BB는 UTG 오픈에 수티드 9를 96s까지 콜해요.
@@ -915,7 +915,7 @@ vs_open:BB:HJ	sQ	P2m	32.0	BB는 HJ 오픈에 수티드 Q를 Q4s까지 콜하고,
 vs_open:BB:HJ	oQ	P2m	30.9	BB는 HJ 오픈에 오프수트 Q를 QTo까지 콜하고, Q9o는 절반만 콜해요.
 vs_open:BB:HJ	sJ	P2m	29.9	BB는 HJ 오픈에 수티드 J를 J6s까지 콜하고, J5s는 절반만 콜해요.
 vs_open:BB:HJ	oJ	P2m	29.9	BB는 HJ 오픈에 오프수트 J를 JTo만 콜하고, J9o는 절반만 콜해요.
-vs_open:BB:HJ	conn	P2m	33.3	BB는 HJ 오픈에 수티드 커넥터를 98s까지 콜하고, 87s부터는 콜을 섞어요.
+vs_open:BB:HJ	conn	P2m	37.4	BB는 HJ 오픈에 수티드 커넥터를 98s까지 콜하고, 87s부터 43s까지는 콜을 섞어요.
 vs_open:BB:HJ	sT	P2m	29.9	BB는 HJ 오픈에 수티드 T을 T6s까지 콜하고, T5s는 절반만 콜해요.
 vs_open:BB:HJ	oT	P2	19.9	BB는 HJ 오픈에 오프수트 T을 T9o만 콜해요.
 vs_open:BB:HJ	s9	P2m	29.9	BB는 HJ 오픈에 수티드 9를 96s까지 콜하고, 95s는 절반만 콜해요.
@@ -1005,7 +1005,7 @@ vs_open:BB:SB	sA	P4	36.0	BB는 SB 오픈에 수티드 A를 AKs~A9s·A5s~A2s만 3
 vs_open:BB:SB	oA	P3	29.2	BB는 SB 오픈에 오프수트 A를 AJo까지 3벳하고, A2o까지 콜해요.
 vs_open:BB:SB	sK	P3	28.2	BB는 SB 오픈에 수티드 K를 KJs까지 3벳하고, K2s까지 콜해요.
 vs_open:BB:SB	oK	P3	29.2	BB는 SB 오픈에 오프수트 K를 KQo까지 3벳하고, K5o까지 콜해요.
-vs_open:BB:SB	sQ	P3h	31.8	BB는 SB 오픈에 수티드 Q 중 QJs부터는 3벳을 섞고, Q2s까지는 콜해요.
+vs_open:BB:SB	sQ	P3h	31.9	BB는 SB 오픈에 수티드 Q 중 QJs·QTs는 3벳을 섞고, Q2s까지는 콜해요.
 vs_open:BB:SB	oQ	P2m	30.9	BB는 SB 오픈에 오프수트 Q를 Q6o까지 콜하고, Q5o는 절반만 콜해요.
 vs_open:BB:SB	sJ	P3h	30.8	BB는 SB 오픈에 수티드 J 중 JTs는 주로 3벳하고, J2s까지는 콜해요.
 vs_open:BB:SB	oJ	P2m	30.9	BB는 SB 오픈에 오프수트 J를 J7o까지 콜하고, J6o는 절반만 콜해요.

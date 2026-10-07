@@ -154,8 +154,8 @@ describe('sessionStore', () => {
     expect(currentCard()).toMatchObject({ timedOut: true, rating: 'unsure', ratingSource: 'button' });
     expect(currentCard()!.chosenAction).toBeUndefined();
     expect(choose(currentCard()!.step.answer)).toBe(false);
-    // 시간 초과 also waits for 다음 (auto-advance cancelled → only the button moves on)
-    cancelAutoNext();
+    // 시간 초과 waits for 다음: no countdown, and expire() is a no-op in the reveal
+    expect(autoNextArmed()).toBe(false);
     expire();
     vi.advanceTimersByTime(60_000);
     expect(getSession()!.index).toBe(0);
@@ -257,7 +257,7 @@ describe('sessionStore', () => {
     expect(getSession()!).toMatchObject({ index: 2, phase: 'think' });
   });
 
-  /* ---------------------------------------------------------------- 5 s auto-advance (§5.4, NEXT_AUTO_MS) */
+  /* ---------------------------------------------------------------- 5 s auto-advance (§5.4, NEXT_AUTO_MS) — 'know' cards only */
 
   it('choose mode: the revealed card taps 다음 by itself after NEXT_AUTO_MS', () => {
     start();
@@ -297,12 +297,68 @@ describe('sessionStore', () => {
     }
   });
 
-  it('a 시간 초과 reveal auto-advances the same way', () => {
-    start();
-    expireThink();
+  it('a partial choice (rated know) counts down like a correct one', () => {
+    start({ onlyKeys: [MIXED_KEY] });
+    choose('fold');
+    expect(currentCard()).toMatchObject({ grade: 'partial', rating: 'know' });
     expect(autoNextArmed()).toBe(true);
     vi.advanceTimersByTime(NEXT_AUTO_MS);
+    expect(getSession()!.queue[0].committedRating).toBe('know');
+  });
+
+  it('a wrong choice waits for 다음 — no countdown, however long the reveal stays up', () => {
+    start({ onlyKeys: [MIXED_KEY] });
+    choose('fourbet');
+    expect(currentCard()).toMatchObject({ grade: 'wrong', rating: 'unsure' });
+    const s = getSession()!;
+    expect(s.autoNextAt).toBeNull();
+    expect(s.autoNextCancelled).toBe(false); // not a cancellation — the countdown was never armed
+    expect(autoNextArmed()).toBe(false);
+    vi.advanceTimersByTime(60_000);
+    expect(getSession()!).toMatchObject({ index: 0, phase: 'reveal' });
+    next();
     expect(getSession()!.index).toBe(1);
+  });
+
+  it('a 시간 초과 reveal waits for 다음 — an unattended screen does not run the session out', () => {
+    start();
+    expireThink();
+    expect(currentCard()).toMatchObject({ timedOut: true, rating: 'unsure' });
+    expect(autoNextArmed()).toBe(false);
+    vi.advanceTimersByTime(60_000);
+    expect(getSession()!.index).toBe(0);
+    expect(getProgress(20).today.cards).toBe(0); // nothing committed behind the user's back
+    next();
+    expect(getSession()!.index).toBe(1);
+  });
+
+  it('a peeked card waits for 다음 even when the later choice is correct', () => {
+    start();
+    setHolding(true);
+    setHolding(false);
+    choose(currentCard()!.step.answer);
+    expect(currentCard()).toMatchObject({ grade: 'correct', rating: 'unsure', peeked: true });
+    expect(autoNextArmed()).toBe(false);
+    vi.advanceTimersByTime(60_000);
+    expect(getSession()!.index).toBe(0);
+  });
+
+  it('a reveal without a choice (revealNow) waits for 다음', () => {
+    start();
+    revealNow();
+    expect(currentCard()!.rating).toBeUndefined();
+    expect(autoNextArmed()).toBe(false);
+    vi.advanceTimersByTime(60_000);
+    expect(getSession()!.index).toBe(0);
+  });
+
+  it('the next card after a wrong one counts down again when answered correctly', () => {
+    start({ onlyKeys: [MIXED_KEY, 'rfi:UTG|AA'] });
+    choose('fourbet');
+    next();
+    expect(currentCard()!.key).toBe('rfi:UTG|AA');
+    choose(currentCard()!.step.answer);
+    expect(autoNextArmed()).toBe(true);
   });
 
   it('the 5 s auto-advance is independent of the speed preset', () => {
@@ -356,10 +412,8 @@ describe('sessionStore', () => {
     }
   });
 
-  it('a hold / sheet during the think phase does not pre-cancel the countdown of the coming reveal', () => {
+  it('a sheet during the think phase does not pre-cancel the countdown of the coming reveal', () => {
     start();
-    setHolding(true);
-    setHolding(false);
     setSheetOpen(true);
     setSheetOpen(false);
     expect(getSession()!.autoNextCancelled).toBe(false);

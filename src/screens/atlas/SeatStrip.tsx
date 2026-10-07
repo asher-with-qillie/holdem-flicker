@@ -2,6 +2,10 @@ import type { CSSProperties } from 'react';
 import { actionLabel } from '../../components/ActionBadge';
 import { cellBackground } from '../../components/RangeGrid';
 import type { AtlasCell } from '../../poker/atlas';
+import { getChartDef } from '../../poker/data';
+import { weightWord } from '../../poker/line';
+import { restAction } from '../../poker/range';
+import '../../styles/atlas.css';
 import type { Scenario, ScenarioKind } from '../../poker/types';
 
 /** 같은 칸인가 (kind · hero · villain). cold_4bet 은 extras 를 보지 않습니다 — 차트가 hero 만 봅니다. */
@@ -15,11 +19,24 @@ export interface TileMarks {
   origin?: Scenario;
 }
 
+/** 짧은 타일 라벨(해설 시트 ⑥의 compact 타일): 1순위 액션, 100% 미만이면 비중어. 좁은 칸이라 '절반만'·'반반'은 비중어만 — 색이 액션을 말합니다. */
+function compactLabel(cell: AtlasCell, kind: ScenarioKind): string {
+  const act = actionLabel(cell.primary, kind, true);
+  const rest = restAction(getChartDef(cell.scenario));
+  const w = weightWord(cell.mixList, rest);
+  if (w === 'full') return act;
+  if (w === '주로') return `주로 ${act}`;
+  return w;
+}
+
 /**
  * 타일 하나. 배경은 RangeGrid 와 같은 좌→우 분할(`cellBackground`), 라벨은 1순위 액션 + 비중(100% 미만일 때만).
  * 미도달 칸은 '—' 로 흐리게. BB 의 림프 대응 체크는 --act-check 바탕에 '체크' 글자 — 회색 폴드처럼 보이면 안 됩니다.
+ *
+ * `compact` — 해설 시트 ⑥(§4.2)의 한 줄 타일(높이 30). 버튼 안에 들어가므로 누를 수 없는 span 으로 그리고,
+ * 라벨은 한 줄(`오픈`, `주로 콜`, `절반만`, `반반`)입니다.
  */
-export function AtlasTile({ cell, kind, marks, onSelect }: { cell: AtlasCell; kind: ScenarioKind; marks: TileMarks; onSelect(c: AtlasCell): void }) {
+export function AtlasTile({ cell, kind, marks, onSelect, compact }: { cell: AtlasCell; kind: ScenarioKind; marks: TileMarks; onSelect?(c: AtlasCell): void; compact?: boolean }) {
   const { scenario, primary, mixList, reachable } = cell;
   const pct = reachable && mixList[0] && mixList[0].weight < 0.999 ? Math.round(mixList[0].weight * 100) : null;
   const label = reachable ? actionLabel(primary, kind, true) : '—';
@@ -27,6 +44,7 @@ export function AtlasTile({ cell, kind, marks, onSelect }: { cell: AtlasCell; ki
   const cmp = !sel && sameScenario(marks.compare, scenario);
   const cls = [
     'atlas__cell',
+    compact && 'atlas__cell--compact',
     reachable && primary === 'fold' && 'atlas__cell--fold',
     reachable && primary === 'check' && 'atlas__cell--check',
     !reachable && 'atlas__cell--gated',
@@ -38,13 +56,21 @@ export function AtlasTile({ cell, kind, marks, onSelect }: { cell: AtlasCell; ki
     .join(' ');
   const background = reachable && primary !== 'check' ? cellBackground(mixList) : undefined;
   const where = scenario.villain ? `${scenario.hero} vs ${scenario.villain}` : scenario.hero;
+  const name = `${where} · ${reachable ? `${label}${pct !== null ? ` ${pct}%` : ''}` : '이 패로는 안 오는 상황'}`;
+  if (compact) {
+    return (
+      <span className={cls} style={background ? { background } : undefined} aria-label={name}>
+        <span className="atlas__cell-act">{reachable ? compactLabel(cell, kind) : '—'}</span>
+      </span>
+    );
+  }
   return (
     <button
       type="button"
       className={cls}
       style={background ? { background } : undefined}
-      onClick={() => onSelect(cell)}
-      aria-label={`${where} · ${reachable ? `${label}${pct !== null ? ` ${pct}%` : ''}` : '생기지 않는 상황'}`}
+      onClick={onSelect ? () => onSelect(cell) : undefined}
+      aria-label={name}
       aria-pressed={sel}
     >
       <span className="atlas__cell-act">{label}</span>

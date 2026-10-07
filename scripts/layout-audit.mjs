@@ -17,9 +17,13 @@
 //                          (개발 서버로 돌리면 안 보입니다 — 용어가 렌더되는 건 프로덕션 빌드 기준입니다)
 //   - .ui-sheet--held     : 꾹 누르는 동안 뜨는 시트는 일부러 잘라 내고 아래를 페이드로 흐립니다.
 //   - .app__main (시트 열림): 시트가 열리면 뒤 화면 스크롤을 잠급니다.
+//
+// 리빌 슬롯 검사(docs/EXPLAIN_SPEC.md §7.2-15): 360×640 · 390×844 에서 §3.6 의 13칸과 emWidth 상위 30개 문장을
+// 실제 훈련 세션으로 띄웁니다('지난 세션 → 틀린 것만 다시' 경로에 그 카드 키들을 심어 둡니다). 카드마다 정답을 골라
+// 리빌을 열고 줄 문장 ≤ 2줄 · 슬롯 높이 120/114 그대로 · 스트립 폭 297px · 가로 스크롤 없음을 확인합니다.
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const { chromium } = require(`${execSync('npm root -g').toString().trim()}/playwright`);
 
@@ -29,7 +33,6 @@ mkdirSync(outDir, { recursive: true });
 /** 선택: 코치 탭을 채우기 위한 저장소 씨앗 JSON ({ stats, srs }). work/seed-coach.ts 가 만듭니다. */
 let SEED = null;
 if (seedPath) {
-  const { readFileSync } = await import('node:fs');
   const s = JSON.parse(readFileSync(seedPath, 'utf8'));
   SEED = [JSON.stringify(s.stats), JSON.stringify(s.srs)];
 }
@@ -262,6 +265,13 @@ const PROBE = () => {
 };
 
 const browser = await chromium.launch();
+/** 지금 화면을 훑어 report 에 넣고 스크린샷을 남깁니다. */
+async function grabOn(page, size, name) {
+  await page.waitForTimeout(250);
+  const r = await page.evaluate(PROBE);
+  report.push({ screen: name, size: size.name, ...r });
+  await page.screenshot({ path: `${outDir}/${size.name}-${name}.png`, fullPage: false });
+}
 const report = [];
 /** 검사가 '보러 간 화면에 도착하지 못한' 경우. 조용히 건너뛰면 검사가 도는 척만 합니다. */
 const missed = [];
@@ -274,12 +284,7 @@ for (const size of SIZES) {
   });
   const page = await ctx.newPage();
   const tap = async (re) => { await page.getByRole('button', { name: re }).first().tap(); await page.waitForTimeout(450); };
-  const grab = async (name) => {
-    await page.waitForTimeout(250);
-    const r = await page.evaluate(PROBE);
-    report.push({ screen: name, size: size.name, ...r });
-    await page.screenshot({ path: `${outDir}/${size.name}-${name}.png`, fullPage: false });
-  };
+  const grab = (name) => grabOn(page, size, name);
 
   // 코치 탭은 실수가 쌓여야 화면이 채워집니다. 감사용 씨앗이 있으면 심고, 없으면 빈 화면을 봅니다.
   if (SEED) {
@@ -443,6 +448,126 @@ for (const size of SIZES) {
   await ctx.close();
 }
 
+// ---- 리빌 슬롯 검사 (§7.2-15) -------------------------------------------------------------------
+// §3.6 의 13칸(리빌 예시) + 골든 코퍼스에서 emWidth 가 큰 문장 30개(줄의 첫 칸 패로). 같은 키는 한 번만.
+const WORKED = [
+  'rfi:SB|85o', 'rfi:UTG|KJo', 'vs_3bet:CO:BTN|A5s', 'vs_open:BB:CO|22', 'vs_open:BTN:HJ|76s', 'vs_open:SB:UTG|KTs', 'vs_4bet:HJ:UTG|QQ',
+  'vs_5bet:CO:BTN|QQ', 'cold_4bet:CO|QQ', 'vs_limp:BB|55', 'vs_limp:BTN|ATo', 'vs_open:BB:BTN|54s', 'vs_open:SB:UTG|QJs',
+];
+/** 줄의 첫 줄 칸(§3.2): 페어 AA · 커넥터 T9s · 수티드 R(커넥터 RXs 는 커넥터 줄이라 T~4 는 두 칸 아래부터) · 오프수트 R. */
+function firstHandOf(lineId) {
+  const R = 'AKQJT98765432';
+  if (lineId === 'pair') return 'AA';
+  if (lineId === 'conn') return 'T9s';
+  const [suf, hi] = [lineId[0], lineId[1]];
+  const i = R.indexOf(hi);
+  if (suf === 's') return `${hi}${R[i + ('AKQJ'.includes(hi) ? 1 : 2)]}s`;
+  return `${hi}${R[i + 1]}o`;
+}
+const LONGEST = readFileSync(new URL('../tests/__golden__/line-sentences.tsv', import.meta.url), 'utf8')
+  .trim().split('\n').map((row) => row.split('\t'))
+  .sort((a, b) => Number(b[3]) - Number(a[3]))
+  .slice(0, 30)
+  .map(([key, lineId]) => `${key}|${firstHandOf(lineId)}`);
+const REVEAL_KEYS = [...new Set([...WORKED, ...LONGEST])];
+const REVEAL_SIZES = [{ w: 360, h: 640, name: '360x640', slot: 114 }, { w: 390, h: 844, name: '390x844', slot: 120 }];
+const revealFails = [];
+let revealChecked = 0;
+for (const size of REVEAL_SIZES) {
+  const ctx = await browser.newContext({
+    viewport: { width: size.w, height: size.h },
+    deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'ko-KR',
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  });
+  // 어제 세션 하나와, 그 세션의 '헷갈린 카드' = 검사할 키들. 홈의 '지난 세션 → 틀린 것만 다시'가 이 순서 그대로 세션을 엽니다.
+  await ctx.addInitScript((keys) => {
+    if (sessionStorage.getItem('audit-seeded')) return;
+    sessionStorage.setItem('audit-seeded', '1');
+    const d = new Date(Date.now() - 86400000);
+    const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const now = Date.now();
+    localStorage.setItem('holdem-flicker.progress.v1', JSON.stringify({
+      version: 1,
+      days: { [day]: { cards: keys.length, rated: keys.length, known: 0, quiz: 0, quizCorrect: 0, seconds: 300, sessions: 1 } },
+      lastResult: {
+        id: 'audit', mode: 'train', startedAt: now - 400000, endedAt: now - 100000, activeMs: 300000,
+        config: { deck: 'all', positions: ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'], size: keys.length, speed: 'normal', exposure: false, manual: true },
+        seen: keys.length, rated: keys.length, known: 0, unsure: keys.length, exposureOnly: false, byOrigin: { new: keys.length, review: 0, unsure: 0 },
+        unsureKeys: keys, allKeys: keys, goalReachedNow: false, streakBefore: 1, streakAfter: 1,
+      },
+    }));
+  }, REVEAL_KEYS);
+  const page = await ctx.newPage();
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(400);
+  const last = page.locator('.home-last');
+  if (!(await last.count())) {
+    missed.push(`${size.name}/reveal: 홈에 '지난 세션' 줄이 없습니다(심은 기록을 못 읽었습니다)`);
+    await ctx.close();
+    continue;
+  }
+  await last.first().tap();
+  await page.waitForTimeout(600);
+  const retry = page.getByRole('button', { name: /틀린 것만 다시/ });
+  if (!(await retry.count())) {
+    missed.push(`${size.name}/reveal: 지난 세션 시트에 '틀린 것만 다시'가 없습니다`);
+    await ctx.close();
+    continue;
+  }
+  await retry.first().tap();
+  await page.waitForTimeout(800);
+  for (let i = 0; i < 5; i++) {
+    const skip = page.getByRole('button', { name: /건너뛰기|시작할게요/ });
+    if (!(await skip.count())) break;
+    await skip.first().tap();
+    await page.waitForTimeout(300);
+  }
+  for (let k = 0; k < REVEAL_KEYS.length; k++) {
+    const key = REVEAL_KEYS[k];
+    const want = key.split('|')[1];
+    const choices = page.locator('.trainer-choices');
+    if (!(await choices.count())) {
+      missed.push(`${size.name}/reveal ${key}: 선택 버튼이 없습니다(세션이 ${k}장에서 끝났습니다)`);
+      break;
+    }
+    const hand = (await page.locator('.trainer-handlabel__name').first().innerText().catch(() => '')).trim();
+    if (hand !== want) missed.push(`${size.name}/reveal ${key}: 화면의 패가 ${hand || '없음'}입니다`);
+    const answer = await choices.first().getAttribute('data-answer');
+    await page.locator(`.trainer-choice[data-action="${answer}"]`).first().tap();
+    await page.waitForTimeout(650);
+    const m = await page.evaluate(() => {
+      const r = (sel) => document.querySelector(sel)?.getBoundingClientRect() ?? null;
+      const reason = document.querySelector('.trainer-answer__reason');
+      return {
+        slot: r('.trainer-answer')?.height ?? null,
+        strip: r('.trainer-answer__strip')?.width ?? null,
+        reasonH: reason ? reason.scrollHeight : null,
+        text: reason ? reason.textContent : '',
+        hScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      };
+    });
+    revealChecked++;
+    const where = `${size.name} ${key}`;
+    if (m.slot === null) missed.push(`${where}: 리빌 슬롯이 없습니다`);
+    else {
+      if (Math.abs(m.slot - size.slot) > 0.5) revealFails.push(`${where}: 슬롯 높이 ${m.slot.toFixed(1)} ≠ ${size.slot}`);
+      if (m.reasonH === null || m.reasonH > 2 * 18 + 1) revealFails.push(`${where}: 줄 문장이 2줄을 넘습니다(scrollHeight ${m.reasonH}) "${m.text}"`);
+      if (m.strip === null || Math.abs(m.strip - 297) > 0.5) revealFails.push(`${where}: 스트립 폭 ${m.strip?.toFixed(1)} ≠ 297`);
+      if (m.hScroll) revealFails.push(`${where}: 가로 스크롤이 생겼습니다`);
+    }
+    if (k < WORKED.length) await grabOn(page, size, `reveal-${String(k + 1).padStart(2, '0')}`);
+    const next = page.locator('.trainer-next');
+    if (!(await next.count())) {
+      missed.push(`${where}: 리빌에 다음 버튼이 없습니다`);
+      break;
+    }
+    await next.first().tap();
+    await page.waitForTimeout(450);
+  }
+  await ctx.close();
+}
+
 writeFileSync(`${outDir}/report.json`, JSON.stringify(report, null, 2));
 
 // ---- 요약 출력
@@ -464,6 +589,8 @@ for (const r of rows) {
   console.log(`   ${r.detail}  ·  "${r.text}"`);
   console.log(`   @ ${[...r.where].slice(0, 6).join(', ')}${r.where.size > 6 ? ` +${r.where.size - 6}` : ''}`);
 }
+console.log(`\n=== 리빌 슬롯 (§7.2-15): ${revealChecked}장 확인, ${revealFails.length}건 ===`);
+for (const f of revealFails) console.log(`  ✕ ${f}`);
 console.log('\n=== gutters (left offset → count) ===');
 for (const r of report) {
   const g = Object.entries(r.gutters).sort((a, b) => b[1] - a[1]);

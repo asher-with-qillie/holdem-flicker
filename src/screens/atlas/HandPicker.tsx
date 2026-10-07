@@ -36,7 +36,7 @@ export function HandPicker({ hand, onSelect }: { hand: HandName; onSelect(hand: 
   const paint = useCallback(entrySeatPaint, []);
   return (
     <div className="atlas__picker">
-      <p className="t-footnote ink-2">색은 그 패를 처음 오픈하는 자리입니다. 누르면 그 패의 자리별 보기로 갑니다.</p>
+      <p className="t-footnote ink-2">색은 그 패를 처음 오픈하는 자리예요. 누르면 자리별 보기로 가요.</p>
       <GlassPanel radius="md" padding={0} className="glass-flat charts__panel">
         <RangeGrid cells={getChartCells(RFI_UTG)} highlight={hand} onSelect={onSelect} paint={paint} />
       </GlassPanel>

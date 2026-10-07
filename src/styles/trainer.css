@@ -165,7 +165,7 @@
 
 /* ---- AnswerSlot (fixed 120, glass-clear; a quiet placeholder while thinking) ---- */
 .trainer-answer {
-  flex: none; min-height: 120px; padding: 10px 12px; border-radius: var(--r-md);
+  flex: none; min-height: 120px; padding: 8px 12px; border-radius: var(--r-md);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; overflow: hidden;
   perspective: 800px;
 }
@@ -174,19 +174,26 @@
 .trainer-answer--idle { box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.10); }
 .trainer-answer--idle::before { background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.22) 0 6px, transparent 6px 12px); }
 .trainer-answer__idle { color: var(--ink-3); }
+/* 리빌(§3.1): 캡슐 32 · 6 · 스트립 22 · 6 · 문장 2줄 36 = 102 + 패딩 16 = 118 ≤ 120 */
 .trainer-answer__flip { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; transform-origin: 50% 0; animation: trainer-flip 240ms var(--ease-spring); }
+/* 용어 버튼의 눌림 영역(::after, 위아래 6px)이 클램프 상자 아래로 삐져나가면 상자가 넘친 것처럼 잽니다. 아래쪽만 거둡니다. */
+.trainer-answer__reason .term::after { bottom: 0; }
 @keyframes trainer-flip { from { transform: rotateX(-90deg); opacity: 0; } to { transform: none; opacity: 1; } }
-.trainer-answer__cap {
-  display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 24px;
-  border-radius: var(--r-capsule); color: var(--ink); animation: trainer-cap 240ms var(--ease-spring);
-}
-.trainer-answer__cap--allin { color: var(--ink-on-tint); background: color-mix(in srgb, var(--tint) 70%, rgba(255, 255, 255, 0.05)); }
+/* 캡슐 줄: 캡슐은 가운데, 경계 꼬리표는 줄 오른쪽 끝에 절대 위치(캡슐을 밀지 않음) */
+.trainer-answer__caprow { position: relative; display: flex; justify-content: center; width: 100%; }
+.trainer-answer__cap { animation: trainer-cap 240ms var(--ease-spring); }
 @keyframes trainer-cap { from { transform: scale(0.9); } to { transform: none; } }
-.trainer-answer__mix { height: 24px; display: flex; align-items: center; justify-content: center; max-width: 100%; }
-.trainer-mix { display: inline-flex; flex-wrap: nowrap; gap: 6px; max-width: 100%; }
-.trainer-mix__chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: var(--r-capsule); font-size: var(--fs-caption); font-weight: 700; color: var(--ink); white-space: nowrap; }
-.trainer-mix__chip i { width: 6px; height: 6px; border-radius: 50%; }
-.trainer-answer__reason { color: var(--ink-2); max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.trainer-answer__near {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: var(--r-capsule);
+  color: var(--ink-2); white-space: nowrap;
+}
+/* 줄 문장: 이 줄 말고는 아무것도 두지 않습니다. 2줄 클램프, 어절 단위 줄바꿈.
+   한 줄짜리 문장도 두 줄 자리(36)를 잡아, 카드를 넘길 때 캡슐과 스트립이 위아래로 흔들리지 않게 합니다. */
+.trainer-answer__reason {
+  margin: 0; min-height: 36px; color: var(--ink); max-width: 100%; word-break: keep-all; overflow-wrap: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 
 /* ---- rating slot (40 fixed: 헷갈려요로 표시 toggle / caption) ---- */
 .trainer-rateslot { flex: none; min-height: 40px; display: flex; align-items: center; justify-content: center; }
@@ -251,13 +258,12 @@
   .trainer-timer__wrap { min-height: 24px; }
   .trainer-choose { gap: 4px; }
   .trainer-choose__prompt { min-height: 20px; }
-  /* 한 줄 해설은 짧은 화면에서도 두 줄을 다 보여 줍니다(§4). 필요한 ~18px는 아래 두 줄에서 덜어 냅니다. */
-  .trainer-answer { min-height: 114px; padding: 8px 12px; gap: 4px; }
+  /* 리빌은 짧은 화면에서도 문장 두 줄을 다 보여 줍니다: 8 + 28 + 4 + 22 + 4 + 36 + 8 = 110 ≤ 114 (캡슐 28 은 linestrip.css) */
+  .trainer-answer { min-height: 114px; gap: 4px; }
   .trainer-answer__flip { gap: 4px; }
-  .trainer-answer__cap { min-height: 40px; }
-  .trainer-answer__reason { -webkit-line-clamp: 2; }
   .trainer-rateslot { min-height: 30px; }
-  .trainer-controls--next { height: 48px; }
+  /* 다음 버튼은 56 그대로 두고 줄만 52 — 48 줄이면 버튼이 위아래로 4px 씩 삐져나와 아래 그림자가 화면 끝에서 2px 잘립니다(360×640). */
+  .trainer-controls--next { height: 52px; }
 }
 
 /* ================================================================ reduced motion (§8): transforms → short crossfades, no wash fade */

@@ -1,11 +1,9 @@
+import { josa } from './ko';
 import { POSITIONS, POS_INDEX, type Pos, type Scenario, type ScenarioKind } from './types';
 
-/**
- * 자리 이름 뒤의 주격 조사. 소리 내어 읽을 때 자음으로 끝나는 자리는 BTN(비티엔) 하나뿐입니다
- * (UTG 유티지 · HJ 하이잭 · CO 컷오프 · SB 에스비 · BB 비비는 모두 모음으로 끝납니다).
- */
+/** 자리 이름 + 주격 조사(BTN이 · CO가). 규칙은 ko.ts 한 곳에 있습니다. */
 export function seatSubject(p: Pos): string {
-  return p === 'BTN' ? `${p}이` : `${p}가`;
+  return josa(p, '이/가');
 }
 
 export function scenarioId(kind: ScenarioKind, hero: Pos, villain?: Pos): string {
@@ -50,7 +48,7 @@ export function scenarioTitle(s: Scenario): string {
   const v = s.villain;
   switch (s.kind) {
     case 'rfi':
-      return `${s.hero} · 앞에 아무도 없음 (오픈?)`;
+      return `${s.hero} · 앞에서 모두 폴드`;
     case 'vs_open':
       return `${s.hero} · ${v} 오픈에 대응`;
     case 'vs_3bet':
@@ -71,31 +69,32 @@ export function scenarioTitle(s: Scenario): string {
   }
 }
 
-/** Short one-line situation description in Korean (used on the trainer stage). */
+/**
+ * 트레이너 무대의 상황 한 줄(해요체 — docs/EXPLAIN_SPEC.md §5.4). 학습자는 '당신'이 아니라 '내'로 부릅니다.
+ * 자리 조사는 ko.ts 가 고릅니다(BTN이·BTN은).
+ */
 export function scenarioSituation(s: Scenario): string {
   const v = s.villain;
   switch (s.kind) {
     case 'rfi':
-      return s.hero === 'SB' ? '앞에서 모두 폴드. SB인 당신 차례입니다.' : `앞에서 모두 폴드. ${s.hero}인 당신 차례입니다.`;
+      return `앞에서 모두 폴드했어요. ${s.hero}, 내 차례예요.`;
     case 'vs_open':
-      return `${v}가 오픈 레이즈. ${s.hero}인 당신 차례입니다.`;
+      return `${josa(v ?? '앞', '이/가')} 오픈했어요. ${s.hero}, 내 차례예요.`;
     case 'vs_3bet':
-      return `${s.hero}에서 오픈했는데 ${v}가 3벳. 다시 당신 차례입니다.`;
+      return `${s.hero}에서 오픈했는데 ${josa(v ?? '뒤', '이/가')} 3벳했어요. 다시 내 차례예요.`;
     case 'vs_4bet':
-      return `${v} 오픈에 ${s.hero}에서 3벳했는데 ${v}가 4벳. 당신 차례입니다.`;
+      return `${v} 오픈에 ${s.hero}에서 3벳했더니 ${josa(v ?? '앞', '이/가')} 4벳했어요.`;
     case 'vs_5bet':
-      return `${s.hero} 오픈 → ${v} 3벳 → 당신 4벳 → ${v}가 올인. 콜할까요?`;
-    case 'cold_4bet': {
-      const o = s.extras?.opener ?? '앞';
-      const t = s.extras?.threeBettor ?? '앞';
-      return `${o} 오픈, ${t} 3벳. 아직 아무 액션도 하지 않은 ${s.hero}인 당신 차례입니다.`;
-    }
+      return `${s.hero} 오픈 → ${v} 3벳 → 내 4벳 → ${v} 올인. 콜할까요?`;
+    case 'cold_4bet':
+      // 차트가 두 상대를 구분하지 않으므로 자리 이름(extras)은 쓰지 않습니다.
+      return `앞에서 오픈과 3벳이 나왔어요. ${s.hero}, 내 차례예요.`;
     case 'vs_limp': {
       const l = s.extras?.limper;
-      const who = l ? seatSubject(l) : '앞에서 한 명이';
+      const who = l ? josa(l, '이/가') : '앞에서 한 명이';
       // 빅블라인드는 폴드가 없다는 걸 상황 문구에서 먼저 말해 줍니다 — 버튼만 보고 헷갈리지 않게.
-      if (s.hero === 'BB') return `${who} 1bb만 내고 콜했습니다. BB인 당신은 체크 아니면 레이즈입니다.`;
-      return `${who} 1bb만 내고 콜했습니다. ${s.hero}인 당신 차례입니다.`;
+      if (s.hero === 'BB') return `${who} 림프했어요. BB는 체크 아니면 레이즈예요.`;
+      return `${who} 림프했어요. ${s.hero}, 내 차례예요.`;
     }
   }
 }

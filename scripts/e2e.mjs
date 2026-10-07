@@ -174,6 +174,32 @@ await page.waitForTimeout(500);
 await shot('06-train-reveal');
 check((await page.locator('.trainer-session--reveal').count()) > 0, 'train: .trainer-session--reveal missing after choosing');
 check((await page.locator('.trainer-answer__cap').count()) > 0, 'train: answer cap missing after choosing');
+// 리빌 슬롯(EXPLAIN_SPEC §3.1): 캡슐 · 줄 스트립(13칸, 297px) · 줄 문장 하나. 믹스 칩 줄은 없습니다.
+{
+  const slot = await page.evaluate(() => {
+    const strip = document.querySelector('.trainer-answer__strip');
+    const reason = document.querySelector('.trainer-answer__reason');
+    return {
+      cells: strip ? strip.children.length : 0,
+      role: strip?.getAttribute('role') ?? null,
+      label: strip?.getAttribute('aria-label') ?? '',
+      width: strip ? strip.getBoundingClientRect().width : 0,
+      ring: document.querySelectorAll('.trainer-answer__strip .lstrip__cell--ring').length,
+      text: (reason?.textContent ?? '').trim(),
+      mix: document.querySelectorAll('.trainer-answer__mix, .trainer-mix').length,
+      slotH: document.querySelector('.trainer-answer')?.getBoundingClientRect().height ?? 0,
+      // 짧은 화면(@max-height 740)에서는 114, 그 밖에는 120
+      slotWant: window.innerHeight <= 740 ? 114 : 120,
+    };
+  });
+  check(slot.cells === 13, `train: reveal strip should have 13 cells (got ${slot.cells})`);
+  check(slot.role === 'img' && slot.label === slot.text && slot.text.length > 0, `train: reveal strip must be role=img named by the line sentence ("${slot.label}" vs "${slot.text}")`);
+  check(Math.abs(slot.width - 297) <= 0.5, `train: reveal strip should be 297px wide (got ${slot.width.toFixed(1)})`);
+  check(slot.ring === 1, `train: reveal strip should ring exactly one cell (got ${slot.ring})`);
+  check(/요\.$/.test(slot.text), `train: reveal line sentence should end in 해요체 ("${slot.text}")`);
+  check(slot.mix === 0, 'train: the mix-chip row must be gone from the reveal (EXPLAIN_SPEC §3.1)');
+  check(Math.abs(slot.slotH - slot.slotWant) <= 0.5, `train: reveal slot height should stay ${slot.slotWant} (got ${slot.slotH.toFixed(1)})`);
+}
 check(/해설/.test(await page.locator('.trainer-hud').innerText()), 'train: HUD tag should read 해설 in the reveal state');
 // choose mode: the timer row keeps a static hint; the 5 s countdown lives inside the 다음 button
 {
@@ -280,9 +306,27 @@ await shot('09-quiz-idle');
 await tapText(/시작/);
 await page.waitForTimeout(700);
 await shot('10-quiz-question');
+check(/어떻게 할까요\?/.test(await page.locator('.quiz-prompt').first().innerText().catch(() => '')), 'quiz: waiting prompt should read 어떻게 할까요?');
 const ans = page.locator('.quiz-answers button');
 check((await ans.count()) >= 2, 'quiz: answer buttons missing');
-if (await ans.count()) { await ans.first().tap(); await page.waitForTimeout(500); await shot('11-quiz-answered'); }
+if (await ans.count()) {
+  await ans.first().tap(); await page.waitForTimeout(400);
+  // 퀴즈 피드백(EXPLAIN_SPEC §5.1): 판정 줄 + 캡슐 + 줄 스트립 + 줄 문장. 믹스 칩 줄은 없습니다.
+  const fb = await page.evaluate(() => ({
+    verdict: (document.querySelector('.quiz-feedback__verdict')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    cap: document.querySelectorAll('.quiz-feedback .lcap').length,
+    cells: document.querySelector('.quiz-feedback__strip')?.children.length ?? 0,
+    reason: (document.querySelector('.quiz-feedback__reason')?.textContent ?? '').trim(),
+    mix: document.querySelectorAll('.quiz-feedback__mix, .quiz-mix').length,
+  }));
+  check(/^[✓△✕] (정답이에요|부분 정답이에요|아쉬워요 · 정답은 \S.*)$/.test(fb.verdict), `quiz: verdict line should read 정답이에요 / 부분 정답이에요 / 아쉬워요 · 정답은 … (got "${fb.verdict}")`);
+  check(fb.cap === 1, 'quiz: feedback answer capsule missing');
+  check(fb.cells === 13, `quiz: feedback strip should have 13 cells (got ${fb.cells})`);
+  check(/요\.$/.test(fb.reason), `quiz: feedback line sentence missing ("${fb.reason}")`);
+  check(fb.mix === 0, 'quiz: .quiz-feedback__mix must be gone (EXPLAIN_SPEC §5.1)');
+  // 정답이면 1.5초 뒤 자동으로 넘어가므로, 재기 전에 찍지 않고 잰 다음에 찍습니다.
+  await shot('11-quiz-answered');
+}
 await noHScroll('quiz');
 // leave the round
 const qClose = page.locator('.quiz-hud__close');
@@ -317,25 +361,45 @@ if (await cell.count()) {
   await cell.tap(); await page.waitForTimeout(500); await shot('13-charts-cell');
   const sheet = page.locator('.ui-sheet').last();
   const sheetText = await sheet.innerText().catch(() => '');
-  check(/왜\?|예시|플랍에서는/.test(sheetText), 'charts: cell sheet lacks the plain explanation body');
-  check(((await sheet.locator('.ui-explain__one').innerText().catch(() => '')).trim().length) > 0, 'charts: cell sheet lacks the one-line 결론 lead');
-  check((await sheet.locator('.ui-explain__more-btn[aria-expanded="false"]').count()) === 1, 'charts: 더 자세히 disclosure missing or not collapsed by default');
-  // 불릿 간격은 ul 의 flex gap 하나로만 잡힙니다 — li 에 margin 이 또 붙으면 8px 가 12px 로 벌어집니다.
-  const listGaps = await sheet.evaluate((root) => {
+  check(/이 줄 · /.test(sheetText), 'charts: cell sheet lacks the line block (EXPLAIN_SPEC §4.1)');
+  check(/^\S+ \S+.* · AKs$/.test((await sheet.locator('.ui-sheet__title, h2').first().innerText().catch(() => '')).trim()), 'charts: sheet title should be 〈자리〉 〈상황〉 · 〈패〉 (no → 답)');
+  check(((await sheet.locator('.ui-explain__sentence').innerText().catch(() => '')).trim().length) > 0, 'charts: cell sheet lacks the line sentence under the strip');
+  {
+    const strip = await sheet.locator('.ui-explain__line .lstrip--md').first().evaluate((el) => ({ n: el.children.length, w: el.getBoundingClientRect().width })).catch(() => null);
+    check(strip !== null && strip.n === 13, 'charts: cell sheet lacks the md line strip (13 cells)');
+    if (strip) check(Math.abs(strip.w - 323) <= 0.5, `charts: md strip should be 323px wide (got ${strip.w.toFixed(1)})`);
+  }
+  // ⑥ 이 패, 다른 자리에서는 › — 블록 전체가 버튼이고, 자리 타일 한 줄에 지금 칸 하나만 링.
+  {
+    const across = sheet.locator('button.ui-explain__across');
+    check((await across.count()) === 1, 'charts: ⑥ 「이 패, 다른 자리에서는 ›」 block should be one button');
+    const tiles = await across.locator('.atlas__cell--compact').count();
+    const ringed = await across.locator('.atlas__cell--compact.atlas__cell--sel').count();
+    check(tiles === 5, `charts: ⑥ should show 5 seat tiles for an rfi cell (got ${tiles})`);
+    check(ringed === 1, `charts: ⑥ should ring exactly the current seat (got ${ringed})`);
+    check((await across.locator('button').count()) === 0, 'charts: ⑥ tiles must not be nested buttons');
+  }
+  // 지운 섹션(왜? · 예시 본문 · 플랍에서는 · 결론 머리글)이 돌아오지 않았는지.
+  check(!/왜\?|플랍에서는|플랍 이후|결론/.test(sheetText), 'charts: a removed section (왜?/플랍에서는/플랍 이후/결론) is back in the sheet');
+  // ⑦ 자세히는 내용이 있을 때만, 그리고 접힌 채로 시작합니다.
+  check((await sheet.locator('.ui-explain__more-btn[aria-expanded="true"]').count()) === 0 && (await sheet.locator('.ui-explain__more-body').count()) === 0, 'charts: 자세히 disclosure must start collapsed');
+  // 섹션 간격은 .ui-explain 의 flex gap 하나로만 잡힙니다 — 자식에 margin 이 또 붙으면 간격이 두 번 들어갑니다.
+  const sectionGaps = await sheet.evaluate((root) => {
+    const body = root.querySelector('.ui-explain');
+    if (!body || body.children.length < 2) return null;
+    const gap = parseFloat(getComputedStyle(body).rowGap) || 0;
+    const kids = [...body.children];
     const out = [];
-    for (const sel of ['.ui-explain__list', '.ui-explain__ex']) {
-      const ul = root.querySelector(sel);
-      if (!ul || ul.children.length < 2) continue;
-      const gap = parseFloat(getComputedStyle(ul).rowGap) || 0;
-      const a = ul.children[0].getBoundingClientRect(), b = ul.children[1].getBoundingClientRect();
-      out.push({ sel, gap, visual: +(b.top - a.bottom).toFixed(1), margin: getComputedStyle(ul.children[1]).marginTop });
+    for (let i = 1; i < kids.length; i++) {
+      const a = kids[i - 1].getBoundingClientRect(), b = kids[i].getBoundingClientRect();
+      out.push({ gap, visual: +(b.top - a.bottom).toFixed(1), margin: getComputedStyle(kids[i]).marginTop, cls: kids[i].className });
     }
     return out;
   });
-  for (const g of listGaps) {
-    check(Math.abs(g.visual - g.gap) <= 0.5, `charts: ${g.sel} bullets are ${g.visual}px apart but the gap is ${g.gap}px (li margin ${g.margin} stacking on top)`);
+  check(sectionGaps !== null, 'charts: no explanation sections to measure spacing on');
+  for (const g of sectionGaps ?? []) {
+    check(Math.abs(g.visual - g.gap) <= 0.5, `charts: ${g.cls} sits ${g.visual}px below the previous section but the gap is ${g.gap}px (margin ${g.margin} stacking on top)`);
   }
-  check(listGaps.length > 0, 'charts: no explanation list to measure spacing on');
 
   const term = sheet.locator('.term').first();
   check((await term.count()) > 0, 'charts: no glossary .term in the sheet body');
@@ -355,6 +419,7 @@ await page.getByRole('button', { name: /설정/ }).first().tap();
 await page.waitForTimeout(500);
 await shot('14-settings');
 check(/설정/.test(await page.locator('body').innerText()), 'settings: not shown');
+check(/섞는 비율 보기/.test(await page.locator('body').innerText()), 'settings: mix toggle should be labelled 섞는 비율 보기');
 await noHScroll('settings');
 const small = await page.evaluate(() => [...document.querySelectorAll('button')].filter((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.height < 40 && !/rgrid|range-cell|ui-chip|dot/.test(b.className); }).map((b) => `${b.className || b.tagName}:${Math.round(b.getBoundingClientRect().height)}px "${(b.textContent || '').trim().slice(0, 12)}"`));
 if (small.length) console.log('small buttons (settings):', small.slice(0, 8).join(' | '));

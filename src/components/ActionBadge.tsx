@@ -1,16 +1,14 @@
 import { ACTION_LABEL_KO, ACTION_SHORT_KO, type Action, type ScenarioKind } from '../poker/types';
+import { actWord } from '../poker/ko';
 
-/** Context-aware label: e.g. allin in vs_4bet is "5벳 올인", fourbet in cold_4bet is "콜드 4벳". */
+/**
+ * 버튼·캡슐·문장이 같이 쓰는 액션 이름(docs/EXPLAIN_SPEC.md §2.2). 상황(kind)을 알면 긴 이름도 짧은 이름 그대로입니다 —
+ * '5벳 올인'·'올인 콜'·'콜드 4벳'·'오픈 레이즈'·'림프에 레이즈'는 폐기했습니다. 문장은 '올인해요'·'콜해요'라고 말하는데
+ * 버튼만 다른 이름이면 같은 단서가 둘로 갈립니다. 360px 선택 버튼 폭도 오히려 줄어듭니다.
+ * 림프에 올리는 건 '오픈'이 아니라 '레이즈'입니다(ko.actWord).
+ */
 export function actionLabel(action: Action, kind?: ScenarioKind, short = false): string {
-  if (kind === 'vs_4bet' && action === 'allin') return short ? '올인' : '5벳 올인';
-  if (kind === 'vs_5bet' && action === 'call') return short ? '콜' : '올인 콜';
-  if (kind === 'cold_4bet' && action === 'fourbet') return short ? '4벳' : '콜드 4벳';
-  if (kind === 'rfi' && action === 'raise') return short ? '오픈' : '오픈 레이즈';
-  // 림프에 올리는 건 오픈이 아닙니다. 이게 없으면 ACTION_LABEL_KO 의 '레이즈 (오픈)' 이 그대로 나옵니다.
-  // 긴 이름은 선택 버튼(2단 그리드)에 그대로 들어갑니다. 360px 에서 한 칸의 속너비가 143px 뿐이라
-  // '레이즈 (림프에 올리기)'(166px)는 잘렸습니다. 지금 이름은 101px 로, 기존 최장 이름인
-  // '레이즈 (오픈)'(97px) 과 같은 칸에 들어갑니다. 여기를 늘릴 때는 360px 에서 재 보세요.
-  if (kind === 'vs_limp' && action === 'raise') return short ? '레이즈' : '림프에 레이즈';
+  if (kind) return actWord(action, kind);
   return short ? ACTION_SHORT_KO[action] : ACTION_LABEL_KO[action];
 }
 

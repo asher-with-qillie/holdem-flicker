@@ -264,16 +264,7 @@ button.ui-heat__cell:active { filter: brightness(1.25); }
 .ui-sheet__footer { flex: none; padding: 12px var(--gutter) calc(12px + var(--safe-bottom)); border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; gap: 8px; }
 .ui-sheet__footer + .ui-sheet__body, .ui-sheet__body:has(+ .ui-sheet__footer) { padding-bottom: 16px; }
 
-/* explanation body (ExplanationSheet / hold overlay) */
-.ui-explain { color: var(--ink); }
-.ui-explain__top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.ui-explain__hand { font-size: var(--fs-callout); font-weight: 600; color: var(--ink-2); }
-.ui-explain h3 { font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 700; margin: 16px 0 6px; color: var(--mint); }
-.ui-explain p, .ui-explain li { font-size: var(--fs-body); line-height: var(--lh-body); color: var(--ink); }
-/* 목록 간격은 explain.css 의 ul(.ui-explain__list / __ex)이 flex gap 으로 잡습니다.
-   예전에 여기 있던 `ul { padding-left }` 와 `li + li { margin-top: 4px }` 는 그 gap 위에 또 얹혀서
-   불릿 간격을 8px → 12px, 예시 간격을 6px → 10px 로 벌려 놓고 있었습니다. */
-.ui-explain__dim { color: var(--ink-2); }
+/* explanation body (ExplanationSheet / hold overlay): 전부 explain.css 에 있습니다. */
 
 /* =============================================================== SpeedPicker */
 .ui-speed { display: flex; flex-direction: column; gap: 8px; }

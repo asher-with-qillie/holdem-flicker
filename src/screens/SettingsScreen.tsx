@@ -246,12 +246,12 @@ export function SettingsScreen(): JSX.Element {
         <Row label="직접 넘기기" hint="노출·순간기억 모드에서 답을 본 뒤 탭해서 넘겨요">
           <Switch checked={!s.autoAdvance} onChange={(v) => update({ autoAdvance: !v })} label="직접 넘기기 (자동 진행 끄기)" />
         </Row>
-        <Row label="혼합 빈도 표시" hint="예: 3벳 75% · 콜 25%">
-          <Switch checked={s.showMixFrequencies} onChange={(v) => update({ showMixFrequencies: v })} label="혼합 빈도 표시" />
+        <Row label="섞는 비율 보기" hint="예: 3벳 75% · 콜 25%">
+          <Switch checked={s.showMixFrequencies} onChange={(v) => update({ showMixFrequencies: v })} label="섞는 비율 보기" />
         </Row>
         <RangeRow
           label="플레이 가능 핸드 비율"
-          hint="높을수록 뻔한 폴드 대신 경계선 핸드가 자주 나와요"
+          hint="나머지는 주로 경계에 있는 패가 나와요. 뻔한 폴드는 드물어요"
           value={Math.round(s.interestingBias * 100)}
           min={0}
           max={100}

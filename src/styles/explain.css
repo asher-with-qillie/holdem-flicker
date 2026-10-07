@@ -45,57 +45,54 @@
 @keyframes term-pop-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 /* ---- body type ---- */
-.ui-explain { color: var(--ink); }
-.ui-explain p, .ui-explain li { font-size: 15px; line-height: 1.65; color: var(--ink); }
-/* keeps a last line from ending up as one short word ("… 30%로" / "c-bet"), which .term's nowrap makes likely.
+.ui-explain { display: flex; flex-direction: column; gap: 18px; color: var(--ink); }
+.ui-explain p { margin: 0; font-size: 15px; line-height: 1.6; color: var(--ink); }
+/* keeps a last line from ending up as one short word, which .term's nowrap makes likely.
    keep-all stops Korean lines from breaking mid-word (어절 단위 줄바꿈); break-word keeps a long card row in. */
-.ui-explain p, .ui-explain li { text-wrap: pretty; word-break: keep-all; overflow-wrap: break-word; }
+.ui-explain p, .ui-explain__seatline { text-wrap: pretty; word-break: keep-all; overflow-wrap: break-word; }
 
 /* section label: small, mint, tracked out — a marker, not a headline */
-.ui-explain h3.ui-explain__h,
-.ui-explain__more-body h3 {
-  display: flex; align-items: center; gap: 6px;
-  margin: 14px 0 6px;
+.ui-explain .ui-explain__h {
+  display: flex; align-items: baseline; gap: 6px; margin: 0;
   font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 700;
   letter-spacing: 0.08em; text-transform: uppercase;
   color: color-mix(in srgb, var(--mint) 88%, var(--ink-2));
 }
-.ui-explain h3.ui-explain__h:first-of-type { margin-top: 12px; }
-.ui-explain h3.ui-explain__h small { font-weight: 500; color: var(--ink-3); font-size: var(--fs-caption); letter-spacing: 0; text-transform: none; }
+.ui-explain .ui-explain__h small { margin-left: auto; font-weight: 500; color: var(--ink-3); font-size: var(--fs-caption); letter-spacing: 0; text-transform: none; }
 
-/* 결론 */
-.ui-explain__lead { display: flex; align-items: flex-start; gap: 10px; }
-.ui-explain__lead .badge { flex: none; margin-top: 2px; }
-.ui-explain__one { margin: 0; font-size: var(--fs-headline); line-height: 1.5; font-weight: 700; color: var(--ink); }
+/* ① 줄 블록: 캡슐 → 캡션 → 스트립 → 문장. 리빌과 같은 덩어리를 한 번 더 */
+.ui-explain__line { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.ui-explain .ui-explain__caption { color: var(--ink-2); font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; }
+.ui-explain__line .lstrip { justify-content: start; }
+.ui-explain .ui-explain__sentence { font-size: var(--fs-body); line-height: var(--lh-body); font-weight: 500; color: var(--ink); }
+.ui-explain .ui-explain__sibling { font-size: var(--fs-subhead); line-height: var(--lh-subhead); font-weight: 500; color: var(--ink-2); }
+/* ③ 섞는 비율 칩 + 부분 정답 문장 */
+.ui-explain__mix { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-top: 2px; }
+.ui-explain .ui-explain__partial { font-size: var(--fs-subhead); line-height: var(--lh-subhead); color: var(--ink-2); }
 
-/* bullets: hanging indent (the dot sits in the gutter, wrapped lines stay flush) + 8px gaps */
-.ui-explain ul.ui-explain__list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.ui-explain ul.ui-explain__list > li { position: relative; padding-left: 14px; }
-.ui-explain ul.ui-explain__list > li::before {
-  content: ''; position: absolute; left: 2px; top: 0.62em; width: 5px; height: 5px; border-radius: 50%;
-  background: color-mix(in srgb, var(--mint) 70%, transparent);
+/* ④ 자리 숫자 줄 + ⑤ 레버 */
+.ui-explain__seat { display: flex; flex-direction: column; gap: 6px; }
+.ui-explain .ui-explain__nums { font-size: var(--fs-subhead); line-height: var(--lh-subhead); color: var(--ink-2); }
+.ui-explain__nums b { color: var(--ink); font-weight: 700; }
+.ui-explain .ui-explain__lever { font-size: var(--fs-callout); line-height: var(--lh-callout); }
+
+/* ⑥ 이 패, 다른 자리에서는 › — 블록 전체가 버튼(자리별 보기). 타일 한 줄 + 자리 문장 */
+.ui-explain__across {
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%; margin: 0; padding: 12px;
+  border: 0; border-radius: var(--r-md); text-align: left; color: var(--ink);
+  background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+  -webkit-tap-highlight-color: transparent;
 }
+button.ui-explain__across:active { background: rgba(255, 255, 255, 0.10); }
+button.ui-explain__across:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.ui-explain .ui-explain__across-h { color: var(--mint); font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 600; letter-spacing: 0; text-transform: none; }
+.ui-explain__tiles { --n: 5; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
+.ui-explain__tile { display: flex; flex-direction: column; align-items: stretch; gap: 3px; min-width: 0; text-align: center; }
+.ui-explain__tile-seat { color: var(--ink-2); }
+.ui-explain__seatline { font-size: var(--fs-subhead); line-height: var(--lh-subhead); font-weight: 500; color: var(--ink-2); }
 
-/* 예시: one card-row per line, cards emphasised and tabular */
-.ui-explain ul.ui-explain__ex { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.ui-explain ul.ui-explain__ex > li {
-  padding: 9px 12px; border-radius: var(--r-sm);
-  background: rgba(255, 255, 255, 0.055); border: 0;
-  /* 왼쪽 민트 막대는 '테두리'가 아니라 표식이라 2px 을 유지합니다(규칙 carve-out). 나머지 세 변만 얇게. */
-  border-left: 2px solid color-mix(in srgb, var(--mint) 40%, transparent);
-  box-shadow: inset -0.5px 0 0 rgba(255, 255, 255, 0.07), inset 0 0.5px 0 rgba(255, 255, 255, 0.07), inset 0 -0.5px 0 rgba(255, 255, 255, 0.07);
-  font-size: var(--fs-callout); line-height: 1.55; font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1;
-}
-.ui-explain__card {
-  font-weight: 800; letter-spacing: 0.01em; color: var(--ink);
-  font-variant-numeric: tabular-nums; white-space: nowrap;
-}
-/* 카드 + 뒤에 붙은 조사를 한 덩어리로 (줄 끝에서 "K♦Q♠" / "가 이깁니다"로 갈리지 않게) */
-.ui-explain__cardrun { white-space: nowrap; }
-
-/* ---- 자세히 disclosure ---- */
-.ui-explain__more { margin-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.10); }
+/* ⑦ 자세히 (접힘) */
+.ui-explain__more { border-top: 1px solid rgba(255, 255, 255, 0.10); }
 .ui-explain__more-btn {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 48px; padding: 0 2px;
   border: 0; background: none; color: var(--ink-2); font-size: var(--fs-callout); font-weight: 600; text-align: left;
@@ -103,19 +100,24 @@
 .ui-explain__more-btn svg { flex: none; transition: transform var(--dur-std) var(--ease-spring); }
 .ui-explain__more-btn[aria-expanded='true'] svg { transform: rotate(180deg); }
 .ui-explain__more-body { padding-bottom: 8px; animation: term-pop-in 180ms var(--ease-out); }
-.ui-explain__more-body p, .ui-explain__more-body li { font-size: var(--fs-subhead); line-height: 1.6; }
-.ui-explain__more-body .ui-explain__dim { color: var(--ink-2); }
-.ui-explain__kv { color: var(--ink-3); font-size: var(--fs-footnote); margin: 0 0 6px; }
+.ui-explain .ui-explain__more-body p { font-size: var(--fs-subhead); line-height: 1.6; color: var(--ink-2); }
+.ui-explain__label {
+  display: block; margin-bottom: 2px; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 700;
+  letter-spacing: 0.08em; color: color-mix(in srgb, var(--mint) 88%, var(--ink-2));
+}
+.ui-explain__card { font-weight: 800; letter-spacing: 0.01em; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 카드 + 뒤에 붙은 조사를 한 덩어리로 (줄 끝에서 "K♦Q♠" / "를 맞춰도"로 갈리지 않게) */
+.ui-explain__cardrun { white-space: nowrap; }
+
+/* ⑧ 사람 작성 차트 면책 */
+.ui-explain .ui-explain__disclaimer { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-3); }
+
+/* ---- 섞는 비율 칩 "콜 75% · 3벳 25%" (시트 ③ · 자리별 보기 상세) ---- */
+.mixchips { display: inline-flex; flex-wrap: wrap; gap: 6px; max-width: 100%; }
+.mixchips__chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: var(--r-capsule); font-size: var(--fs-caption); font-weight: 700; color: var(--ink); white-space: nowrap; }
+.mixchips__chip i { width: 6px; height: 6px; border-radius: 50%; }
 
 @media (prefers-reduced-motion: reduce) {
   .term-pop, .ui-explain__more-body { animation: none; }
   .ui-explain__more-btn svg { transition: none; }
 }
-
-/* ---- 자리별 보기 입구: 결론 바로 아래 한 줄 (44px, 민트) ---- */
-.ui-explain__across {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; width: 100%; margin-top: 4px; padding: 0;
-  border: 0; background: transparent; color: var(--mint); font-size: var(--fs-callout); font-weight: 600; text-align: left;
-}
-.ui-explain__across span:last-child { font-size: 20px; line-height: 1; color: color-mix(in srgb, var(--mint) 70%, transparent); }
-.ui-explain__across:active { opacity: 0.7; }

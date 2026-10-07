@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActionBadge, actionLabel } from '../../components/ActionBadge';
+import { actionLabel } from '../../components/ActionBadge';
 import { ExplanationSheet } from '../../components/ExplanationSheet';
+import { LineCapsule, LineStrip } from '../../components/LineStrip';
 import { PlainText } from '../../components/Term';
 import { HandView } from '../../components/PlayingCard';
 import { TableDiagram } from '../../components/TableDiagram';
@@ -17,7 +18,6 @@ import { openAtlas } from '../../state/atlas';
 import { useSettings } from '../../state/settings';
 import { useStats } from '../../state/stats';
 import { FitBox } from '../trainer/FitBox';
-import { pct } from './format';
 import { actionWeight, PARTIAL_THRESHOLD, type Grade } from './grade';
 import { answer, endRound, next, type QuizQuestion, type QuizRound } from './roundStore';
 
@@ -46,7 +46,7 @@ function HudProgress({ queue, index }: { queue: QuizQuestion[]; index: number })
 
 function HandLabel({ cards, hand }: { cards: [Card, Card]; hand: HandName }) {
   return (
-    <div className="quiz-handlabel t-title-3" aria-label={`핸드 ${hand}`}>
+    <div className="quiz-handlabel t-title-3" aria-label={`패 ${hand}`}>
       <span className={`quiz-handlabel__card quiz-handlabel__card--${cards[0].suit}`}>{cardLabel(cards[0])}</span>
       <span className={`quiz-handlabel__card quiz-handlabel__card--${cards[1].suit}`}>{cardLabel(cards[1])}</span>
       <span className="quiz-handlabel__sep">·</span>
@@ -94,12 +94,12 @@ function Question({ q, autoAdvance, showMix }: { q: QuizQuestion; autoAdvance: b
 
   const kindStat = stats.byKind[kind];
   const kindLine = kindStat?.attempts ? `이 유형 정답률 ${Math.round((kindStat.correct / kindStat.attempts) * 100)}% · ${kindStat.attempts}문제` : '이 유형의 첫 문제예요';
-  const hasMix = showMix && step.mixList.length >= 2;
-
+  // 판정 줄(§5.1). 판정은 이 줄과 캡슐이 말하고, 줄 문장 앞에는 덧붙이지 않습니다.
   let verdict = '';
   if (grade === 'correct') verdict = '정답이에요';
-  else if (grade === 'partial' && chosen) verdict = `부분 정답 · ${actionLabel(chosen, kind, true)}도 ${pct(actionWeight(step, chosen))}`;
-  else if (grade === 'wrong') verdict = `아쉬워요 · 정답은 ${actionLabel(step.answer, kind, true)}`;
+  else if (grade === 'partial') verdict = '부분 정답이에요';
+  else if (grade === 'wrong') verdict = `아쉬워요 · 정답은 ${explanation.capsule.label}`;
+  const near = (grade === 'wrong' || grade === 'partial') && explanation.nearMiss;
 
   const openSheet = () => {
     setAutoCancelled(true);
@@ -124,7 +124,7 @@ function Question({ q, autoAdvance, showMix }: { q: QuizQuestion; autoAdvance: b
       <HandLabel cards={cards} hand={step.hand} />
 
       <p className="quiz-prompt" aria-live="polite">
-        {grade ? kindLine : '어떻게 할래요?'}
+        {grade ? kindLine : '어떻게 할까요?'}
       </p>
 
       {/* data-answer / data-partial: QA hooks for the screenshot script (§9 keyboard/QA equivalents); the 해설 sheet reveals the same data. */}
@@ -170,25 +170,18 @@ function Question({ q, autoAdvance, showMix }: { q: QuizQuestion; autoAdvance: b
         {grade ? (
           <div className="quiz-feedback__in">
             <div className="quiz-feedback__top">
-              <ActionBadge action={step.answer} kind={kind} size="md" />
               <span className="quiz-feedback__verdict">
                 <span className="quiz-feedback__mark" aria-hidden="true">
                   {MARK[grade]}
                 </span>{' '}
                 {verdict}
               </span>
+              {near && <span className="quiz-feedback__near fill t-caption">{near}</span>}
             </div>
-            <div className="quiz-feedback__mix" aria-label={hasMix ? '혼합 빈도' : undefined}>
-              {hasMix &&
-                step.mixList.map((m) => (
-                  <span key={m.action} className="quiz-mix fill tnum">
-                    <i style={{ background: `var(--act-${m.action})` }} aria-hidden="true" />
-                    {actionLabel(m.action, kind, true)} {pct(m.weight)}
-                  </span>
-                ))}
-            </div>
+            <LineCapsule capsule={explanation.capsule} size="sm" showSplit={showMix} className="quiz-feedback__cap" />
+            <LineStrip view={explanation.line} size="sm" className="quiz-feedback__strip" />
             <p className="quiz-feedback__reason">
-              <PlainText text={explanation.easy.oneLiner} />
+              <PlainText text={explanation.line.sentence?.text ?? ''} />
             </p>
             <div className="quiz-feedback__row">
               <CapsuleButton tone="neutral" size="md" onClick={openSheet}>

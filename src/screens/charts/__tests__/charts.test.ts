@@ -111,13 +111,11 @@ describe('chart selection', () => {
 });
 
 describe('disclaimer module', () => {
-  it('DISCLAIMER module equals the strings ChartsScreen used to hold', async () => {
+  it('DISCLAIMER module holds the EXPLAIN_SPEC §5.4 strings', async () => {
     const { DISCLAIMER, SOLVER_NOTE } = await import('../disclaimer');
-    expect(SOLVER_NOTE).toBe('솔버 결과를 단순화한 근사치예요. 레이크·상대 성향에 따라 경계 핸드는 달라질 수 있어요.');
+    expect(SOLVER_NOTE).toBe('솔버 결과를 단순하게 줄인 차트예요. 경계에 있는 패는 상황에 따라 달라질 수 있어요.');
     for (const kind of ['rfi', 'vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet', 'cold_4bet'] as const) expect(DISCLAIMER[kind]).toBe(SOLVER_NOTE);
-    expect(DISCLAIMER.vs_limp.startsWith('림프는 솔버가 하지 않는 플레이라')).toBe(true);
-    expect(DISCLAIMER.vs_limp).toBe(
-      '림프는 솔버가 하지 않는 플레이라 이 상황은 솔버 기준이 없어요. 공개된 사람 작성 차트를 옮긴 기준선이고, 림프한 사람이 한 명일 때만 맞아요.',
-    );
+    expect(DISCLAIMER.vs_limp.startsWith('솔버는 림프를 하지 않아서')).toBe(true);
+    expect(DISCLAIMER.vs_limp).toBe('솔버는 림프를 하지 않아서, 이 차트는 사람이 만든 차트예요. 림프한 사람이 한 명일 때만 맞아요.');
   });
 });

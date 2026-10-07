@@ -1,44 +1,20 @@
-import type { CSSProperties } from 'react';
-import { actionLabel } from '../../components/ActionBadge';
+import { LineCapsule, LineStrip } from '../../components/LineStrip';
 import { PlainText } from '../../components/Term';
 import type { Explanation } from '../../poker/explain';
-import type { Step } from '../../poker/trainer';
-import type { Action } from '../../poker/types';
+import type { Grade } from '../quiz/grade';
 import type { Phase } from './sessionStore';
 
-const ACT_COLOR: Record<Action, string> = {
-  check: 'var(--act-check)',
-  fold: 'var(--act-fold)',
-  call: 'var(--act-call)',
-  raise: 'var(--act-raise)',
-  threebet: 'var(--act-threebet)',
-  fourbet: 'var(--act-fourbet)',
-  allin: 'var(--act-allin)',
-};
-
-/** Mix chips "콜 75% · 3벳 25%" (.fill, 24 high) — shown when settings.showMixFrequencies and the hand is mixed. */
-export function MixChips({ step }: { step: Step }) {
-  if (step.mixList.length < 2) return null;
-  return (
-    <span className="trainer-mix" aria-label="혼합 빈도">
-      {step.mixList.map(({ action, weight }) => (
-        <span key={action} className="trainer-mix__chip fill tnum">
-          <i style={{ background: ACT_COLOR[action] }} aria-hidden="true" />
-          {actionLabel(action, step.scenario.kind, true)} {Math.round(weight * 100)}%
-        </span>
-      ))}
-    </span>
-  );
-}
-
 /**
- * Fixed-height glass-clear slot (§5.3 / §5.4): a quiet placeholder while thinking (the choice buttons sit above
- * it); on reveal the answer capsule flips in (rotateX −90° → 0, 240 ms) with the mix chips and the full easy
- * one-liner (action word first, then the reason; glossary terms tappable). The quiz reveal prints the same
- * sentence, and trainer.css clamps the line to two rows at every height, so nothing is cut off.
+ * 리빌 슬롯(docs/EXPLAIN_SPEC.md §3.1). 바깥 크기는 그대로(120 · 짧은 화면 114)이고 안에는 딱 세 줄입니다:
+ *   A 답 캡슐(32 · 짧은 화면 28) — 섞인 칸이면 안쪽 아래 3px 분할 막대('섞는 비율 보기'), 오답·부분 정답이면 오른쪽 끝에 경계 꼬리표
+ *   B 줄 스트립 sm(13칸 · 297px) — 이 패에 링, 경계 막대
+ *   C 줄 문장(2줄 클램프) — 같은 줄의 패는 전부 같은 문장, 링만 움직입니다
+ * 문장은 답을 말하지 않습니다(답은 캡슐이 말함). 그래서 맞혔든 틀렸든 같은 문장이 나오고, 그게 기억의 단서가 됩니다.
+ * 기존 rotateX flip(240ms)에 세 줄이 함께 실립니다. 생각하는 동안에는 조용한 자리 표시만 둡니다.
+ *
+ * `grade` — 트레이너 선택 모드에서 고른 답의 채점. 경계 꼬리표(`한 칸 밖`/`마지막 칸`)는 오답·부분 정답일 때만 보입니다.
  */
-export function AnswerSlot({ step, phase, explanation, showMix, animKey, hint }: { step: Step; phase: Phase; explanation: Explanation; showMix: boolean; animKey: string; hint?: string }) {
-  const kind = step.scenario.kind;
+export function AnswerSlot({ phase, explanation, showMix, animKey, hint, grade }: { phase: Phase; explanation: Explanation; showMix: boolean; animKey: string; hint?: string; grade?: Grade }) {
   if (phase === 'think') {
     return (
       <div className="trainer-answer trainer-answer--idle glass-clear" aria-live="polite">
@@ -46,22 +22,18 @@ export function AnswerSlot({ step, phase, explanation, showMix, animKey, hint }:
       </div>
     );
   }
-  const hasMix = showMix && step.mixList.length >= 2;
-  const answer = step.answer;
-  const capStyle = { '--tint': ACT_COLOR[answer] } as CSSProperties;
+  const near = (grade === 'wrong' || grade === 'partial') && explanation.nearMiss;
+  const sentence = explanation.line.sentence?.text ?? '';
   return (
     <div className="trainer-answer glass-clear" aria-live="polite">
       <div key={animKey} className="trainer-answer__flip">
-        <span className={`trainer-answer__cap glass-tint glass-flat t-title-2 trainer-answer__cap--${answer}`} style={capStyle}>
-          {actionLabel(answer, kind)}
-        </span>
-        {hasMix && (
-          <div className="trainer-answer__mix">
-            <MixChips step={step} />
-          </div>
-        )}
-        <p className={`trainer-answer__reason t-footnote${hasMix ? ' trainer-answer__reason--tight' : ''}`}>
-          <PlainText text={explanation.easy.oneLiner} />
+        <div className="trainer-answer__caprow">
+          <LineCapsule capsule={explanation.capsule} size="sm" showSplit={showMix} className="trainer-answer__cap" />
+          {near && <span className="trainer-answer__near fill t-caption">{near}</span>}
+        </div>
+        <LineStrip view={explanation.line} size="sm" className="trainer-answer__strip" />
+        <p className="trainer-answer__reason t-footnote">
+          <PlainText text={sentence} />
         </p>
       </div>
     </div>

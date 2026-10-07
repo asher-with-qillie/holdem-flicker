@@ -225,7 +225,7 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
           </div>
         )}
 
-        <AnswerSlot step={step} phase={s.phase} explanation={explanation} showMix={s.showMix} animKey={s.timerKey} hint={showHint ? HOLD_HINT : undefined} />
+        <AnswerSlot phase={s.phase} explanation={explanation} showMix={s.showMix} animKey={s.timerKey} hint={showHint ? HOLD_HINT : undefined} grade={quiet ? undefined : card.grade} />
       </SwipeStage>
 
       <div className="trainer-rateslot">
@@ -259,7 +259,7 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
         )}
       </div>
 
-      <Sheet open={s.holding} onClose={onHoldEnd} held title="해설" footer={<p className="trainer-hold__foot t-footnote">{HOLD_FOOTER}</p>}>
+      <Sheet open={s.holding} onClose={onHoldEnd} held title={explanation.title} footer={<p className="trainer-hold__foot t-footnote">{HOLD_FOOTER}</p>}>
         <ExplanationBody step={step} explanation={explanation} />
       </Sheet>
 

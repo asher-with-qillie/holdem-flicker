@@ -54,6 +54,10 @@
 .atlas__seat { display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
 .atlas__seat .atlas__dealer { position: static; width: 13px; height: 13px; font-size: 9px; font-style: normal; box-shadow: none; }
 .atlas__tri .atlas__cell { aspect-ratio: auto; height: 44px; }
+/* 해설 시트 ⑥의 한 줄 타일(§4.2): 높이 30, 한 줄 라벨. 블록 전체가 버튼이라 타일 자체는 누르지 않습니다. */
+.atlas__cell--compact { aspect-ratio: auto; height: 30px; padding: 0 2px; font-size: 11px; }
+.atlas__cell--compact:active { filter: none; }
+.atlas__cell--compact.atlas__cell--gated { font-size: 13px; }
 
 /* ---- 줄 글 ---- */
 .atlas__lever-core { max-width: calc(36px + 6px + 4 * ((100% - 36px - 30px) / 5) + 18px); }
@@ -75,17 +79,27 @@
 /* ---- 비교 블록 ---- */
 .atlas__detail { display: flex; flex-direction: column; gap: 6px; }
 .atlas__detail p { word-break: keep-all; overflow-wrap: break-word; text-wrap: pretty; }
-.atlas__summary { color: var(--ink-2); }
 .atlas__concl { color: var(--ink); font-weight: 600; }
 .atlas__lever { color: var(--ink-2); }
-.atlas__mix { display: flex; gap: 6px 10px; flex-wrap: wrap; align-items: center; }
-.atlas__mix-item { display: inline-flex; align-items: center; gap: 5px; }
-.atlas__one { color: var(--ink); }
-.atlas__note b { display: block; font-size: var(--fs-caption); letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--mint) 88%, var(--ink-2)); margin-bottom: 2px; }
+/* 줄 블록(§5.3-③): 캡슐 md + 스트립 md + 줄 문장. 비교 칸의 문장이 다르면 [자리 칩 | 스트립] 두 줄을 쌓습니다. */
+.atlas__line { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 4px 0 2px; }
+.atlas__line > .lstrip { justify-content: start; }
+.atlas__lineitem { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.atlas__lineitem + .atlas__lineitem { padding-top: 4px; }
+.atlas__linerow { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 4px; width: 100%; }
+.atlas__linerow .lstrip { justify-content: start; }
+.atlas__linechip {
+  display: inline-flex; align-items: center; justify-content: center; height: 24px; border-radius: var(--r-capsule);
+  color: var(--ink); background: rgba(255, 255, 255, 0.08); white-space: nowrap;
+}
+.atlas__linechip--sel { box-shadow: inset 0 0 0 1px var(--mint); }
+.atlas__linechip--cmp { box-shadow: inset 0 0 0 1px var(--sky); }
+.atlas__sentence { color: var(--ink); }
+.atlas__mix { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.atlas__note { padding-bottom: 8px; }
 .atlas__more { border-top: 1px solid rgba(255, 255, 255, 0.10); }
 .atlas__more .ui-explain__more-btn { min-height: 44px; }
 .atlas__more-body { display: flex; flex-direction: column; gap: 10px; padding-bottom: 4px; }
-.atlas__more-body .ui-explain h3.ui-explain__h:first-of-type { margin-top: 0; }
 
 /* ---- 손패 고르기 ---- */
 .atlas__picker { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }

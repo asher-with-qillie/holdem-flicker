@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { rowBoundary } from '../src/poker/atlas';
-import { getChartCells, hasChart } from '../src/poker/data';
+import { getChartCells, getChartDef, hasChart } from '../src/poker/data';
 import { ALL_HANDS, parseHandName } from '../src/poker/hands';
-import { AGGRESSION_ORDER, foldWeight, primaryAction } from '../src/poker/range';
+import { AGGRESSION_ORDER, foldWeight, primaryAction, restAction } from '../src/poker/range';
 import { allScenarios, positionsAfter, positionsBefore, scenarioKey } from '../src/poker/scenarios';
 import { RANKS, type Action, type HandName, type Pos, type Scenario } from '../src/poker/types';
 
@@ -17,6 +16,28 @@ const CORE: Pos[] = ['UTG', 'HJ', 'CO', 'BTN'];
 const raiseW = (hero: Pos, hand: HandName) => getChartCells({ kind: 'rfi', hero })[hand]?.raise ?? 0;
 const contW = (s: Scenario, hand: HandName) => 1 - foldWeight(getChartCells(s)[hand]);
 const prim = (s: Scenario, hand: HandName) => primaryAction(getChartCells(s)[hand]);
+
+/**
+ * 줄의 계속 비중이 킥커 내림차순으로 비증가인가 — 옛 atlas.rowBoundary.monotone 을 여기서 직접 계산합니다
+ * (그 함수는 line.ts 의 lineSentence 로 대체돼 지웠습니다). 줄은 페어 대각선, 또는 같은 높은 카드·같은 수티드 여부.
+ */
+function rowMonotone(s: Scenario, rep: HandName): { label: string; monotone: boolean } {
+  const info = parseHandName(rep);
+  let hands: HandName[];
+  let label: string;
+  if (info.kind === 'pair') {
+    hands = RANKS.map((r) => `${r}${r}`);
+    label = '포켓페어';
+  } else {
+    const suf = info.kind === 'suited' ? 's' : 'o';
+    hands = RANKS.slice(RANKS.indexOf(info.high) + 1).map((r) => `${info.high}${r}${suf}`);
+    label = `${info.kind === 'suited' ? '수티드' : '오프수트'} ${info.high}`;
+  }
+  const cells = getChartCells(s);
+  const rest = restAction(getChartDef(s));
+  const weights = hands.map((h) => 1 - (rest === 'fold' ? foldWeight(cells[h]) : (cells[h]?.[rest] ?? 0)));
+  return { label, monotone: weights.every((w, i) => i === 0 || w <= weights[i - 1] + 1e-6) };
+}
 
 describe('chart invariants the atlas sentences rely on', () => {
   it('RFI raise weight is non-decreasing UTG→BTN for all 169 hands', () => {
@@ -83,7 +104,7 @@ describe('chart invariants the atlas sentences rely on', () => {
     for (const s of allScenarios().filter(hasChart)) {
       for (const rep of reps) {
         rows++;
-        const r = rowBoundary({ kind: s.kind, hero: s.hero, villain: s.villain }, rep);
+        const r = rowMonotone({ kind: s.kind, hero: s.hero, villain: s.villain }, rep);
         if (!r.monotone) nonMonotone.push(`${scenarioKey(s)} ${r.label}`);
       }
     }

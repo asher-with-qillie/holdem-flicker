@@ -37,7 +37,7 @@ export function CellSheet({ step, explanation, open, onClose }: { step: Step; ex
       open={open}
       onClose={onClose}
       detent="half"
-      title={explanation.headline}
+      title={explanation.title}
       footer={
         <>
           {flagged ? (
