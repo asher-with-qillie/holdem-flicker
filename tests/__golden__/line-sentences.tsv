@@ -23,8 +23,8 @@ rfi:UTG	o5	P0	15.9	UTG는 오프수트 5를 전부 폴드해요.
 rfi:UTG	s4	P0	14.9	UTG는 수티드 4를 전부 폴드해요.
 rfi:UTG	o4	P0	15.9	UTG는 오프수트 4를 전부 폴드해요.
 rfi:UTG	o3	P0	15.9	UTG는 오프수트 3을 전부 폴드해요.
-vs_3bet:UTG:HJ	pair	P3	27.3	UTG는 HJ 3벳에 포켓페어를 KK까지 4벳하고, 88까지 콜해요.
-vs_3bet:UTG:HJ	sA	P4	29.5	UTG는 HJ 3벳에 수티드 A를 AKs·A5s만 4벳하고, AJs까지 콜해요.
+vs_3bet:UTG:HJ	pair	P3+list-noL	37.7	UTG는 HJ 3벳에 KK까지는 4벳, QQ는 4벳·콜 반반, 88까지는 콜, 77은 절반만 콜해요.
+vs_3bet:UTG:HJ	sA	P4+list-noL	37.8	UTG는 HJ 3벳에 AKs는 4벳, AJs까지는 콜, ATs는 절반만 콜, A5s는 절반만 4벳해요.
 vs_3bet:UTG:HJ	oA	P3h	33.3	UTG는 HJ 3벳에 오프수트 A 중 AKo는 주로 4벳하고, AQo는 절반만 콜해요.
 vs_3bet:UTG:HJ	sK	P2m	30.1	UTG는 HJ 3벳에 수티드 K를 KJs까지 콜하고, KTs는 절반만 콜해요.
 vs_3bet:UTG:HJ	oK	P0	20.3	UTG는 HJ 3벳에 오프수트 K를 전부 폴드해요.
@@ -39,8 +39,8 @@ vs_3bet:UTG:HJ	s6	P0	19.3	UTG는 HJ 3벳에 수티드 6을 전부 폴드해요.
 vs_5bet:UTG:HJ	pair	P2	20.0	UTG는 HJ 올인에 포켓페어를 KK까지 콜해요.
 vs_5bet:UTG:HJ	sA	P2h	32.0	UTG는 HJ 올인에 수티드 A 중 AKs는 절반만 콜하고, 나머지는 폴드해요.
 vs_5bet:UTG:HJ	oA	P0	20.7	UTG는 HJ 올인에 오프수트 A를 전부 폴드해요.
-vs_3bet:UTG:CO	pair	P3	27.3	UTG는 CO 3벳에 포켓페어를 KK까지 4벳하고, 77까지 콜해요.
-vs_3bet:UTG:CO	sA	P4	31.6	UTG는 CO 3벳에 수티드 A를 AKs·A5s·A4s만 4벳하고, AJs까지 콜해요.
+vs_3bet:UTG:CO	pair	P3+list-noL	37.7	UTG는 CO 3벳에 KK까지는 4벳, QQ는 4벳·콜 반반, 77까지는 콜, 66은 절반만 콜해요.
+vs_3bet:UTG:CO	sA	P4+list	37.4	UTG는 CO 3벳에 수티드 A 중 AKs는 4벳, ATs까지는 콜, A5s·A4s는 절반만 4벳해요.
 vs_3bet:UTG:CO	oA	P3h	32.3	UTG는 CO 3벳에 오프수트 A 중 AKo는 주로 4벳하고, AQo는 주로 콜해요.
 vs_3bet:UTG:CO	sK	P2m	30.1	UTG는 CO 3벳에 수티드 K를 KJs까지 콜하고, KTs는 절반만 콜해요.
 vs_3bet:UTG:CO	oK	P0	20.3	UTG는 CO 3벳에 오프수트 K를 전부 폴드해요.
@@ -55,8 +55,8 @@ vs_3bet:UTG:CO	s6	P0	19.3	UTG는 CO 3벳에 수티드 6을 전부 폴드해요.
 vs_5bet:UTG:CO	pair	P2	20.0	UTG는 CO 올인에 포켓페어를 KK까지 콜해요.
 vs_5bet:UTG:CO	sA	P2h	32.0	UTG는 CO 올인에 수티드 A 중 AKs는 절반만 콜하고, 나머지는 폴드해요.
 vs_5bet:UTG:CO	oA	P0	20.7	UTG는 CO 올인에 오프수트 A를 전부 폴드해요.
-vs_3bet:UTG:BTN	pair	P3	27.9	UTG는 BTN 3벳에 포켓페어를 KK까지 4벳하고, 77까지 콜해요.
-vs_3bet:UTG:BTN	sA	P4	32.2	UTG는 BTN 3벳에 수티드 A를 AKs·A5s·A4s만 4벳하고, ATs까지 콜해요.
+vs_3bet:UTG:BTN	pair	P3+list	27.9	UTG는 BTN 3벳에 포켓페어를 QQ까지 4벳하고, 66까지 콜해요.
+vs_3bet:UTG:BTN	sA	P4+list-noL	38.0	UTG는 BTN 3벳에 AKs는 4벳, ATs까지는 콜, A5s는 주로 4벳, A4s는 절반만 4벳해요.
 vs_3bet:UTG:BTN	oA	P3	29.0	UTG는 BTN 3벳에 오프수트 A를 AKo만 4벳하고, AQo까지 콜해요.
 vs_3bet:UTG:BTN	sK	P2m	29.7	UTG는 BTN 3벳에 수티드 K를 KJs까지 콜하고, KTs는 주로 콜해요.
 vs_3bet:UTG:BTN	oK	P0h	31.9	UTG는 BTN 3벳에 오프수트 K를 KQo만 가끔 콜하고, 나머지는 폴드해요.
@@ -88,7 +88,7 @@ vs_5bet:UTG:SB	pair	P2m	29.4	UTG는 SB 올인에 포켓페어를 KK까지 콜하
 vs_5bet:UTG:SB	sA	P2	19.5	UTG는 SB 올인에 수티드 A를 AKs만 콜해요.
 vs_5bet:UTG:SB	oA	P0h	31.7	UTG는 SB 올인에 오프수트 A를 AKo만 가끔 콜하고, 나머지는 폴드해요.
 vs_3bet:UTG:BB	pair	P3	27.3	UTG는 BB 3벳에 포켓페어를 QQ까지 4벳하고, 66까지 콜해요.
-vs_3bet:UTG:BB	sA	P4	31.6	UTG는 BB 3벳에 수티드 A를 AKs·A5s~A3s만 4벳하고, ATs까지 콜해요.
+vs_3bet:UTG:BB	sA	P4+list-noCtx	40.1	UTG: AKs는 4벳, ATs까지는 콜, A9s는 절반만 콜, A5s·A4s는 4벳, A3s는 절반만 4벳해요.
 vs_3bet:UTG:BB	oA	P3	28.4	UTG는 BB 3벳에 오프수트 A를 AKo만 4벳하고, AQo까지 콜해요.
 vs_3bet:UTG:BB	sK	P2	20.1	UTG는 BB 3벳에 수티드 K를 KTs까지 콜해요.
 vs_3bet:UTG:BB	oK	P2h	32.6	UTG는 BB 3벳에 오프수트 K 중 KQo는 절반만 콜하고, 나머지는 폴드해요.
@@ -128,11 +128,11 @@ rfi:HJ	o5	P0	15.3	HJ는 오프수트 5를 전부 폴드해요.
 rfi:HJ	s4	P0	14.3	HJ는 수티드 4를 전부 폴드해요.
 rfi:HJ	o4	P0	15.3	HJ는 오프수트 4를 전부 폴드해요.
 rfi:HJ	o3	P0	15.3	HJ는 오프수트 3을 전부 폴드해요.
-vs_open:HJ:UTG	pair	P3	27.7	HJ는 UTG 오픈에 포켓페어를 QQ까지 3벳하고, 44까지 콜해요.
-vs_open:HJ:UTG	sA	P4	34.1	HJ는 UTG 오픈에 수티드 A를 AKs~AJs·A5s~A3s만 3벳하고, ATs까지 콜해요.
+vs_open:HJ:UTG	pair	P3+list	27.7	HJ는 UTG 오픈에 포켓페어를 JJ까지 3벳하고, 44까지 콜해요.
+vs_open:HJ:UTG	sA	P4+list-noCtx	39.4	HJ: AKs·AQs·A5s·A4s는 3벳, AJs는 3벳·콜 반반, A3s는 절반만 3벳, ATs·A9s는 콜해요.
 vs_open:HJ:UTG	oA	P2m	35.3	HJ는 UTG 오픈에 오프수트 A를 AKo만 3벳하고, AQo는 3벳과 콜을 반반 섞어요.
 vs_open:HJ:UTG	sK	P3h	35.0	HJ는 UTG 오픈에 수티드 K 중 KQs는 3벳과 콜을 반반 섞고, KTs까지는 콜해요.
-vs_open:HJ:UTG	oK	P0h	32.3	HJ는 UTG 오픈에 오프수트 K를 KQo만 가끔 3벳하고, 나머지는 폴드해요.
+vs_open:HJ:UTG	oK	P0h	35.6	HJ는 UTG 오픈에 오프수트 K를 KQo만 가끔 3벳이나 콜하고, 나머지는 폴드해요.
 vs_open:HJ:UTG	sQ	P2m	29.5	HJ는 UTG 오픈에 수티드 Q를 QJs만 콜하고, QTs는 절반만 콜해요.
 vs_open:HJ:UTG	oQ	P0	20.7	HJ는 UTG 오픈에 오프수트 Q를 전부 폴드해요.
 vs_open:HJ:UTG	sJ	P2	19.5	HJ는 UTG 오픈에 수티드 J를 JTs만 콜해요.
@@ -157,8 +157,8 @@ vs_4bet:HJ:UTG	pair	P3h	36.4	HJ는 UTG 4벳에 포켓페어 중 KK까지는 올�
 vs_4bet:HJ:UTG	sA	P2h	31.6	HJ는 UTG 4벳에 수티드 A 중 AKs는 주로 올인하고, 나머지는 폴드해요.
 vs_4bet:HJ:UTG	oA	P2h	36.2	HJ는 UTG 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:HJ:UTG	sK	P0	19.3	HJ는 UTG 4벳에 수티드 K를 전부 폴드해요.
-vs_3bet:HJ:CO	pair	P3	26.7	HJ는 CO 3벳에 포켓페어를 KK까지 4벳하고, 66까지 콜해요.
-vs_3bet:HJ:CO	sA	P4	31.0	HJ는 CO 3벳에 수티드 A를 AKs·A5s·A4s만 4벳하고, ATs까지 콜해요.
+vs_3bet:HJ:CO	pair	P3+list	26.7	HJ는 CO 3벳에 포켓페어를 QQ까지 4벳하고, 66까지 콜해요.
+vs_3bet:HJ:CO	sA	P4+list	36.8	HJ는 CO 3벳에 수티드 A 중 AKs는 4벳, ATs까지는 콜, A5s·A4s는 절반만 4벳해요.
 vs_3bet:HJ:CO	oA	P3	27.8	HJ는 CO 3벳에 오프수트 A를 AKo만 4벳하고, AQo까지 콜해요.
 vs_3bet:HJ:CO	sK	P2m	28.5	HJ는 CO 3벳에 수티드 K를 KJs까지 콜하고, KTs는 주로 콜해요.
 vs_3bet:HJ:CO	oK	P2h	32.0	HJ는 CO 3벳에 오프수트 K 중 KQo는 절반만 콜하고, 나머지는 폴드해요.
@@ -175,8 +175,8 @@ vs_3bet:HJ:CO	s5	P0	18.7	HJ는 CO 3벳에 수티드 5를 전부 폴드해요.
 vs_5bet:HJ:CO	pair	P2	19.4	HJ는 CO 올인에 포켓페어를 KK까지 콜해요.
 vs_5bet:HJ:CO	sA	P2	18.9	HJ는 CO 올인에 수티드 A를 AKs만 콜해요.
 vs_5bet:HJ:CO	oA	P0	20.1	HJ는 CO 올인에 오프수트 A를 전부 폴드해요.
-vs_3bet:HJ:BTN	pair	P3	27.3	HJ는 BTN 3벳에 포켓페어를 KK까지 4벳하고, 66까지 콜해요.
-vs_3bet:HJ:BTN	sA	P4	31.6	HJ는 BTN 3벳에 수티드 A를 AKs·A5s·A4s만 4벳하고, ATs까지 콜해요.
+vs_3bet:HJ:BTN	pair	P3+list	35.0	HJ는 BTN 3벳에 포켓페어 중 QQ까지는 4벳, 66까지는 콜, 55는 절반만 콜해요.
+vs_3bet:HJ:BTN	sA	P4+list-noL	37.4	HJ는 BTN 3벳에 AKs는 4벳, ATs까지는 콜, A5s는 주로 4벳, A4s는 절반만 4벳해요.
 vs_3bet:HJ:BTN	oA	P3	28.4	HJ는 BTN 3벳에 오프수트 A를 AKo만 4벳하고, AQo까지 콜해요.
 vs_3bet:HJ:BTN	sK	P2	20.1	HJ는 BTN 3벳에 수티드 K를 KTs까지 콜해요.
 vs_3bet:HJ:BTN	oK	P2h	32.6	HJ는 BTN 3벳에 오프수트 K 중 KQo는 절반만 콜하고, 나머지는 폴드해요.
@@ -193,8 +193,8 @@ vs_3bet:HJ:BTN	s5	P0	19.3	HJ는 BTN 3벳에 수티드 5를 전부 폴드해요.
 vs_5bet:HJ:BTN	pair	P2m	29.4	HJ는 BTN 올인에 포켓페어를 KK까지 콜하고, QQ는 절반만 콜해요.
 vs_5bet:HJ:BTN	sA	P2	19.5	HJ는 BTN 올인에 수티드 A를 AKs만 콜해요.
 vs_5bet:HJ:BTN	oA	P0h	31.7	HJ는 BTN 올인에 오프수트 A를 AKo만 가끔 콜하고, 나머지는 폴드해요.
-vs_3bet:HJ:SB	pair	P3	26.7	HJ는 SB 3벳에 포켓페어를 QQ까지 4벳하고, 66까지 콜해요.
-vs_3bet:HJ:SB	sA	P4	31.0	HJ는 SB 3벳에 수티드 A를 AKs·A5s·A4s만 4벳하고, ATs까지 콜해요.
+vs_3bet:HJ:SB	pair	P3+list	26.7	HJ는 SB 3벳에 포켓페어를 QQ까지 4벳하고, 55까지 콜해요.
+vs_3bet:HJ:SB	sA	P4+list	41.5	HJ는 SB 3벳에 수티드 A 중 AKs는 4벳, ATs까지는 콜, A9s는 절반만 콜, A5s·A4s는 4벳해요.
 vs_3bet:HJ:SB	oA	P3	27.8	HJ는 SB 3벳에 오프수트 A를 AKo만 4벳하고, AQo까지 콜해요.
 vs_3bet:HJ:SB	sK	P2	19.5	HJ는 SB 3벳에 수티드 K를 KTs까지 콜해요.
 vs_3bet:HJ:SB	oK	P2h	31.0	HJ는 SB 3벳에 오프수트 K 중 KQo는 주로 콜하고, 나머지는 폴드해요.
@@ -211,9 +211,9 @@ vs_3bet:HJ:SB	s5	P0	18.7	HJ는 SB 3벳에 수티드 5를 전부 폴드해요.
 vs_5bet:HJ:SB	pair	P2m	28.8	HJ는 SB 올인에 포켓페어를 KK까지 콜하고, QQ는 절반만 콜해요.
 vs_5bet:HJ:SB	sA	P2	18.9	HJ는 SB 올인에 수티드 A를 AKs만 콜해요.
 vs_5bet:HJ:SB	oA	P2h	23.5	HJ는 SB 올인에 오프수트 A 중 AKo는 절반만 콜해요.
-vs_3bet:HJ:BB	pair	P3	26.7	HJ는 BB 3벳에 포켓페어를 QQ까지 4벳하고, 66까지 콜해요.
-vs_3bet:HJ:BB	sA	P4	31.0	HJ는 BB 3벳에 수티드 A를 AKs·A5s~A3s만 4벳하고, ATs까지 콜해요.
-vs_3bet:HJ:BB	oA	P3	27.8	HJ는 BB 3벳에 오프수트 A를 AKo만 4벳하고, AQo까지 콜해요.
+vs_3bet:HJ:BB	pair	P3+list	26.7	HJ는 BB 3벳에 포켓페어를 QQ까지 4벳하고, 55까지 콜해요.
+vs_3bet:HJ:BB	sA	P4+list-noL	41.5	HJ는 BB 3벳에 AKs·A5s·A4s는 4벳, A3s는 절반만 4벳, AQs~ATs는 콜, A9s는 절반만 콜해요.
+vs_3bet:HJ:BB	oA	P3+list	33.1	HJ는 BB 3벳에 오프수트 A 중 AKo는 4벳, AQo는 콜, AJo는 절반만 콜해요.
 vs_3bet:HJ:BB	sK	P2m	29.5	HJ는 BB 3벳에 수티드 K를 KTs까지 콜하고, K9s는 절반만 콜해요.
 vs_3bet:HJ:BB	oK	P2h	31.0	HJ는 BB 3벳에 오프수트 K 중 KQo는 주로 콜하고, 나머지는 폴드해요.
 vs_3bet:HJ:BB	sQ	P2m	27.5	HJ는 BB 3벳에 수티드 Q를 QJs만 콜하고, QTs는 주로 콜해요.
@@ -279,8 +279,8 @@ rfi:CO	o5	P0	15.3	CO는 오프수트 5를 전부 폴드해요.
 rfi:CO	s4	P0	14.3	CO는 수티드 4를 전부 폴드해요.
 rfi:CO	o4	P0	15.3	CO는 오프수트 4를 전부 폴드해요.
 rfi:CO	o3	P0	15.3	CO는 오프수트 3을 전부 폴드해요.
-vs_open:CO:UTG	pair	P3	27.7	CO는 UTG 오픈에 포켓페어를 QQ까지 3벳하고, 33까지 콜해요.
-vs_open:CO:UTG	sA	P4	34.1	CO는 UTG 오픈에 수티드 A를 AKs~AJs·A5s~A3s만 3벳하고, ATs까지 콜해요.
+vs_open:CO:UTG	pair	P3+list	35.4	CO는 UTG 오픈에 포켓페어 중 JJ까지는 3벳, 33까지는 콜, 22는 절반만 콜해요.
+vs_open:CO:UTG	sA	P4+list-noCtx	39.4	CO: AKs·AQs·A5s·A4s는 3벳, AJs는 3벳·콜 반반, A3s는 절반만 3벳, ATs·A9s는 콜해요.
 vs_open:CO:UTG	oA	P2m	35.3	CO는 UTG 오픈에 오프수트 A를 AKo만 3벳하고, AQo는 3벳과 콜을 반반 섞어요.
 vs_open:CO:UTG	sK	P3h	35.0	CO는 UTG 오픈에 수티드 K 중 KQs는 3벳과 콜을 반반 섞고, KTs까지는 콜해요.
 vs_open:CO:UTG	oK	P2h	33.0	CO는 UTG 오픈에 오프수트 K 중 KQo는 절반만 콜하고, 나머지는 폴드해요.
@@ -308,10 +308,10 @@ vs_4bet:CO:UTG	pair	P3h	36.4	CO는 UTG 4벳에 포켓페어 중 KK까지는 올�
 vs_4bet:CO:UTG	sA	P2h	31.6	CO는 UTG 4벳에 수티드 A 중 AKs는 주로 올인하고, 나머지는 폴드해요.
 vs_4bet:CO:UTG	oA	P2h	36.2	CO는 UTG 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:CO:UTG	sK	P0	19.3	CO는 UTG 4벳에 수티드 K를 전부 폴드해요.
-vs_open:CO:HJ	pair	P3	27.1	CO는 HJ 오픈에 포켓페어를 JJ까지 3벳하고, 33까지 콜해요.
-vs_open:CO:HJ	sA	P4	33.5	CO는 HJ 오픈에 수티드 A를 AKs~AJs·A5s~A3s만 3벳하고, A9s까지 콜해요.
-vs_open:CO:HJ	oA	P3h	32.8	CO는 HJ 오픈에 오프수트 A 중 AKo까지는 3벳하고, AJo는 절반만 콜해요.
-vs_open:CO:HJ	sK	P3h	34.4	CO는 HJ 오픈에 수티드 K 중 KQs는 3벳과 콜을 반반 섞고, KTs까지는 콜해요.
+vs_open:CO:HJ	pair	P3+list	35.7	CO는 HJ 오픈에 포켓페어 중 JJ까지는 3벳, TT은 3벳·콜 반반, 99부터는 콜해요.
+vs_open:CO:HJ	sA	P4+list-noCtx	39.4	CO: AKs·AQs·A5s·A4s는 3벳, AJs는 3벳·콜 반반, A3s는 절반만 3벳, ATs~A8s는 콜해요.
+vs_open:CO:HJ	oA	P3h+list	31.5	CO는 HJ 오픈에 오프수트 A를 AQo까지 3벳하고, AJo는 절반만 콜해요.
+vs_open:CO:HJ	sK	P3h+list	38.1	CO는 HJ 오픈에 수티드 K 중 KQs는 3벳·콜 반반, KTs까지는 콜, K9s는 절반만 콜해요.
 vs_open:CO:HJ	oK	P2h	31.4	CO는 HJ 오픈에 오프수트 K 중 KQo는 주로 콜하고, 나머지는 폴드해요.
 vs_open:CO:HJ	sQ	P2m	27.9	CO는 HJ 오픈에 수티드 Q를 QJs만 콜하고, QTs는 주로 콜해요.
 vs_open:CO:HJ	oQ	P0	20.1	CO는 HJ 오픈에 오프수트 Q를 전부 폴드해요.
@@ -333,13 +333,13 @@ vs_open:CO:HJ	o5	P0	20.1	CO는 HJ 오픈에 오프수트 5를 전부 폴드해�
 vs_open:CO:HJ	s4	P0	19.1	CO는 HJ 오픈에 수티드 4를 전부 폴드해요.
 vs_open:CO:HJ	o4	P0	20.1	CO는 HJ 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:CO:HJ	o3	P0	20.1	CO는 HJ 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:CO:HJ	pair	P3h	29.7	CO는 HJ 4벳에 포켓페어 중 KK까지는 올인하고, JJ는 주로 콜해요.
+vs_4bet:CO:HJ	pair	P3h+list	28.4	CO는 HJ 4벳에 포켓페어를 QQ까지 올인하고, JJ는 주로 콜해요.
 vs_4bet:CO:HJ	sA	P3h	35.7	CO는 HJ 4벳에 수티드 A 중 AKs는 올인과 콜을 반반 섞고, AQs는 절반만 콜해요.
 vs_4bet:CO:HJ	oA	P2h	35.6	CO는 HJ 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:CO:HJ	sK	P0	18.7	CO는 HJ 4벳에 수티드 K를 전부 폴드해요.
-vs_3bet:CO:BTN	pair	P3	27.3	CO는 BTN 3벳에 포켓페어를 QQ까지 4벳하고, 66까지 콜해요.
-vs_3bet:CO:BTN	sA	P4	31.6	CO는 BTN 3벳에 수티드 A를 AKs·A5s·A4s만 4벳하고, ATs까지 콜해요.
-vs_3bet:CO:BTN	oA	P3	28.4	CO는 BTN 3벳에 오프수트 A를 AKo만 4벳하고, AQo까지 콜해요.
+vs_3bet:CO:BTN	pair	P3+list	27.3	CO는 BTN 3벳에 포켓페어를 QQ까지 4벳하고, 55까지 콜해요.
+vs_3bet:CO:BTN	sA	P4	31.6	CO는 BTN 3벳에 수티드 A를 AKs·A5s·A4s만 4벳하고, A9s까지 콜해요.
+vs_3bet:CO:BTN	oA	P3+list	33.7	CO는 BTN 3벳에 오프수트 A 중 AKo는 4벳, AQo는 콜, AJo는 절반만 콜해요.
 vs_3bet:CO:BTN	sK	P2	20.1	CO는 BTN 3벳에 수티드 K를 KTs까지 콜해요.
 vs_3bet:CO:BTN	oK	P2h	32.6	CO는 BTN 3벳에 오프수트 K 중 KQo는 절반만 콜하고, 나머지는 폴드해요.
 vs_3bet:CO:BTN	sQ	P2m	28.1	CO는 BTN 3벳에 수티드 Q를 QJs만 콜하고, QTs는 주로 콜해요.
@@ -356,9 +356,9 @@ vs_3bet:CO:BTN	s5	P0	19.3	CO는 BTN 3벳에 수티드 5를 전부 폴드해요.
 vs_5bet:CO:BTN	pair	P2m	28.4	CO는 BTN 올인에 포켓페어를 KK까지 콜하고, QQ는 주로 콜해요.
 vs_5bet:CO:BTN	sA	P2	19.5	CO는 BTN 올인에 수티드 A를 AKs만 콜해요.
 vs_5bet:CO:BTN	oA	P2h	24.1	CO는 BTN 올인에 오프수트 A 중 AKo는 절반만 콜해요.
-vs_3bet:CO:SB	pair	P3	26.7	CO는 SB 3벳에 포켓페어를 QQ까지 4벳하고, 66까지 콜해요.
-vs_3bet:CO:SB	sA	P4	31.0	CO는 SB 3벳에 수티드 A를 AKs·A5s~A3s만 4벳하고, A9s까지 콜해요.
-vs_3bet:CO:SB	oA	P3	27.8	CO는 SB 3벳에 오프수트 A를 AKo만 4벳하고, AQo까지 콜해요.
+vs_3bet:CO:SB	pair	P3+list	26.7	CO는 SB 3벳에 포켓페어를 QQ까지 4벳하고, 55까지 콜해요.
+vs_3bet:CO:SB	sA	P4+list-noL	36.6	CO는 SB 3벳에 AKs는 4벳, A8s까지는 콜, A5s·A4s는 4벳, A3s는 절반만 4벳해요.
+vs_3bet:CO:SB	oA	P3+list	33.1	CO는 SB 3벳에 오프수트 A 중 AKo는 4벳, AQo는 콜, AJo는 절반만 콜해요.
 vs_3bet:CO:SB	sK	P2m	29.5	CO는 SB 3벳에 수티드 K를 KTs까지 콜하고, K9s는 절반만 콜해요.
 vs_3bet:CO:SB	oK	P2h	32.0	CO는 SB 3벳에 오프수트 K 중 KQo는 절반만 콜하고, 나머지는 폴드해요.
 vs_3bet:CO:SB	sQ	P2	19.5	CO는 SB 3벳에 수티드 Q를 QTs까지 콜해요.
@@ -375,9 +375,9 @@ vs_3bet:CO:SB	s5	P0	18.7	CO는 SB 3벳에 수티드 5를 전부 폴드해요.
 vs_5bet:CO:SB	pair	P1	18.2	CO는 SB 올인에 포켓페어를 전부 콜해요.
 vs_5bet:CO:SB	sA	P2	18.9	CO는 SB 올인에 수티드 A를 AKs만 콜해요.
 vs_5bet:CO:SB	oA	P2h	23.5	CO는 SB 올인에 오프수트 A 중 AKo는 절반만 콜해요.
-vs_3bet:CO:BB	pair	P3	26.7	CO는 BB 3벳에 포켓페어를 QQ까지 4벳하고, 55까지 콜해요.
-vs_3bet:CO:BB	sA	P4	31.0	CO는 BB 3벳에 수티드 A를 AKs·A5s~A3s만 4벳하고, A9s까지 콜해요.
-vs_3bet:CO:BB	oA	P3	27.8	CO는 BB 3벳에 오프수트 A를 AKo만 4벳하고, AQo까지 콜해요.
+vs_3bet:CO:BB	pair	P3+list	26.7	CO는 BB 3벳에 포켓페어를 QQ까지 4벳하고, 44까지 콜해요.
+vs_3bet:CO:BB	sA	P4+list	41.5	CO는 BB 3벳에 수티드 A 중 AKs는 4벳, A8s까지는 콜, A7s는 절반만 콜, A5s~A3s는 4벳해요.
+vs_3bet:CO:BB	oA	P3+list	33.1	CO는 BB 3벳에 오프수트 A 중 AKo는 4벳, AQo는 콜, AJo는 절반만 콜해요.
 vs_3bet:CO:BB	sK	P2m	28.5	CO는 BB 3벳에 수티드 K를 KTs까지 콜하고, K9s는 주로 콜해요.
 vs_3bet:CO:BB	oK	P2h	32.0	CO는 BB 3벳에 오프수트 K 중 KQo는 절반만 콜하고, 나머지는 폴드해요.
 vs_3bet:CO:BB	sQ	P2	19.5	CO는 BB 3벳에 수티드 Q를 QTs까지 콜해요.
@@ -396,7 +396,7 @@ vs_5bet:CO:BB	sA	P2	18.9	CO는 BB 올인에 수티드 A를 AKs만 콜해요.
 vs_5bet:CO:BB	oA	P2h	23.5	CO는 BB 올인에 오프수트 A 중 AKo는 절반만 콜해요.
 cold_4bet:CO	pair	P2m	38.3	CO는 앞에서 3벳이 나오면 포켓페어를 KK까지 4벳하고, QQ는 4벳과 콜을 반반 섞어요.
 cold_4bet:CO	sA	P2h	35.7	CO는 앞에서 3벳이 나오면 수티드 A 중 AKs는 주로 4벳하고, 나머지는 폴드해요.
-cold_4bet:CO	oA	P0h	36.4	CO는 앞에서 3벳이 나오면 오프수트 A를 AKo만 가끔 4벳하고, 나머지는 폴드해요.
+cold_4bet:CO	oA	P0h	39.7	CO는 앞에서 3벳이 나오면 오프수트 A를 AKo만 가끔 4벳이나 콜하고, 나머지는 폴드해요.
 cold_4bet:CO	sK	P0	23.8	CO는 앞에서 3벳이 나오면 수티드 K를 전부 폴드해요.
 cold_4bet:CO	oK	P0	24.8	CO는 앞에서 3벳이 나오면 오프수트 K를 전부 폴드해요.
 cold_4bet:CO	sQ	P0	23.8	CO는 앞에서 3벳이 나오면 수티드 Q를 전부 폴드해요.
@@ -469,10 +469,10 @@ rfi:BTN	o5	P0	15.9	BTN은 오프수트 5를 전부 폴드해요.
 rfi:BTN	s4	P0	14.9	BTN은 수티드 4를 전부 폴드해요.
 rfi:BTN	o4	P0	15.9	BTN은 오프수트 4를 전부 폴드해요.
 rfi:BTN	o3	P0	15.9	BTN은 오프수트 3을 전부 폴드해요.
-vs_open:BTN:UTG	pair	P3	28.3	BTN은 UTG 오픈에 포켓페어를 QQ까지 3벳하고, 22까지 콜해요.
-vs_open:BTN:UTG	sA	P4	34.7	BTN은 UTG 오픈에 수티드 A를 AKs~AJs·A5s~A3s만 3벳하고, A9s까지 콜해요.
+vs_open:BTN:UTG	pair	P3+list	29.3	BTN은 UTG 오픈에 포켓페어를 JJ까지 3벳하고, TT부터는 콜해요.
+vs_open:BTN:UTG	sA	P4+list-noCtx	40.0	BTN: AKs·AQs·A5s·A4s는 3벳, AJs는 3벳·콜 반반, A3s는 절반만 3벳, ATs~A8s는 콜해요.
 vs_open:BTN:UTG	oA	P2m	35.9	BTN은 UTG 오픈에 오프수트 A를 AKo만 3벳하고, AQo는 3벳과 콜을 반반 섞어요.
-vs_open:BTN:UTG	sK	P3h	35.6	BTN은 UTG 오픈에 수티드 K 중 KQs는 3벳과 콜을 반반 섞고, KTs까지는 콜해요.
+vs_open:BTN:UTG	sK	P3h+list	35.6	BTN은 UTG 오픈에 수티드 K 중 KQs는 3벳과 콜을 반반 섞고, K9s까지는 콜해요.
 vs_open:BTN:UTG	oK	P2h	33.6	BTN은 UTG 오픈에 오프수트 K 중 KQo는 절반만 콜하고, 나머지는 폴드해요.
 vs_open:BTN:UTG	sQ	P2	21.1	BTN은 UTG 오픈에 수티드 Q를 QTs까지 콜해요.
 vs_open:BTN:UTG	oQ	P0	21.3	BTN은 UTG 오픈에 오프수트 Q를 전부 폴드해요.
@@ -498,9 +498,9 @@ vs_4bet:BTN:UTG	pair	P3h	37.0	BTN은 UTG 4벳에 포켓페어 중 KK까지는 �
 vs_4bet:BTN:UTG	sA	P3h	33.3	BTN은 UTG 4벳에 수티드 A 중 AKs는 주로 올인하고, AQs는 절반만 콜해요.
 vs_4bet:BTN:UTG	oA	P2h	36.8	BTN은 UTG 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:BTN:UTG	sK	P0	19.9	BTN은 UTG 4벳에 수티드 K를 전부 폴드해요.
-vs_open:BTN:HJ	pair	P3	31.0	BTN은 HJ 오픈에 포켓페어를 JJ까지 3벳하고, 99부터는 전부 콜해요.
-vs_open:BTN:HJ	sA	P4	36.6	BTN은 HJ 오픈에 수티드 A를 AKs~AJs·A5s~A2s만 3벳하고, 나머지는 전부 콜해요.
-vs_open:BTN:HJ	oA	P3h	39.1	BTN은 HJ 오픈에 오프수트 A 중 AKo까지는 3벳하고, AJo는 주로, ATo는 절반만 콜해요.
+vs_open:BTN:HJ	pair	P3+list	38.6	BTN은 HJ 오픈에 포켓페어 중 JJ까지는 3벳, TT은 3벳·콜 반반, 99부터는 전부 콜해요.
+vs_open:BTN:HJ	sA	P4+list-noCtx	41.2	BTN: AKs·AQs·A5s·A4s는 3벳, AJs는 3벳·콜 반반, A3s·A2s는 절반만 3벳, 나머지는 콜해요.
+vs_open:BTN:HJ	oA	P3h+list	38.4	BTN은 HJ 오픈에 오프수트 A 중 AQo까지는 3벳, AJo는 주로 콜, ATo는 절반만 콜해요.
 vs_open:BTN:HJ	sK	P3h	35.0	BTN은 HJ 오픈에 수티드 K 중 KQs는 3벳과 콜을 반반 섞고, K9s까지는 콜해요.
 vs_open:BTN:HJ	oK	P2h	38.7	BTN은 HJ 오픈에 오프수트 K 중 KQo는 주로, KJo는 절반만 콜하고, 나머지는 폴드해요.
 vs_open:BTN:HJ	sQ	P2m	29.5	BTN은 HJ 오픈에 수티드 Q를 QTs까지 콜하고, Q9s는 주로 콜해요.
@@ -523,14 +523,14 @@ vs_open:BTN:HJ	o5	P0	20.7	BTN은 HJ 오픈에 오프수트 5를 전부 폴드해
 vs_open:BTN:HJ	s4	P0	19.7	BTN은 HJ 오픈에 수티드 4를 전부 폴드해요.
 vs_open:BTN:HJ	o4	P0	20.7	BTN은 HJ 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:BTN:HJ	o3	P0	20.7	BTN은 HJ 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:BTN:HJ	pair	P3h	30.3	BTN은 HJ 4벳에 포켓페어 중 KK까지는 올인하고, JJ는 주로 콜해요.
+vs_4bet:BTN:HJ	pair	P3h+list	29.0	BTN은 HJ 4벳에 포켓페어를 QQ까지 올인하고, JJ는 주로 콜해요.
 vs_4bet:BTN:HJ	sA	P3h	36.3	BTN은 HJ 4벳에 수티드 A 중 AKs는 올인과 콜을 반반 섞고, AQs는 절반만 콜해요.
 vs_4bet:BTN:HJ	oA	P2h	36.2	BTN은 HJ 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:BTN:HJ	sK	P0	19.3	BTN은 HJ 4벳에 수티드 K를 전부 폴드해요.
-vs_open:BTN:CO	pair	P3	31.0	BTN은 CO 오픈에 포켓페어를 TT까지 3벳하고, 88부터는 전부 콜해요.
-vs_open:BTN:CO	sA	P4	36.6	BTN은 CO 오픈에 수티드 A를 AKs~ATs·A5s~A2s만 3벳하고, 나머지는 전부 콜해요.
-vs_open:BTN:CO	oA	P3h	32.4	BTN은 CO 오픈에 오프수트 A 중 AQo까지는 3벳하고, ATo는 주로 콜해요.
-vs_open:BTN:CO	sK	P3	28.8	BTN은 CO 오픈에 수티드 K를 KQs까지 3벳하고, K9s까지 콜해요.
+vs_open:BTN:CO	pair	P3+list	38.6	BTN은 CO 오픈에 포켓페어 중 TT까지는 3벳, 99는 3벳·콜 반반, 88부터는 전부 콜해요.
+vs_open:BTN:CO	sA	P4+list-noL	39.8	BTN은 CO 오픈에 AJs까지는 3벳, ATs는 3벳·콜 반반, A6s까지는 콜, A5s부터는 3벳해요.
+vs_open:BTN:CO	oA	P3h+list	39.3	BTN은 CO 오픈에 오프수트 A 중 AQo까지는 3벳, AJo는 3벳·콜 반반, ATo는 주로 콜해요.
+vs_open:BTN:CO	sK	P3+list	36.0	BTN은 CO 오픈에 수티드 K 중 KQs는 3벳, KJs는 3벳·콜 반반, K8s까지는 콜해요.
 vs_open:BTN:CO	oK	P3h	36.3	BTN은 CO 오픈에 오프수트 K 중 KQo는 3벳과 콜을 반반 섞고, KJo는 주로 콜해요.
 vs_open:BTN:CO	sQ	P2	20.5	BTN은 CO 오픈에 수티드 Q를 Q9s까지 콜해요.
 vs_open:BTN:CO	oQ	P2h	32.0	BTN은 CO 오픈에 오프수트 Q 중 QJo는 주로 콜하고, 나머지는 폴드해요.
@@ -552,13 +552,13 @@ vs_open:BTN:CO	o5	P0	20.7	BTN은 CO 오픈에 오프수트 5를 전부 폴드해
 vs_open:BTN:CO	s4	P0	19.7	BTN은 CO 오픈에 수티드 4를 전부 폴드해요.
 vs_open:BTN:CO	o4	P0	20.7	BTN은 CO 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:BTN:CO	o3	P0	20.7	BTN은 CO 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:BTN:CO	pair	P3	27.7	BTN은 CO 4벳에 포켓페어를 KK까지 올인하고, JJ까지 콜해요.
+vs_4bet:BTN:CO	pair	P3+list-noL	36.5	BTN은 CO 4벳에 KK까지는 올인, QQ는 올인·콜 반반, JJ는 콜, TT은 절반만 콜해요.
 vs_4bet:BTN:CO	sA	P3h	29.4	BTN은 CO 4벳에 수티드 A 중 AKs는 주로 올인하고, AQs는 콜해요.
 vs_4bet:BTN:CO	oA	P2h	36.2	BTN은 CO 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:BTN:CO	sK	P0	19.3	BTN은 CO 4벳에 수티드 K를 전부 폴드해요.
 vs_4bet:BTN:CO	oK	P0	20.3	BTN은 CO 4벳에 오프수트 K를 전부 폴드해요.
-vs_3bet:BTN:SB	pair	P3	27.3	BTN은 SB 3벳에 포켓페어를 QQ까지 4벳하고, 55까지 콜해요.
-vs_3bet:BTN:SB	sA	P4	34.1	BTN은 SB 3벳에 수티드 A를 AKs·A5s~A2s만 4벳하고, 나머지는 전부 콜해요.
+vs_3bet:BTN:SB	pair	P3+list	28.3	BTN은 SB 3벳에 포켓페어를 QQ까지 4벳하고, JJ부터는 콜해요.
+vs_3bet:BTN:SB	sA	P4+list	41.1	BTN은 SB 3벳에 수티드 A 중 AKs·A5s·A4s는 4벳, A3s·A2s는 4벳·콜 반반, 나머지는 콜해요.
 vs_3bet:BTN:SB	oA	P3h	38.8	BTN은 SB 3벳에 오프수트 A 중 AKo는 4벳하고, AQo·AJo는 주로, ATo는 절반만 콜해요.
 vs_3bet:BTN:SB	sK	P2m	35.8	BTN은 SB 3벳에 수티드 K를 K9s까지 콜하고, K8s는 주로, K7s는 절반만 콜해요.
 vs_3bet:BTN:SB	oK	P2h	40.4	BTN은 SB 3벳에 오프수트 K 중 KQo·KJo는 주로, KTo는 절반만 콜하고, 나머지는 폴드해요.
@@ -578,9 +578,9 @@ vs_3bet:BTN:SB	s5	P2h	31.6	BTN은 SB 3벳에 수티드 5 중 54s는 절반만 �
 vs_5bet:BTN:SB	pair	P1	18.8	BTN은 SB 올인에 포켓페어를 전부 콜해요.
 vs_5bet:BTN:SB	sA	P2	19.5	BTN은 SB 올인에 수티드 A를 AKs만 콜해요.
 vs_5bet:BTN:SB	oA	P1	19.7	BTN은 SB 올인에 오프수트 A를 전부 콜해요.
-vs_3bet:BTN:BB	pair	P3	27.3	BTN은 BB 3벳에 포켓페어를 QQ까지 4벳하고, 44까지 콜해요.
-vs_3bet:BTN:BB	sA	P4	34.1	BTN은 BB 3벳에 수티드 A를 AKs·A5s~A2s만 4벳하고, 나머지는 전부 콜해요.
-vs_3bet:BTN:BB	oA	P3h	36.1	BTN은 BB 3벳에 오프수트 A 중 AKo는 4벳하고, AQo부터 ATo까지는 주로 콜해요.
+vs_3bet:BTN:BB	pair	P3+list	28.3	BTN은 BB 3벳에 포켓페어를 QQ까지 4벳하고, JJ부터는 콜해요.
+vs_3bet:BTN:BB	sA	P4+list	41.1	BTN은 BB 3벳에 수티드 A 중 AKs·A5s·A4s는 4벳, A3s·A2s는 4벳·콜 반반, 나머지는 콜해요.
+vs_3bet:BTN:BB	oA	P3h+list	36.7	BTN은 BB 3벳에 오프수트 A 중 AKo는 4벳, ATo까지는 콜, A9o는 절반은 폴드해요.
 vs_3bet:BTN:BB	sK	P2m	30.1	BTN은 BB 3벳에 수티드 K를 K7s까지 콜하고, K6s는 절반만 콜해요.
 vs_3bet:BTN:BB	oK	P2h	40.4	BTN은 BB 3벳에 오프수트 K 중 KQo·KJo는 주로, KTo는 절반만 콜하고, 나머지는 폴드해요.
 vs_3bet:BTN:BB	sQ	P2m	29.1	BTN은 BB 3벳에 수티드 Q를 Q9s까지 콜하고, Q8s는 주로 콜해요.
@@ -599,7 +599,7 @@ vs_3bet:BTN:BB	s5	P2	19.1	BTN은 BB 3벳에 수티드 5를 54s만 콜해요.
 vs_5bet:BTN:BB	pair	P1	18.8	BTN은 BB 올인에 포켓페어를 전부 콜해요.
 vs_5bet:BTN:BB	sA	P2	19.5	BTN은 BB 올인에 수티드 A를 AKs만 콜해요.
 vs_5bet:BTN:BB	oA	P1	19.7	BTN은 BB 올인에 오프수트 A를 전부 콜해요.
-cold_4bet:BTN	pair	P3h	36.0	BTN은 앞에서 3벳이 나오면 포켓페어 중 KK까지는 4벳하고, JJ는 절반만 콜해요.
+cold_4bet:BTN	pair	P3h+list-noL	36.7	BTN은 앞에서 3벳이 나오면 KK까지는 4벳, QQ는 4벳·콜 반반, JJ는 절반만 콜해요.
 cold_4bet:BTN	sA	P3h	37.4	BTN은 앞에서 3벳이 나오면 수티드 A 중 AKs는 주로 4벳하고, AQs는 절반만 콜해요.
 cold_4bet:BTN	oA	P2h	38.3	BTN은 앞에서 3벳이 나오면 오프수트 A 중 AKo는 절반만 4벳하고, 나머지는 폴드해요.
 cold_4bet:BTN	sK	P0	24.4	BTN은 앞에서 3벳이 나오면 수티드 K를 전부 폴드해요.
@@ -625,7 +625,7 @@ cold_4bet:BTN	s4	P0	24.4	BTN은 앞에서 3벳이 나오면 수티드 4를 전�
 cold_4bet:BTN	o4	P0	25.4	BTN은 앞에서 3벳이 나오면 오프수트 4를 전부 폴드해요.
 cold_4bet:BTN	o3	P0	25.4	BTN은 앞에서 3벳이 나오면 오프수트 3을 전부 폴드해요.
 vs_limp:BTN	pair	P2m	31.9	BTN은 림프에 포켓페어를 66까지 레이즈하고, 55는 절반만 레이즈해요.
-vs_limp:BTN	sA	P2m	35.1	BTN은 림프에 수티드 A를 A4s까지 레이즈하고, A3s·A2s는 절반만 레이즈해요.
+vs_limp:BTN	sA	P2m+except	35.2	BTN은 림프에 수티드 A를 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.
 vs_limp:BTN	oA	P2m	36.1	BTN은 림프에 오프수트 A를 AJo까지 레이즈하고, ATo·A9o는 절반만 레이즈해요.
 vs_limp:BTN	sK	P2m	33.0	BTN은 림프에 수티드 K를 K9s까지 레이즈하고, K8s는 절반만 레이즈해요.
 vs_limp:BTN	oK	P2m	35.1	BTN은 림프에 오프수트 K를 KQo만 레이즈하고, KJo·KTo는 절반만 레이즈해요.
@@ -674,8 +674,8 @@ rfi:SB	o5	P0	15.3	SB는 오프수트 5를 전부 폴드해요.
 rfi:SB	s4	P0	14.3	SB는 수티드 4를 전부 폴드해요.
 rfi:SB	o4	P0	15.3	SB는 오프수트 4를 전부 폴드해요.
 rfi:SB	o3	P0	15.3	SB는 오프수트 3을 전부 폴드해요.
-vs_open:SB:UTG	pair	P3h	36.4	SB는 UTG 오픈에 포켓페어 중 TT까지는 3벳하고, 88은 주로, 77은 절반만 콜해요.
-vs_open:SB:UTG	sA	P4	26.4	SB는 UTG 오픈에 수티드 A를 AKs~ATs·A5s~A2s만 3벳해요.
+vs_open:SB:UTG	pair	P3h+list	35.7	SB는 UTG 오픈에 포켓페어 중 99까지는 3벳, 88은 주로 콜, 77은 절반만 콜해요.
+vs_open:SB:UTG	sA	P4+list-noL	41.5	SB는 UTG 오픈에 AJs까지는 3벳, ATs는 절반만 3벳, A5s~A3s는 3벳, A2s는 절반만 3벳해요.
 vs_open:SB:UTG	oA	P2m	32.7	SB는 UTG 오픈에 오프수트 A를 AQo까지 3벳하고, AJo는 절반만 3벳해요.
 vs_open:SB:UTG	sK	P2m	30.7	SB는 UTG 오픈에 수티드 K를 KQs만 3벳하고, KJs는 절반만 3벳해요.
 vs_open:SB:UTG	oK	P2h	33.6	SB는 UTG 오픈에 오프수트 K 중 KQo는 절반만 3벳하고, 나머지는 폴드해요.
@@ -699,13 +699,13 @@ vs_open:SB:UTG	o5	P0	20.7	SB는 UTG 오픈에 오프수트 5를 전부 폴드해
 vs_open:SB:UTG	s4	P0	19.7	SB는 UTG 오픈에 수티드 4를 전부 폴드해요.
 vs_open:SB:UTG	o4	P0	20.7	SB는 UTG 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:SB:UTG	o3	P0	20.7	SB는 UTG 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:SB:UTG	pair	P3h	31.3	SB는 UTG 4벳에 포켓페어 중 KK까지는 올인하고, JJ는 절반만 콜해요.
+vs_4bet:SB:UTG	pair	P3h+list	38.0	SB는 UTG 4벳에 포켓페어 중 KK까지는 올인, QQ는 올인·콜 반반, JJ는 절반만 콜해요.
 vs_4bet:SB:UTG	sA	P2h	35.2	SB는 UTG 4벳에 수티드 A 중 AKs는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:SB:UTG	oA	P2h	36.2	SB는 UTG 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:SB:UTG	sK	P0	19.3	SB는 UTG 4벳에 수티드 K를 전부 폴드해요.
 vs_4bet:SB:UTG	oK	P0	20.3	SB는 UTG 4벳에 오프수트 K를 전부 폴드해요.
-vs_open:SB:HJ	pair	P3h	35.8	SB는 HJ 오픈에 포켓페어 중 99까지는 3벳하고, 77은 주로, 66은 절반만 콜해요.
-vs_open:SB:HJ	sA	P4	25.8	SB는 HJ 오픈에 수티드 A를 AKs~A9s·A5s~A2s만 3벳해요.
+vs_open:SB:HJ	pair	P3h+list-noL	37.8	SB는 HJ 오픈에 99까지는 3벳, 88은 3벳·콜 반반, 77은 주로 콜, 66은 절반만 콜해요.
+vs_open:SB:HJ	sA	P4+list	37.8	SB는 HJ 오픈에 수티드 A 중 ATs까지는 3벳, A9s는 절반만 3벳, A5s~A2s는 3벳해요.
 vs_open:SB:HJ	oA	P2m	31.1	SB는 HJ 오픈에 오프수트 A를 AQo까지 3벳하고, AJo는 주로 3벳해요.
 vs_open:SB:HJ	sK	P2m	31.1	SB는 HJ 오픈에 수티드 K를 KJs까지 3벳하고, KTs는 절반만 3벳해요.
 vs_open:SB:HJ	oK	P2	20.5	SB는 HJ 오픈에 오프수트 K를 KQo만 3벳해요.
@@ -729,15 +729,15 @@ vs_open:SB:HJ	o5	P0	20.1	SB는 HJ 오픈에 오프수트 5를 전부 폴드해�
 vs_open:SB:HJ	s4	P0	19.1	SB는 HJ 오픈에 수티드 4를 전부 폴드해요.
 vs_open:SB:HJ	o4	P0	20.1	SB는 HJ 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:SB:HJ	o3	P0	20.1	SB는 HJ 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:SB:HJ	pair	P3h	29.7	SB는 HJ 4벳에 포켓페어 중 KK까지는 올인하고, JJ는 주로 콜해요.
+vs_4bet:SB:HJ	pair	P3h+list	28.4	SB는 HJ 4벳에 포켓페어를 QQ까지 올인하고, JJ는 주로 콜해요.
 vs_4bet:SB:HJ	sA	P2h	34.6	SB는 HJ 4벳에 수티드 A 중 AKs는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:SB:HJ	oA	P2h	35.6	SB는 HJ 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:SB:HJ	sK	P0	18.7	SB는 HJ 4벳에 수티드 K를 전부 폴드해요.
 vs_4bet:SB:HJ	oK	P0	19.7	SB는 HJ 4벳에 오프수트 K를 전부 폴드해요.
 vs_4bet:SB:HJ	sQ	P0	18.7	SB는 HJ 4벳에 수티드 Q를 전부 폴드해요.
 vs_4bet:SB:HJ	sJ	P0	18.7	SB는 HJ 4벳에 수티드 J를 전부 폴드해요.
-vs_open:SB:CO	pair	P3h	35.8	SB는 CO 오픈에 포켓페어 중 88까지는 3벳하고, 66은 주로, 55는 절반만 콜해요.
-vs_open:SB:CO	sA	P1	18.7	SB는 CO 오픈에 수티드 A를 전부 3벳해요.
+vs_open:SB:CO	pair	P3h+list-noL	37.8	SB는 CO 오픈에 88까지는 3벳, 77은 3벳·콜 반반, 66은 주로 콜, 55는 절반만 콜해요.
+vs_open:SB:CO	sA	P1	33.1	SB는 CO 오픈에 수티드 A를 3벳하고, A8s부터 A6s까지는 절반만 3벳해요.
 vs_open:SB:CO	oA	P2m	32.1	SB는 CO 오픈에 오프수트 A를 AJo까지 3벳하고, ATo는 절반만 3벳해요.
 vs_open:SB:CO	sK	P2m	31.1	SB는 CO 오픈에 수티드 K를 KTs까지 3벳하고, K9s는 절반만 3벳해요.
 vs_open:SB:CO	oK	P2m	31.1	SB는 CO 오픈에 오프수트 K를 KQo만 3벳하고, KJo는 절반만 3벳해요.
@@ -761,7 +761,7 @@ vs_open:SB:CO	o5	P0	20.1	SB는 CO 오픈에 오프수트 5를 전부 폴드해�
 vs_open:SB:CO	s4	P0	19.1	SB는 CO 오픈에 수티드 4를 전부 폴드해요.
 vs_open:SB:CO	o4	P0	20.1	SB는 CO 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:SB:CO	o3	P0	20.1	SB는 CO 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:SB:CO	pair	P3h	35.8	SB는 CO 4벳에 포켓페어 중 KK까지는 올인하고, JJ는 주로, TT는 절반만 콜해요.
+vs_4bet:SB:CO	pair	P3h+list	35.1	SB는 CO 4벳에 포켓페어 중 QQ까지는 올인, JJ는 주로 콜, TT은 절반만 콜해요.
 vs_4bet:SB:CO	sA	P3h	28.8	SB는 CO 4벳에 수티드 A 중 AKs는 올인하고, AQs는 주로 콜해요.
 vs_4bet:SB:CO	oA	P2h	32.0	SB는 CO 4벳에 오프수트 A 중 AKo는 주로 올인하고, 나머지는 폴드해요.
 vs_4bet:SB:CO	sK	P0	18.7	SB는 CO 4벳에 수티드 K를 전부 폴드해요.
@@ -770,8 +770,8 @@ vs_4bet:SB:CO	sQ	P0	18.7	SB는 CO 4벳에 수티드 Q를 전부 폴드해요.
 vs_4bet:SB:CO	sJ	P0	18.7	SB는 CO 4벳에 수티드 J를 전부 폴드해요.
 vs_4bet:SB:CO	conn	P0	21.1	SB는 CO 4벳에 수티드 커넥터를 전부 폴드해요.
 vs_4bet:SB:CO	sT	P0	18.7	SB는 CO 4벳에 수티드 T을 전부 폴드해요.
-vs_open:SB:BTN	pair	P3h	36.4	SB는 BTN 오픈에 포켓페어 중 77까지는 3벳하고, 55는 주로, 44는 절반만 콜해요.
-vs_open:SB:BTN	sA	P1	19.3	SB는 BTN 오픈에 수티드 A를 전부 3벳해요.
+vs_open:SB:BTN	pair	P3h+list-noL	38.4	SB는 BTN 오픈에 77까지는 3벳, 66은 3벳·콜 반반, 55는 주로 콜, 44는 절반만 콜해요.
+vs_open:SB:BTN	sA	P1	17.0	SB는 BTN 오픈에 수티드 A를 3벳해요.
 vs_open:SB:BTN	oA	P2m	32.7	SB는 BTN 오픈에 오프수트 A를 ATo까지 3벳하고, A9o는 절반만 3벳해요.
 vs_open:SB:BTN	sK	P2	21.1	SB는 BTN 오픈에 수티드 K를 K9s까지 3벳해요.
 vs_open:SB:BTN	oK	P2	22.1	SB는 BTN 오픈에 오프수트 K를 KJo까지 3벳해요.
@@ -795,7 +795,7 @@ vs_open:SB:BTN	o5	P0	20.7	SB는 BTN 오픈에 오프수트 5를 전부 폴드해
 vs_open:SB:BTN	s4	P0	19.7	SB는 BTN 오픈에 수티드 4를 전부 폴드해요.
 vs_open:SB:BTN	o4	P0	20.7	SB는 BTN 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:SB:BTN	o3	P0	20.7	SB는 BTN 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:SB:BTN	pair	P3h	31.8	SB는 BTN 4벳에 포켓페어 중 QQ까지는 올인하고, JJ·TT는 주로 콜해요.
+vs_4bet:SB:BTN	pair	P3h	31.8	SB는 BTN 4벳에 포켓페어 중 QQ까지는 올인하고, JJ·TT은 주로 콜해요.
 vs_4bet:SB:BTN	sA	P3h	36.1	SB는 BTN 4벳에 수티드 A 중 AKs는 올인하고, AQs는 주로, AJs는 절반만 콜해요.
 vs_4bet:SB:BTN	oA	P2	21.1	SB는 BTN 4벳에 오프수트 A를 AKo만 올인해요.
 vs_4bet:SB:BTN	sK	P2h	31.6	SB는 BTN 4벳에 수티드 K 중 KQs는 절반만 콜하고, 나머지는 폴드해요.
@@ -806,9 +806,9 @@ vs_4bet:SB:BTN	sJ	P0	19.3	SB는 BTN 4벳에 수티드 J를 전부 폴드해요.
 vs_4bet:SB:BTN	conn	P0	21.7	SB는 BTN 4벳에 수티드 커넥터를 전부 폴드해요.
 vs_4bet:SB:BTN	sT	P0	19.3	SB는 BTN 4벳에 수티드 T을 전부 폴드해요.
 vs_4bet:SB:BTN	s9	P0	19.3	SB는 BTN 4벳에 수티드 9를 전부 폴드해요.
-vs_3bet:SB:BB	pair	P3	26.7	SB는 BB 3벳에 포켓페어를 QQ까지 4벳하고, 55까지 콜해요.
-vs_3bet:SB:BB	sA	P4	35.6	SB는 BB 3벳에 수티드 A를 AKs~AJs·A5s~A2s만 4벳하고, 나머지는 전부 콜해요.
-vs_3bet:SB:BB	oA	P3h	32.4	SB는 BB 3벳에 오프수트 A 중 AKo까지는 4벳하고, ATo는 절반만 콜해요.
+vs_3bet:SB:BB	pair	P3+list	35.9	SB는 BB 3벳에 포켓페어 중 JJ까지는 4벳, 44까지는 콜, 33·22는 절반만 콜해요.
+vs_3bet:SB:BB	sA	P4+list-noL	38.8	SB는 BB 3벳에 AQs까지는 4벳, AJs는 4벳·콜 반반, A6s까지는 콜, A5s부터는 4벳해요.
+vs_3bet:SB:BB	oA	P3h+list	39.4	SB는 BB 3벳에 오프수트 A 중 AKo는 4벳, AQo·AJo는 4벳·콜 반반, ATo는 절반만 콜해요.
 vs_3bet:SB:BB	sK	P2m	29.5	SB는 BB 3벳에 수티드 K를 K8s까지 콜하고, K7s는 절반만 콜해요.
 vs_3bet:SB:BB	oK	P2h	34.1	SB는 BB 3벳에 오프수트 K 중 KQo·KJo는 절반만 콜하고, 나머지는 폴드해요.
 vs_3bet:SB:BB	sQ	P2	19.5	SB는 BB 3벳에 수티드 Q를 Q9s까지 콜해요.
@@ -878,15 +878,15 @@ vs_limp:SB	s4	P0	17.6	SB는 림프에 수티드 4를 전부 폴드해요.
 vs_limp:SB	o4	P0	18.6	SB는 림프에 오프수트 4를 전부 폴드해요.
 vs_limp:SB	o3	P0	18.6	SB는 림프에 오프수트 3을 전부 폴드해요.
 vs_open:BB:UTG	pair	P3	27.7	BB는 UTG 오픈에 포켓페어를 JJ까지 3벳하고, 22까지 콜해요.
-vs_open:BB:UTG	sA	P4	36.6	BB는 UTG 오픈에 수티드 A를 AKs·AQs·A5s~A2s만 3벳하고, 나머지는 전부 콜해요.
-vs_open:BB:UTG	oA	P3	29.8	BB는 UTG 오픈에 오프수트 A를 AKo까지 3벳하고, A9o까지 콜해요.
-vs_open:BB:UTG	sK	P3h	35.0	BB는 UTG 오픈에 수티드 K 중 KQs는 3벳과 콜을 반반 섞고, K5s까지는 콜해요.
+vs_open:BB:UTG	sA	P4+list-noL	38.1	BB는 UTG 오픈에 AKs·AQs·A5s·A4s는 3벳, A3s·A2s는 3벳·콜 반반, 나머지는 콜해요.
+vs_open:BB:UTG	oA	P3+list-noL	38.5	BB는 UTG 오픈에 AKo는 3벳, AQo는 3벳·콜 반반, A9o까지는 콜, A8o는 절반만 콜해요.
+vs_open:BB:UTG	sK	P3h+except	37.4	BB는 UTG 오픈에 수티드 K를 콜하고, KQs는 3벳·콜 반반, K3s·K2s는 절반만 콜해요.
 vs_open:BB:UTG	oK	P2	21.5	BB는 UTG 오픈에 오프수트 K를 KTo까지 콜해요.
 vs_open:BB:UTG	sQ	P2m	32.6	BB는 UTG 오픈에 수티드 Q를 Q6s까지 콜하고, Q5s·Q4s는 절반만 콜해요.
 vs_open:BB:UTG	oQ	P2	21.5	BB는 UTG 오픈에 오프수트 Q를 QTo까지 콜해요.
 vs_open:BB:UTG	sJ	P2m	30.5	BB는 UTG 오픈에 수티드 J를 J7s까지 콜하고, J6s는 절반만 콜해요.
 vs_open:BB:UTG	oJ	P2	20.5	BB는 UTG 오픈에 오프수트 J를 JTo만 콜해요.
-vs_open:BB:UTG	conn	P2m	38.0	BB는 UTG 오픈에 수티드 커넥터를 87s까지 콜하고, 76s부터 43s까지는 콜을 섞어요.
+vs_open:BB:UTG	conn	P2m	32.9	BB는 UTG 오픈에 수티드 커넥터를 54s까지 콜하고, 43s는 절반만 콜해요.
 vs_open:BB:UTG	sT	P2m	29.5	BB는 UTG 오픈에 수티드 T을 T7s까지 콜하고, T6s는 주로 콜해요.
 vs_open:BB:UTG	oT	P2h	33.0	BB는 UTG 오픈에 오프수트 T 중 T9o는 절반만 콜하고, 나머지는 폴드해요.
 vs_open:BB:UTG	s9	P2	20.5	BB는 UTG 오픈에 수티드 9를 96s까지 콜해요.
@@ -902,20 +902,20 @@ vs_open:BB:UTG	o5	P0	20.7	BB는 UTG 오픈에 오프수트 5를 전부 폴드해
 vs_open:BB:UTG	s4	P2h	32.0	BB는 UTG 오픈에 수티드 4 중 43s는 절반만 콜하고, 나머지는 폴드해요.
 vs_open:BB:UTG	o4	P0	20.7	BB는 UTG 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:BB:UTG	o3	P0	20.7	BB는 UTG 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:BB:UTG	pair	P3h	31.3	BB는 UTG 4벳에 포켓페어 중 KK까지는 올인하고, JJ는 절반만 콜해요.
+vs_4bet:BB:UTG	pair	P3h+list	38.0	BB는 UTG 4벳에 포켓페어 중 KK까지는 올인, QQ는 올인·콜 반반, JJ는 절반만 콜해요.
 vs_4bet:BB:UTG	sA	P2h	35.2	BB는 UTG 4벳에 수티드 A 중 AKs는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:BB:UTG	oA	P2h	36.2	BB는 UTG 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:BB:UTG	sK	P0	19.3	BB는 UTG 4벳에 수티드 K를 전부 폴드해요.
-vs_open:BB:HJ	pair	P3	30.4	BB는 HJ 오픈에 포켓페어를 JJ까지 3벳하고, 99부터는 전부 콜해요.
-vs_open:BB:HJ	sA	P4	36.0	BB는 HJ 오픈에 수티드 A를 AKs~AJs·A5s~A2s만 3벳하고, 나머지는 전부 콜해요.
-vs_open:BB:HJ	oA	P3	29.2	BB는 HJ 오픈에 오프수트 A를 AKo까지 3벳하고, A8o까지 콜해요.
+vs_open:BB:HJ	pair	P3+list	38.0	BB는 HJ 오픈에 포켓페어 중 JJ까지는 3벳, TT은 3벳·콜 반반, 99부터는 전부 콜해요.
+vs_open:BB:HJ	sA	P4+list-noL	39.2	BB는 HJ 오픈에 AQs까지는 3벳, AJs는 3벳·콜 반반, A6s까지는 콜, A5s부터는 3벳해요.
+vs_open:BB:HJ	oA	P3+list	37.5	BB는 HJ 오픈에 오프수트 A 중 AQo까지는 3벳, A8o까지는 콜, A7o는 절반만 콜해요.
 vs_open:BB:HJ	sK	P3h	34.4	BB는 HJ 오픈에 수티드 K 중 KQs는 3벳과 콜을 반반 섞고, K2s까지는 콜해요.
 vs_open:BB:HJ	oK	P3h	35.4	BB는 HJ 오픈에 오프수트 K 중 KQo는 3벳과 콜을 반반 섞고, K9o까지는 콜해요.
 vs_open:BB:HJ	sQ	P2m	32.0	BB는 HJ 오픈에 수티드 Q를 Q4s까지 콜하고, Q3s·Q2s는 절반만 콜해요.
 vs_open:BB:HJ	oQ	P2m	30.9	BB는 HJ 오픈에 오프수트 Q를 QTo까지 콜하고, Q9o는 절반만 콜해요.
 vs_open:BB:HJ	sJ	P2m	29.9	BB는 HJ 오픈에 수티드 J를 J6s까지 콜하고, J5s는 절반만 콜해요.
 vs_open:BB:HJ	oJ	P2m	29.9	BB는 HJ 오픈에 오프수트 J를 JTo만 콜하고, J9o는 절반만 콜해요.
-vs_open:BB:HJ	conn	P2m	37.4	BB는 HJ 오픈에 수티드 커넥터를 98s까지 콜하고, 87s부터 43s까지는 콜을 섞어요.
+vs_open:BB:HJ	conn	P2m	32.3	BB는 HJ 오픈에 수티드 커넥터를 54s까지 콜하고, 43s는 절반만 콜해요.
 vs_open:BB:HJ	sT	P2m	29.9	BB는 HJ 오픈에 수티드 T을 T6s까지 콜하고, T5s는 절반만 콜해요.
 vs_open:BB:HJ	oT	P2	19.9	BB는 HJ 오픈에 오프수트 T을 T9o만 콜해요.
 vs_open:BB:HJ	s9	P2m	29.9	BB는 HJ 오픈에 수티드 9를 96s까지 콜하고, 95s는 절반만 콜해요.
@@ -931,17 +931,17 @@ vs_open:BB:HJ	o5	P0	20.1	BB는 HJ 오픈에 오프수트 5를 전부 폴드해�
 vs_open:BB:HJ	s4	P2h	31.4	BB는 HJ 오픈에 수티드 4 중 43s는 절반만 콜하고, 나머지는 폴드해요.
 vs_open:BB:HJ	o4	P0	20.1	BB는 HJ 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:BB:HJ	o3	P0	20.1	BB는 HJ 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:BB:HJ	pair	P3h	29.7	BB는 HJ 4벳에 포켓페어 중 KK까지는 올인하고, JJ는 주로 콜해요.
+vs_4bet:BB:HJ	pair	P3h+list	28.4	BB는 HJ 4벳에 포켓페어를 QQ까지 올인하고, JJ는 주로 콜해요.
 vs_4bet:BB:HJ	sA	P2h	34.6	BB는 HJ 4벳에 수티드 A 중 AKs는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:BB:HJ	oA	P2h	35.6	BB는 HJ 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, 나머지는 폴드해요.
 vs_4bet:BB:HJ	sK	P0	18.7	BB는 HJ 4벳에 수티드 K를 전부 폴드해요.
 vs_4bet:BB:HJ	oK	P0	19.7	BB는 HJ 4벳에 오프수트 K를 전부 폴드해요.
-vs_open:BB:CO	pair	P3	30.4	BB는 CO 오픈에 포켓페어를 TT까지 3벳하고, 88부터는 전부 콜해요.
-vs_open:BB:CO	sA	P4	36.0	BB는 CO 오픈에 수티드 A를 AKs~ATs·A5s~A2s만 3벳하고, 나머지는 전부 콜해요.
-vs_open:BB:CO	oA	P3	29.2	BB는 CO 오픈에 오프수트 A를 AQo까지 3벳하고, A5o까지 콜해요.
-vs_open:BB:CO	sK	P3	28.2	BB는 CO 오픈에 수티드 K를 KQs까지 3벳하고, K2s까지 콜해요.
-vs_open:BB:CO	oK	P3h	31.8	BB는 CO 오픈에 오프수트 K 중 KQo는 주로 3벳하고, K9o까지는 콜해요.
-vs_open:BB:CO	sQ	P1	18.1	BB는 CO 오픈에 수티드 Q를 전부 콜해요.
+vs_open:BB:CO	pair	P3+list	38.0	BB는 CO 오픈에 포켓페어 중 TT까지는 3벳, 99는 3벳·콜 반반, 88부터는 전부 콜해요.
+vs_open:BB:CO	sA	P4+list-noL	41.5	BB는 CO 오픈에 AJs까지는 3벳, ATs는 3벳·콜 반반, A6s까지는 콜, A5s부터는 전부 3벳해요.
+vs_open:BB:CO	oA	P3+list-noL	42.0	BB는 CO 오픈에 AQo까지는 3벳, AJo는 3벳·콜 반반, A5o까지는 콜, A4o·A3o는 절반만 콜해요.
+vs_open:BB:CO	sK	P3+list	35.4	BB는 CO 오픈에 수티드 K 중 KQs는 3벳, KJs는 3벳·콜 반반, KTs부터는 콜해요.
+vs_open:BB:CO	oK	P3h+list	37.8	BB는 CO 오픈에 오프수트 K 중 KQo는 주로 3벳, K9o까지는 콜, K8o는 절반만 콜해요.
+vs_open:BB:CO	sQ	P1	15.8	BB는 CO 오픈에 수티드 Q를 콜해요.
 vs_open:BB:CO	oQ	P2m	30.9	BB는 CO 오픈에 오프수트 Q를 Q9o까지 콜하고, Q8o는 절반만 콜해요.
 vs_open:BB:CO	sJ	P2m	29.9	BB는 CO 오픈에 수티드 J를 J4s까지 콜하고, J3s는 절반만 콜해요.
 vs_open:BB:CO	oJ	P2m	30.9	BB는 CO 오픈에 오프수트 J를 J9o까지 콜하고, J8o는 절반만 콜해요.
@@ -961,22 +961,22 @@ vs_open:BB:CO	o5	P0	20.1	BB는 CO 오픈에 오프수트 5를 전부 폴드해�
 vs_open:BB:CO	s4	P2	18.9	BB는 CO 오픈에 수티드 4를 43s만 콜해요.
 vs_open:BB:CO	o4	P0	20.1	BB는 CO 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:BB:CO	o3	P0	20.1	BB는 CO 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:BB:CO	pair	P3h	35.8	BB는 CO 4벳에 포켓페어 중 KK까지는 올인하고, JJ는 주로, TT는 절반만 콜해요.
+vs_4bet:BB:CO	pair	P3h+list	35.1	BB는 CO 4벳에 포켓페어 중 QQ까지는 올인, JJ는 주로 콜, TT은 절반만 콜해요.
 vs_4bet:BB:CO	sA	P3h	28.8	BB는 CO 4벳에 수티드 A 중 AKs는 올인하고, AQs는 주로 콜해요.
 vs_4bet:BB:CO	oA	P2h	32.0	BB는 CO 4벳에 오프수트 A 중 AKo는 주로 올인하고, 나머지는 폴드해요.
 vs_4bet:BB:CO	sK	P0	18.7	BB는 CO 4벳에 수티드 K를 전부 폴드해요.
 vs_4bet:BB:CO	oK	P0	19.7	BB는 CO 4벳에 오프수트 K를 전부 폴드해요.
 vs_open:BB:BTN	pair	P3	27.7	BB는 BTN 오픈에 포켓페어를 99까지 3벳하고, 22까지 콜해요.
-vs_open:BB:BTN	sA	P4	36.6	BB는 BTN 오픈에 수티드 A를 AKs~A9s·A5s~A2s만 3벳하고, 나머지는 전부 콜해요.
-vs_open:BB:BTN	oA	P3	29.8	BB는 BTN 오픈에 오프수트 A를 AJo까지 3벳하고, A2o까지 콜해요.
-vs_open:BB:BTN	sK	P3	28.8	BB는 BTN 오픈에 수티드 K를 KJs까지 3벳하고, K2s까지 콜해요.
-vs_open:BB:BTN	oK	P3	29.8	BB는 BTN 오픈에 오프수트 K를 KQo까지 3벳하고, K6o까지 콜해요.
+vs_open:BB:BTN	sA	P4+list	41.5	BB는 BTN 오픈에 수티드 A 중 AKs~ATs·A5s~A2s는 3벳, A9s는 3벳·콜 반반, 나머지는 콜해요.
+vs_open:BB:BTN	oA	P3+list	39.0	BB는 BTN 오픈에 오프수트 A 중 AJo까지는 3벳, ATo는 3벳·콜 반반, A9o부터는 콜해요.
+vs_open:BB:BTN	sK	P3+list	38.0	BB는 BTN 오픈에 수티드 K 중 KTs까지는 3벳, K9s는 3벳·콜 반반, K8s부터는 콜해요.
+vs_open:BB:BTN	oK	P3+list-noL	38.5	BB는 BTN 오픈에 KQo는 3벳, KJo는 3벳·콜 반반, K6o까지는 콜, K5o는 절반만 콜해요.
 vs_open:BB:BTN	sQ	P3h	31.4	BB는 BTN 오픈에 수티드 Q 중 QJs는 주로 3벳하고, Q2s까지는 콜해요.
 vs_open:BB:BTN	oQ	P2m	31.5	BB는 BTN 오픈에 오프수트 Q를 Q7o까지 콜하고, Q6o는 절반만 콜해요.
-vs_open:BB:BTN	sJ	P1	18.7	BB는 BTN 오픈에 수티드 J를 전부 콜해요.
+vs_open:BB:BTN	sJ	P1	16.4	BB는 BTN 오픈에 수티드 J를 콜해요.
 vs_open:BB:BTN	oJ	P2m	31.5	BB는 BTN 오픈에 오프수트 J를 J8o까지 콜하고, J7o는 절반만 콜해요.
-vs_open:BB:BTN	conn	P4	34.8	BB는 BTN 오픈에 수티드 커넥터를 65s·54s만 3벳하고, 나머지는 전부 콜해요.
-vs_open:BB:BTN	sT	P1	18.7	BB는 BTN 오픈에 수티드 T을 전부 콜해요.
+vs_open:BB:BTN	conn	P4+except	39.8	BB는 BTN 오픈에 수티드 커넥터를 콜하고, 65s·54s는 3벳·콜 반반, 32s는 절반만 콜해요.
+vs_open:BB:BTN	sT	P1	16.4	BB는 BTN 오픈에 수티드 T을 콜해요.
 vs_open:BB:BTN	oT	P2m	31.5	BB는 BTN 오픈에 오프수트 T을 T8o까지 콜하고, T7o는 절반만 콜해요.
 vs_open:BB:BTN	s9	P2m	30.5	BB는 BTN 오픈에 수티드 9를 93s까지 콜하고, 92s는 절반만 콜해요.
 vs_open:BB:BTN	o9	P2	21.5	BB는 BTN 오픈에 오프수트 9를 97o까지 콜해요.
@@ -991,8 +991,8 @@ vs_open:BB:BTN	o5	P0	20.7	BB는 BTN 오픈에 오프수트 5를 전부 폴드해
 vs_open:BB:BTN	s4	P1	18.7	BB는 BTN 오픈에 수티드 4를 전부 콜해요.
 vs_open:BB:BTN	o4	P0	20.7	BB는 BTN 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:BB:BTN	o3	P0	20.7	BB는 BTN 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:BB:BTN	pair	P3h	37.9	BB는 BTN 4벳에 포켓페어 중 QQ까지는 올인하고, JJ·TT는 주로, 99는 절반만 콜해요.
-vs_4bet:BB:BTN	sA	P3	27.8	BB는 BTN 4벳에 수티드 A를 AKs만 올인하고, AQs까지 콜해요.
+vs_4bet:BB:BTN	pair	P3h	37.9	BB는 BTN 4벳에 포켓페어 중 QQ까지는 올인하고, JJ·TT은 주로, 99는 절반만 콜해요.
+vs_4bet:BB:BTN	sA	P3+list	33.1	BB는 BTN 4벳에 수티드 A 중 AKs는 올인, AQs는 콜, AJs는 절반만 콜해요.
 vs_4bet:BB:BTN	oA	P2	21.1	BB는 BTN 4벳에 오프수트 A를 AKo만 올인해요.
 vs_4bet:BB:BTN	sK	P2h	31.6	BB는 BTN 4벳에 수티드 K 중 KQs는 절반만 콜하고, 나머지는 폴드해요.
 vs_4bet:BB:BTN	oK	P0	20.3	BB는 BTN 4벳에 오프수트 K를 전부 폴드해요.
@@ -1000,16 +1000,16 @@ vs_4bet:BB:BTN	sQ	P0	19.3	BB는 BTN 4벳에 수티드 Q를 전부 폴드해요.
 vs_4bet:BB:BTN	conn	P0	21.7	BB는 BTN 4벳에 수티드 커넥터를 전부 폴드해요.
 vs_4bet:BB:BTN	s6	P0	19.3	BB는 BTN 4벳에 수티드 6을 전부 폴드해요.
 vs_4bet:BB:BTN	s5	P0	19.3	BB는 BTN 4벳에 수티드 5를 전부 폴드해요.
-vs_open:BB:SB	pair	P3	27.1	BB는 SB 오픈에 포켓페어를 99까지 3벳하고, 22까지 콜해요.
-vs_open:BB:SB	sA	P4	36.0	BB는 SB 오픈에 수티드 A를 AKs~A9s·A5s~A2s만 3벳하고, 나머지는 전부 콜해요.
-vs_open:BB:SB	oA	P3	29.2	BB는 SB 오픈에 오프수트 A를 AJo까지 3벳하고, A2o까지 콜해요.
-vs_open:BB:SB	sK	P3	28.2	BB는 SB 오픈에 수티드 K를 KJs까지 3벳하고, K2s까지 콜해요.
-vs_open:BB:SB	oK	P3	29.2	BB는 SB 오픈에 오프수트 K를 KQo까지 3벳하고, K5o까지 콜해요.
-vs_open:BB:SB	sQ	P3h	31.9	BB는 SB 오픈에 수티드 Q 중 QJs·QTs는 3벳을 섞고, Q2s까지는 콜해요.
+vs_open:BB:SB	pair	P3+list	35.7	BB는 SB 오픈에 포켓페어 중 99까지는 3벳, 88은 3벳·콜 반반, 77부터는 콜해요.
+vs_open:BB:SB	sA	P4	33.7	BB는 SB 오픈에 수티드 A를 AKs~A9s·A5s~A2s만 3벳하고, 나머지는 콜해요.
+vs_open:BB:SB	oA	P3+list	30.2	BB는 SB 오픈에 오프수트 A를 ATo까지 3벳하고, A9o부터는 콜해요.
+vs_open:BB:SB	sK	P3+list	37.4	BB는 SB 오픈에 수티드 K 중 KTs까지는 3벳, K9s는 3벳·콜 반반, K8s부터는 콜해요.
+vs_open:BB:SB	oK	P3+list	37.5	BB는 SB 오픈에 오프수트 K 중 KJo까지는 3벳, K5o까지는 콜, K4o는 절반만 콜해요.
+vs_open:BB:SB	sQ	P3h+list	37.7	BB는 SB 오픈에 수티드 Q 중 QJs는 주로 3벳, QTs는 3벳·콜 반반, Q9s부터는 콜해요.
 vs_open:BB:SB	oQ	P2m	30.9	BB는 SB 오픈에 오프수트 Q를 Q6o까지 콜하고, Q5o는 절반만 콜해요.
 vs_open:BB:SB	sJ	P3h	30.8	BB는 SB 오픈에 수티드 J 중 JTs는 주로 3벳하고, J2s까지는 콜해요.
 vs_open:BB:SB	oJ	P2m	30.9	BB는 SB 오픈에 오프수트 J를 J7o까지 콜하고, J6o는 절반만 콜해요.
-vs_open:BB:SB	conn	P4	36.3	BB는 SB 오픈에 수티드 커넥터를 T9s·76s~54s만 3벳하고, 나머지는 전부 콜해요.
+vs_open:BB:SB	conn	P4+except	41.3	BB는 SB 오픈에 수티드 커넥터를 콜하고, T9s·76s~54s는 3벳·콜 반반, 32s는 절반만 콜해요.
 vs_open:BB:SB	sT	P3h	34.4	BB는 SB 오픈에 수티드 T 중 T9s는 3벳과 콜을 반반 섞고, T2s까지는 콜해요.
 vs_open:BB:SB	oT	P2m	30.9	BB는 SB 오픈에 오프수트 T을 T7o까지 콜하고, T6o는 절반만 콜해요.
 vs_open:BB:SB	s9	P2m	29.9	BB는 SB 오픈에 수티드 9를 93s까지 콜하고, 92s는 절반만 콜해요.
@@ -1025,8 +1025,8 @@ vs_open:BB:SB	o5	P0	20.1	BB는 SB 오픈에 오프수트 5를 전부 폴드해�
 vs_open:BB:SB	s4	P1	18.1	BB는 SB 오픈에 수티드 4를 전부 콜해요.
 vs_open:BB:SB	o4	P0	20.1	BB는 SB 오픈에 오프수트 4를 전부 폴드해요.
 vs_open:BB:SB	o3	P0	20.1	BB는 SB 오픈에 오프수트 3을 전부 폴드해요.
-vs_4bet:BB:SB	pair	P3	27.1	BB는 SB 4벳에 포켓페어를 QQ까지 올인하고, TT까지 콜해요.
-vs_4bet:BB:SB	sA	P3	27.2	BB는 SB 4벳에 수티드 A를 AKs만 올인하고, AQs까지 콜해요.
+vs_4bet:BB:SB	pair	P3+list	34.8	BB는 SB 4벳에 포켓페어 중 QQ까지는 올인, TT까지는 콜, 99는 절반만 콜해요.
+vs_4bet:BB:SB	sA	P3+list	34.5	BB는 SB 4벳에 수티드 A 중 AKs는 올인, AJs까지는 콜, ATs는 절반만 콜해요.
 vs_4bet:BB:SB	oA	P3h	33.1	BB는 SB 4벳에 오프수트 A 중 AKo는 주로 올인하고, AQo는 절반만 콜해요.
 vs_4bet:BB:SB	sK	P2h	30.0	BB는 SB 4벳에 수티드 K 중 KQs는 주로 콜하고, 나머지는 폴드해요.
 vs_4bet:BB:SB	oK	P0	19.7	BB는 SB 4벳에 오프수트 K를 전부 폴드해요.
@@ -1037,7 +1037,7 @@ vs_4bet:BB:SB	sT	P0	18.7	BB는 SB 4벳에 수티드 T을 전부 폴드해요.
 vs_4bet:BB:SB	s7	P0	18.7	BB는 SB 4벳에 수티드 7을 전부 폴드해요.
 vs_4bet:BB:SB	s6	P0	18.7	BB는 SB 4벳에 수티드 6을 전부 폴드해요.
 vs_4bet:BB:SB	s5	P0	18.7	BB는 SB 4벳에 수티드 5를 전부 폴드해요.
-cold_4bet:BB	pair	P3h	35.4	BB는 앞에서 3벳이 나오면 포켓페어 중 KK까지는 4벳하고, JJ는 절반만 콜해요.
+cold_4bet:BB	pair	P3h+list	41.7	BB는 앞에서 3벳이 나오면 포켓페어 중 KK까지는 4벳, QQ는 4벳·콜 반반, JJ는 절반만 콜해요.
 cold_4bet:BB	sA	P2h	39.3	BB는 앞에서 3벳이 나오면 수티드 A 중 AKs는 4벳과 콜을 반반 섞고, 나머지는 폴드해요.
 cold_4bet:BB	oA	P2h	37.7	BB는 앞에서 3벳이 나오면 오프수트 A 중 AKo는 절반만 4벳하고, 나머지는 폴드해요.
 cold_4bet:BB	sK	P0	23.8	BB는 앞에서 3벳이 나오면 수티드 K를 전부 폴드해요.

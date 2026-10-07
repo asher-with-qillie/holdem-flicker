@@ -229,6 +229,80 @@ describe('sheet: 반복 금지 (§7.2-14)', () => {
   });
 });
 
+describe('sheet: 자리 문장의 이름 규칙 (§4.2-⑥, 리뷰)', () => {
+  const SEATS: Pos[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+  const WORD = (mix: Array<{ action: string; weight: number }>, rest: string) => {
+    const [m0, m1] = mix;
+    if (m0.weight >= 0.6) return null;
+    if (m1 && Math.abs(m1.weight - m0.weight) < 0.01 && m1.action !== rest) return '반반';
+    return m0.action === rest ? '절반은' : '절반만';
+  };
+  /** 문장 속 자리 언급 → 그 자리들. 'HJ~BTN'은 사이 자리까지. 각 언급 뒤 쉼표 전까지의 말을 붙여 돌려줍니다. */
+  function mentions(text: string): Array<{ seats: Pos[]; tail: string }> {
+    const out: Array<{ seats: Pos[]; tail: string }> = [];
+    const re = /((?:(?:UTG|HJ|CO|BTN|SB|BB)(?:~(?:UTG|HJ|CO|BTN|SB|BB))?·?)+)에서/g;
+    for (const m of text.matchAll(re)) {
+      const seats: Pos[] = [];
+      for (const part of m[1].split('·')) {
+        const [a, b] = part.split('~') as Pos[];
+        const i0 = SEATS.indexOf(a);
+        const i1 = b ? SEATS.indexOf(b) : i0;
+        for (let i = i0; i <= i1; i++) seats.push(SEATS[i]);
+      }
+      const rest = text.slice(m.index! + m[0].length);
+      out.push({ seats, tail: rest.slice(0, rest.search(/,|\.|$/) + 1) });
+    }
+    return out;
+  }
+
+  it('섞인 자리(비중 ≤ 0.5)는 그 자리 이름 뒤에 비중어가 오거나, "나머지 자리에서는 · 어느 자리에서나 〈비중어〉"에 든다 · "나머지는" 꼴은 없다', () => {
+    let weak = 0;
+    for (const { s, hand, e } of EXPLAINED) {
+      if (s.kind === 'rfi') continue; // rfi 는 rfiThesis(atlas.test 가 따로 봅니다)
+      const text = e.across.line.text;
+      const where = `${scenarioKey(s)} ${hand}: ${text}`;
+      expect(text, where).not.toMatch(/나머지는/);
+      const ms = mentions(text);
+      for (const c of e.across.cells.filter((x) => x.reachable)) {
+        const w = WORD(c.mixList, c.scenario.kind === 'vs_limp' && c.scenario.hero === 'BB' ? 'check' : 'fold');
+        if (!w) continue;
+        weak++;
+        const m = ms.find((x) => x.seats.includes(c.scenario.hero));
+        if (m) expect(m.tail.includes(w), `${where} ← ${c.scenario.hero} ${w}`).toBe(true);
+        else expect(text, `${where} ← ${c.scenario.hero} ${w}`).toMatch(new RegExp(`(나머지 자리에서는|어느 자리에서나) ${w === '반반' ? '\\S+ \\S+ 반반' : w}`));
+      }
+    }
+    expect(weak).toBeGreaterThan(100);
+  });
+
+  it('리뷰가 짚은 자리 문장', () => {
+    const across = (sc: Scenario, hand: string) => explainStep(stepFor(sc, hand)).across.line.text;
+    expect(across({ kind: 'vs_open', hero: 'SB', villain: 'CO' }, 'A7s')).toBe('A7s는 CO 오픈에 SB에서는 절반만 3벳하고, 나머지 자리에서는 콜해요.');
+    expect(across({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'AKs')).toBe('AKs는 UTG 4벳에 HJ~BTN에서 주로 올인하고, SB·BB에서는 올인과 콜을 반반 섞어요.');
+    expect(across({ kind: 'vs_open', hero: 'HJ', villain: 'UTG' }, 'AQo')).toBe('AQo는 UTG 오픈에 HJ~BTN·BB에서 3벳과 콜을 반반 섞고, SB에서는 3벳해요.');
+    expect(across({ kind: 'vs_limp', hero: 'HJ' }, '72o')).toBe('72o는 림프에 어느 자리에서도 레이즈하지 않아요.');
+    expect(across({ kind: 'cold_4bet', hero: 'CO' }, 'AKo')).toBe('AKo는 앞에서 3벳이 나오면 CO에서는 절반은 폴드하고, 나머지 자리에서는 절반만 4벳해요.');
+  });
+
+  it('부분 정답 문장: 계속 · rest 반반은 "이 칸은 …", 두 계속 액션 반반만 "반반이라 더 공격적인 …"', () => {
+    let restTie = 0;
+    let contTie = 0;
+    for (const { e } of EXPLAINED) {
+      const p = e.mix?.partial;
+      if (!p) continue;
+      if (p.startsWith('이 칸은')) restTie++;
+      else if (p.startsWith('반반이라')) {
+        contTie++;
+        expect(p).not.toMatch(/(폴드|체크)도 부분 정답/);
+      }
+    }
+    expect(restTie).toBeGreaterThan(100);
+    expect(contTie).toBeGreaterThan(50);
+    expect(explainStep(stepFor({ kind: 'rfi', hero: 'UTG' }, 'KJo')).mix!.partial).toBe('이 칸은 오픈을 정답으로 쳐요. 폴드도 부분 정답이에요.');
+    expect(explainStep(stepFor({ kind: 'cold_4bet', hero: 'CO' }, 'QQ')).mix!.partial).toBe('반반이라 더 공격적인 4벳을 정답으로 쳐요. 콜도 부분 정답이에요.');
+  });
+});
+
 describe('sheet: acrossRow (§4.2-⑥)', () => {
   it('rfi·cold·limp 는 스트립 전체, 대응 상황은 같은 상대 열의 칸이고, 자리 문장은 도달 칸만 말한다', () => {
     for (const { s, hand, e } of EXPLAINED.filter((_, i) => i % 7 === 0)) {

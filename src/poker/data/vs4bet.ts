@@ -15,7 +15,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.75', 'AKs:0.25', 'AKo:0.5', 'JJ:0.5', 'AQs:0.25',
       ].join(','),
     },
-    summary: 'UTG의 4벳은 KK 이상·AK가 대부분이고 QQ와 A5s가 조금 섞입니다. KK 이상은 올인, AK는 올인 위주, QQ는 콜 위주로 가세요. JJ는 50% 콜, AQs는 25% 콜이고 A5s 같은 블러프는 폴드입니다.',
+    summary: 'UTG의 4벳은 KK 이상·AK가 대부분이고 QQ와 A5s가 조금 섞여요. KK 이상은 올인, AK는 올인 위주, QQ는 콜 위주예요. JJ는 50% 콜, AQs는 25% 콜이고 A5s 같은 블러프는 폴드예요.',
     notes: {
       KK: '올인해요. UTG의 4벳 레인지에서 K♠K♦를 이기는 패는 AA뿐이에요. AK 상대 승률 70%예요.',
       QQ: '콜 75%, 올인 25%예요. 콜을 받으면 AA·KK에 크게 밀려요. 내 Q♠Q♦ vs 상대 A♦K♠ → 승률 57%.',
@@ -40,7 +40,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.75', 'AKs:0.25', 'AKo:0.5', 'JJ:0.5', 'AQs:0.25',
       ].join(','),
     },
-    summary: 'HJ vs UTG와 구조가 같습니다. UTG의 4벳은 KK 이상·AK에 QQ 일부와 A5s·A4s가 섞인 좁은 레인지입니다. KK 이상은 올인, AK는 올인 위주, QQ는 콜 위주로 가고 JJ는 50%, AQs는 25%만 콜하세요.',
+    summary: 'HJ vs UTG와 구조가 같아요. UTG의 4벳은 KK 이상·AK에 QQ 일부와 A5s·A4s가 섞인 좁은 레인지예요. KK 이상은 올인, AK는 올인 위주, QQ는 콜 위주이고, JJ는 50%, AQs는 25%만 콜해요.',
     notes: {
       KK: '올인해요. UTG가 올인을 받는 AA·KK·QQ·AK를 다 합쳐도 K♠K♦가 이겨요. 내 K♠K♦ vs 상대 Q♠Q♦ → 승률 81%.',
       QQ: '콜 75%, 올인 25%예요. 올인하면 UTG는 KK 이상과 AKs 일부만 받고 QQ·AKo·A5s는 폴드해요. 기본은 포지션을 살린 콜이에요.',
@@ -65,7 +65,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.75', 'AKs:0.25', 'AKo:0.5', 'JJ:0.5', 'AQs:0.5',
       ].join(','),
     },
-    summary: 'UTG의 4벳은 KK 이상·AK에 QQ 일부와 A5s·A4s뿐이라 아주 좁습니다. BTN은 포지션이 있어 콜 가치가 가장 크지만 올인은 KK 이상만 합니다. AK는 올인 위주, QQ는 콜 위주, JJ와 AQs는 50%만 콜하세요.',
+    summary: 'UTG의 4벳은 KK 이상·AK에 QQ 일부와 A5s·A4s뿐이라 아주 좁아요. BTN은 포지션이 있어 콜 가치가 가장 크지만 올인은 KK 이상만 해요. AK는 올인 위주, QQ는 콜 위주, JJ와 AQs는 50%만 콜해요.',
     notes: {
       KK: '올인해요. UTG의 4벳 레인지에서 K♠K♦를 이기는 패는 AA뿐이에요. 내 K♠K♦ vs 상대 Q♠Q♦ → 승률 81%.',
       QQ: '콜 75%, 올인 25%예요. 올인하면 UTG는 KK 이상과 AKs 일부만 받아요. 기본은 포지션을 살린 콜이에요.',
@@ -90,7 +90,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.25', 'JJ:0.75', 'TT:0.25', 'AKs:0.5', 'AKo:0.5', 'AQs:0.5',
       ].join(','),
     },
-    summary: 'HJ의 4벳은 QQ 이상·AK에 A5s·A4s 블러프가 섞입니다. UTG보다 QQ와 블러프가 많고, HJ는 올인을 KK 이상·AKs로만 받습니다. QQ는 올인 75%, AK는 올인과 콜을 50%씩, JJ와 AQs는 포지션을 살려 콜하세요.',
+    summary: 'HJ의 4벳은 QQ 이상·AK에 A5s·A4s 블러프가 섞여요. UTG보다 QQ와 블러프가 많고, 올인에는 HJ가 KK 이상·AKs로만 콜해요. QQ는 올인 75%, AK는 올인과 콜을 50%씩, JJ와 AQs는 포지션을 살려 콜해요.',
     notes: {
       KK: '올인해요. HJ의 4벳에는 QQ와 AK가 있어 K♠K♦로 밸류를 받아요. AK 상대 승률 70%예요.',
       QQ: '올인 75%, 콜 25%예요. HJ는 올인을 KK 이상과 AKs로만 받아요. Q♠Q♦로 올인하면 QQ·AKo·블러프가 다 폴드해요.',
@@ -115,7 +115,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.25', 'JJ:0.75', 'TT:0.25', 'AKs:0.5', 'AKo:0.5', 'AQs:0.5',
       ].join(','),
     },
-    summary: 'HJ의 4벳은 QQ 이상·AK에 A5s·A4s 블러프뿐입니다. 올인은 KK 이상·AKs와 QQ 일부만 받습니다. QQ는 올인 75%, AK는 올인과 콜을 50%씩, JJ는 콜 위주, TT와 AQs는 일부만 콜하세요.',
+    summary: 'HJ의 4벳은 QQ 이상·AK에 A5s·A4s 블러프뿐이에요. 올인에는 KK 이상·AKs와 QQ 일부로만 콜해요. QQ는 올인 75%, AK는 올인과 콜을 50%씩, JJ는 콜 위주, TT과 AQs는 일부만 콜해요.',
     notes: {
       KK: '올인해요. HJ의 4벳에서 K♠K♦를 이기는 패는 AA뿐이에요. 내 K♠K♦ vs 상대 Q♠Q♦ → 승률 81%.',
       QQ: '올인 75%, 콜 25%예요. HJ는 올인을 KK 이상·AKs와 QQ 일부로만 받아요. AKo 대부분과 블러프는 폴드하니 이득이에요.',
@@ -140,7 +140,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.5', 'JJ', 'TT:0.5', 'AKs:0.25', 'AKo:0.5', 'AQs', 'AJs:0.25',
       ].join(','),
     },
-    summary: 'CO의 4벳은 QQ 이상·AK에 A5s·A4s 블러프까지 섞입니다. KK 이상은 올인, QQ와 AK는 올인과 콜을 섞고 JJ·AQs는 콜하세요. TT는 50%, AJs는 25%만 콜하고 A5s는 25%만 올인 블러프입니다.',
+    summary: 'CO의 4벳은 QQ 이상·AK에 A5s·A4s 블러프까지 섞여요. KK 이상은 올인, QQ와 AK는 올인과 콜을 섞고 JJ·AQs는 콜해요. TT은 50%, AJs는 25%만 콜하고 A5s는 25%만 올인 블러프예요.',
     notes: {
       KK: '올인해요. CO의 4벳 레인지인 QQ·AK·A5s 상대로 K♠K♦가 크게 이겨요. 내 K♠K♦ vs 상대 A♦5♦ → 승률 68%.',
       QQ: '올인과 콜을 50%씩 섞어요. 올인하면 A5s·A4s와 AKo 일부가 폴드해요. 내 Q♠Q♦ vs 상대 A♦K♠ → 승률 57%.',
@@ -165,7 +165,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.5', 'JJ:0.5', 'AKs:0.5', 'AKo:0.5',
       ].join(','),
     },
-    summary: 'UTG의 4벳은 KK 이상·AK가 대부분입니다. SB는 플랍부터 먼저 액션해서 불리합니다. KK 이상만 올인, QQ와 AK는 올인과 콜을 50%씩, JJ는 50%만 콜하고 AQs와 3벳 블러프는 폴드하세요.',
+    summary: 'UTG의 4벳은 KK 이상·AK가 대부분이에요. SB는 플랍부터 먼저 액션해서 불리해요. KK 이상만 올인, QQ와 AK는 올인과 콜을 50%씩, JJ는 50%만 콜하고 AQs와 3벳 블러프는 폴드해요.',
     notes: {
       KK: '올인해요. UTG의 4벳에서 K♠K♦를 이기는 패는 AA뿐이에요. AK 상대 승률 70%예요.',
       QQ: '올인과 콜을 50%씩 섞어요. 콜하면 SPR(팟 대비 남은 스택 비율)이 1.5라 거의 모든 플랍에서 올인할 수 있어요. 올인하면 UTG의 QQ·AKo 일부가 폴드해요.',
@@ -190,7 +190,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.5', 'JJ:0.5', 'AKs:0.5', 'AKo:0.5',
       ].join(','),
     },
-    summary: 'SB vs UTG와 같습니다. UTG의 4벳이 가장 좁고 BB는 플랍부터 먼저 액션합니다. KK 이상만 올인, QQ와 AK는 올인과 콜을 50%씩, JJ는 50%만 콜하고 AQs·A5s·수티드 커넥터는 폴드하세요.',
+    summary: 'SB vs UTG와 같아요. UTG의 4벳이 가장 좁고 BB는 플랍부터 먼저 액션해요. KK 이상만 올인, QQ와 AK는 올인과 콜을 50%씩, JJ는 50%만 콜하고 AQs·A5s·수티드 커넥터는 폴드해요.',
     notes: {
       KK: '올인해요. UTG의 4벳 상대로 K♠K♦는 AA 말고 다 이겨요. AK 상대 승률 70%예요.',
       QQ: '올인과 콜을 50%씩 섞어요. UTG는 올인을 KK 이상·AKs와 QQ·AKo 절반으로 받아요. 콜하면 스택이 얇아 플랍 플레이가 단순해요.',
@@ -199,7 +199,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
       AKo: '올인과 콜을 50%씩 섞어요. 먼저 액션하는 자리라 콜만으로는 승률을 살리기 어려워요. 내 A♠K♦ vs 상대 Q♠Q♦ → 승률 43%.',
       AQs: '폴드해요. 먼저 액션하는 자리에서 UTG의 4벳에 콜 가치가 없어요. 내 A♠Q♠ vs 상대 A♦K♠ → A를 맞춰도 킥커에서 져요.',
       A5s: '폴드해요. UTG 상대로 A♠5♠ 올인 블러프는 하지 않아요. 상대가 폴드할 가능성이 너무 낮아요.',
-      TT: '폴드해요. BB에서 TT로 3벳하는 일 자체가 드물어요. 먼저 액션하며 셋을 노리기엔 콜 금액이 비싸요.',
+      TT: '폴드해요. BB에서 TT으로 3벳하는 일 자체가 드물어요. 먼저 액션하며 셋을 노리기엔 콜 금액이 비싸요.',
     },
   },
   {
@@ -215,7 +215,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.25', 'JJ:0.75', 'TT:0.25', 'AKs:0.5', 'AKo:0.5', 'AQs:0.25',
       ].join(','),
     },
-    summary: 'HJ의 4벳은 QQ 이상·AK에 A5s·A4s 블러프뿐입니다. SB는 먼저 액션해야 해서 세게 가거나 폴드합니다. QQ는 올인 75%, AK는 올인과 콜을 50%씩, JJ는 콜 75%, TT와 AQs는 25%만 콜하세요.',
+    summary: 'HJ의 4벳은 QQ 이상·AK에 A5s·A4s 블러프뿐이에요. SB는 먼저 액션해야 해서 세게 가거나 폴드해요. QQ는 올인 75%, AK는 올인과 콜을 50%씩, JJ는 콜 75%, TT과 AQs는 25%만 콜해요.',
     notes: {
       KK: '올인해요. HJ의 4벳에는 QQ와 AK가 있어 K♠K♦로 밸류를 받아요. AK 상대 승률 70%예요.',
       QQ: '올인 75%, 콜 25%예요. 먼저 액션하는 자리라 콜만으로는 승률을 살리기 어려워요. HJ는 올인에 QQ·AKo 절반과 블러프를 폴드해요.',
@@ -240,7 +240,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.25', 'JJ:0.75', 'TT:0.25', 'AKs:0.5', 'AKo:0.5', 'AQs:0.25',
       ].join(','),
     },
-    summary: 'SB vs HJ와 같습니다. HJ의 4벳은 QQ 이상·AK에 A5s·A4s 블러프뿐입니다. QQ는 올인 위주, AK는 올인과 콜을 50%씩, JJ는 콜 75%, TT와 AQs는 25%만 콜하세요.',
+    summary: 'SB vs HJ와 같아요. HJ의 4벳은 QQ 이상·AK에 A5s·A4s 블러프뿐이에요. QQ는 올인 위주, AK는 올인과 콜을 50%씩, JJ는 콜 75%, TT과 AQs는 25%만 콜해요.',
     notes: {
       KK: '올인해요. HJ의 4벳에서 K♠K♦를 이기는 패는 AA뿐이에요. 내 K♠K♦ vs 상대 Q♠Q♦ → 승률 81%.',
       QQ: '올인 75%, 콜 25%예요. HJ는 올인을 KK 이상·AKs와 QQ 대부분, AKo 절반으로 받아요. 블러프는 폴드하니 Q♠Q♦ 올인이 이득이에요.',
@@ -265,7 +265,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.25', 'JJ:0.75', 'TT:0.5', 'AKo:0.25', 'AQs:0.75', 'AJs:0.25',
       ].join(','),
     },
-    summary: 'CO의 4벳은 QQ 이상·AK에 JJ·AQs와 A5s~A3s·AJo·KQo 블러프까지 넓습니다. SB는 먼저 액션해야 해서 세게 가거나 폴드합니다. QQ 이상·AK는 대부분 올인, JJ·TT·AQs는 콜 위주, A5s는 25%만 올인 블러프입니다.',
+    summary: 'CO의 4벳은 QQ 이상·AK에 JJ·AQs와 A5s~A3s·AJo·KQo 블러프까지 넓어요. SB는 먼저 액션해야 해서 세게 가거나 폴드해요. QQ 이상·AK는 대부분 올인, JJ·TT·AQs는 콜 위주, A5s는 25%만 올인 블러프예요.',
     notes: {
       KK: '올인해요. CO의 넓은 4벳에는 QQ·JJ·AK가 있어 올인을 받아 줘요. 내 K♠K♦ vs 상대 Q♠Q♦ → 승률 81%.',
       QQ: '올인 75%, 콜 25%예요. CO의 4벳에는 AK·AQs·블러프가 많아요. 먼저 액션하는 자리라 콜보다 올인이 나아요.',
@@ -290,7 +290,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'QQ:0.25', 'JJ:0.75', 'TT:0.5', 'AKo:0.25', 'AQs:0.75', 'AJs:0.25',
       ].join(','),
     },
-    summary: 'SB vs CO와 같습니다. CO의 넓은 4벳 상대로 QQ 이상·AK는 대부분 올인합니다. JJ·TT·AQs는 콜 위주, AJs는 25%만 콜하고 A5s는 25%만 올인 블러프입니다.',
+    summary: 'SB vs CO와 같아요. CO의 넓은 4벳 상대로 QQ 이상·AK는 대부분 올인해요. JJ·TT·AQs는 콜 위주, AJs는 25%만 콜하고 A5s는 25%만 올인 블러프예요.',
     notes: {
       KK: '올인해요. CO의 4벳 상대로 K♠K♦는 AA 말고 다 이겨요. 내 K♠K♦ vs 상대 A♦5♦ → 승률 68%.',
       QQ: '올인 75%, 콜 25%예요. CO는 올인에 JJ·AQ·A5s를 폴드하고 AK로 받아요. 내 Q♠Q♦ vs 상대 A♦K♠ → 승률 57%.',
@@ -315,7 +315,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'JJ:0.75', 'TT:0.75', '99:0.25', 'AQs:0.75', 'AJs:0.5', 'KQs:0.5', 'AQo:0.25',
       ].join(','),
     },
-    summary: 'BTN은 QQ 이상·AK에 JJ·AQ·AJo·ATo·KQo와 A5s~A2s 블러프까지 가장 넓게 4벳합니다. QQ 이상과 AK는 전부 올인하세요. JJ는 콜 75%, TT·AQs·AJs·KQs는 콜, A5s·A4s는 25%만 올인 블러프입니다.',
+    summary: 'BTN은 QQ 이상·AK에 JJ·AQ·AJo·ATo·KQo와 A5s~A2s 블러프까지 가장 넓게 4벳해요. QQ 이상과 AK는 전부 올인해요. JJ는 콜 75%, TT·AQs·AJs·KQs는 콜, A5s·A4s는 25%만 올인 블러프예요.',
     notes: {
       KK: '올인해요. BTN의 넓은 4벳 상대로 K♠K♦가 밸류를 최대로 받아요. 내 K♠K♦ vs 상대 A♦Q♠ → 승률 71%.',
       QQ: '항상 올인해요. BTN의 4벳 중 절반 넘게 폴드해요. 내 Q♠Q♦ vs 상대 A♦K♠ → 승률 57%.',
@@ -340,7 +340,7 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'JJ:0.75', 'TT:0.75', '99:0.5', 'AQs', 'AJs:0.5', 'KQs:0.5', 'AQo:0.25',
       ].join(','),
     },
-    summary: 'BTN은 QQ 이상·AK에 JJ·AQ·KQo와 A5s~A2s 블러프까지 가장 넓게 4벳합니다. QQ 이상과 AK는 전부 올인, JJ·TT·AQs는 콜 위주입니다. 99·AQo는 일부만 콜하고 A5s·A4s는 25%만 올인 블러프입니다.',
+    summary: 'BTN은 QQ 이상·AK에 JJ·AQ·KQo와 A5s~A2s 블러프까지 가장 넓게 4벳해요. QQ 이상과 AK는 전부 올인, JJ·TT·AQs는 콜 위주예요. 99·AQo는 일부만 콜하고 A5s·A4s는 25%만 올인 블러프예요.',
     notes: {
       '99': '50%만 콜해요. BTN의 넓은 4벳 상대로 승률이 40%를 넘어요. 내 9♠9♦ → 플랍에서 셋이 될 확률 12%.',
       KK: '올인해요. BTN의 4벳 상대로 K♠K♦는 AA 말고 다 이겨요. 내 K♠K♦ vs 상대 A♦Q♠ → 승률 71%.',
@@ -366,11 +366,11 @@ export const VS_4BET_CHARTS: ChartDef[] = [
         'KJs:0.25', 'AQo:0.5',
       ].join(','),
     },
-    summary: 'SB는 먼저 액션해야 해서 콜 대신 넓게 4벳합니다. BB는 포지션이 있어 가장 넓게 받습니다. QQ 이상·AKs는 올인, AKo는 75% 올인, JJ~99·AQs·AJs·KQs는 콜하세요.',
+    summary: 'SB는 먼저 액션해야 해서 콜 대신 넓게 4벳해요. BB는 포지션이 있어 가장 넓게 지켜요. QQ 이상·AKs는 올인, AKo는 75% 올인, JJ~99·AQs·AJs·KQs는 콜해요.',
     notes: {
       KK: '올인해요. SB의 넓은 4벳 상대로 K♠K♦가 밸류를 최대로 받아요. 내 K♠K♦ vs 상대 A♦Q♠ → 승률 71%.',
       QQ: '항상 올인해요. SB의 넓은 4벳 대부분이 폴드해요. 내 Q♠Q♦ vs 상대 A♦K♠ → 승률 57%.',
-      JJ: '콜 75%, 올인 25%예요. 포지션이 있어 SPR(팟 대비 남은 스택 비율) 1.5로 플랍을 보는 게 좋아요. TT는 항상 콜, 99는 50%만 콜해요.',
+      JJ: '콜 75%, 올인 25%예요. 포지션이 있어 SPR(팟 대비 남은 스택 비율) 1.5로 플랍을 보는 게 좋아요. TT은 항상 콜, 99는 50%만 콜해요.',
       AKs: '항상 올인해요. A♠K♠는 SB의 넓은 4벳을 많이 폴드시켜요. 내 A♠K♠ vs 상대 A♦Q♠ → 승률 73%.',
       AKo: '올인 75%, 콜 25%예요. 포지션이 있어 A♠K♦로 일부는 콜해도 돼요. 내 A♠K♦ vs 상대 A♦J♠ → 승률 73%.',
       AQs: '항상 콜해요. A♠Q♠는 SB의 AJs·KQs·A5s를 이기고 포지션도 있어요. AJs는 75%, ATs·AQo는 50%만 콜해요.',

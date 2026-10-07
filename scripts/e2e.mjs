@@ -136,40 +136,33 @@ check((await page.locator('.trainer-session--think').count()) > 0, 'train: .trai
 check((await page.locator('.trainer-choice').count()) >= 2, 'train: fewer than 2 .trainer-choice buttons');
 const countdown = () => page.locator('.trainer-timer__num').first().innerText().catch(() => '');
 check(/\d+\.\d초/.test(await countdown()), `train: countdown number missing ("${await countdown()}")`);
-check(/선택하세요/.test(await page.locator('.trainer-hud').innerText()), 'train: HUD tag should read 선택하세요 while choosing');
+check(/고르기/.test(await page.locator('.trainer-hud').innerText()), 'train: HUD tag should read 고르기 while choosing (명령형 선택하세요 대신 명사 태그)');
 check((await page.locator('.trainer-next').count()) === 0, 'train: 다음 button must not show during the think phase');
 {
   const tooSmall = await page.locator('.trainer-choice').evaluateAll((els) => els.filter((el) => el.getBoundingClientRect().height < 56).length);
   check(tooSmall === 0, `train: ${tooSmall} choice button(s) shorter than 56 px`);
 }
 
-// hold-to-pause (on the fan, away from the buttons): countdown freezes, held sheet shows, resumes on release
-{
-  const box = await page.locator('.trainer-fan').first().boundingBox();
-  const cdp = await ctx.newCDPSession(page);
-  const x = box.x + box.width / 2, y = box.y + box.height / 2;
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-  await page.waitForTimeout(400);
-  // inline progress width (the stage's scale(.98) hold transition would jitter a bounding rect)
-  const barWidth = () => page.evaluate(() => document.querySelector('.timerbar__fill')?.style.width ?? '');
-  const t1 = await countdown();
-  const w1 = await barWidth();
-  await page.waitForTimeout(700);
-  const t2 = await countdown();
-  const w2 = await barWidth();
-  check(t1 === '일시정지', `train: countdown label while holding should be 일시정지 (got "${t1}")`);
-  check(w1 !== '' && w1 === w2, `train: timer bar did not freeze while holding (${w1} → ${w2})`);
-  const held = await page.locator('.ui-sheet--held, .trainer-hold').count();
-  check(held > 0, 'train: hold overlay not shown');
-  await shot('05-train-hold');
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await page.waitForTimeout(600);
-  const t3 = await countdown();
-  check(t3 !== t2, `train: countdown did not resume after release (${t2} → ${t3})`);
-  check((await page.locator('.ui-sheet--held').count()) === 0, 'train: hold overlay still shown after release');
-}
+// 고르기 도우미: data-answer / data-partial(ChoiceButtons 의 QA 훅)로 정답 또는 오답 버튼을 집습니다.
+// 오답은 정답도 부분 정답도 아닌 액션입니다. 그런 액션이 없으면(반반 칸) null 을 돌려줍니다.
+const pick = async (want) => {
+  const group = page.locator('.trainer-choices').first();
+  const answer = (await group.getAttribute('data-answer')) ?? '';
+  const partial = ((await group.getAttribute('data-partial')) ?? '').split(',').filter(Boolean);
+  let act = answer;
+  if (want === 'wrong') {
+    const acts = await page.locator('.trainer-choice').evaluateAll((els) => els.map((el) => el.getAttribute('data-action')));
+    act = acts.find((a) => a && a !== answer && !partial.includes(a)) ?? null;
+    if (!act) return null;
+  }
+  await page.locator(`.trainer-choice[data-action="${act}"]`).first().tap();
+  return act;
+};
+const hudCount = () => page.locator('.trainer-hud__count').first().innerText().catch(() => '');
+// 1번째 장: 정답을 고릅니다. 'know' 카드만 다음 카운트다운이 걸리므로(sessionStore.armAutoNext),
+// 자동 넘김 검사는 엿보지 않은(홀드하지 않은) 카드에서 정답을 골라야 돌아갑니다.
 // choose → reveal state
-await page.locator('.trainer-choice').first().tap();
+await pick('correct');
 await page.waitForTimeout(500);
 await shot('06-train-reveal');
 check((await page.locator('.trainer-session--reveal').count()) > 0, 'train: .trainer-session--reveal missing after choosing');
@@ -228,13 +221,52 @@ check(/해설/.test(await page.locator('.trainer-hud').innerText()), 'train: HUD
     await shot('06b-train-next-card');
   }
 }
-// card 2: 해설 cancels the auto-advance for good, 차트 shows the GTO chart, 다음 moves on by hand
+// 2번째 장: hold-to-pause (on the fan, away from the buttons): countdown freezes, held sheet shows, resumes on release.
+// 홀드는 답을 먼저 본 것(peek)이라, 정답을 골라도 'know' 가 아니고 자동 넘김이 걸리지 않아야 합니다.
+{
+  const box = await page.locator('.trainer-fan').first().boundingBox();
+  const cdp = await ctx.newCDPSession(page);
+  const x = box.x + box.width / 2, y = box.y + box.height / 2;
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  await page.waitForTimeout(400);
+  // inline progress width (the stage's scale(.98) hold transition would jitter a bounding rect)
+  const barWidth = () => page.evaluate(() => document.querySelector('.timerbar__fill')?.style.width ?? '');
+  const t1 = await countdown();
+  const w1 = await barWidth();
+  await page.waitForTimeout(700);
+  const t2 = await countdown();
+  const w2 = await barWidth();
+  check(t1 === '일시정지', `train: countdown label while holding should be 일시정지 (got "${t1}")`);
+  check(w1 !== '' && w1 === w2, `train: timer bar did not freeze while holding (${w1} → ${w2})`);
+  const held = await page.locator('.ui-sheet--held, .trainer-hold').count();
+  check(held > 0, 'train: hold overlay not shown');
+  await shot('05-train-hold');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await page.waitForTimeout(600);
+  const t3 = await countdown();
+  check(t3 !== t2, `train: countdown did not resume after release (${t2} → ${t3})`);
+  check((await page.locator('.ui-sheet--held').count()) === 0, 'train: hold overlay still shown after release');
+}
+{
+  await pick('correct');
+  await page.waitForTimeout(500);
+  await shot('06e-train-peeked-reveal');
+  const nextBtn = page.locator('.trainer-next');
+  check((await nextBtn.count()) === 1, 'train: .trainer-next missing on the peeked card');
+  check((await nextBtn.first().getAttribute('data-auto')) === 'off', 'train: a peeked card must not arm the 다음 countdown');
+  const timerText = await page.locator('.trainer-timer').first().innerText().catch(() => '');
+  check(/다음을 눌러 넘어가요/.test(timerText), `train: peeked card timer row should read 다음을 눌러 넘어가요 ("${timerText}")`);
+  await nextBtn.first().tap();
+  await page.waitForTimeout(500);
+  check(/^3\//.test(await hudCount()), `train: 다음 did not leave the peeked card (counter "${await hudCount()}")`);
+}
+// card 3: 해설 cancels the auto-advance for good, 차트 shows the GTO chart, 다음 moves on by hand
 {
   const counter = () => page.locator('.trainer-hud__count').first().innerText().catch(() => '');
-  await page.locator('.trainer-choice').first().tap();
+  await pick('correct');
   await page.waitForTimeout(400);
   const nextBtn = page.locator('.trainer-next');
-  check((await nextBtn.first().getAttribute('data-auto')) === 'on', 'train: card 2 should start its own countdown');
+  check((await nextBtn.first().getAttribute('data-auto')) === 'on', 'train: card 3 should start its own countdown');
   // 해설 → close: the countdown must not come back
   await page.locator('.trainer-controls__main').first().tap();
   await page.waitForTimeout(500);
@@ -280,13 +312,46 @@ check(/해설/.test(await page.locator('.trainer-hud').innerText()), 'train: HUD
   await page.waitForTimeout(500);
   check((await page.locator('.trainer-chart').count()) === 0, 'train: chart sheet still open after Escape');
   // still no auto-advance, then tap 다음 by hand
-  check(/^2\//.test(await counter()), `train: card advanced while the chart sheet was open (counter "${await counter()}")`);
+  check(/^3\//.test(await counter()), `train: card advanced while the chart sheet was open (counter "${await counter()}")`);
   await page.waitForTimeout(7000);
-  check(/^2\//.test(await counter()), `train: cancelled card advanced by itself (counter "${await counter()}")`);
+  check(/^3\//.test(await counter()), `train: cancelled card advanced by itself (counter "${await counter()}")`);
   check((await nextBtn.first().getAttribute('data-auto')) === 'off', 'train: auto-advance restarted after the 차트 sheet');
   await nextBtn.first().tap();
   await page.waitForTimeout(500);
-  check(/^3\//.test(await counter()), `train: 다음 did not advance the counter (got "${await counter()}")`);
+  check(/^4\//.test(await counter()), `train: 다음 did not advance the counter (got "${await counter()}")`);
+}
+// card 4+: 오답은 자동으로 넘어가지 않습니다 — 6초를 기다려도 같은 장, data-auto=off, 다음은 손으로.
+//   오답 액션이 없는 칸(반반)이면 정답을 골라 넘기고 다음 장에서 다시 시도합니다(최대 4장).
+{
+  let tried = false;
+  for (let i = 0; i < 4 && !tried; i++) {
+    const nextBtn = page.locator('.trainer-next');
+    const act = await pick('wrong');
+    if (act === null) {
+      await pick('correct');
+      await page.waitForTimeout(400);
+      await nextBtn.first().tap();
+      await page.waitForTimeout(500);
+      continue;
+    }
+    tried = true;
+    await page.waitForTimeout(400);
+    // 오답은 다시 줄에 넣느라 분모가 바뀔 수 있어, 고른 뒤의 카운터를 기준으로 삼습니다.
+    const before = await hudCount();
+    await shot('06f-train-wrong-reveal');
+    check((await page.locator('.trainer-choice--chosen.trainer-choice--wrong').count()) === 1, `train: wrong pick (${act}) not marked ✕`);
+    check((await nextBtn.first().getAttribute('data-auto')) === 'off', 'train: a wrong answer must not arm the 다음 countdown');
+    const label = (await nextBtn.first().innerText()).replace(/\s+/g, ' ').trim();
+    check(!/[0-9]/.test(label), `train: 다음 must carry no countdown after a wrong answer (got "${label}")`);
+    await page.waitForTimeout(6000);
+    check((await hudCount()) === before, `train: a wrong answer advanced by itself (${before} → ${await hudCount()})`);
+    check((await page.locator('.trainer-session--reveal').count()) > 0, 'train: the wrong-answer reveal did not stay on screen');
+    check((await nextBtn.first().getAttribute('data-auto')) === 'off', 'train: auto-advance armed itself on the wrong-answer card');
+    await nextBtn.first().tap();
+    await page.waitForTimeout(500);
+    check((await hudCount()) !== before, `train: 다음 did not leave the wrong-answer card (counter "${await hudCount()}")`);
+  }
+  check(tried, 'train: no card with a wrong action in 4 tries — the wrong-answer check did not run');
 }
 // end early → summary
 await page.locator('.trainer-hud__btn').first().tap();

@@ -275,7 +275,9 @@ export function rfiProfile(hand: HandName): RfiProfile {
   const firstAny = core.find((c) => c.raise > EPS)?.pos ?? null;
   const firstAlways = core.find((c) => c.raise >= 0.999)?.pos ?? null;
   const monotone = core.every((c, i) => i === 0 || c.raise >= core[i - 1].raise - EPS);
-  const sbDiffers = sb.primary !== btn.primary;
+  // 1순위만 보면 동점(오픈 50 / 폴드 50 → 오픈)이 BTN 의 항상 오픈과 같아 보여, 'BTN부터 오픈해요'가 SB 의 절반을
+  // 덮어 버립니다(Q2s·53s). 항상인지 아닌지가 다르면 SB 절을 붙입니다.
+  const sbDiffers = sb.primary !== btn.primary || (sb.raise >= 0.999) !== (btn.raise >= 0.999);
   let pattern: RfiProfile['pattern'];
   if (core.every((c) => c.raise >= 0.999)) pattern = 'always';
   else if (core.every((c) => c.raise <= EPS)) pattern = sb.raise > EPS ? 'sbOnly' : 'never';
@@ -638,11 +640,11 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
 
   switch (rfi.pattern) {
     case 'always': {
-      if (sbCell.primary === 'raise') {
+      if (!rfi.sbDiffers) {
         out.push({ text: `${subject} 어느 자리에서나 오픈해요.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
       } else {
-        // 데이터에 없는 경우지만, 생기면 "어느 자리에서든"이 거짓이 되므로 SB 를 빼고 말합니다.
-        out.push({ text: `${subject} UTG에서도 오픈해요.${sbClause}`, claims: [claimOf(cell('UTG')), ...sbClaims], nums: [], source: 'computed' });
+        // 지금 데이터에는 없지만, SB 가 항상이 아니면 "어느 자리에서나"는 거짓입니다 — UTG~BTN 과 SB 를 나눠 말합니다.
+        out.push({ text: `${subject} UTG부터 오픈해요.${sbClause}`, claims: [...CORE_SEATS.map((p) => claimOf(cell(p))), ...sbClaims], nums: [], source: 'computed' });
       }
       break;
     }

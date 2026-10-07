@@ -51,46 +51,100 @@ function cellsOf(s: Scenario, line: LineDef): Cell[] {
     });
 }
 
-/** claim 하나가 차트에서 참인가. 거짓이면 이유 문자열. */
-function checkClaim(s: Scenario, cs: Cell[], c: LineClaim): string | null {
+/** 이름 없이 덮어도 되는 비중의 하한('주로'). */
+const STRONG = 0.6 - 1e-9;
+
+/**
+ * 문장 하나의 claims 를 차트에서 다시 계산해 대조합니다. 틀린 점을 전부 돌려줍니다(없으면 빈 배열).
+ *
+ * claim 마다의 사실에 더해 **이름 규칙**(docs/EXPLAIN_SPEC.md §3.4)을 칸마다 봅니다:
+ *  - 비중어와 함께 이름을 댄 칸(weight · minor)은 그 비중어가 맞으면 됩니다.
+ *  - 이름만 댄 칸(only)은 비중이 0.6 이상이어야 합니다.
+ *  - 범위로 덮은 칸(all · upto · toEnd · rest)은 그 범위가 말하는 액션이 1순위이고 비중이 0.6 이상이어야 하고,
+ *    '전부'(whole)면 full 이어야 합니다.
+ *  - 문장이 아무 말도 하지 않는 칸은 나머지(rest)로 읽히므로 1순위가 rest 이고 비중이 0.6 이상이어야 합니다.
+ *  - 문장에 '전부'가 있으면 whole claim 이 있고, 없으면 없습니다.
+ */
+function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[]): string[] {
   const rest = restAction(getChartDef(s));
+  const err: string[] = [];
   const idx = (h: HandName) => cs.findIndex((x) => x.hand === h);
   const same = (a: HandName[], b: HandName[]) => [...a].sort().join() === [...b].sort().join();
-  switch (c.t) {
-    case 'all':
-      return cs.every((x) => x.p === c.action) ? null : 'all';
-    case 'upto': {
-      const i0 = c.from ? idx(c.from) : 0;
-      const i1 = idx(c.to);
-      if (i0 < 0 || i1 < 0 || i0 > i1) return 'upto: 칸 없음';
-      for (let i = i0; i <= i1; i++) if (cs[i].p !== c.action) return `upto: ${cs[i].hand} 은 ${cs[i].p}`;
-      if (!cs[i1].full) return `upto: ${c.to} full 아님`;
-      const next = cs[i1 + 1];
-      if (next && next.p === c.action && next.full) return `upto: 다음 칸 ${next.hand} 도 full-${c.action}`;
-      return null;
-    }
-    case 'only':
-      return same(cs.filter((x) => x.p === c.action).map((x) => x.hand), c.hands) ? null : 'only';
-    case 'toEnd': {
-      const i0 = idx(c.from);
-      if (i0 < 0) return 'toEnd: 칸 없음';
-      for (let i = i0; i < cs.length; i++) {
-        if (cs[i].p !== c.action) return `toEnd: ${cs[i].hand}`;
-        // '부터는 전부 〈계속 액션〉'은 full 까지 말합니다. 체크 꼬리('부터는 체크해요')는 1순위만 말합니다.
-        if (c.action !== rest && !cs[i].full) return `toEnd: ${cs[i].hand} full 아님`;
+  const cover = new Map<HandName, Array<{ action: Action; whole: boolean; by: string }>>();
+  const named = new Map<HandName, 'word' | 'bare'>();
+  const add = (i: number, action: Action, whole: boolean, by: string) => cover.set(cs[i].hand, [...(cover.get(cs[i].hand) ?? []), { action, whole, by }]);
+  for (const c of claims) {
+    switch (c.t) {
+      case 'all':
+        cs.forEach((_, i) => add(i, c.action, c.whole, 'all'));
+        break;
+      case 'upto': {
+        const i0 = c.from ? idx(c.from) : 0;
+        const i1 = idx(c.to);
+        if (i0 < 0 || i1 < 0 || i0 > i1) {
+          err.push(`upto ${c.from}→${c.to}: 칸 없음`);
+          break;
+        }
+        for (let i = i0; i <= i1; i++) add(i, c.action, false, `upto ${c.to}`);
+        const next = cs[i1 + 1];
+        if (next && next.p === c.action && next.full) err.push(`upto: 다음 칸 ${next.hand} 도 full-${c.action}`);
+        break;
       }
-      return null;
+      case 'toEnd': {
+        const i0 = idx(c.from);
+        if (i0 < 0) err.push(`toEnd ${c.from}: 칸 없음`);
+        else for (let i = i0; i < cs.length; i++) add(i, c.action, c.whole, `toEnd ${c.from}`);
+        break;
+      }
+      case 'rest':
+        cs.forEach((x, i) => !c.except.includes(x.hand) && add(i, c.action, c.whole, 'rest'));
+        break;
+      case 'only':
+        if (!same(cs.filter((x) => x.p === c.action).map((x) => x.hand), c.hands)) err.push(`only ${c.action}`);
+        for (const h of c.hands) if (!named.has(h)) named.set(h, 'bare');
+        break;
+      case 'weight': {
+        const x = cs[idx(c.hand)];
+        if (!x || x.p !== c.action || x.word !== c.word) err.push(`weight ${c.hand}: ${x?.p} ${x?.word}`);
+        named.set(c.hand, 'word');
+        break;
+      }
+      case 'minor': {
+        if (!cs.every((x) => x.p === rest)) err.push('minor: rest 아닌 칸');
+        const has = (x: Cell) => x.mix.some((m) => c.actions.includes(m.action) && m.weight > 0.001);
+        if (!same(cs.filter(has).map((x) => x.hand), c.hands)) err.push('minor: 칸');
+        const used = new Set(cs.filter((x) => c.hands.includes(x.hand)).flatMap((x) => x.mix.filter((m) => m.action !== rest && m.weight > 0.001).map((m) => m.action)));
+        if (!same([...used], c.actions)) err.push(`minor: 액션 ${[...used]} ≠ ${c.actions}`);
+        for (const h of c.hands) named.set(h, 'word');
+        break;
+      }
     }
-    case 'weight': {
-      const x = cs[idx(c.hand)];
-      return x && x.p === c.action && x.word === c.word ? null : `weight ${c.hand}`;
-    }
-    case 'minor':
-      if (!cs.every((x) => x.p === rest)) return 'minor: rest 아닌 칸';
-      return same(cs.filter((x) => x.mix.some((m) => m.action === c.action && m.weight > 0.001)).map((x) => x.hand), c.hands) ? null : 'minor';
-    case 'rest':
-      return cs.filter((x) => !c.except.includes(x.hand)).every((x) => x.p === c.action) ? null : 'rest';
   }
+  for (const x of cs) {
+    const n = named.get(x.hand);
+    if (n) {
+      if (n === 'bare' && x.w < STRONG) err.push(`${x.hand}: ${x.word} 칸인데 비중어 없이 이름만`);
+      continue;
+    }
+    const cv = cover.get(x.hand);
+    if (!cv) {
+      if (x.p !== rest || x.w < STRONG) err.push(`${x.hand}: 문장이 말하지 않는 칸(= ${rest})인데 ${x.p} ${x.word}`);
+      continue;
+    }
+    for (const k of cv) {
+      if (k.action !== x.p) err.push(`${x.hand}: ${k.by} 는 ${k.action} 인데 칸은 ${x.p}`);
+      else if (x.w < STRONG) err.push(`${x.hand}: ${k.by} 가 ${x.word} 칸을 이름 없이 덮음`);
+      else if (k.whole && !x.full) err.push(`${x.hand}: '전부'인데 ${x.word}`);
+    }
+  }
+  const whole = claims.some((c) => 'whole' in c && c.whole);
+  if (text.includes('전부') !== whole) err.push(`'전부' 글자(${text.includes('전부')}) ≠ claims(${whole})`);
+  // 비중어 claim 은 그 말이 문장에 있어야 합니다('콜을 섞어요'처럼 비중어 없이 뭉뚱그리지 않게).
+  for (const c of claims) {
+    if (c.t === 'weight' && c.word !== 'full' && !text.includes(c.word)) err.push(`weight ${c.hand}: '${c.word}'가 문장에 없음`);
+    if (c.t === 'minor' && !text.includes('가끔')) err.push("minor: '가끔'이 문장에 없음");
+  }
+  return err;
 }
 
 const HAND_RE = /[2-9TJQKA]{2}[so]?/g;
@@ -109,17 +163,19 @@ function textHands(text: string, cs: Cell[]): Set<HandName> {
   return out;
 }
 
-function claimHands(claims: LineClaim[]): { all: Set<HandName>; mentioned: Set<HandName> } {
+function claimHands(claims: LineClaim[], cs: Cell[]): { all: Set<HandName>; mentioned: Set<HandName> } {
   const all = new Set<HandName>();
   const mentioned = new Set<HandName>();
+  const order = cs.map((x) => x.hand);
   for (const c of claims) {
     const hs: HandName[] = c.t === 'upto' ? [c.to] : c.t === 'only' || c.t === 'minor' ? c.hands : c.t === 'toEnd' || c.t === 'weight' ? [c.t === 'toEnd' ? c.from : c.hand] : c.t === 'rest' ? c.except : [];
     for (const h of hs) {
       all.add(h);
       mentioned.add(h);
     }
-    // upto 의 from 은 문장에 이름이 안 나올 수 있습니다(둘째 run 의 시작 칸).
-    if (c.t === 'upto' && c.from) all.add(c.from);
+    // upto 의 from 과 사이 칸은 문장에 이름이 안 나올 수 있습니다('A9o까지는 콜' — 앞 항목 다음 칸부터).
+    // 'X·Y는 4벳'처럼 양 끝을 다 부르면 둘 다 문장에 있습니다.
+    if (c.t === 'upto') for (let i = c.from ? order.indexOf(c.from) : 0; i <= order.indexOf(c.to); i++) all.add(order[i]);
   }
   return { all, mentioned };
 }
@@ -170,8 +226,8 @@ describe('line: 문장 존재 · 길이 (§7.2-2·3)', () => {
     expect(new Set(texts).size).toBe(1089);
   });
 
-  it('줄 문장 · 형제 줄 ≤ 42em, 자리 문장 ≤ 46em, 레버 ≤ 30자, 숫자 줄 ≤ 34em · 폴백은 noLabel 1, cut 0', () => {
-    const fallback = { noLabel: 0, cut: 0 };
+  it('줄 문장 · 형제 줄 ≤ 42em, 자리 문장 ≤ 46em, 레버 ≤ 30자, 숫자 줄 ≤ 34em · 폴백 실측', () => {
+    const fallback = { noLabel: 0, noCtx: 0 };
     for (const { s, line, sentence } of ALL) {
       if (!sentence) continue;
       expect(emWidth(sentence.text), sentence.text).toBeLessThanOrEqual(42);
@@ -179,8 +235,17 @@ describe('line: 문장 존재 · 길이 (§7.2-2·3)', () => {
       const top = lineSentence(s, line, { topic: true });
       expect(emWidth(top!.text), top!.text).toBeLessThanOrEqual(42);
     }
-    expect(fallback).toEqual({ noLabel: 1, cut: 0 });
-    expect(ALL.find((x) => x.sentence?.fallback === 'noLabel')!.s).toEqual({ kind: 'vs_open', hero: 'SB', villain: 'BTN' });
+    // 폴백 실측(§9): 틀 문장의 noLabel 은 여전히 vs_open SB:BTN 커넥터 하나. 칸 나열 꼴은 noLabel 21 · noCtx 6.
+    expect(fallback).toEqual({ noLabel: 22, noCtx: 6 });
+    expect(ALL.filter((x) => x.sentence?.fallback === 'noLabel' && x.sentence.form === 'frame').map((x) => x.s)).toEqual([{ kind: 'vs_open', hero: 'SB', villain: 'BTN' }]);
+    const forms: Record<string, number> = {};
+    for (const x of ALL) if (x.sentence) forms[x.sentence.form] = (forms[x.sentence.form] ?? 0) + 1;
+    expect(forms).toEqual({ frame: 996, except: 4, list: 89 });
+    // noCtx 는 칸 나열 꼴에서만, 그리고 내 자리는 남습니다.
+    for (const x of ALL.filter((y) => y.sentence?.fallback === 'noCtx')) {
+      expect(x.sentence!.form).toBe('list');
+      expect(x.sentence!.text.startsWith(`${x.s.hero}`)).toBe(true);
+    }
     for (const s of SCENARIOS) {
       const n = seatNumbers(s).text;
       expect(emWidth(n), n).toBeLessThanOrEqual(34);
@@ -199,28 +264,59 @@ describe('line: 문장 존재 · 길이 (§7.2-2·3)', () => {
 });
 
 describe('line: 주장 재계산 (§7.2-6)', () => {
-  it('1,089개 문장의 claims 가 차트에서 다시 계산해도 전부 참이고, 문장 속 패 이름 = claims 의 패', () => {
+  it('1,089개 문장의 claims 가 차트에서 다시 계산해도 전부 참이고 이름 규칙을 지키며, 문장 속 패 이름 = claims 의 패', () => {
     let n = 0;
     for (const { s, line, sentence, cells } of ALL) {
       if (!sentence) continue;
       n++;
       const where = `${scenarioKey(s)} ${line.id} [${sentence.frame}] ${sentence.text}`;
       expect(sentence.claims.length, where).toBeGreaterThan(0);
-      for (const c of sentence.claims) expect(checkClaim(s, cells, c), `${where} ← ${JSON.stringify(c)}`).toBeNull();
+      expect(checkSentence(s, cells, sentence.text, sentence.claims), where).toEqual([]);
       const inText = textHands(sentence.text, cells);
-      const { all, mentioned } = claimHands(sentence.claims);
+      const { all, mentioned } = claimHands(sentence.claims, cells);
       for (const h of inText) expect(all.has(h), `${where}: 문장의 ${h} 가 claims 에 없음`).toBe(true);
       for (const h of mentioned) expect(inText.has(h), `${where}: claim 의 ${h} 가 문장에 없음`).toBe(true);
     }
     expect(n).toBe(1089);
   });
 
-  it('형제 줄(topic)도 같은 claims 를 갖고 참이다', () => {
+  it('형제 줄(topic)도 참이고 이름 규칙을 지킨다', () => {
     for (const { s, line, cells } of ALL) {
       const top = lineSentence(s, line, { topic: true });
       if (!top) continue;
-      for (const c of top.claims) expect(checkClaim(s, cells, c), `${scenarioKey(s)} ${line.id} ${top.text}`).toBeNull();
+      expect(checkSentence(s, cells, top.text, top.claims), `${scenarioKey(s)} ${line.id} ${top.text}`).toEqual([]);
     }
+  });
+
+  it('섞인 칸(비중 ≤ 0.5)은 하나도 빠짐없이 문장에 이름이 나온다 — 리빌에서 내 패가 섞인 칸이면 문장이 그 패를 부른다', () => {
+    let mixed = 0;
+    for (const { s, line, sentence, cells } of ALL) {
+      if (!sentence) continue;
+      const inText = textHands(sentence.text, cells);
+      for (const c of cells) {
+        if (c.w >= STRONG) continue;
+        mixed++;
+        expect(inText.has(c.hand), `${scenarioKey(s)} ${line.id} ${c.hand}(${c.word}): ${sentence.text}`).toBe(true);
+      }
+    }
+    expect(mixed).toBeGreaterThan(250);
+  });
+
+  it('리뷰가 짚은 문장들 (§9)', () => {
+    const at = (key: string, hand: string) => lineSentence(SCENARIOS.find((x) => scenarioKey(x) === key)!, lineOf(hand))!.text;
+    // '전부'가 50/50 칸을 덮던 P1
+    expect(at('vs_open:SB:CO', 'A7s')).toBe('SB는 CO 오픈에 수티드 A를 3벳하고, A8s부터 A6s까지는 절반만 3벳해요.');
+    // '까지'가 줄 첫 칸에 붙고 run 1 의 섞인 꼬리를 버리던 P3
+    expect(at('vs_open:BB:UTG', 'AQo')).toBe('BB는 UTG 오픈에 AKo는 3벳, AQo는 3벳·콜 반반, A9o까지는 콜, A8o는 절반만 콜해요.');
+    // 마지막 계속 run 의 섞인 꼬리(경계 막대 칸)를 부른다
+    expect(at('vs_3bet:UTG:HJ', '77')).toBe('UTG는 HJ 3벳에 KK까지는 4벳, QQ는 4벳·콜 반반, 88까지는 콜, 77은 절반만 콜해요.');
+    // '그 밖' 꼬리('콜을 섞어요') 대신 앞쪽 '주로' 칸을 '까지'에 넣는다
+    expect(at('vs_open:BB:UTG', '76s')).toBe('BB는 UTG 오픈에 수티드 커넥터를 54s까지 콜하고, 43s는 절반만 콜해요.');
+    expect(at('vs_open:BB:SB', 'QTs')).toBe('BB는 SB 오픈에 수티드 Q 중 QJs는 주로 3벳, QTs는 3벳·콜 반반, Q9s부터는 콜해요.');
+    // P0h: 3벳과 콜을 같이 섞는 칸
+    expect(at('vs_open:HJ:UTG', 'KQo')).toBe('HJ는 UTG 오픈에 오프수트 K를 KQo만 가끔 3벳이나 콜하고, 나머지는 폴드해요.');
+    // 섞인 칸이 사이에 낀 줄: '나머지 전부' 꼴
+    expect(at('vs_limp:BTN', 'A7s')).toBe('BTN은 림프에 수티드 A를 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.');
   });
 });
 
@@ -367,10 +463,13 @@ describe('line: 경계 거리 꼬리표 (§7.2-10)', () => {
         expect(cells.every((c, i) => i === 0 || agg(c.p) <= agg(cells[i - 1].p)), `${scenarioKey(s)} ${hand}`).toBe(true);
         const i = cells.findIndex((c) => c.hand === hand);
         const lastCont = cells.map((c) => c.p !== rest).lastIndexOf(true);
+        const slotOf = (h: HandName) => lineOf(hand).slots.findIndex((x) => x.hand === h);
         if (nm === '한 칸 밖') {
           near++;
           expect(cells[i].p, `${scenarioKey(s)} ${hand}`).toBe(rest);
           expect(i - 1).toBe(lastCont);
+          // 스트립 칸으로도 바로 다음 — 사이에 점선(도달 불가) 칸이 끼면 '한 칸 밖'이 아닙니다.
+          expect(slotOf(hand), `${scenarioKey(s)} ${hand}`).toBe(slotOf(cells[lastCont].hand) + 1);
         } else expect(i).toBe(lastCont);
       }
     }
@@ -381,6 +480,11 @@ describe('line: 경계 거리 꼬리표 (§7.2-10)', () => {
     expect(nearMiss({ kind: 'rfi', hero: 'UTG' }, 'K9o')).toBeNull();
     // 단조롭지 않은 줄에는 꼬리표가 없습니다.
     expect(nearMiss({ kind: 'vs_3bet', hero: 'CO', villain: 'BTN' }, 'A6s')).toBeNull();
+    // 막대(AKs 뒤)와 링(A5s) 사이에 점선 칸 7개 — 도달 칸끼리는 이웃이어도 '한 칸 밖'이 아닙니다(UI 리뷰).
+    const v = stripView({ kind: 'vs_5bet', hero: 'UTG', villain: 'CO' }, 'A5s');
+    expect(v.boundaryAfter).toBe(1);
+    expect(v.slots.slice(2, 9).every((x) => x.role === 'unreachable')).toBe(true);
+    expect(nearMiss({ kind: 'vs_5bet', hero: 'UTG', villain: 'CO' }, 'A5s')).toBeNull();
   });
 
   it('stripView: 유령 칸에는 색이 없고, 도달 불가 칸은 점선, 링은 이 패', () => {

@@ -1,3 +1,4 @@
+import { isReachable } from './atlas';
 import { getChartCells, getChartDef, hasChart } from './data';
 import { ALL_HANDS, dealRandomHand, dealWeightedHand, gridHand, pick, random } from './hands';
 import { continueWeights, fullMix, primaryAction } from './range';
@@ -65,6 +66,9 @@ export function interestingWeights(hero: Pos): Record<HandName, number> {
  *  Line C: cold_4bet (random opener + 3-bettor in front)
  *  Line D: vs_limp (한 명이 림프한 뒤 hero 차례) — 다른 줄기와 이어지지 않는 별개의 손패입니다.
  * Later steps in a line only appear when the memorized answer of the previous step continues aggressively.
+ * 앞 스텝을 훈련하지 않을 때(그 종류가 꺼져 있을 때)도 같은 기준 — 앞 차트의 **1순위**가 그 액션인지 — 으로 잇습니다.
+ * 비중이 조금이라도 있으면 잇던 옛 규칙은 3벳 25% 칸까지 4벳 대응을 냈고, 그 칸은 atlas.isReachable 이 '도달 불가'로
+ * 그려서 리빌의 캡슐 · 링 · 문장이 서로 어긋났습니다(리뷰). isReachable 과 같은 규칙입니다.
  */
 export function buildSteps(hero: Pos, hand: HandName, opts: SessionOptions, rng: () => number = random): Step[] {
   const kinds = new Set(opts.kinds);
@@ -81,8 +85,7 @@ export function buildSteps(hero: Pos, hand: HandName, opts: SessionOptions, rng:
         opened = s.answer === 'raise';
       }
     } else {
-      const rfi = hasChart({ kind: 'rfi', hero }) ? getChartCells({ kind: 'rfi', hero })[hand] : undefined;
-      opened = !!rfi?.raise;
+      opened = hasChart({ kind: 'rfi', hero }) && primaryAction(getChartCells({ kind: 'rfi', hero })[hand]) === 'raise';
     }
     const after = positionsAfter(hero);
     if (opened && after.length && (kinds.has('vs_3bet') || kinds.has('vs_5bet'))) {
@@ -95,7 +98,7 @@ export function buildSteps(hero: Pos, hand: HandName, opts: SessionOptions, rng:
           fourBet = s.answer === 'fourbet';
         }
       } else if (hasChart({ kind: 'vs_3bet', hero, villain })) {
-        fourBet = !!getChartCells({ kind: 'vs_3bet', hero, villain })[hand]?.fourbet;
+        fourBet = primaryAction(getChartCells({ kind: 'vs_3bet', hero, villain })[hand]) === 'fourbet';
       }
       if (fourBet && kinds.has('vs_5bet')) {
         const s = makeStep({ kind: 'vs_5bet', hero, villain }, hand);
@@ -116,7 +119,7 @@ export function buildSteps(hero: Pos, hand: HandName, opts: SessionOptions, rng:
         threeBet = s.answer === 'threebet';
       }
     } else if (hasChart({ kind: 'vs_open', hero, villain })) {
-      threeBet = !!getChartCells({ kind: 'vs_open', hero, villain })[hand]?.threebet;
+      threeBet = primaryAction(getChartCells({ kind: 'vs_open', hero, villain })[hand]) === 'threebet';
     }
     if (threeBet && kinds.has('vs_4bet')) {
       const s = makeStep({ kind: 'vs_4bet', hero, villain }, hand);
@@ -278,17 +281,27 @@ export function boundaryTable(hero: Pos, kinds: readonly ScenarioKind[]): Bounda
 /** Deal a hand for `hero`: `interestingBias` → playable-somewhere weighted, else boundary-weighted (`boundaryTable`). */
 export function dealForHero(hero: Pos, opts: SessionOptions, rng: () => number = random): HandName {
   const kinds = new Set(opts.kinds);
-  // If only "later" scenarios are trained, sample from the range that reaches them.
+  // If only "later" scenarios are trained, sample from the range that reaches them — 1순위로 도달하는 패만(buildSteps ·
+  // isReachable 과 같은 기준). 비중으로 뽑던 옛 딜러는 vs_4bet 만 켜면 7%, vs_5bet 만 켜면 25%의 스텝을 도달 불가 칸에서 냈습니다.
   const onlyLater = !kinds.has('rfi') && !kinds.has('vs_open') && !kinds.has('cold_4bet');
   if (onlyLater) {
     if ((kinds.has('vs_3bet') || kinds.has('vs_5bet')) && hero !== 'BB' && hasChart({ kind: 'rfi', hero })) {
-      const h = dealWeightedHand(continueWeights(getChartCells({ kind: 'rfi', hero })), rng);
+      const rfi = getChartCells({ kind: 'rfi', hero });
+      const after = positionsAfter(hero);
+      // 5벳 대응만 켜면 어느 뒤 자리 상대에게든 4벳이 1순위인 패만(villain 은 buildSteps 가 따로 뽑으므로 못 이으면 다시 딜합니다).
+      const fourBets = (h: HandName) => after.some((v) => hasChart({ kind: 'vs_3bet', hero, villain: v }) && primaryAction(getChartCells({ kind: 'vs_3bet', hero, villain: v })[h]) === 'fourbet');
+      const w: Record<HandName, number> = {};
+      for (const h of ALL_HANDS) if (primaryAction(rfi[h]) === 'raise' && (kinds.has('vs_3bet') || fourBets(h))) w[h] = 1;
+      const h = dealWeightedHand(w, rng);
       if (h) return h;
     }
     if (kinds.has('vs_4bet') && hero !== 'UTG') {
       const villain = pick(positionsBefore(hero), rng);
       if (hasChart({ kind: 'vs_open', hero, villain })) {
-        const h = dealWeightedHand(continueWeights(getChartCells({ kind: 'vs_open', hero, villain }), ['threebet']), rng);
+        const cells = getChartCells({ kind: 'vs_open', hero, villain });
+        const w: Record<HandName, number> = {};
+        for (const h of ALL_HANDS) if (primaryAction(cells[h]) === 'threebet') w[h] = 1;
+        const h = dealWeightedHand(w, rng);
         if (h) return h;
       }
     }
@@ -321,8 +334,12 @@ function stepDealWeight(s: Step): number {
  *   · 그 밖에는 뿌리 스텝(rfi·오픈 대응·림프 대응·콜드 4벳)이 자기 차트의 안쪽 폴드·체크인 줄기만 뺍니다. 그런
  *     뿌리는 뒤 스텝이 없으니 한 장짜리 줄기입니다. 실제로 도달하는 뒤 스텝('오픈했다가 3벳에 폴드')은
  *     남깁니다 — 상황이 바뀌며 답이 갈리는 대조가 체인의 쓸모입니다.
+ *   · 안전망: atlas.isReachable 이 도달 불가라고 하는 스텝은 무엇이든 뺍니다. buildSteps 가 같은 규칙으로 잇지만,
+ *     도달 불가 칸을 내면 리빌이 점선 칸에 링을 걸고 캡슐과 다른 문장을 보여 줍니다.
  */
 export function pruneSteps(steps: Step[]): Step[] {
+  const reachable = steps.filter((s) => isReachable(s.scenario, s.hand).ok);
+  if (reachable.length !== steps.length) return pruneSteps(reachable.map((s, index) => ({ ...s, index, total: reachable.length })));
   if (steps.length < 2) return steps;
   let out: Step[];
   if (steps.every((s) => isPassive(s.answer))) out = [steps.find((s) => stepDealWeight(s) === BOUNDARY_WEIGHT) ?? steps[0]];

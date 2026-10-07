@@ -86,7 +86,9 @@
 button.ui-explain__across:active { background: rgba(255, 255, 255, 0.10); }
 button.ui-explain__across:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
 .ui-explain .ui-explain__across-h { color: var(--mint); font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 600; letter-spacing: 0; text-transform: none; }
-.ui-explain__tiles { --n: 5; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
+/* 타일 폭은 58px 까지만(§4.2 compact 52–56). 자리가 1–2개뿐인 열에서 타일이 가로로 다 늘어나 막대처럼 보이지 않게,
+   왼쪽에 붙여 둡니다. 360px 에서 5칸이면 칸마다 ~56px 이라 상한에 닿지 않습니다. */
+.ui-explain__tiles { --n: 5; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 58px)); justify-content: start; gap: 6px; }
 .ui-explain__tile { display: flex; flex-direction: column; align-items: stretch; gap: 3px; min-width: 0; text-align: center; }
 .ui-explain__tile-seat { color: var(--ink-2); }
 .ui-explain__seatline { font-size: var(--fs-subhead); line-height: var(--lh-subhead); font-weight: 500; color: var(--ink-2); }

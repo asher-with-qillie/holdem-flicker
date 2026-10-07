@@ -31,7 +31,7 @@ function Disclosure({ label, open, onToggle }: { label: string; open: boolean; o
  *   ① 결론 한 문장(compareCells 첫 줄, 비교 상대가 없으면 uniformLine) ② 차이 레버 하나(differingLevers 첫 하나)
  *   ③ 답 캡슐 md + 줄 스트립 md + 줄 문장 — 트레이너 리빌과 글자까지 같습니다. 비교 칸의 줄 문장이 다르면
  *      두 번째 스트립과 문장을 아래에 쌓고, 스트립 왼쪽에 자리 칩을 행 라벨로 둡니다. 두 줄 사이에서 움직이는 경계가 배울 내용입니다.
- *   ④ 섞는 비율 칩 + 부분 정답 문장 ⑤ 차트 메모 ›(접힘) ⑥ 사람 작성 차트면 DISCLAIMER
+ *   ④ 섞는 비율 칩 + 부분 정답 문장(비교 줄을 쌓으면 선택 칸 줄 항목 안, 문장 바로 아래) ⑤ 차트 메모 ›(접힘) ⑥ 사람 작성 차트면 DISCLAIMER
  *   ⑦ 해설 전체 보기 → ExplanationBody variant="atlas"(위에서 이미 보인 ①·③·⑥ 생략) + 헷갈려요
  * 미도달 칸이면 G 문장 한 줄뿐입니다. 비교 상대가 없으면(행·열이 전부 같은 답) 결론을 지어내지 않고,
  * 섹션 전체가 같은 답일 때만 "어느 자리에서나 …" 를 말합니다.
@@ -79,6 +79,20 @@ export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: 
   const axis = second ? compareAxis(cell.scenario, second.cell.scenario) : 'none';
   const rowLabel = (c: AtlasCell) => (axis === 'villain' ? (c.scenario.villain ?? c.scenario.hero) : c.scenario.hero);
 
+  // ④ 섞는 비율 칩 + 부분 정답 문장은 선택 칸의 것입니다. 비교 줄을 쌓을 때는 선택 칸 줄 항목 안(문장 바로 아래)에 둬야
+  //    비교 자리의 비율로 읽히지 않습니다.
+  const mix =
+    explanation?.mix && (settings.showMixFrequencies || explanation.mix.partial) ? (
+      <div className="atlas__mix">
+        {settings.showMixFrequencies && <MixChips chips={explanation.mix.chips} kind={kind} />}
+        {explanation.mix.partial && (
+          <p className="t-subhead ink-2">
+            <PlainText text={explanation.mix.partial} />
+          </p>
+        )}
+      </div>
+    ) : null;
+
   const flag = () => {
     if (flagged || !step) return;
     rate(step, 'unsure', 'chart');
@@ -103,6 +117,7 @@ export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: 
       {explanation && (
         <div className="atlas__line">
           <LineCapsule capsule={explanation.capsule} size="md" showSplit={settings.showMixFrequencies} />
+          <p className="atlas__caption t-caption">이 줄 · {explanation.line.def.label}</p>
           {second ? (
             <>
               <div className="atlas__lineitem">
@@ -115,6 +130,7 @@ export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: 
                     <PlainText text={explanation.line.sentence.text} />
                   </p>
                 )}
+                {mix}
               </div>
               <div className="atlas__lineitem">
                 <div className="atlas__linerow">
@@ -139,16 +155,7 @@ export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: 
         </div>
       )}
 
-      {explanation?.mix && (settings.showMixFrequencies || explanation.mix.partial) && (
-        <div className="atlas__mix">
-          {settings.showMixFrequencies && <MixChips chips={explanation.mix.chips} kind={kind} />}
-          {explanation.mix.partial && (
-            <p className="t-subhead ink-2">
-              <PlainText text={explanation.mix.partial} />
-            </p>
-          )}
-        </div>
-      )}
+      {!second && mix}
 
       {cell.note && (
         <div className="atlas__more">
@@ -175,7 +182,7 @@ export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: 
                 </p>
               ) : (
                 <CapsuleButton tone="unsure" size="md" block onClick={flag}>
-                  이 핸드 헷갈려요로 표시
+                  이 패 헷갈려요로 표시
                 </CapsuleButton>
               )}
             </div>

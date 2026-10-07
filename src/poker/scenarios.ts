@@ -57,11 +57,9 @@ export function scenarioTitle(s: Scenario): string {
       return `${v} 오픈 → ${s.hero} 3벳 → ${v} 4벳`;
     case 'vs_5bet':
       return `${s.hero} 오픈 → ${v} 3벳 → ${s.hero} 4벳 → ${v} 올인`;
-    case 'cold_4bet': {
-      const o = s.extras?.opener ?? '앞';
-      const t = s.extras?.threeBettor ?? '앞';
-      return `${o} 오픈 → ${t} 3벳 → ${s.hero} 차례`;
-    }
+    case 'cold_4bet':
+      // 차트가 두 상대를 구분하지 않으므로 자리 이름(extras)은 쓰지 않습니다 — 상황 문구와 같은 말.
+      return `${s.hero} · 앞에서 오픈과 3벳`;
     case 'vs_limp': {
       const l = s.extras?.limper;
       return l ? `${s.hero} · ${l} 림프에 대응` : `${s.hero} · 림프에 대응`;

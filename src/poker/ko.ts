@@ -12,7 +12,7 @@ export type Josa = '이/가' | '은/는' | '을/를' | '과/와' | '이에요/�
 
 /**
  * 라틴 문자를 소리 내어 읽었을 때 받침이 있는가. 엘·엠·엔·알만 받침이 있습니다.
- * T 는 이 앱에서 카드 10(십)이라 받침이 있습니다 — 단, 페어 TT 는 '티티'로 읽어 받침이 없습니다(hasFinal 참고).
+ * T 는 이 앱에서 카드 10(십 · 텐)이라 받침이 있습니다 — 줄 이름의 T 도, 페어 TT(텐텐)도 같습니다.
  */
 const LATIN_FINAL = new Set(['L', 'M', 'N', 'R', 'T', 'l', 'm', 'n', 'r']);
 /** 숫자 끝자리: 0 영(십) · 1 일 · 3 삼 · 6 육 · 7 칠 · 8 팔 → 받침. 2 이 · 4 사 · 5 오 · 9 구 → 없음. */
@@ -23,7 +23,7 @@ const DIGIT_FINAL = new Set(['0', '1', '3', '6', '7', '8']);
  *  - 한글: 종성 유무 그대로 (곳·명·콜·3벳·오픈·올인 → 있음, 레이즈·체크·폴드·포켓페어 → 없음)
  *  - 자리: BTN(비티엔)만 있음. UTG·HJ·CO·SB·BB 는 없음
  *  - 랭크: T(십)·8·7·6·3 있음, A·K·Q·J·9·5·4·2 없음
- *  - 패 이름: 페어 88·77·66·33 만 있음(TT 는 티티). …s(에스)·…o(오)는 없음
+ *  - 패 이름: 페어 TT·88·77·66·33 만 있음(TT 는 텐텐 — 한 앱에서 T 를 두 가지로 읽지 않습니다). …s(에스)·…o(오)는 없음
  *  - %(퍼센트)·bb(비비)는 없음
  */
 export function hasFinal(word: string): boolean {
@@ -35,8 +35,6 @@ export function hasFinal(word: string): boolean {
   if (/[0-9]/.test(last)) return DIGIT_FINAL.has(last);
   // 'c-bet'은 '씨벳' — 영어 단어 하나를 통째로 읽는 유일한 용어입니다.
   if (/bet$/i.test(w)) return true;
-  // 페어 TT 는 '티티' — 줄 이름의 T(십)와 달리 받침이 없습니다.
-  if (last === 'T' && w[w.length - 2] === 'T') return false;
   return LATIN_FINAL.has(last);
 }
 
@@ -69,6 +67,7 @@ export function verb(a: Action, kind: ScenarioKind, end: '해요' | '하고'): s
 /**
  * 가중 폭(em). 한글 1 · 라틴 문자와 숫자 0.6 · 그 밖(공백·문장부호·기호) 0.3.
  * 리빌 슬롯의 2줄 클램프(≤ 42em)를 문자열만 보고 판단하려고 둡니다(§2.5).
+ * 소수 첫째 자리로 반올림합니다 — 0.6·0.3 을 더하다 생기는 42.000000001 이 한도를 넘었다고 판정되지 않게.
  */
 export function emWidth(text: string): number {
   let w = 0;
@@ -77,7 +76,7 @@ export function emWidth(text: string): number {
     else if (/[A-Za-z0-9]/.test(ch)) w += 0.6;
     else w += 0.3;
   }
-  return w;
+  return Math.round(w * 10) / 10;
 }
 
 /**

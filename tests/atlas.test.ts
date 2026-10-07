@@ -214,7 +214,9 @@ describe('atlas: 74 cells', () => {
     }
     // 스펙 §7 의 스냅샷(45·41·12)은 합이 174라 자체 모순이었습니다 — 실측값으로 고정합니다(합 169).
     expect(counts).toEqual({ always: 42, entry: 43, half: 8, partial: 4, sbOnly: 1, never: 71 });
-    expect(ALL_HANDS.filter((h) => rfiProfile(h).sbDiffers)).toEqual(['J4s', 'K6o']);
+    // 1순위가 달라지는 J4s(BTN 오픈 → SB 폴드)·K6o(BTN 폴드 → SB 절반) 에 더해, 1순위는 같아도 BTN 은 항상·SB 는 절반인
+    // Q2s·53s 도 SB 절을 받습니다 — 안 그러면 'BTN부터 오픈해요'가 SB 의 절반을 덮습니다.
+    expect(ALL_HANDS.filter((h) => rfiProfile(h).sbDiffers)).toEqual(['Q2s', 'J4s', 'K6o', '53s']);
     expect(ALL_HANDS.filter((h) => rfiProfile(h).firstAlways === null && rfiProfile(h).firstAny !== null)).toEqual(['Q8o', 'J8o', 'T8o', '98o']);
     expect(rfiProfile('K6o').pattern).toBe('sbOnly');
     expect(rfiProfile('KJo')).toMatchObject({ pattern: 'half', firstAny: 'UTG', firstAlways: 'HJ' });
@@ -358,6 +360,14 @@ describe('atlas: sentences re-derive from the charts (§5.5)', () => {
           if (origin === 'thesis') expect(['entry', 'half'], where).toContain(pattern);
           else expect.fail(`'부터' outside thesis: ${where}`);
         }
+        // thesis 의 '부터 오픈' · '어느 자리에서나 오픈'은 SB 까지 덮어 읽힙니다. SB 가 항상 오픈이 아니면
+        // SB 를 따로 이름 대야 합니다(claims 에 SB 칸이 있어야 합니다).
+        if (origin === 'thesis' && /부터 (항상 )?오픈|어느 자리에서나 오픈/.test(line.text)) {
+          const sbMix = fullMix(getChartCells({ kind: 'rfi', hero: 'SB' })[hand]);
+          const sbFull = sbMix[0].action === 'raise' && sbMix[0].weight >= 0.999;
+          const sbNamed = line.claims.some((c) => c.scenario.kind === 'rfi' && c.scenario.hero === 'SB');
+          expect(sbFull || sbNamed, `${where} ← SB 오픈 ${Math.round((sbMix.find((m) => m.action === 'raise')?.weight ?? 0) * 100)}%`).toBe(true);
+        }
         if (/어디서나|어느 자리에서/.test(line.text)) {
           if (origin === 'uniform') {
             // 섹션의 reachable 칸이 전부 같은 1순위일 때만 나오는 문장입니다.
@@ -366,6 +376,13 @@ describe('atlas: sentences re-derive from the charts (§5.5)', () => {
             continue;
           }
           if (origin === 'across') {
+            // 자리 문장 S-0(림프): '어느 자리에서도 레이즈하지 않아요' — 도달 칸 어디에도 레이즈 비중이 없을 때만.
+            if (line.text.includes('하지 않아요')) {
+              expect(kind, where).toBe('vs_limp');
+              for (const c of line.claims) expect(getChartCells(c.scenario)[hand]?.raise ?? 0, where).toBe(0);
+              expect(line.claims.length, where).toBeGreaterThanOrEqual(2);
+              continue;
+            }
             // 자리 문장 S-a: 그 열의 도달 칸이 전부 같은 1순위(이고 두 자리 이상)일 때만.
             const prims = new Set(line.claims.map((c) => primaryOf(hand, c.scenario)));
             expect(prims.size, where).toBe(1);

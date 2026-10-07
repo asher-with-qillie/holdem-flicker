@@ -1,8 +1,12 @@
 /**
- * 차트 메모(chart.notes, 사람 작성 647개)의 어미를 해요체로 바꾸는 제안 diff — docs/EXPLAIN_SPEC.md §6.4.
+ * 차트 메모(chart.notes, 사람 작성 647개)와 차트 요약(chart.summary, 74개)의 어미를 해요체로 바꾸는
+ * 제안 diff — docs/EXPLAIN_SPEC.md §6.4.
  *
- *   npx vite-node scripts/sweep-notes.ts            # 바뀔 메모를 - / + 로 출력만 합니다
+ *   npx vite-node scripts/sweep-notes.ts            # 바뀔 메모·요약을 - / + 로 출력만 합니다
  *   npx vite-node scripts/sweep-notes.ts --write    # src/poker/data/*.ts 에 그대로 씁니다
+ *
+ * 요약도 메모와 같은 화면(차트 탭 · 해설의 차트)에 나오므로 같은 표로 한꺼번에 돌립니다.
+ * 이미 정리된 줄에는 아무 규칙도 걸리지 않으니 몇 번을 돌려도 결과가 같습니다.
  *
  * 하는 일은 두 가지뿐입니다. 합니다체 어미 → 해요체, 명령형 → 서술형.
  * 내용(숫자, 괄호 풀이, '→' 예시의 카드와 승률)은 건드리지 않습니다(§6.4, §8).
@@ -19,6 +23,10 @@ const WRITE = process.argv.includes('--write');
 
 /** 메모 한 줄: `      KJo: '…',` 또는 `      '65s': '…',` (데이터 파일은 한 메모 = 한 줄입니다). */
 const NOTE_LINE = /^(\s+'?[2-9TJQKA]{2}[so]?'?: ')(.*)(',)$/;
+/** 요약 한 줄: `    summary: '…',`. 길면 `    summary:` 다음 줄에 `      '…',` 로 내려 씁니다. */
+const SUMMARY_LINE = /^(\s+summary: ')(.*)(',)$/;
+const SUMMARY_HEAD = /^\s+summary:$/;
+const SUMMARY_BODY = /^(\s+')(.*)(',)$/;
 
 /**
  * 치환 표. 위에서부터 차례로 적용합니다(긴 꼴이 먼저).
@@ -29,6 +37,7 @@ const RULES: Array<[RegExp, string]> = [
   [/항상 4벳 블러프로 쓰세요/g, '4벳 블러프로 늘 써요'],
   [/하지 마세요/g, '하지 않아요'],
   [/하세요/g, '해요'],
+  [/가세요/g, '가요'],
   [/쓰세요/g, '써요'],
   [/섞으세요/g, '섞어요'],
   [/받으세요/g, '받아요'],
@@ -61,6 +70,11 @@ const RULES: Array<[RegExp, string]> = [
   [/잡습니다/g, '잡아요'],
   [/적습니다/g, '적어요'],
   [/넓습니다/g, '넓어요'],
+  [/좁습니다/g, '좁아요'],
+  [/같습니다/g, '같아요'],
+  [/섞습니다/g, '섞어요'],
+  [/섞입니다/g, '섞여요'],
+  [/넓힙니다/g, '넓혀요'],
   [/넘습니다/g, '넘어요'],
   [/남습니다/g, '남아요'],
   [/낫습니다/g, '나아요'],
@@ -94,6 +108,12 @@ export function sweepNote(text: string): string {
 
 interface Change { file: string; line: number; before: string; after: string }
 
+/** 이 줄이 메모나 요약이면 [앞, 본문, 뒤]. `prev` 는 바로 윗줄(요약이 두 줄로 나뉜 경우를 봅니다). */
+function matchText(raw: string, prev: string | undefined): [string, string, string] | null {
+  const m = NOTE_LINE.exec(raw) ?? SUMMARY_LINE.exec(raw) ?? (prev !== undefined && SUMMARY_HEAD.test(prev) ? SUMMARY_BODY.exec(raw) : null);
+  return m ? [m[1]!, m[2]!, m[3]!] : null;
+}
+
 function main(): void {
   const changes: Change[] = [];
   const leftovers: Array<{ file: string; line: number; text: string; hits: string[] }> = [];
@@ -103,10 +123,10 @@ function main(): void {
     const lines = readFileSync(path, 'utf8').split('\n');
     let dirty = false;
     lines.forEach((raw, i) => {
-      const m = NOTE_LINE.exec(raw);
+      const m = matchText(raw, lines[i - 1]);
       if (!m) return;
       total++;
-      const [, head, body, tail] = m as unknown as [string, string, string, string];
+      const [head, body, tail] = m;
       const next = sweepNote(body);
       if (next !== body) {
         changes.push({ file: name, line: i + 1, before: body, after: next });
@@ -124,9 +144,9 @@ function main(): void {
     console.log(`- ${c.before}`);
     console.log(`+ ${c.after}`);
   }
-  console.log(`\n메모 ${total}개 중 ${changes.length}개 변경${WRITE ? ' (기록함)' : ' (제안만, --write 로 기록)'}`);
+  console.log(`\n메모·요약 ${total}개 중 ${changes.length}개 변경${WRITE ? ' (기록함)' : ' (제안만, --write 로 기록)'}`);
   if (leftovers.length) {
-    console.log(`\n손으로 고칠 메모 ${leftovers.length}개 (BANNED §2.6):`);
+    console.log(`\n손으로 고칠 메모·요약 ${leftovers.length}개 (BANNED §2.6):`);
     for (const l of leftovers) console.log(`${l.file}:${l.line} [${l.hits.join(', ')}] ${l.text}`);
   }
 }

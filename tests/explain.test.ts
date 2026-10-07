@@ -142,7 +142,10 @@ describe('explanations', () => {
       { action: 'raise', pct: 50 },
       { action: 'fold', pct: 50 },
     ]);
-    expect(ato.partial).toBe('반반이라 더 공격적인 오픈을 정답으로 쳐요. 폴드도 부분 정답이에요.');
+    // 2순위가 폴드(나머지 액션)인 반반은 '반반'이라 부르지 않습니다(§2.2 — 반반은 계속하는 두 액션 사이에만).
+    expect(ato.partial).toBe('이 칸은 오픈을 정답으로 쳐요. 폴드도 부분 정답이에요.');
+    // 계속하는 두 액션의 반반(3벳 50 / 콜 50)은 그대로 '반반이라 더 공격적인 …'.
+    expect(mixBlock(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'BTN' }, '54s'))!.partial).toBe('반반이라 더 공격적인 3벳을 정답으로 쳐요. 콜도 부분 정답이에요.');
     expect(mixBlock(stepFor({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'QQ'))!.partial).toBeNull();
   });
 
@@ -385,7 +388,8 @@ describe('glossary', () => {
   it('definitions are short and in the new register', () => {
     for (const e of GLOSSARY) {
       expect(e.def.length, `${e.term}: ${e.def}`).toBeLessThanOrEqual(45);
-      expect(e.def, e.term).not.toMatch(/거든요|해요|예요/);
+      // 용어집 풀이도 앱의 다른 문장처럼 해요체입니다(§2.1). 합니다체·명령형만 막고, 해요체 검사는 tests/copy.test.ts 가 합니다.
+      expect(e.def, e.term).not.toMatch(/거든요|니다|하세요/);
       for (const b of BANNED) expect(e.def.includes(b), `${e.term}: ${b}`).toBe(false);
     }
   });

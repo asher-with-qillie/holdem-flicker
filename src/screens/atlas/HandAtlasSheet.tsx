@@ -42,7 +42,8 @@ import '../../styles/atlas.css';
 type OpenSeg = 'vs_open' | 'vs_4bet';
 type ThreeSeg = 'vs_3bet' | 'vs_5bet';
 
-const TIE_NOTE = '반반일 때는 더 공격적인 쪽을 정답으로 쳐요.';
+// '반반'은 계속하는 두 액션 사이에만 씁니다(§2.2). 오픈 50 / 폴드 50 같은 칸까지 아우르는 말이라 '비중이 같으면'.
+const TIE_NOTE = '비중이 같으면 더 공격적인 쪽을 정답으로 쳐요.';
 const NEWCOMER_MAX = 9;
 /** 섹션 row 문장으로 쓰는 레버(자리만 보는 것). 숫자 레버·상대 레버는 비교 블록이 맡습니다. */
 const ROW_LEVERS: LeverId[] = ['behind', 'bbPrice', 'sbRaiseOrFold', 'bbFree'];
@@ -316,7 +317,7 @@ function AtlasBody({
       </GlassPanel>
 
       <div data-kind="rfi">
-        <Section title="오픈 · 앞에 아무도 없음">
+        <Section title="오픈 · 앞에서 모두 폴드">
           <SeatStrip
             cells={sections.rfi.cells}
             kind="rfi"

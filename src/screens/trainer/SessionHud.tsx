@@ -12,7 +12,7 @@ export interface SessionHudProps {
   size: number;
   origin: Origin;
   phase: Phase;
-  /** 순간기억 / 노출: no choosing, so the think tag reads "보기" instead of "선택하세요". */
+  /** 순간기억 / 노출: no choosing, so the think tag reads "보기" instead of "고르기". */
   quiet: boolean;
   paused: boolean;
   holding: boolean;
@@ -21,7 +21,7 @@ export interface SessionHudProps {
 }
 
 /**
- * Capsule HUD (§5.3): ✕ · progress dots (≤ 20; bar for 40) · counter · origin dot · phase tag (선택하세요 / 보기 / 해설) · ‖/▶.
+ * Capsule HUD (§5.3): ✕ · progress dots (≤ 20; bar for 40) · counter · origin dot · phase tag (고르기 / 보기 / 해설 — 명령형 없이 명사 태그로 맞춥니다) · ‖/▶.
  * Text swaps while held / paused.
  */
 export function SessionHud({ index, total, size, origin, phase, quiet, paused, holding, onClose, onTogglePause }: SessionHudProps) {
@@ -29,7 +29,7 @@ export function SessionHud({ index, total, size, origin, phase, quiet, paused, h
   const done = Math.min(size, Math.round((index / Math.max(1, total)) * size));
   const tag = ORIGIN_TAG[origin];
   const status = holding ? '일시정지 · 손을 떼면 계속' : paused ? '일시정지' : null;
-  const phaseLabel = phase === 'reveal' ? '해설' : quiet ? '보기' : '선택하세요';
+  const phaseLabel = phase === 'reveal' ? '해설' : quiet ? '보기' : '고르기';
   return (
     <div className={`trainer-hud glass ui-r-capsule${status ? ' trainer-hud--status' : ''}`} role="group" aria-label="세션 진행">
       <IconButton icon={<IconClose />} label="세션 끝내기" size={40} tone="ghost" onClick={onClose} className="trainer-hud__btn" />

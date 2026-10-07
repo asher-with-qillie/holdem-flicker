@@ -63,7 +63,7 @@ export function RangeGrid({ cells, highlight, onSelect, overlay, paint }: RangeG
     [cells, paint],
   );
   return (
-    <div className={`rgrid${overlay ? ' rgrid--overlay' : ''}`} role="group" aria-label="핸드 레인지 차트">
+    <div className={`rgrid${overlay ? ' rgrid--overlay' : ''}`} role="group" aria-label="패 레인지 차트">
       {rows.map((row, r) => (
         <div key={RANKS[r]} className="rgrid__row">
           {row.map(({ hand, pair, playable, background }) => {

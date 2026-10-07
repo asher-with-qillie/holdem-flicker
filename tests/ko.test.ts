@@ -11,8 +11,8 @@ import { RANKS, type Action, type Pos } from '../src/poker/types';
 
 /** 줄 이름에 쓰는 랭크 중 받침이 있는 것: T(십)·8(팔)·7(칠)·6(육)·3(삼). */
 const RANK_FINAL = new Set(['T', '8', '7', '6', '3']);
-/** 페어 중 받침이 있는 것: 88·77·66·33. TT 는 '티티'라 받침이 없습니다. */
-const PAIR_FINAL = new Set(['88', '77', '66', '33']);
+/** 페어 중 받침이 있는 것: TT·88·77·66·33. TT 는 텐텐 — 줄 이름의 T(수티드 T을)와 같은 읽기입니다(리뷰: 한 앱에서 T 를 두 가지로 읽지 않음). */
+const PAIR_FINAL = new Set(['TT', '88', '77', '66', '33']);
 
 describe('ko: 조사 전수표 (§2.4)', () => {
   it('25개 줄 이름 × {을/를, 은/는, 중}', () => {
@@ -44,7 +44,8 @@ describe('ko: 조사 전수표 (§2.4)', () => {
       expect(josa(h, '을/를'), h).toBe(`${h}${fin ? '을' : '를'}`);
     }
     expect(josa('88', '은/는')).toBe('88은');
-    expect(josa('TT', '은/는')).toBe('TT는');
+    expect(josa('TT', '은/는')).toBe('TT은');
+    expect(josa('TT', '을/를')).toBe('TT을');
     expect(josa('KTs', '을/를')).toBe('KTs를');
     expect(josa('ATo', '은/는')).toBe('ATo는');
   });

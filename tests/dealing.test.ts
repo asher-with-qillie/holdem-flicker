@@ -3,6 +3,7 @@ import { getChartCells, hasChart } from '../src/poker/data';
 import { ALL_HANDS, gridHand } from '../src/poker/hands';
 import { fullMix, primaryAction } from '../src/poker/range';
 import { allScenarios } from '../src/poker/scenarios';
+import { isReachable } from '../src/poker/atlas';
 import {
   BOUNDARY_WEIGHT,
   boundaryTable,
@@ -82,7 +83,7 @@ describe('경계 가중치 (cellDealWeight / boundaryTable)', () => {
     expect(boundaryTable('CO', ['vs_3bet'])).toEqual(boundaryTable('CO', ['rfi', 'vs_open', 'vs_limp', 'cold_4bet']));
   });
 
-  it('균등 딜이 사라졌다: interestingBias 0 이면 90% 이상이 경계·혼합·비폴드 칸, 안쪽 폴드는 바닥값(10%) 근처', () => {
+  it('균등 딜이 사라졌다: interestingBias 0 이면 90% 이상이 경계·혼합·비폴드 칸, 안쪽 폴드는 바닥값(10%) 아래', () => {
     const rng = lcg(3);
     const opts = { ...DEFAULT_SESSION_OPTIONS, kinds: DEFAULT_SETTINGS.kinds, interestingBias: 0 };
     let inside = 0;
@@ -91,8 +92,44 @@ describe('경계 가중치 (cellDealWeight / boundaryTable)', () => {
       const hero = POSITIONS[i % POSITIONS.length];
       if (boundaryTable(hero, opts.kinds).negatives[dealForHero(hero, opts, rng)]) inside++;
     }
+    // 실측(lcg(3), N=6000): 안쪽 폴드 9.4% — 경계·혼합·비폴드 90.6%. 제목의 '90% 이상'과 같은 문턱으로 단언합니다.
     expect(inside / N).toBeGreaterThan(0.07);
-    expect(inside / N).toBeLessThan(0.13);
+    expect(inside / N).toBeLessThan(0.1);
+  });
+});
+
+describe('도달 가능한 스텝만 낸다 (리뷰: 뒤 종류만 켠 딜)', () => {
+  /**
+   * 앞 스텝을 끄고 뒤 종류만 켜면(vs_4bet 만, vs_5bet 만 …) 딜러와 buildSteps 가 앞 차트를 비중으로 보고 이어서,
+   * 3벳 25% 칸 같은 도달 불가 칸을 냈습니다(vs_4bet 만 7%, vs_5bet 만 25%). 리빌은 그 칸을 점선으로 그리고 캡슐과 다른
+   * 문장을 보여 줍니다. 이제 1순위로만 잇고(isReachable 과 같은 규칙), pruneSteps 가 남은 것을 한 번 더 걸러냅니다.
+   */
+  const KINDS: ScenarioKind[][] = [['vs_4bet'], ['vs_5bet'], ['vs_3bet'], ['cold_4bet'], DEFAULT_SETTINGS.kinds];
+  for (const kinds of KINDS) {
+    it(`kinds = [${kinds.join(', ')}]: 3,000 손 동안 낸 스텝이 전부 isReachable`, () => {
+      const rng = lcg(11);
+      let steps = 0;
+      for (let i = 0; i < 3000; i++) {
+        const seq = nextHandSequence({ ...DEFAULT_SESSION_OPTIONS, kinds }, rng);
+        for (const st of seq.steps) {
+          steps++;
+          expect(isReachable(st.scenario, st.hand).ok, `${st.scenario.kind} ${st.scenario.hero} ${st.scenario.villain ?? ''} ${st.hand}`).toBe(true);
+          expect(kinds).toContain(st.scenario.kind);
+        }
+      }
+      expect(steps).toBeGreaterThanOrEqual(3000);
+    });
+  }
+
+  it('pruneSteps 는 도달 불가 스텝을 빼고 번호를 다시 매긴다', () => {
+    // 0.25 만 3벳하는 칸의 4벳 대응 — 1순위가 3벳이 아니라 도달 불가입니다.
+    const cells = getChartCells({ kind: 'vs_open', hero: 'BB', villain: 'BTN' });
+    const hand = ALL_HANDS.find((h) => primaryAction(cells[h]) !== 'threebet' && (cells[h]?.threebet ?? 0) > 0)!;
+    const raw = [stepFor({ kind: 'vs_open', hero: 'BB', villain: 'BTN' }, hand), stepFor({ kind: 'vs_4bet', hero: 'BB', villain: 'BTN' }, hand)];
+    expect(isReachable(raw[1].scenario, hand).ok).toBe(false);
+    const out = pruneSteps(raw);
+    expect(out.map((s) => s.scenario.kind)).toEqual(['vs_open']);
+    expect(out[0]).toMatchObject({ index: 0, total: 1 });
   });
 });
 

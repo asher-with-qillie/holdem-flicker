@@ -250,7 +250,7 @@ export function SettingsScreen(): JSX.Element {
           <Switch checked={s.showMixFrequencies} onChange={(v) => update({ showMixFrequencies: v })} label="섞는 비율 보기" />
         </Row>
         <RangeRow
-          label="플레이 가능 핸드 비율"
+          label="플레이 가능한 패 비율"
           hint="나머지는 주로 경계에 있는 패가 나와요. 뻔한 폴드는 드물어요"
           value={Math.round(s.interestingBias * 100)}
           min={0}

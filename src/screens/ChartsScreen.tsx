@@ -105,7 +105,7 @@ export function ChartsScreen() {
     <div className="screen charts">
       <header className="charts__head">
         <h1 className="t-title-l">차트</h1>
-        <IconButton icon={<IconGrid />} label="핸드로 보기" className="charts__atlas" onClick={() => openAtlas({ hand: lastHand ?? 'KJo', mode: 'pick' })} />
+        <IconButton icon={<IconGrid />} label="패로 보기" className="charts__atlas" onClick={() => openAtlas({ hand: lastHand ?? 'KJo', mode: 'pick' })} />
         <label className="charts__toggle">
           내 기록
           <Switch checked={overlayOn} onChange={setOverlayOn} label="내 기록 표시" />

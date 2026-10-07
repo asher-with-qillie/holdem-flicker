@@ -2,9 +2,6 @@ import type { CSSProperties } from 'react';
 import { actionLabel } from '../../components/ActionBadge';
 import { cellBackground } from '../../components/RangeGrid';
 import type { AtlasCell } from '../../poker/atlas';
-import { getChartDef } from '../../poker/data';
-import { weightWord } from '../../poker/line';
-import { restAction } from '../../poker/range';
 import '../../styles/atlas.css';
 import type { Scenario, ScenarioKind } from '../../poker/types';
 
@@ -19,22 +16,13 @@ export interface TileMarks {
   origin?: Scenario;
 }
 
-/** 짧은 타일 라벨(해설 시트 ⑥의 compact 타일): 1순위 액션, 100% 미만이면 비중어. 좁은 칸이라 '절반만'·'반반'은 비중어만 — 색이 액션을 말합니다. */
-function compactLabel(cell: AtlasCell, kind: ScenarioKind): string {
-  const act = actionLabel(cell.primary, kind, true);
-  const rest = restAction(getChartDef(cell.scenario));
-  const w = weightWord(cell.mixList, rest);
-  if (w === 'full') return act;
-  if (w === '주로') return `주로 ${act}`;
-  return w;
-}
-
 /**
  * 타일 하나. 배경은 RangeGrid 와 같은 좌→우 분할(`cellBackground`), 라벨은 1순위 액션 + 비중(100% 미만일 때만).
  * 미도달 칸은 '—' 로 흐리게. BB 의 림프 대응 체크는 --act-check 바탕에 '체크' 글자 — 회색 폴드처럼 보이면 안 됩니다.
  *
- * `compact` — 해설 시트 ⑥(§4.2)의 한 줄 타일(높이 30). 버튼 안에 들어가므로 누를 수 없는 span 으로 그리고,
- * 라벨은 한 줄(`오픈`, `주로 콜`, `절반만`, `반반`)입니다.
+ * `compact` — 해설 시트 ⑥(§4.2)의 작은 타일(높이 30, 폭 52–60). 버튼 안에 들어가므로 누를 수 없는 span 으로 그리고,
+ * 라벨은 큰 타일과 같습니다: 1순위 액션, 100% 미만이면 아래 줄에 비중(`오픈` / `50%`). 비중어만 홀로 두면
+ * ('절반만') 무엇을 절반만 하는지 읽히지 않습니다.
  */
 export function AtlasTile({ cell, kind, marks, onSelect, compact }: { cell: AtlasCell; kind: ScenarioKind; marks: TileMarks; onSelect?(c: AtlasCell): void; compact?: boolean }) {
   const { scenario, primary, mixList, reachable } = cell;
@@ -60,7 +48,8 @@ export function AtlasTile({ cell, kind, marks, onSelect, compact }: { cell: Atla
   if (compact) {
     return (
       <span className={cls} style={background ? { background } : undefined} aria-label={name}>
-        <span className="atlas__cell-act">{reachable ? compactLabel(cell, kind) : '—'}</span>
+        <span className="atlas__cell-act">{label}</span>
+        {pct !== null && <span className="atlas__cell-pct tnum">{pct}%</span>}
       </span>
     );
   }

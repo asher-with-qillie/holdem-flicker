@@ -12,11 +12,12 @@ import { stepFor } from '../src/poker/trainer';
 /*
  * 골든 코퍼스 — docs/EXPLAIN_SPEC.md §7.3.
  * 74개 상황 × 25줄의 줄 문장 1,089개를 전부 다시 만들어 tests/__golden__/line-sentences.tsv 와 바이트 단위로 비교합니다.
- * 열: scenarioKey \t lineId \t frame(폭 폴백이면 -noL / -cut) \t emWidth(소수 1자리) \t text
+ * 열: scenarioKey \t lineId \t frame(+except / +list 꼴, 폭 폴백이면 -noL / -noCtx) \t emWidth(소수 1자리) \t text
  *
  * 카피를 **의도적으로** 바꿀 때만 다시 씁니다:
  *   UPDATE_GOLDEN=1 npx vitest run tests/line.golden.test.ts
- * 그리고 PR 에 diff 를 그대로 올립니다(카피 리뷰 단위).
+ * 그리고 PR 에 diff 를 그대로 올립니다(카피 리뷰 단위). 골든 파일이 없으면 다시 쓰지 않고 실패합니다 —
+ * 지워진 골든을 지금 코드로 몰래 채우면 바이트 비교가 아무것도 지키지 못합니다.
  *
  * 이력:
  *  - 최초 기록: 참고 구현(scripts/reference/line-gen.ts)의 출력과 같고, 세 줄만 다릅니다. 참고 구현은 섞는 칸들을
@@ -24,6 +25,9 @@ import { stepFor } from '../src/poker/trainer';
  *      vs_open BB:UTG 커넥터 — 32s 는 100% 폴드 → '76s부터 43s까지는 콜을 섞어요'
  *      vs_open BB:HJ  커넥터 — 32s 는 100% 폴드 → '87s부터 43s까지는 콜을 섞어요'
  *      vs_open BB:SB  수티드 Q — Q9s~Q2s 는 콜(뒤 절이 말함) → 'QJs·QTs는 3벳을 섞고, Q2s까지는 콜해요'
+ *  - 이름 규칙(§3.4, 리뷰 3건): 비중 0.5 이하인 칸은 비중어와 함께 이름을 대고, '전부'는 전부 full 일 때만.
+ *    104개 문장이 바뀌었습니다(P3 41 · P4 29 · P3h 24 · P1 5 · P2m 3 · P0h 2). 틀은 그대로이고, 틀 문장이 규칙을
+ *    못 지키는 줄은 '나머지 전부' 꼴(+except 4)이나 칸 나열 꼴(+list 89)로 씁니다. 틀 분포 스냅숏은 바뀌지 않았습니다.
  */
 
 const GOLDEN = new URL('./__golden__/line-sentences.tsv', import.meta.url);
@@ -39,7 +43,7 @@ function corpus(): { tsv: string; frames: Record<string, number> } {
       const r = lineSentence(s, line);
       if (!r) continue;
       frames[r.frame] = (frames[r.frame] ?? 0) + 1;
-      const frame = `${r.frame}${r.fallback === 'noLabel' ? '-noL' : r.fallback === 'cut' ? '-cut' : ''}`;
+      const frame = `${r.frame}${r.form === 'frame' ? '' : `+${r.form}`}${r.fallback === 'noLabel' ? '-noL' : r.fallback === 'noCtx' ? '-noCtx' : ''}`;
       rows.push(`${scenarioKey(s)}\t${line.id}\t${frame}\t${emWidth(r.text).toFixed(1)}\t${r.text}`);
     }
   }
@@ -50,7 +54,8 @@ describe('line golden corpus (§7.3)', () => {
   const { tsv, frames } = corpus();
 
   it('regenerates tests/__golden__/line-sentences.tsv byte for byte', () => {
-    if (process.env.UPDATE_GOLDEN === '1' || !existsSync(GOLDEN)) writeFileSync(GOLDEN, tsv);
+    if (process.env.UPDATE_GOLDEN === '1') writeFileSync(GOLDEN, tsv);
+    expect(existsSync(GOLDEN), 'tests/__golden__/line-sentences.tsv 가 없습니다 — UPDATE_GOLDEN=1 로 만들고 diff 를 리뷰하세요').toBe(true);
     expect(tsv.split('\n').length).toBe(1089);
     const want = readFileSync(GOLDEN, 'utf8');
     if (tsv !== want) {
@@ -83,7 +88,8 @@ describe('sheet golden corpus (§7.3)', () => {
       }
     }
     const tsv = rows.join('\n');
-    if (process.env.UPDATE_GOLDEN === '1' || !existsSync(SHEET_GOLDEN)) writeFileSync(SHEET_GOLDEN, tsv);
+    if (process.env.UPDATE_GOLDEN === '1') writeFileSync(SHEET_GOLDEN, tsv);
+    expect(existsSync(SHEET_GOLDEN), 'tests/__golden__/sheet-lines.tsv 가 없습니다 — UPDATE_GOLDEN=1 로 만들고 diff 를 리뷰하세요').toBe(true);
     const want = readFileSync(SHEET_GOLDEN, 'utf8');
     if (tsv !== want) {
       const a = want.split('\n');

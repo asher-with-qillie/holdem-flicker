@@ -177,7 +177,16 @@ function ctxOf(s: Scenario): string {
   }
 }
 
-/** 자리 문장(S-a · S-b · S-b′ · S-c). live = 도달 칸만, axis = 행 전체의 자리 순서. */
+/** 1순위 비중이 이 값 이상이면 비중어 없이 액션만 말해도 됩니다(§3.4 이름 규칙 — 줄 문장과 같은 기준, '주로'). */
+const STRONG = 0.6 - 1e-9;
+const strongCell = (c: AtlasCell) => (c.mixList[0]?.weight ?? 1) >= STRONG;
+
+/**
+ * 자리 문장(S-0 · S-a · S-b · S-b′ · S-c). live = 도달 칸만, axis = 행 전체의 자리 순서.
+ * 줄 문장과 같은 이름 규칙을 따릅니다: 비중 0.5 이하인 자리는 비중어와 함께 부르고, 묶어서 말하는 자리들은
+ * 그 액션이 1순위이고 비중이 0.6 이상이어야 합니다. '나머지는'은 '나머지 자리에서는'으로 씁니다 —
+ * 비중어 바로 뒤의 '나머지는'이 "나머지 절반은"으로 읽혔습니다(리뷰).
+ */
 function seatAxisText(s: Scenario, hand: HandName, live: AtlasCell[], axis: Pos[]): string {
   const kind = s.kind;
   const H = `${josa(hand, '은/는')} ${ctxOf(s)}`;
@@ -188,6 +197,17 @@ function seatAxisText(s: Scenario, hand: HandName, live: AtlasCell[], axis: Pos[
   const words = (cs: AtlasCell[]) => cs.map(wordOf);
   const sameWord = (cs: AtlasCell[]) => words(cs).every((w) => w === wordOf(cs[0]));
   const seats = (cs: AtlasCell[]) => seatList(cs.map(seatOf), axis);
+  /** 비중어 + 동사: '절반만 콜하고' · '콜해요' · '4벳과 콜을 반반 섞고'. */
+  const wv = (c: AtlasCell, end: '해요' | '하고') => {
+    const w = wordOf(c);
+    return w === '반반' ? `${tiePair(c)} 반반 ${end === '해요' ? '섞어요' : '섞고'}` : `${wPrefix(w)}${V(c.primary, end)}`;
+  };
+
+  // S-0(림프): 어느 자리도 레이즈를 섞지 않으면 '어느 자리에서도 레이즈하지 않아요' — 'BB에서만 체크해요'는 BB 만
+  // 체크할 수 있다는 당연한 말이라 아무것도 가르치지 않습니다(rfiThesis 의 '오픈하지 않아요'와 같은 꼴).
+  if (kind === 'vs_limp' && live.length >= 2 && live.every((c) => c.mixList.every((m) => m.action === 'fold' || m.action === 'check' || m.weight < 0.001))) {
+    return `${H} 어느 자리에서도 ${actWord('raise', kind)}하지 않아요.`;
+  }
 
   // S-a: 1순위가 하나
   if (groups.length === 1) {
@@ -198,13 +218,17 @@ function seatAxisText(s: Scenario, hand: HandName, live: AtlasCell[], axis: Pos[
       const where = cs.length === 1 ? `${seats(cs)}에서` : '어느 자리에서나';
       return w === '반반' ? `${H} ${where} ${tiePair(cs[0])} 반반 섞어요.` : `${H} ${where} ${wPrefix(w)}${V(a, '해요')}.`;
     }
+    const ws = new Map<WeightWord, AtlasCell[]>();
+    for (const c of cs) ws.set(wordOf(c), [...(ws.get(wordOf(c)) ?? []), c]);
     if (!words(cs).includes('반반')) {
-      const ws = new Map<WeightWord, AtlasCell[]>();
-      for (const c of cs) ws.set(wordOf(c), [...(ws.get(wordOf(c)) ?? []), c]);
       const parts = [...ws.entries()].map(([ww, g]) => `${seats(g)}에서 ${ww === 'full' ? '항상' : ww}`);
       return `${H} ${parts.join(', ')} ${V(a, '해요')}.`;
     }
-    // 반반과 다른 비중이 섞이면 S-c 의 라벨 꼴로 씁니다(아래).
+    // 반반이 섞이면 비중어별로 자리를 묶어 두 절로: 'HJ~BTN에서 주로 올인하고, SB·BB에서는 올인과 콜을 반반 섞어요.'
+    if (ws.size === 2) {
+      const [[, g1], [, g2]] = [...ws.entries()];
+      return `${H} ${seats(g1)}에서 ${wv(g1[0], '하고')}, ${seats(g2)}에서는 ${wv(g2[0], '해요')}.`;
+    }
   }
 
   // S-b: 1순위가 두 가지, 소수 ≤ 2자리, 다수 ≥ 2자리(동수면 더 공격적인 쪽을 소수로 부릅니다)
@@ -213,12 +237,12 @@ function seatAxisText(s: Scenario, hand: HandName, live: AtlasCell[], axis: Pos[
     const [minor, major] = x[1].length < y[1].length || (x[1].length === y[1].length && agg(x[0]) > agg(y[0])) ? [x, y] : [y, x];
     if (minor[1].length <= 2 && major[1].length >= 2) {
       const [ma, mcs] = minor;
-      if (mcs.every((c) => wordOf(c) === 'full')) return `${H} ${seats(mcs)}에서만 ${V(ma, '해요')}.`;
-      if (sameWord(mcs)) {
-        const w = wordOf(mcs[0]);
-        const head = w === '반반' ? `${tiePair(mcs[0])} 반반 섞고` : `${wPrefix(w)}${V(ma, '하고')}`;
-        return `${H} ${seats(mcs)}에서는 ${head}, 나머지는 ${V(major[0], '해요')}.`;
-      }
+      // '…에서만 X해요'는 나머지 자리를 이름 없이 다수 액션으로 덮습니다 — 다수가 전부 센 칸(≥ 0.6)일 때만.
+      if (mcs.every((c) => wordOf(c) === 'full') && major[1].every(strongCell)) return `${H} ${seats(mcs)}에서만 ${V(ma, '해요')}.`;
+      // '나머지 자리에서는'에는 다수의 비중어를 붙입니다. 다수의 비중어가 다르면 — 전부 센 칸(full · 주로)이면 비중어 없이,
+      // 섞인 칸(≤ 0.5)이 끼어 있으면 하나로 못 묶으니 S-c.
+      const majorWord = sameWord(major[1]) ? wv(major[1][0], '해요') : major[1].every(strongCell) ? V(major[0], '해요') : null;
+      if (sameWord(mcs) && majorWord) return `${H} ${seats(mcs)}에서는 ${wv(mcs[0], '하고')}, 나머지 자리에서는 ${majorWord}.`;
     }
   }
 
@@ -226,21 +250,20 @@ function seatAxisText(s: Scenario, hand: HandName, live: AtlasCell[], axis: Pos[
   const isRest = (c: AtlasCell) => c.primary === cellRest(c) || c.primary === 'fold' || c.primary === 'check';
   const contGroups = groups.filter(([, cs]) => !cs.every(isRest));
   const restCells = live.filter(isRest);
-  if (contGroups.length === 1 && contGroups[0][1].length <= 2 && restCells.length >= 2 && contGroups[0][1].every((c) => !isRest(c)) && sameWord(contGroups[0][1])) {
-    const [a, cs] = contGroups[0];
-    const w = wordOf(cs[0]);
+  if (contGroups.length === 1 && contGroups[0][1].length <= 2 && restCells.length >= 2 && contGroups[0][1].every((c) => !isRest(c)) && sameWord(contGroups[0][1]) && (sameWord(restCells) || restCells.every(strongCell))) {
+    const [, cs] = contGroups[0];
     const restActs = new Set(restCells.map((c) => c.primary));
     const restWord = restActs.size === 2 ? '폴드나 체크' : restActs.has('check') ? '체크' : '폴드';
-    const head = w === '반반' ? `${tiePair(cs[0])} 반반 섞고` : `${wPrefix(w)}${V(a, '하고')}`;
-    return `${H} ${seats(cs)}에서 ${head}, 나머지는 ${josa(restWord, '이에요/예요')}.`;
+    const w = sameWord(restCells) ? wPrefix(wordOf(restCells[0])) : '';
+    return `${H} ${seats(cs)}에서 ${wv(cs[0], '하고')}, 나머지 자리에서는 ${w}${josa(restWord, '이에요/예요')}.`;
   }
 
-  // S-c: 1순위별로 자리를 묶어 라벨로. 반반 칸만 모인 묶음은 '3벳·콜 반반'.
-  const label = (cs: AtlasCell[]) => {
-    const c = cs[0];
-    return cs.every((x) => wordOf(x) === '반반') ? `${actWord(c.mixList[0].action, kind)}·${actWord(c.mixList[1].action, kind)} 반반` : actWord(c.primary, kind);
-  };
-  const parts = groups.map(([, cs]) => `${seats(cs)}에서 ${label(cs)}`);
+  // S-c: 자리를 라벨로 묶어 나열. 센 칸(≥ 0.6)은 1순위 액션으로, 섞인 칸(≤ 0.5)은 캡슐 라벨('절반만 레이즈',
+  // '3벳·콜 반반')로 따로 묶습니다 — 섞인 자리를 같은 액션의 다른 자리 속에 숨기지 않습니다.
+  const label = (c: AtlasCell) => (strongCell(c) ? actWord(c.primary, kind) : wordOf(c) === '반반' ? `${actWord(c.mixList[0].action, kind)}·${actWord(c.mixList[1].action, kind)} 반반` : `${wordOf(c)} ${actWord(c.primary, kind)}`);
+  const byLabel = new Map<string, AtlasCell[]>();
+  for (const c of live) byLabel.set(label(c), [...(byLabel.get(label(c)) ?? []), c]);
+  const parts = [...byLabel.entries()].map(([l, cs]) => `${seats(cs)}에서 ${l}`);
   const last = parts.pop()!;
   return `${H} ${[...parts, josa(last, '이에요/예요')].join(', ')}.`;
 }
@@ -282,7 +305,11 @@ export function mixBlock(step: Step): { chips: Array<{ action: Action; pct: numb
   let partial: string | null = null;
   if (a2.weight >= PARTIAL_THRESHOLD) {
     const second = `${actWord(a2.action, kind)}도 부분 정답이에요.`;
-    partial = Math.abs(a1.weight - a2.weight) < 0.01 ? `반반이라 더 공격적인 ${josa(actWord(a1.action, kind), '을/를')} 정답으로 쳐요. ${second}` : second;
+    const tie = Math.abs(a1.weight - a2.weight) < 0.01;
+    // '반반'은 두 계속 액션이 같은 비중일 때만 씁니다(§2.2). 콜/폴드 50-50 은 캡슐이 '절반만 콜'이라 '반반이라 더 공격적인 콜'은
+    // 캡슐과 말이 어긋나고, 콜을 '공격적'이라 부르게 됩니다.
+    if (tie && a2.action === restAction(step.chart)) partial = `이 칸은 ${josa(actWord(a1.action, kind), '을/를')} 정답으로 쳐요. ${second}`;
+    else partial = tie ? `반반이라 더 공격적인 ${josa(actWord(a1.action, kind), '을/를')} 정답으로 쳐요. ${second}` : second;
   }
   return { chips, partial };
 }

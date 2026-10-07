@@ -34,7 +34,7 @@ export function StepCrumbs({ steps, current }: { steps: Step[]; current: number 
   }, [current, steps]);
 
   return (
-    <div ref={row} className="trainer-crumbs" aria-label="이 핸드의 결정 단계">
+    <div ref={row} className="trainer-crumbs" aria-label="이 패의 결정 단계">
       <div className="trainer-crumbs__inner">
         {steps.map((s, i) => {
           const state = i === current ? 'on' : i < current ? 'done' : 'todo';

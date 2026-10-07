@@ -47,7 +47,7 @@ export function CellSheet({ step, explanation, open, onClose }: { step: Step; ex
             </p>
           ) : (
             <CapsuleButton tone="unsure" size="lg" className="charts-sheet__flag" onClick={flag}>
-              이 핸드 헷갈려요로 표시
+              이 패 헷갈려요로 표시
             </CapsuleButton>
           )}
           <CapsuleButton tone="neutral" size="lg" className="charts-sheet__close" onClick={onClose}>

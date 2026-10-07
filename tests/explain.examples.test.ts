@@ -8,6 +8,11 @@ import type { Action, Scenario, ScenarioKind } from '../src/poker/types';
  * docs/EXPLAIN_SPEC.md 의 실제 칸 13개를 글자 그대로 고정합니다 — §3.6(캡슐 · 스트립 · 줄 문장 · 틀 · 폭)과
  * §4.3(형제 줄 · 섞는 비율 · 숫자 줄 · 레버 · 자리 칩 · 자리 문장 · 예시).
  * 템플릿이 바뀌면 여기서 먼저 보입니다. 스펙과 다른 곳은 그 칸 옆에 차트 사실과 함께 적었습니다.
+ *
+ * 리뷰 뒤 다시 고정(docs/EXPLAIN_SPEC.md §9). 바뀐 칸마다 어느 규칙 때문인지 적었습니다:
+ *  [이름]   §3.4 이름 규칙 — 비중 0.5 이하인 칸은 비중어와 함께 이름을 대고, '전부'는 전부 full 일 때만.
+ *  [자리]   §4.2-⑥ — '나머지는' → '나머지 자리에서는' + 다수의 비중어, 섞인 자리는 S-c 에서 따로 라벨, 림프 S-0.
+ *  [부분]   §4.2-③ — 계속 · rest 반반은 '이 칸은 〈a1〉을 정답으로 쳐요.' ('반반이라 더 공격적인'은 두 계속 액션일 때만).
  */
 
 /** §3.6 의 스트립 표기: · 유령, ┆ 도달 불가, _ 빈칸, ▌ 경계 막대, ( ) 링, a/b 섞인 칸(1·2순위). */
@@ -75,7 +80,7 @@ const CASES: Case[] = [
     em: 27.7,
     sibling: '수티드 K는 K9s까지 오픈해요.',
     mix: '오픈 50% · 폴드 50%',
-    partial: '반반이라 더 공격적인 오픈을 정답으로 쳐요. 폴드도 부분 정답이에요.',
+    partial: '이 칸은 오픈을 정답으로 쳐요. 폴드도 부분 정답이에요.', // [부분]
     numbers: 'UTG 18% · HJ 21% · CO 29% · BTN 46% · SB 46%',
     lever: 'UTG는 뒤에 5명이 남아 18%만 오픈해요.',
     tiles: 'UTG 절반만 오픈 · HJ 오픈 · CO 오픈 · BTN 오픈 · SB 오픈',
@@ -89,10 +94,12 @@ const CASES: Case[] = [
     title: 'CO 3벳 대응 · A5s',
     capsule: '4벳',
     strip: '· 4 C C C C/F F F F (4) 4 F F',
-    sentence: 'CO는 BTN 3벳에 수티드 A를 AKs·A5s·A4s만 4벳하고, ATs까지 콜해요.',
+    // [이름] A9s(콜 75 · 폴드 25)가 'ATs까지 콜' 뒤에서 나머지(폴드)로 읽혔습니다 — '까지'를 주로 칸까지 넣습니다.
+    sentence: 'CO는 BTN 3벳에 수티드 A를 AKs·A5s·A4s만 4벳하고, A9s까지 콜해요.',
     frame: 'P4',
     em: 31.6,
-    sibling: '오프수트 A는 AKo만 4벳하고, AQo까지 콜해요.',
+    // [이름] AJo(콜 50 · 폴드 50)를 부릅니다 — 세 항목이라 칸 나열 꼴.
+    sibling: '오프수트 A 중 AKo는 4벳, AQo는 콜, AJo는 절반만 콜해요.',
     mix: null,
     partial: null,
     numbers: 'BTN 3벳 8% → 내 콜 9% · 4벳 3%',
@@ -108,9 +115,10 @@ const CASES: Case[] = [
     title: 'BB 오픈 대응 · 22',
     capsule: '콜',
     strip: '3 3 3 3 3 3/C C C C C C C (C)',
-    sentence: 'BB는 CO 오픈에 포켓페어를 TT까지 3벳하고, 88부터는 전부 콜해요.',
+    // [이름] run 사이의 99(3벳 50 · 콜 50)를 부릅니다 — 칸 나열 꼴(틀은 그대로 P3).
+    sentence: 'BB는 CO 오픈에 포켓페어 중 TT까지는 3벳, 99는 3벳·콜 반반, 88부터는 전부 콜해요.',
     frame: 'P3',
-    em: 30.4,
+    em: 38,
     sibling: null,
     mix: null,
     partial: null,
@@ -174,7 +182,7 @@ const CASES: Case[] = [
     numbers: 'UTG 4벳 2% → 내 올인 2% · 콜 1%',
     lever: 'HJ는 UTG보다 포지션이 있어요.',
     tiles: 'HJ 주로 콜 · CO 주로 콜 · BTN 주로 콜 · SB 올인·콜 반반 · BB 올인·콜 반반',
-    across: 'QQ는 UTG 4벳에 SB·BB에서는 올인과 콜을 반반 섞고, 나머지는 콜해요.',
+    across: 'QQ는 UTG 4벳에 SB·BB에서는 올인과 콜을 반반 섞고, 나머지 자리에서는 주로 콜해요.', // [자리]
     example: null,
     memo: true,
   },
@@ -193,7 +201,8 @@ const CASES: Case[] = [
     numbers: 'BTN 올인 2% → 내 콜 2%',
     lever: null,
     tiles: 'UTG 폴드 · HJ 절반만 콜 · CO 주로 콜',
-    across: 'QQ는 BTN 올인에 UTG에서만 폴드해요.',
+    // [자리] 'UTG에서만 폴드'는 HJ(콜 50 · 폴드 50)를 콜로 덮었습니다.
+    across: 'QQ는 BTN 올인에 UTG에서 폴드, HJ에서 절반만 콜, CO에서 콜이에요.',
     example: null,
     memo: true,
   },
@@ -231,7 +240,8 @@ const CASES: Case[] = [
     numbers: '내 레이즈 12% · 나머지 체크',
     lever: 'BB는 이미 1bb를 냈으니 체크하면 공짜로 플랍을 봐요.',
     tiles: 'HJ 폴드 · CO 레이즈 · BTN 절반만 레이즈 · SB 레이즈 · BB 체크',
-    across: '55는 림프에 HJ에서 폴드, CO~SB에서 레이즈, BB에서 체크예요.',
+    // [자리] 'CO~SB에서 레이즈'가 BTN(레이즈 50 · 폴드 50)을 덮었습니다.
+    across: '55는 림프에 HJ에서 폴드, CO·SB에서 레이즈, BTN에서 절반만 레이즈, BB에서 체크예요.',
     example: null,
     memo: true,
   },
@@ -244,13 +254,14 @@ const CASES: Case[] = [
     sentence: 'BTN은 림프에 오프수트 A를 AJo까지 레이즈하고, ATo·A9o는 절반만 레이즈해요.',
     frame: 'P2m',
     em: 36.1,
-    sibling: '수티드 A는 A4s까지 레이즈하고, A3s·A2s는 절반만 레이즈해요.',
+    // [이름] 'A4s까지'가 A7s·A6s(레이즈 50 · 폴드 50)를 덮었습니다 — '나머지 전부' 꼴.
+    sibling: '수티드 A는 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.',
     mix: '레이즈 50% · 폴드 50%',
-    partial: '반반이라 더 공격적인 레이즈를 정답으로 쳐요. 폴드도 부분 정답이에요.',
+    partial: '이 칸은 레이즈를 정답으로 쳐요. 폴드도 부분 정답이에요.', // [부분]
     numbers: '내 레이즈 17%',
     lever: null,
     tiles: 'HJ 폴드 · CO 폴드 · BTN 절반만 레이즈 · SB 폴드 · BB 체크',
-    across: 'ATo는 림프에 BTN에서 절반만 레이즈하고, 나머지는 폴드나 체크예요.',
+    across: 'ATo는 림프에 BTN에서 절반만 레이즈하고, 나머지 자리에서는 폴드나 체크예요.', // [자리]
     example: '내 A♠10♦ vs 상대 A♦K♠ → A를 맞춰도 킥커에서 밀려요.',
     memo: false,
   },
@@ -260,9 +271,10 @@ const CASES: Case[] = [
     title: 'BB 오픈 대응 · 54s',
     capsule: '3벳·콜 반반',
     strip: '_ · · · · C/3 C/3 C/3 C/3 3/C (3/C) C C/F',
-    sentence: 'BB는 BTN 오픈에 수티드 커넥터를 65s·54s만 3벳하고, 나머지는 전부 콜해요.',
+    // [이름] 65s·54s 는 3벳·콜 반반이고 32s 는 콜 50 · 폴드 50 — '65s·54s만 3벳'과 '나머지는 전부 콜'이 둘 다 과장이었습니다.
+    sentence: 'BB는 BTN 오픈에 수티드 커넥터를 콜하고, 65s·54s는 3벳·콜 반반, 32s는 절반만 콜해요.',
     frame: 'P4',
-    em: 34.8,
+    em: 39.8,
     sibling: null,
     mix: '3벳 50% · 콜 50%',
     partial: '반반이라 더 공격적인 3벳을 정답으로 쳐요. 콜도 부분 정답이에요.',
@@ -288,7 +300,7 @@ const CASES: Case[] = [
     numbers: 'UTG 오픈 18% → 내 3벳 8% · 콜 1%',
     lever: 'SB는 콜을 거의 안 하고, 3벳 아니면 폴드해요.',
     tiles: 'HJ 콜 · CO 콜 · BTN 콜 · SB 주로 폴드 · BB 주로 콜',
-    across: 'QJs는 UTG 오픈에 SB에서는 주로 폴드하고, 나머지는 콜해요.',
+    across: 'QJs는 UTG 오픈에 SB에서는 주로 폴드하고, 나머지 자리에서는 콜해요.', // [자리]
     example: null,
     memo: true,
   },
