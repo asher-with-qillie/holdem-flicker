@@ -35,6 +35,12 @@ html[data-bar="top"] .vb__slack { order: -1; }
 /* 띠가 28px 보다 얇으면 지난 카드 줄(R)을 아예 그리지 않습니다(반쯤 잘린 칩 금지). 선택자를 .vb__slack > 로 올려
    나중에 불러오는 trainer.css / quiz.css 의 .ribbon { display: flex } 보다 우선합니다. */
 @container slack (max-height: 27px) { .vb__slack > .vb__ribbon { display: none; } }
+/* any sheet up (해설, hold-to-explain, confirm): the last-cards ribbons go — in the slack band and in the tall core
+   alike, their chips and tally printed through the sheet's glass footer behind 닫기. The sheet is portalled to <body>. */
+body:has(> .ui-sheet) :is(.vb__slack > .vb__ribbon, .trainer-rib, .quiz-rib) { visibility: hidden; }
+/* land (Duo outer 594 × 368, insets 0): the slack band sits in the 59 px bottom corners — at the ribbon's bottom edge
+   the screen starts ~31 px in, so the first chip and the tally keep 32 px (beyond a notch inset, the gutter suffices) */
+html[data-layout="land"] .vb__slack { padding-inline: max(var(--gutter), calc(32px - var(--safe-left))) max(var(--gutter), calc(32px - var(--safe-right))); }
 
 /* pushed 설정 (slides in from the right, above the tab bar) */
 .app__push {
@@ -245,9 +251,9 @@ html[data-layout="wide"][data-bar="top"] .ui-tabbar {
 }
 /* land · 일시정지: 레일이 세션 위로 다시 떠오르는데 세션 HUD(8 + 40)도 그 위에 남습니다. 레일을 HUD 아래(56)에서
    시작해 ✕(세션 끝내기)가 터치 영역을 다 지키게 하고, 칸을 48 로 줄여(5 × 48 + 20 = 260) 짧은 화면(340)에서도
-   아래 59pt 모서리를 피합니다. */
+   아래 59pt 모서리를 피합니다. 칸 사이 틈은 4 로 — 버튼(과 알약)이 44 를 지킵니다(틈 8 이면 40). */
 html[data-layout="land"]:has(.trainer-session--paused) .ui-tabbar {
-  --rail-item: 48px;
+  --rail-item: 48px; --tab-pill-gap: 4px;
   top: calc(var(--safe-top) + max(56px, (var(--vh-core) - var(--safe-top) - var(--n,5) * var(--rail-item) - 2 * var(--tab-padx)) / 2));
 }
 html:is([data-layout="land"],[data-layout="wide"]) .ui-tabbar__pill {
@@ -327,6 +333,9 @@ html[data-bar="top"] .ui-sheet--auto { max-height: calc(var(--vh-core) - var(--s
 .ui-sheet--held { z-index: var(--z-hold); height: 72%; pointer-events: none; transition: transform 180ms var(--ease-in); }
 .ui-sheet--held.ui-sheet--in { transition: transform 260ms var(--ease-out); }
 .ui-sheet--held .ui-sheet__body { overflow: hidden; -webkit-mask-image: linear-gradient(#000 calc(100% - 48px), transparent); mask-image: linear-gradient(#000 calc(100% - 48px), transparent); }
+/* tall: the hold sheet cannot scroll (finger down), so it does not stop at the seam like the 해설 half sheet — it rises
+   to 42 % of the core (the cards above stay in view) and the 자리 block fits instead of leaving a bare heading */
+html[data-layout="tall"] .ui-sheet--held.ui-sheet--half { height: calc(var(--vh-core) * 0.58); }
 .ui-sheet__grab { flex: none; display: flex; justify-content: center; padding: 8px 0 4px; }
 .ui-sheet__grab span { width: 40px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.28); }
 .ui-sheet__title { flex: none; padding: 6px var(--gutter) 8px; font-size: var(--fs-title-2); line-height: var(--lh-title-2); font-weight: 700; letter-spacing: -0.015em; }
@@ -335,7 +344,7 @@ html[data-bar="top"] .ui-sheet--auto { max-height: calc(var(--vh-core) - var(--s
 .ui-sheet__footer + .ui-sheet__body, .ui-sheet__body:has(+ .ui-sheet__footer) { padding-bottom: 16px; }
 .ui-sheet__title, .ui-sheet__body, .ui-sheet__footer {
   padding-left: max(var(--gutter), var(--safe-left)); padding-right: max(var(--gutter), var(--safe-right)); }
-.ui-sheet__body { container: sheet / inline-size; }
+.ui-sheet__body { container: sheet summary / inline-size; }
 
 /* 사이드 시트 (land/wide). 세로 크기는 core 기준이고 붙는 쪽(위/아래)은 data-bar 로 정합니다.
    가장자리에서 10px 떨어져 있어 Duo 바깥 화면 오른쪽 84 칼럼을 물들이지 않습니다. */
@@ -371,7 +380,10 @@ html[data-bar="top"] .ui-sheet--panel { top: auto; bottom: calc(var(--safe-botto
 .ui-sheet--side :is(.ui-sheet__title, .ui-sheet__body, .ui-sheet__footer),
 .ui-sheet--panel :is(.ui-sheet__title, .ui-sheet__body, .ui-sheet__footer) { padding-left: var(--gutter); padding-right: var(--gutter); }
 .ui-sheet--panel .ui-sheet__title { padding-right: 64px; }   /* room for the ✕ (after the rule above, same specificity) */
-html[data-layout="land"] .ui-sheet--panel .ui-sheet__title { padding-top: 12px; padding-bottom: 4px; }   /* land: every px of the ~348 px panel counts */
+/* land: every px of the ~348 px panel counts — a 48 px title row, and the 44 px ✕ raised to 6 px so it ends inside the
+   row instead of over the body's first card / share bar */
+html[data-layout="land"] .ui-sheet--panel .ui-sheet__title { padding-top: 12px; padding-bottom: 8px; }
+html[data-layout="land"] .ui-sheet--panel .ui-sheet__close { top: 6px; }
 /* wide: 패널을 좌우 대칭으로 띄워 가운데가 늘 접힘선(50%)에 오게 합니다 — 한쪽 inset 만 있어도 두 칸이 접힘선에서 나뉩니다.
    푸터도 두 칸(간격 = --pane-gap)이라 버튼이 접힘선을 가로지르지 않습니다. */
 html[data-layout="wide"] .ui-sheet--panel {
@@ -447,7 +459,7 @@ html[data-layout="wide"] :is(.quiz-sub, .screen__sub) { max-width: var(--pane-l)
 .ui-summary__hand { flex: none; width: 40px; font-weight: 700; font-size: var(--fs-callout); }
 .ui-summary__title { flex: 1; min-width: 0; font-size: var(--fs-footnote); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ui-summary__more { align-self: flex-start; min-height: 36px; padding: 0 4px; border: 0; background: none; color: var(--mint); font-size: var(--fs-footnote); font-weight: 600; }
-/* groups (see SessionSummaryCard): no box on a phone; .ui-summary--two (set by the screen's container query) places them */
+/* groups (see SessionSummaryCard): no box in one column; the `summary` container query below places them */
 .ui-summary__col { display: contents; }
 .ui-summary__allknown { font-size: var(--fs-footnote); color: var(--ink-2); text-align: center; }
 .ui-summary__speed { display: flex; flex-direction: column; gap: 8px; }
@@ -456,6 +468,34 @@ html[data-layout="wide"] :is(.quiz-sub, .screen__sub) { max-width: var(--pane-l)
 .ui-summary__ctas { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
 .ui-summary__cta-row { display: flex; gap: 10px; }
 .ui-summary__cta-row .ui-btn { flex: 1; padding-inline: 12px; }
+/* ≥ 460 wide (land 594 gives 486; tall; wide; and the same card in a land / tall / wide panel — the summary body and
+   the sheet body are both named `summary`): two columns. Left (a) = headline · ring · chips · streak. Right = speed ·
+   CTAs (c) first, then the weak spot and the card rows (b): the next action is on the first screen at every height
+   (land 316–390, wide 543) — stacked under the 120 px ring the CTAs sat 400+ px down, and a perfect session left the
+   right half holding one sentence. A grid of the card's three groups, not CSS columns (columns flowed the CTAs after
+   the rows). Wide: the body is symmetric about the viewport centre and the gap is the pane gap, so the columns split
+   on the crease. */
+@container summary (min-width: 460px) {
+  .ui-summary {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
+    grid-template-areas: "a c" "a b"; column-gap: 24px; row-gap: 14px; align-items: start;
+  }
+  html[data-layout="wide"] .ui-summary { column-gap: var(--pane-gap); }
+  .ui-summary > .ui-summary__col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .ui-summary > .ui-summary__col--a { grid-area: a; }
+  .ui-summary > .ui-summary__col--b { grid-area: b; }
+  .ui-summary > .ui-summary__col--c { grid-area: c; }
+  .ui-summary > .ui-summary__col--b:empty { display: none; }
+  .ui-summary__ctas { margin-top: 0; }
+  /* card rows in a ~230–420 px column: the hand above its situation, the situation on up to two lines */
+  .ui-summary .ui-summary__row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: "cards hand badge" "cards title badge"; column-gap: 10px; align-items: center; padding: 6px 0; }
+  .ui-summary .ui-summary__cards { grid-area: cards; }
+  .ui-summary .ui-summary__hand { grid-area: hand; width: auto; line-height: 20px; }
+  .ui-summary .ui-summary__title { grid-area: title; white-space: normal; word-break: keep-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 17px; }
+  .ui-summary .ui-summary__row > :last-child { grid-area: badge; }
+  .ui-summary .ui-summary__cta-row { flex-wrap: wrap; }
+  .ui-summary .ui-summary__cta-row .ui-btn { flex: 1 1 120px; }
+}
 
 /* =============================================================== Toast */
 .ui-toast-host { position: fixed; left: 0; right: 0; bottom: var(--content-bottom); z-index: var(--z-toast); display: flex; justify-content: center; pointer-events: none; padding: 0 var(--gutter); }
@@ -507,3 +547,12 @@ html[data-layout="wide"] :is(.quiz-sub, .screen__sub) { max-width: var(--pane-l)
 .kindprog__num { min-width: 4.5em; text-align: right; color: var(--ink-2); }
 .kindprog__legend { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--ink-3); }
 .kindprog__legend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; background: rgba(255, 255, 255, 0.22); }
+.kindprog { container: kindprog / inline-size; }
+/* narrow column (land setup at 594: ~200 px): name and count share a line and the bar takes the full width under them —
+   beside them it shrank to a 19 px pill that could not show the learned / learning split */
+@container kindprog (max-width: 280px) {
+  .kindprog__row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name num" "bar bar"; row-gap: 4px; }
+  .kindprog__name { grid-area: name; }
+  .kindprog__num { grid-area: num; min-width: 0; }
+  .kindprog__bar { grid-area: bar; }
+}

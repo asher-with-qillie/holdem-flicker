@@ -91,10 +91,12 @@ html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .home-
   .home-spot .ui-chip { padding-inline: 10px; }
 }
 
-/* ---- size classes (Duo spec §4.6). Wrappers: hero = head + today, stats = tiles + level; plus weak, activity, last.
+/* ---- size classes (Duo spec §4.6). Panes: left = hero (head + today) · stats (tiles + level) · weak; right = activity ·
+   last · prog — the DOM is in the one-column reading order, so the panes only wrap contiguous siblings.
    phone/squat: every wrapper is display: contents → one column, pixel-identical to before.
-   land/tall/wide: a grid. Only contiguous DOM siblings are grouped, so the DOM (and every local state) never moves. ---- */
-.home__group, .home__area { display: contents; }
+   land/tall: a grid placed by grid-area. wide: two flex-column panes (below). The DOM never changes with the size
+   class, so no local state is lost on a fold. ---- */
+.home__pane, .home__group, .home__area { display: contents; }
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .home {
   display: grid; align-content: start; align-items: start; overflow-anchor: auto;
 }
@@ -147,17 +149,18 @@ html[data-layout="tall"] .home {
   grid-template-areas: "head head" "today activity" "stats activity" "weak prog" "last prog";
 }
 
-/* wide 951×585 (+ rail): crease 를 사이에 두고 두 패널. 왼쪽 = 머리 + 오늘 · 약한 곳 · 지난 세션, 오른쪽 = 타일·레벨 · 12주 · 상황별로 외운 정도. */
+/* wide 951×585 (+ rail): crease 를 사이에 두고 두 패널 — 왼쪽 = 지금(머리 + 오늘 · 타일·레벨 · 약한 곳), 오른쪽 = 기록(12주 ·
+   지난 세션 · 상황별로 외운 정도). Each pane is its own flex column: with rows shared by both panes the weak list
+   (88–218 px) set the height of a right-pane row and opened a 154 px hole under 최근 12주 for every returning user. */
 html[data-layout="wide"] .home {
-  grid-template-columns: var(--pane-l) minmax(0, 1fr); column-gap: var(--pane-gap); row-gap: 16px;
-  /* rows are shared by both panes, so every row pairs items of similar height: a left item spanning two right
-     items (weak over activity + prog) pushed 지난 세션 a whole row down and opened a ~100 px hole on the right */
-  grid-template-areas: "hero stats" "hero activity" "weak activity" "last prog";
+  grid-template-columns: var(--pane-l) minmax(0, 1fr); column-gap: var(--pane-gap); grid-template-areas: "l r";
 }
-html[data-layout="wide"] .home__group--hero { grid-area: hero; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+html[data-layout="wide"] :is(.home__pane, .home__group--hero) { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+html[data-layout="wide"] .home__pane--l { grid-area: l; }
+html[data-layout="wide"] .home__pane--r { grid-area: r; }
 html[data-layout="wide"] .home__eyebrow { min-height: 32px; }
 html[data-layout="wide"] .home__title { font-size: var(--fs-title-1); line-height: var(--lh-title-1); }
-html[data-layout="wide"] .home-activity .ui-heat { grid-template-columns: 24px repeat(var(--weeks, 12), minmax(14px, 20px)); }   /* 20: the right pane fits the 585 core */
+html[data-layout="wide"] .home-activity .ui-heat { grid-template-columns: 24px repeat(var(--weeks, 12), minmax(14px, 20px)); }   /* 20: keeps 지난 세션 inside the 585 core */
 
 /* ---- reduced motion (§8): the ring is passed animate={false}; these are the screen's own transitions ---- */
 @media (prefers-reduced-motion: reduce) {

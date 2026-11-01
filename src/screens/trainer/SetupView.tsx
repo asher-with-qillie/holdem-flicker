@@ -181,7 +181,7 @@ export function SetupView({ settings, preset, onStart, lastResult, onOpenLast }:
           </ChipRow>
         </section>
 
-        <section className="trainer-setup__group">
+        <section className="trainer-setup__group trainer-setup__group--speed">
           <h2 className="trainer-setup__label t-caption">속도</h2>
           <SpeedPicker value={settings.speedPreset} onChange={applySpeedPreset} exposure={settings.exposureMode} onExposureChange={(v) => updateSettings({ exposureMode: v })} />
         </section>
@@ -200,8 +200,18 @@ export function SetupView({ settings, preset, onStart, lastResult, onOpenLast }:
       </div>
 
       <div className="trainer-setup__col trainer-setup__col--r">
-        <GlassPanel variant="clear" radius="md" padding={12} className="trainer-preview">
-          <p className="t-headline">{charts ? `이번 세션 ${planned}장 · ${estimate}` : '지금은 시작할 수 없어요'}</p>
+        {/* 미리보기 + 시작 = 한 덩어리(dock). phone / squat: 목록이 화면보다 길면 스크롤러 아래에 붙어 있고(유리 뒤로 위 칸이
+            흐려지며 지나감 — 버튼이 글자를 자르지 않습니다), 예상 시간은 버튼 안에. land: 오른쪽 칼럼 맨 위에 붙습니다. */}
+        <GlassPanel variant="strong" radius="lg" padding={12} className="trainer-go trainer-preview">
+          <p className={`trainer-go__head t-headline${charts ? ' trainer-go__head--est' : ''}`}>{charts ? (
+              <>
+                <span className="trainer-go__lead">이번 세션 </span>
+                {`${planned}장 · ${estimate}`}
+              </>
+            ) : (
+              '지금은 시작할 수 없어요'
+            )}
+          </p>
           {charts ? (
             <p className="trainer-preview__counts t-footnote tnum">
               <span>
@@ -219,12 +229,19 @@ export function SetupView({ settings, preset, onStart, lastResult, onOpenLast }:
               {effectiveDeck === 'weak' ? WEAK_HINT : NO_CHARTS}
             </p>
           )}
+          <CapsuleButton
+            tone="primary"
+            size="xl"
+            block
+            icon={<IconPlay />}
+            onClick={start}
+            disabled={!charts}
+            className="trainer-setup__start"
+            trailing={charts ? <span className="trainer-go__est tnum">{`${planned}장 · ${estimate}`}</span> : undefined}
+          >
+            시작
+          </CapsuleButton>
         </GlassPanel>
-
-        <CapsuleButton tone="primary" size="xl" block icon={<IconPlay />} onClick={start} disabled={!charts} className="trainer-setup__start">
-          시작
-        </CapsuleButton>
-        {!charts && <p className="trainer-setup__hint t-footnote">{effectiveDeck === 'weak' ? WEAK_HINT : NO_CHARTS}</p>}
 
         {lastResult && (
           <button type="button" className="trainer-lastrow" onClick={onOpenLast}>

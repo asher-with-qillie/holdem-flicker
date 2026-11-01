@@ -55,8 +55,10 @@ html[data-layout="land"] .quiz--idle, html[data-layout="land"] .quiz--summary { 
 /* two-column idle (land / tall / wide): the list column is ~200–300 px — the time moves under the hand so the
    'chosen → answer' line keeps the body's full width and stays on one line */
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .quiz-mistake {
-  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "hand body" "time body"; column-gap: 10px; row-gap: 0;
+  /* a fixed first column (fits '20시간 전'): sized by each row's own time, the body's left edge stepped 7 px row to row */
+  display: grid; grid-template-columns: 52px minmax(0, 1fr); grid-template-areas: "hand body" "time body"; column-gap: 10px; row-gap: 0;
 }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .quiz-mistake__time { white-space: nowrap; }
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .quiz-mistake__hand { grid-area: hand; align-self: end; }
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .quiz-mistake__time { grid-area: time; align-self: start; }
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .quiz-mistake__body { grid-area: body; align-self: center; }
@@ -184,35 +186,10 @@ html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .quiz-
 @keyframes quiz-auto { from { width: 0; } to { width: 100%; } }
 
 /* =============================================================== summary (tab bar back) */
-.quiz--summary { gap: 10px; padding-top: 12px; container: qsummary / inline-size; }
-/* ≥ 460 wide: the summary card in two columns (same rule as the trainer's summary — see trainer.css) */
-@container qsummary (min-width: 460px) {
-  .quiz--summary .ui-summary {
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
-    grid-template-areas: "a b" "c b"; column-gap: 24px; row-gap: 14px; align-items: start;
-  }
-  .quiz--summary .ui-summary > .ui-summary__col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-  .quiz--summary .ui-summary__col--a { grid-area: a; }
-  .quiz--summary .ui-summary__col--b { grid-area: b; }
-  .quiz--summary .ui-summary__col--c { grid-area: c; }
-  .quiz--summary .ui-summary__col--b:empty { display: none; }
-  /* nothing for the right column (all known, exposure only): one column, except on wide where the crease splits it */
-  html:not([data-layout="wide"]) .quiz--summary .ui-summary:has(> .ui-summary__col--b:empty) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "a" "c"; grid-template-rows: auto auto; }
-  /* card rows in a ~230–300 px column: the hand above its situation, the situation on up to two lines */
-  .quiz--summary .ui-summary__row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: "cards hand badge" "cards title badge"; column-gap: 10px; align-items: center; padding: 6px 0; }
-  .quiz--summary .ui-summary__cards { grid-area: cards; }
-  .quiz--summary .ui-summary__hand { grid-area: hand; width: auto; line-height: 20px; }
-  .quiz--summary .ui-summary__title { grid-area: title; white-space: normal; word-break: keep-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 17px; }
-  .quiz--summary .ui-summary__row > :last-child { grid-area: badge; }
-  .quiz--summary .ui-summary__cta-row { flex-wrap: wrap; }
-  .quiz--summary .ui-summary__cta-row .ui-btn { flex: 1 1 120px; }
-}
+.quiz--summary { gap: 10px; padding-top: 12px; container: summary / inline-size; }   /* ≥ 460: two columns (ui.css) */
 /* wide: the body is made symmetric about the viewport centre (the rail's width is mirrored on the right) and the column
    gap is the pane gap, so the two columns split on the crease (x = 50% ± 24) instead of across it. */
 html[data-layout="wide"] .quiz--summary { padding-right: calc(var(--gutter) + var(--rail-space) - var(--safe-right)); }
-@container qsummary (min-width: 460px) {
-  html[data-layout="wide"] .quiz--summary .ui-summary { column-gap: var(--pane-gap); }
-}
 .quiz-roundline { text-align: center; color: var(--ink-2); font-size: var(--fs-footnote); line-height: var(--lh-footnote); }
 /* wide: the line sits over the left column only — centred across the full width it ran over the crease */
 html[data-layout="wide"] .quiz-roundline { width: calc(50% - var(--pane-gap) / 2); }

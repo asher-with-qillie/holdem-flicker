@@ -17,7 +17,7 @@ import { launch } from '../state/nav';
 import { useSettings } from '../state/settings';
 import { useSrs } from '../state/srs';
 import { useLayout } from '../state/viewport';
-import { CellCard } from './charts/CellCard';
+import { CellCard, forgetCellFlag } from './charts/CellCard';
 import { CellSheet } from './charts/CellSheet';
 import { DISCLAIMER } from './charts/disclaimer';
 import { ChartFilters, FilterRow } from './charts/ChartFilters';
@@ -78,8 +78,11 @@ export function ChartsScreen() {
   const layout = useLayout();
   const stage = layout === 'land' || layout === 'tall' || layout === 'wide';
   const rootRef = useRef<HTMLDivElement>(null);
+  const revealRowRef = useRef<(hand: HandName) => void>(() => undefined);
+  const openRef = useRef<{ hand: HandName | null; sheetOpen: boolean }>({ hand: null, sheetOpen: false });
 
   useEffect(() => saveSelection(sel), [sel]);
+  useEffect(() => forgetCellFlag, []);   // leaving the chart tab: a later visit can flag the same cell again
   useEffect(() => saveOverlay(overlayOn), [overlayOn]);
 
   const scenario = useMemo(() => toScenario(sel), [sel]);
@@ -131,6 +134,7 @@ export function ChartsScreen() {
     else if (r.top < topEdge + 8) dy = r.top - (topEdge + 8);
     if (Math.abs(dy) > 1) scroller.scrollBy({ top: dy, behavior: reduce ? 'auto' : 'smooth' });
   }, []);
+  revealRowRef.current = revealRow;
 
   /** land/wide: 옆 칼럼(안쪽 스크롤)을 셀 카드가 보이는 데까지 굴립니다. tall 의 dock 은 맨 위로. */
   const revealCard = useCallback(() => {
@@ -147,11 +151,18 @@ export function ChartsScreen() {
     scroller.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' });
   }, []);
 
-  // land/wide: after a rotation or fold back into the side-column layout, bring the open card back into view (its
-  // column starts at the top again).
+  // After a rotation or fold, bring the picked cell back into view. land/wide: the open card (its column starts at the
+  // top again). phone/squat: the picked row above the sheet — the stage layouts clamp .app__main to 0, so coming back
+  // with the sheet at 더 보기 (half) left the row under it. Refs, so picking a cell (which reveals on its own) does
+  // not re-run this.
+  openRef.current = { hand: picked?.step.hand ?? null, sheetOpen };
   useEffect(() => {
-    if (layout !== 'land' && layout !== 'wide') return;
-    const id = requestAnimationFrame(() => requestAnimationFrame(revealCard));
+    let id = 0;
+    if (layout === 'land' || layout === 'wide') id = requestAnimationFrame(() => (id = requestAnimationFrame(revealCard)));
+    else if (layout === 'phone' || layout === 'squat') {
+      const { hand, sheetOpen: open } = openRef.current;
+      if (hand && open) id = requestAnimationFrame(() => (id = requestAnimationFrame(() => revealRowRef.current(hand))));
+    }
     return () => cancelAnimationFrame(id);
   }, [layout, revealCard]);
 

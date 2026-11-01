@@ -16,7 +16,13 @@
 .trainer-setup__sizes { display: flex; gap: 8px; }
 .trainer-setup .ui-speed { gap: 4px; }
 .trainer-setup__hint { color: var(--ink-3); padding-left: 2px; }
-.trainer-preview { display: flex; flex-direction: column; gap: 6px; }
+.trainer-go { display: flex; flex-direction: column; gap: 6px; }
+/* near-opaque: the dock pins over scrolling rows (phone / squat / land), and what passes under it must not read through
+   even where backdrop blur is unavailable */
+.trainer-go.glass-strong { background: linear-gradient(180deg, rgba(31, 38, 52, 0.95) 0%, rgba(18, 22, 31, 0.97) 100%); }
+.trainer-go > .trainer-setup__start { margin-top: 4px; }
+/* the estimate rides inside 시작 only on phone / squat (below); elsewhere it is the dock's headline */
+.trainer-go__est { display: none; }
 .trainer-preview__counts { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); }
 .trainer-preview__counts i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
 .trainer-lastrow {
@@ -194,13 +200,18 @@ html[data-layout="wide"] .trainer-pause {
 }
 /* (visibility + zero flex, not display: none — a display toggle would restart the card's entry animation whenever a
    layout pass briefly measures the stage small) */
-/* Duo classes only: on phone FitBox alone decides (cards shrink to .5 and hide only below that, as before), so a
-   fan seen while thinking never vanishes on the reveal of the same hand. */
+/* Duo classes only: on phone FitBox alone decides (cards shrink to .5 and hide only below that, as before). */
 @container stage (max-height: 88px) {
   html:not([data-layout="phone"]) .trainer-stage__row { flex: 0 0 0; overflow: hidden; }   /* the label takes the whole stage */
   html:not([data-layout="phone"]) .trainer-stage__area { flex: 0 0 0; visibility: hidden; overflow: hidden; }
   html:not([data-layout="phone"]) .trainer-stage .trainer-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
 }
+/* phone: once the current card's fan has hidden itself (below .5 — the reveal of a deep chain step on a ≤ 650 px phone
+   costs the stage 18 px), the label takes the stage the same way instead of sitting under an empty band. The fan
+   remounts with every card, so the next card measures afresh; the outgoing ghost is not counted. */
+html[data-layout="phone"] .trainer-stage:has(> .trainer-stage__row .trainer-stage__card:not(.trainer-stage__card--ghost) > .trainer-fan.fitbox--hidden) .trainer-stage__row { flex: 0 0 0; overflow: hidden; }
+html[data-layout="phone"] .trainer-stage:has(> .trainer-stage__row .trainer-stage__card:not(.trainer-stage__card--ghost) > .trainer-fan.fitbox--hidden) .trainer-stage__area { flex: 0 0 0; visibility: hidden; overflow: hidden; }
+html[data-layout="phone"] .trainer-stage:has(> .trainer-stage__row .trainer-stage__card:not(.trainer-stage__card--ghost) > .trainer-fan.fitbox--hidden) .trainer-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
 
 /* fan: takes the leftover height; FitBox scales the cards down to fit (quantized; hidden below 0.5) */
 .fitbox { display: flex; align-items: center; justify-content: center; }
@@ -404,37 +415,11 @@ html[data-layout="wide"] .trainer-pause {
 .trainer-confirm { color: var(--ink-2); padding: 4px 0 8px; }
 
 /* ================================================================ summary (§5.6) */
-.trainer-summary { padding: 12px var(--gutter) 26px; container: tsummary / inline-size; }
-/* Duo spec §4.3: a summary body ≥ 460 wide (land 594 gives 486) reads in two columns — headline · ring · streak, then
-   speed · CTAs on the left, the weak spot and the card rows on the right. A grid of the card's three groups, not CSS
-   columns: columns flowed the CTAs into the right column after the rows and left the left half empty. */
-@container tsummary (min-width: 460px) {
-  .trainer-summary .ui-summary {
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
-    grid-template-areas: "a b" "c b"; column-gap: 24px; row-gap: 14px; align-items: start;
-  }
-  .trainer-summary .ui-summary > .ui-summary__col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-  .trainer-summary .ui-summary__col--a { grid-area: a; }
-  .trainer-summary .ui-summary__col--b { grid-area: b; }
-  .trainer-summary .ui-summary__col--c { grid-area: c; }
-  .trainer-summary .ui-summary__col--b:empty { display: none; }
-  /* nothing for the right column (all known, exposure only): one column, except on wide where the crease splits it */
-  html:not([data-layout="wide"]) .trainer-summary .ui-summary:has(> .ui-summary__col--b:empty) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "a" "c"; grid-template-rows: auto auto; }
-  /* card rows in a ~230–300 px column: the hand above its situation, the situation on up to two lines */
-  .trainer-summary .ui-summary__row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: "cards hand badge" "cards title badge"; column-gap: 10px; align-items: center; padding: 6px 0; }
-  .trainer-summary .ui-summary__cards { grid-area: cards; }
-  .trainer-summary .ui-summary__hand { grid-area: hand; width: auto; line-height: 20px; }
-  .trainer-summary .ui-summary__title { grid-area: title; white-space: normal; word-break: keep-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 17px; }
-  .trainer-summary .ui-summary__row > :last-child { grid-area: badge; }
-  .trainer-summary .ui-summary__cta-row { flex-wrap: wrap; }
-  .trainer-summary .ui-summary__cta-row .ui-btn { flex: 1 1 120px; }
-}
+.trainer-summary { padding: 12px var(--gutter) 26px; container: summary / inline-size; }
+/* ≥ 460 wide the card reads in two columns — see the `summary` container rules in ui.css */
 /* wide: the body is made symmetric about the viewport centre (the rail's width is mirrored on the right) and the column
    gap is the pane gap, so the two columns split on the crease (x = 50% ± 24) instead of across it. */
 html[data-layout="wide"] .trainer-summary { padding-right: calc(var(--gutter) + var(--rail-space) - var(--safe-right)); }
-@container tsummary (min-width: 460px) {
-  html[data-layout="wide"] .trainer-summary .ui-summary { column-gap: var(--pane-gap); }
-}
 
 /* ================================================================ setup columns (Duo spec §4.3)
    phone / squat: one column (the wrappers have no box). land / tall: two equal columns; wide: split at the crease.
@@ -446,17 +431,35 @@ html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .train
 html[data-layout="wide"] .trainer-setup { grid-template-columns: var(--pane-l) minmax(0, 1fr); column-gap: var(--pane-gap); }
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .trainer-setup__head { grid-column: 1 / -1; }
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .trainer-setup__col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-/* land: only 시작 is sticky, and its column stretches the whole grid row — the right column (preview · 상황별 막대)
-   can be taller than the 344 px scrollport, and a sticky column would let 시작 leave with it */
+/* land: only the dock (preview + 시작) is sticky, at the top edge, and its column stretches the whole grid row — the
+   right column (dock · 상황별 막대) can be taller than the 344 px scrollport, and a sticky column would let 시작 leave
+   with it. The dock is glass, so the bars scroll under it blurred, never sliced. */
 html[data-layout="land"] .trainer-setup__col--r { align-self: stretch; }
-html[data-layout="land"] .trainer-setup__start { order: -1; position: sticky; top: 8px; z-index: 2; }
+html[data-layout="land"] .trainer-go { order: -1; position: sticky; top: 0; z-index: 2; }
+/* land: the right column is ~200 px — the headline drops "이번 세션" so the estimate stays on one line */
+html[data-layout="land"] .trainer-go__lead { display: none; }
 /* land: the left column gets the wider share so the four speed labels (순간기억) fit without an ellipsis */
 html[data-layout="land"] .trainer-setup { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); column-gap: 16px; }
 html[data-layout="land"] .trainer-setup .ui-seg__opt { padding-inline: 3px; letter-spacing: -0.02em; }
-/* phone / squat: when the settings run past the scrollport (the 580 px outer screen, short phones), 시작 pins to the
-   scroller's bottom edge instead of waiting below the fold; it settles back into place at the end of the list.
-   Sticky inside .trainer--idle, not the viewport, so iOS's bottom-fixed quirks do not apply. */
-html:is([data-layout="phone"], [data-layout="squat"]) .trainer-setup__start { position: sticky; bottom: 8px; z-index: 2; }
+/* phone / squat: when the settings run past the scrollport (the 580 px outer screen, short phones), the dock (counts +
+   시작 with the estimate inside it) pins to the scroller's bottom edge instead of waiting below the fold, and settles back
+   into place at the end of the list. It is glass: rows above pass under it blurred, never cut by an opaque button, and
+   a disabled 시작 sits on the dock, not over the reason it is disabled. Sticky inside .trainer--idle, not the viewport,
+   so iOS's bottom-fixed quirks do not apply. scroll-padding keeps a focused chip clear of it. */
+html:is([data-layout="phone"], [data-layout="squat"]) .trainer--idle { scroll-padding-bottom: 116px; }
+html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go { position: sticky; bottom: 0; z-index: 2; }
+html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go__head { display: none; }   /* the estimate is in 시작; a block reason is the amber line */
+html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go__est { display: inline; }
+/* phone / squat: the speed caption rides on the 속도 label row — one line less, so at 580 the 세션 크기 row clears the
+   pinned dock */
+html:is([data-layout="phone"], [data-layout="squat"]) .trainer-setup__group--speed {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: 12px; row-gap: 4px;
+}
+html:is([data-layout="phone"], [data-layout="squat"]) .trainer-setup__group--speed > .ui-speed { display: contents; }
+html:is([data-layout="phone"], [data-layout="squat"]) .trainer-setup__group--speed .ui-speed__cap {
+  grid-column: 2; grid-row: 1; padding-left: 0; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+html:is([data-layout="phone"], [data-layout="squat"]) .trainer-setup__group--speed :is(.ui-seg, .ui-speed__row) { grid-column: 1 / -1; }
 /* land: keep the header's ⋯ and the last row's right edge out of the 59 px display corners */
 html[data-layout="land"] .trainer-setup { padding-top: 18px; padding-right: max(var(--gutter), var(--corner-clear)); }
 html[data-layout="land"] .trainer-summary { padding-right: max(var(--gutter), var(--corner-clear)); }

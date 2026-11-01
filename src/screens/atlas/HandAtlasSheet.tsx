@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PlayingCard } from '../../components/PlayingCard';
 import { useWideBox } from '../../components/ExplanationSheet';
+import { isSettling } from '../../state/viewport';
 import { PlainText, TermScope } from '../../components/Term';
 import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { GlassPanel } from '../../components/ui/GlassPanel';
@@ -28,7 +29,7 @@ import type { HandName, Pos, Scenario, ScenarioKind } from '../../poker/types';
 import { closeAtlas, useAtlas, type AtlasIntent } from '../../state/atlas';
 import { launch } from '../../state/nav';
 import { DISCLAIMER } from '../charts/disclaimer';
-import { AtlasDetail } from './AtlasDetail';
+import { AtlasDetail, forgetKept } from './AtlasDetail';
 import { HandPicker } from './HandPicker';
 import { sameScenario, SeatStrip, type TileMarks } from './SeatStrip';
 import { SeatTriangle } from './SeatTriangle';
@@ -147,7 +148,12 @@ export function HandAtlasSheet(): JSX.Element | null {
 }
 
 function AtlasSheetInner({ intent, open }: { intent: AtlasIntent; open: boolean }) {
-  const [st, setSt] = useState<InnerState>(() => initState(intent));
+  // A new opening (this component is keyed by it): per-cell memory from an earlier opening goes. In the initializer, so
+  // it runs before any AtlasDetail below reads it; clearing twice (StrictMode) is harmless.
+  const [st, setSt] = useState<InnerState>(() => {
+    forgetKept();
+    return initState(intent);
+  });
   const { hand, view } = st;
   const atlas = useMemo(() => handAtlas(hand), [hand]);
   const origin = intent.origin;
@@ -283,12 +289,27 @@ function AtlasBody({
   // 본문이 540 이상(tall 시트 · land/wide 패널)이면 두 칸(Duo spec §4.5): 왼쪽 = 패 · 주장 · 타일 섹션, 오른쪽 = 선택/비교 블록.
   // 두 칸 모두 따로 스크롤하므로 타일을 눌러도 왼쪽 스크롤은 그대로, 오른쪽만 바뀝니다.
   const [rootRef, split] = useWideBox<HTMLDivElement>(540);
-  // One ↔ two columns (fold, unfold, rotation): the selected tile moves to a different scroller, which starts at the
-  // top — bring its section back into view so the reader lands where they were (§11.6).
+  // One ↔ two columns (fold, unfold, rotation) moves the reading to another scroller (the sheet body ↔ .atlas__l), which
+  // starts at the top. Keep an anchor — the block at the scroller's top edge and how far into it the edge was — and put
+  // it back after the flip, so the reader lands where they were (§11.6), with or without a selection. A tile tap anchors
+  // on the tapped tile (in one column its comparison opens right under the tiles). The anchor is re-applied for a few
+  // frames after the flip: the size class (data-layout) settles ~150 ms after the width does and reflows the head.
   // The first measurement after opening (false → true on a wide body) is not a change: the open effect above decides
   // where the sheet starts. Only later flips count.
   const splitSeen = useRef(split);
+  const splitNow = useRef(split);
+  splitNow.current = split;
   const measured = useRef(false);
+  const anchor = useRef<{ el: HTMLElement; kind: string | null; delta: number } | null>(null);
+  const holdUntil = useRef(0);
+  const scrollerOf = useCallback(
+    (two: boolean) => {
+      const root = rootRef.current;
+      if (!root) return null;
+      return two ? root.querySelector<HTMLElement>(':scope > .atlas__l') : root.closest<HTMLElement>('.ui-sheet__body');
+    },
+    [rootRef],
+  );
   useEffect(() => {
     let b = 0;
     const a = requestAnimationFrame(() => {
@@ -302,15 +323,72 @@ function AtlasBody({
     };
   }, []);
   useEffect(() => {
+    const root = rootRef.current;
+    const sheet = root?.closest<HTMLElement>('.ui-sheet');
+    if (!root || !sheet) return;
+    const record = (e: Event) => {
+      const sc = scrollerOf(splitNow.current);
+      // not while the viewport settles: the browser's own scroll adjustments to the reflow are not the reader's
+      if (!sc || e.target !== sc || performance.now() < holdUntil.current || isSettling()) return;
+      const edge = sc.getBoundingClientRect().top;
+      let best: { el: HTMLElement; top: number; h: number } | null = null;
+      let next: { el: HTMLElement; top: number } | null = null;
+      for (const el of root.querySelectorAll<HTMLElement>('.atlas__l > *, .atlas__l [data-kind], .atlas__l .atlas__detail')) {
+        const r = el.getBoundingClientRect();
+        if (!r.height) continue;
+        if (r.top <= edge + 1 && r.bottom > edge + 1) {
+          if (!best || r.height < best.h) best = { el, top: r.top, h: r.height };
+        } else if (r.top > edge && (!next || r.top < next.top)) next = { el, top: r.top };
+      }
+      const pick = best ?? next;
+      if (pick) anchor.current = { el: pick.el, kind: pick.el.closest<HTMLElement>('[data-kind]')?.dataset.kind ?? null, delta: edge - pick.top };
+    };
+    // a finger or wheel on the sheet ends the post-flip hold at once — the reader's own scroll wins
+    const release = () => {
+      holdUntil.current = 0;
+    };
+    sheet.addEventListener('scroll', record, { capture: true, passive: true });
+    sheet.addEventListener('touchstart', release, { passive: true });
+    sheet.addEventListener('wheel', release, { passive: true });
+    return () => {
+      sheet.removeEventListener('scroll', record, { capture: true });
+      sheet.removeEventListener('touchstart', release);
+      sheet.removeEventListener('wheel', release);
+    };
+  }, [rootRef, scrollerOf]);
+  // a tap anchors on the tapped tile, at its current distance from the top edge
+  useEffect(() => {
+    const root = rootRef.current;
+    const sc = scrollerOf(splitNow.current);
+    const tile = root?.querySelector<HTMLElement>('.atlas__cell--sel');
+    if (!sc || !tile) return;
+    anchor.current = { el: tile, kind: tile.closest<HTMLElement>('[data-kind]')?.dataset.kind ?? null, delta: sc.getBoundingClientRect().top - tile.getBoundingClientRect().top };
+  }, [st.selected, rootRef, scrollerOf]);
+  useEffect(() => {
     if (splitSeen.current === split) return;
     splitSeen.current = split;
     if (!measured.current) return;
-    const id = requestAnimationFrame(() => {
-      const sel = rootRef.current?.querySelector<HTMLElement>('.atlas__cell--sel');
-      sel?.closest<HTMLElement>('[data-kind]')?.scrollIntoView({ block: 'start' });
+    const root = rootRef.current;
+    const a0 = anchor.current;
+    if (!root || !a0) return;
+    const apply = () => {
+      const sc = scrollerOf(split);
+      if (!sc) return;
+      // the inline comparison remounts in the other column: fall back to its section
+      const el = a0.el.isConnected && root.contains(a0.el) ? a0.el : a0.kind ? root.querySelector<HTMLElement>(`[data-kind="${a0.kind}"]`) : null;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const delta = el === a0.el ? Math.min(a0.delta, Math.max(0, r.height - 24)) : 0;
+      const dy = r.top - sc.getBoundingClientRect().top + delta;
+      if (Math.abs(dy) > 1) sc.scrollTop += dy;
+    };
+    holdUntil.current = performance.now() + 450;
+    let id = requestAnimationFrame(function tick() {
+      apply();
+      if (performance.now() < holdUntil.current) id = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(id);
-  }, [split, rootRef]);
+  }, [split, rootRef, scrollerOf]);
   const detail = selected ? <AtlasDetail key={selected.key} atlas={atlas} cell={selected} compare={compare} /> : null;
   const detailFor = (kind: ScenarioKind) => (!split && selected && selected.scenario.kind === kind ? detail : null);
 

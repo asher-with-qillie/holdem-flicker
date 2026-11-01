@@ -76,9 +76,12 @@ function writeVv() {
   lastVv = v;
   document.documentElement.style.setProperty('--vv-h', `${v}px`);
 }
+/** A width change that is a fold, unfold or rotation (382 ↔ 669 ↔ 951, portrait ↔ landscape) — not Safari's toolbars,
+ *  which never change the width, nor a split-view nudge of a few points. The first measurement (prev 0) is not a jump. */
+export const isJump = (prev: number, w: number): boolean => prev > 0 && Math.abs(w - prev) >= 80;
 function onResize() {
   const w = document.documentElement.clientWidth;
-  if (lastW && Math.abs(w - lastW) >= 80) jumpSubs.forEach((f) => f());   // 접기, 펼치기, 회전. 툴바는 폭을 바꾸지 않습니다
+  if (isJump(lastW, w)) jumpSubs.forEach((f) => f());   // 접기, 펼치기, 회전. 툴바는 폭을 바꾸지 않습니다
   lastW = w;
   writeVv();
   window.clearTimeout(timer);

@@ -1608,26 +1608,51 @@ places stay masked, so retrieval practice is preserved.
   summaries mirror the rail on the right so their two columns split on the crease.
 - **Corners (land)**: `--content-bottom` 24, push header / setup / home / coach / side-sheet insets keep tap targets
   inside the 59 px rounded corners.
-- **Summaries (≥ 460 wide, so land 594 too)** are a grid of the card's three groups, `"a b" / "c b"`: result ·
-  streak, then speed · CTAs on the left; weak spot and card rows on the right. CSS columns flowed the CTAs after the
-  rows into the right column. In two columns a card row puts the hand above its situation (2 lines max).
-- **시작 never leaves the screen**: phone / squat pin it to the setup scroller's bottom edge (sticky inside the
-  scroller, not the viewport); land makes only the button sticky at the top of a right column that stretches the grid.
+- **Summaries (≥ 460 wide, so land 594 too)** are a grid of the card's three groups, `"a c" / "a b"`: result ·
+  ring · streak on the left; speed · CTAs first on the right, then the weak spot and the card rows. Stacked under the
+  120 px ring the CTAs sat 400+ px down at every land height (and on wide 543); now the next action is on the first
+  screen. One `summary` container rule in ui.css serves the trainer summary, the quiz summary and the same card in a
+  land / tall / wide panel (지난 세션), whose body is a `summary` container too. In two columns a card row puts the
+  hand above its situation (2 lines max).
+- **시작 never leaves the screen**: preview + 시작 form one glass dock. phone / squat pin the dock to the setup
+  scroller's bottom edge (sticky inside the scroller, not the viewport), with the estimate inside the button
+  ("시작 11장 · 약 2분 30초") and the counts above it; rows above pass under it blurred, never sliced by an opaque
+  button, and a disabled 시작 sits on the dock under its amber reason. The speed caption rides on the 속도 label row,
+  so at 580 nothing is covered at rest. land pins the dock at the top of the right column (headline without
+  "이번 세션" so it fits ~200 px).
 - **tall half sheet** (해설, hold) starts on the session seam (`safe-top + 166 + G`), not at 50 % — it no longer
   slices the seat row and the hand label.
 - **Panels carry a ✕** (land / wide full sheets cover everything but a 10 px margin; there is no grabber or backdrop
   to dismiss them).
 - **Phone keeps the short-stage behaviour it had**: the stage ≤ 88 rule (hide the fan, enlarge the label) applies to
-  the Duo classes only; on phone FitBox alone decides, so a fan seen while thinking never vanishes on reveal.
+  the Duo classes only; on phone FitBox alone decides. When it hides the current card's fan (the correct reveal of a
+  deep chain step on a ≤ 650 px phone costs the stage 18 px), the label takes the stage instead of an empty band.
 - **Timers survive a fold**: the think / reveal countdown is carried per card key when its element moves between the
   phone row and the HUD, so a fold or rotation never grants a fresh full countdown. A new card or ◀ starts fresh.
 - **Paused (land)**: the rail starts below the session HUD (56) with 48 px items, so the HUD ✕ keeps its whole target.
   Paused / held / sheet up: the slack band's last-cards ribbon is hidden (it printed through the tab bar and glass).
 - **tall chart stage** takes the toolbar's frame − core as top padding (top bar → the bottom edge is the fixed one),
   so the header, grid and cell card never move; the dock keeps its size.
-- **wide home** pairs rows of similar height: `"hero stats" "hero activity" "weak activity" "last prog"`.
+- **wide home** is two panes that stack independently (flex columns, no shared grid rows): left = now (head · today ·
+  tiles · level · weak spots), right = history (12 weeks · 지난 세션 · 상황별로 외운 정도). The panes wrap contiguous
+  runs of the one-column DOM, so phone order, reading order and focus order are unchanged.
 - A new tab always opens at its top (the tab pages share one scroller). The stylesheet cascade test
   (`tests/css-cascade.test.ts`) fails when a later base rule silently overrides an `@container` / `@media` rule.
+- **Round 3**:
+  - The wide hand picker splits on the crease like the 차트 tab (help + legend left, the 13 × 13 grid right).
+  - Chart chip rows stick at `top: 0` (the scroller already pads by the safe-area inset; `top: safe-top` pinned them
+    at twice the inset in a standalone portrait app, off their glass), and the stuck test counts the scroller's
+    padding.
+  - Atlas reading position: an anchor (the block at the scroller's top edge, or the tapped tile) is restored after a
+    one ↔ two column flip and held while the size class settles, with or without a selection.
+  - The picked chart row is revealed again after a rotation / fold back to phone / squat with the sheet open.
+  - The 헷갈려요 flag is one store shared live by the chart's sheet and inline card (no second rating), cleared when
+    the chart tab unmounts; the atlas's per-cell memory is cleared when the atlas opens. Neither outlives its screen.
+  - Any sheet up hides the last-cards ribbons (slack band and tall core) — they printed through the glass footers.
+  - The tall hold sheet rises to 42 % of the core (it cannot scroll), so the 자리 block is not cut to a bare heading.
+  - Settings two-column: 훈련 and 데이터 both span the fourth row, so neither column opens a hole.
+  - Paused land rail keeps 44 px buttons (4 px gaps); the land slack band keeps the ribbon 32 px from the 59 px
+    corners; land panels raise the ✕ to 6 px over a 48 px title row; label–value pairs ("정답 70%") never wrap apart.
 
 ### 11.8 Open risks / real-device checks
 

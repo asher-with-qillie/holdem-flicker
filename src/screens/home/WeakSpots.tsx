@@ -40,7 +40,8 @@ export function WeakSpots({ spots, weakCount, onTrainSpot, onTrainWeak }: WeakSp
           <ul className="home-spots">
             {spots.map((s) => {
               const label = spotLabel(s.kind, s.hero);
-              const meta = [`헷갈려요 ${pct(s.unsureRate)}`, s.quizAcc !== undefined ? `퀴즈 ${pct(s.quizAcc)}` : ''].filter(Boolean).join(' · ');
+              // no-break space inside each pair: a two-line meta wraps at ' · ', never between '퀴즈' and '42%'
+              const meta = [`헷갈려요\u00a0${pct(s.unsureRate)}`, s.quizAcc !== undefined ? `퀴즈\u00a0${pct(s.quizAcc)}` : ''].filter(Boolean).join(' · ');
               return (
                 <li key={`${s.kind}:${s.hero}`} className="home-spot">
                   <i className="home-spot__dot" aria-hidden="true" />

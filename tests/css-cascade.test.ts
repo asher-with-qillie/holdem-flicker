@@ -84,12 +84,14 @@ function parse(css: string, from: number, to: number, at: string[], src: string,
   }
 }
 
-function rulesOf(file: string): Rule[] {
-  const src = readFileSync(join(DIR, file), 'utf8');
+function rulesIn(src: string): Rule[] {
   const css = stripComments(src);
   const out: Rule[] = [];
   parse(css, 0, css.length, [], src, out);
   return out;
+}
+function rulesOf(file: string): Rule[] {
+  return rulesIn(readFileSync(join(DIR, file), 'utf8'));
 }
 
 /** Longhands a later shorthand would reset. */
@@ -119,7 +121,9 @@ function overriddenBy(laterProps: Rule['decls'], prop: string): string | null {
 
 /** Conditional rules a later base rule re-sets: `file:line selector { prop }` (later rule at line N). */
 export function shadowedConditionalRules(file: string): string[] {
-  const rules = rulesOf(file);
+  return shadowedIn(rulesOf(file), file);
+}
+function shadowedIn(rules: Rule[], file: string): string[] {
   const hits: string[] = [];
   rules.forEach((r, idx) => {
     if (!r.at.length) return;
@@ -153,11 +157,21 @@ describe('stylesheet cascade', () => {
   });
 
   it('catches the pattern it guards against', () => {
-    const rules: Rule[] = [];
     const css = '@container x (max-width: 10px) { .a { font-size: 9px } }\n.a { font-size: 11px }';
-    parse(css, 0, css.length, [], css, rules);
+    const rules = rulesIn(css);
     expect(rules).toHaveLength(2);
     expect(rules[0].at).toEqual(['@container x (max-width: 10px)']);
     expect(rules[1].decls.get('font-size')?.value).toBe('11px');
+    expect(shadowedIn(rules, 't.css')).toEqual(['t.css:1 .a { font-size } ← overridden by font-size at line 2']);
+    // a later shorthand resets the longhand too
+    expect(shadowedIn(rulesIn('@media (min-width: 1px) { .b { padding-top: 4px } }\n.b { padding: 0 }'), 't.css')).toHaveLength(1);
+  });
+
+  it('lets the conditional rule stand when it comes last, or the later rule agrees, or wins with !important', () => {
+    expect(shadowedIn(rulesIn('.a { font-size: 11px }\n@container x (max-width: 10px) { .a { font-size: 9px } }'), 't.css')).toEqual([]);
+    expect(shadowedIn(rulesIn('@container x (max-width: 10px) { .a { font-size: 9px } }\n.a { font-size: 9px }'), 't.css')).toEqual([]);
+    expect(shadowedIn(rulesIn('@container x (max-width: 10px) { .a { font-size: 9px !important } }\n.a { font-size: 11px }'), 't.css')).toEqual([]);
+    // a different selector (here: higher specificity) is out of scope
+    expect(shadowedIn(rulesIn('@container x (max-width: 10px) { .a { font-size: 9px } }\n.p .a { font-size: 11px }'), 't.css')).toEqual([]);
   });
 });

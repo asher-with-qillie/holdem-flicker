@@ -28,7 +28,9 @@ function useStuck<T extends HTMLElement>(enabled: boolean): [RefObject<T>, boole
     const measure = () => {
       raf = 0;
       const stickyTop = parseFloat(getComputedStyle(el).top) || 0;
-      const edge = scroller ? scroller.getBoundingClientRect().top + scroller.clientTop : 0;
+      // the sticky offset counts from the scroller's content box: past its border and its padding (.app__main pads by
+      // the safe-area inset — without it the bar never read as stuck in a standalone app with a status bar)
+      const edge = scroller ? scroller.getBoundingClientRect().top + scroller.clientTop + (parseFloat(getComputedStyle(scroller).paddingTop) || 0) : 0;
       setStuck(el.getBoundingClientRect().top <= edge + stickyTop + 1);
     };
     const onScroll = () => {

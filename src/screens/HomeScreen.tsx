@@ -6,9 +6,10 @@
  * Writes nothing; navigation goes through `launch()` / `openSettings()` (§3). App.tsx renders this for
  * the `home` tab; the screen adds `padding-bottom: var(--content-bottom)` via `.screen`.
  *
- * Every section sits in a `.home__area--*` wrapper, grouped as hero (head + today) and stats (tiles + level)
- * (Duo spec §4.6). On phone/squat all wrappers are `display: contents` (one column, unchanged); land/tall/wide
- * place them with grid-template-areas in home.css. DOM order never changes, so local state survives a fold.
+ * Every section sits in a `.home__area--*` wrapper, grouped as hero (head + today) and stats (tiles + level), and the
+ * two wide panes (`.home__pane--l/--r`) wrap contiguous runs of them (Duo spec §4.6). On phone/squat all wrappers are
+ * `display: contents` (one column, unchanged); land/tall place them with grid-template-areas in home.css; wide stacks
+ * each pane on its own. DOM order never changes, so local state survives a fold.
  */
 import { useMemo } from 'react';
 import { KindProgress } from '../components/KindProgress';
@@ -110,85 +111,94 @@ export function HomeScreen(): JSX.Element {
 
   return (
     <div className="screen home" data-state={copy.state}>
-      <div className="home__group home__group--hero">
-        <div className="home__area home__area--head">
-          <div className="home__top">
-            <div className="home__head">
-              <p className={`home__eyebrow${progress.streak > 0 ? '' : ' home__eyebrow--cold'}`}>
-                <IconFlame size={16} />
-                <span className="tnum">{streakLabel(progress.streak)}</span>
-                {showLevel && <span> · {levelName(srs.learnedAll)}</span>}
-              </p>
-              <h1 className="t-title-l home__title">{copy.headline}</h1>
-              <p className="home__sub">{copy.sub}</p>
+      {/* Two panes, always in the DOM, in the one-column reading order (hero → stats → weak | activity → last →
+          prog). wide: each pane stacks on its own — now on the left (greeting · today · tiles · weak spots), history
+          on the right (12 weeks · last session · per-situation progress), so the weak list never pushes the right pane
+          down. Other sizes: display: contents (one column, or grid-area placement on land / tall). The DOM never
+          changes with the size class, so no local state is lost on a fold. */}
+      <div className="home__pane home__pane--l">
+        <div className="home__group home__group--hero">
+          <div className="home__area home__area--head">
+            <div className="home__top">
+              <div className="home__head">
+                <p className={`home__eyebrow${progress.streak > 0 ? '' : ' home__eyebrow--cold'}`}>
+                  <IconFlame size={16} />
+                  <span className="tnum">{streakLabel(progress.streak)}</span>
+                  {showLevel && <span> · {levelName(srs.learnedAll)}</span>}
+                </p>
+                <h1 className="t-title-l home__title">{copy.headline}</h1>
+                <p className="home__sub">{copy.sub}</p>
+              </div>
+              <IconButton icon={<IconGear />} label="설정" onClick={() => openSettings(true)} />
             </div>
-            <IconButton icon={<IconGear />} label="설정" onClick={() => openSettings(true)} />
+          </div>
+
+          <div className="home__area home__area--today">
+            <TodayPanel
+              todayCards={progress.today.cards}
+              goal={settings.dailyGoal}
+              rated={progress.today.rated}
+              goalDone={progress.goalReachedToday}
+              preview={srs.preview}
+              quizToday={progress.today.quiz}
+              cta={copy.cta}
+              ctaTrailing={copy.ctaTrailing}
+              onStart={start}
+              reducedMotion={reducedMotion}
+            />
           </div>
         </div>
 
-        <div className="home__area home__area--today">
-          <TodayPanel
-            todayCards={progress.today.cards}
+        <div className="home__group home__group--stats">
+          <div className="home__area home__area--tiles">
+            <div className="home__tiles" role="group" aria-label="카드 현황">
+              <StatTile label="외웠어요" value={srs.tiles.learned} dot="var(--mint)" />
+              <StatTile label="배우는 중" value={srs.tiles.learning} dot="var(--amber)" />
+              <StatTile label="새 카드" value={srs.tiles.fresh} dot="var(--lilac)" />
+            </div>
+          </div>
+
+          <div className="home__area home__area--level">
+            {showLevel && (
+              <div className="home-level" aria-label="레벨">
+                <div className="home-level__row">
+                  <span className="home-level__name">{level.name}</span>
+                  <span className="home-level__next tnum">{level.next ? `${level.next.name}까지 ${level.next.remaining}장` : '최고 레벨이에요'}</span>
+                </div>
+                <div className="home-level__bar" role="progressbar" aria-valuenow={Math.round(level.ratio * 100)} aria-valuemin={0} aria-valuemax={100}>
+                  <div className="home-level__fill" style={{ width: `${Math.round(level.ratio * 100)}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="home__area home__area--weak">
+          <WeakSpots spots={srs.spots} weakCount={srs.weakCount} onTrainSpot={trainSpot} onTrainWeak={trainWeak} />
+        </div>
+      </div>
+
+      <div className="home__pane home__pane--r">
+        <div className="home__area home__area--activity">
+          <ActivityPanel
+            days={progress.days}
             goal={settings.dailyGoal}
-            rated={progress.today.rated}
-            goalDone={progress.goalReachedToday}
-            preview={srs.preview}
-            quizToday={progress.today.quiz}
-            cta={copy.cta}
-            ctaTrailing={copy.ctaTrailing}
-            onStart={start}
-            reducedMotion={reducedMotion}
+            todayKey={progress.todayKey}
+            totalCards={progress.totalCards}
+            empty={empty}
+            logFor={(key) => logForDay(settings.dailyGoal, key)}
           />
         </div>
-      </div>
 
-      <div className="home__group home__group--stats">
-        <div className="home__area home__area--tiles">
-          <div className="home__tiles" role="group" aria-label="카드 현황">
-            <StatTile label="외웠어요" value={srs.tiles.learned} dot="var(--mint)" />
-            <StatTile label="배우는 중" value={srs.tiles.learning} dot="var(--amber)" />
-            <StatTile label="새 카드" value={srs.tiles.fresh} dot="var(--lilac)" />
-          </div>
-        </div>
-
-        <div className="home__area home__area--level">
-          {showLevel && (
-            <div className="home-level" aria-label="레벨">
-              <div className="home-level__row">
-                <span className="home-level__name">{level.name}</span>
-                <span className="home-level__next tnum">{level.next ? `${level.next.name}까지 ${level.next.remaining}장` : '최고 레벨이에요'}</span>
-              </div>
-              <div className="home-level__bar" role="progressbar" aria-valuenow={Math.round(level.ratio * 100)} aria-valuemin={0} aria-valuemax={100}>
-                <div className="home-level__fill" style={{ width: `${Math.round(level.ratio * 100)}%` }} />
-              </div>
-            </div>
+        <div className="home__area home__area--last">
+          {progress.lastResult && !empty && (
+            <LastSession result={progress.lastResult} goal={settings.dailyGoal} todayCards={progress.today.cards} weekDots={progress.weekDots} />
           )}
         </div>
-      </div>
 
-      <div className="home__area home__area--weak">
-        <WeakSpots spots={srs.spots} weakCount={srs.weakCount} onTrainSpot={trainSpot} onTrainWeak={trainWeak} />
-      </div>
-
-      <div className="home__area home__area--activity">
-        <ActivityPanel
-          days={progress.days}
-          goal={settings.dailyGoal}
-          todayKey={progress.todayKey}
-          totalCards={progress.totalCards}
-          empty={empty}
-          logFor={(key) => logForDay(settings.dailyGoal, key)}
-        />
-      </div>
-
-      <div className="home__area home__area--prog">
-        {wideCols && <KindProgress kinds={settings.kinds.length ? settings.kinds : SCENARIO_KINDS} positions={settings.positions.length ? settings.positions : undefined} />}
-      </div>
-
-      <div className="home__area home__area--last">
-        {progress.lastResult && !empty && (
-          <LastSession result={progress.lastResult} goal={settings.dailyGoal} todayCards={progress.today.cards} weekDots={progress.weekDots} />
-        )}
+        <div className="home__area home__area--prog">
+          {wideCols && <KindProgress kinds={settings.kinds.length ? settings.kinds : SCENARIO_KINDS} positions={settings.positions.length ? settings.positions : undefined} />}
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { ExplanationBody } from '../../components/ExplanationSheet';
 import { LineCapsule, LineStrip } from '../../components/LineStrip';
 import { SeatChips } from '../../components/SeatChips';
@@ -16,20 +16,37 @@ import { rate } from '../../state/srs';
 /** 칸 하나를 가리키는 키(상황 + 패). 헷갈려요 표시는 이 키로 기억해서, 다른 칸을 누르면 저절로 풀립니다. */
 export const stepKey = (step: Step): string => `${scenarioKey(step.scenario)}|${step.hand}`;
 
-/** The last cell flagged from the chart. Module-level so the sheet (phone/squat) and the inline card (tall dock,
- *  land/wide column) agree after a fold or rotation swaps one for the other — the cell is never rated twice. */
-let lastFlaggedKey: string | null = null;
+/** The last cell flagged from the chart — a tiny store shared by the sheet (phone / squat / tall 자세히) and the inline
+ *  card (tall dock, land / wide column). Both read it live: the sheet stays mounted (closed) while a cell is picked,
+ *  so a flag made in the card must reach it, or 헷갈려요 there would rate the cell a second time. ChartsScreen clears it
+ *  when it unmounts, so a cell met again on a later visit can be flagged again. */
+let flaggedKey: string | null = null;
+const flagListeners = new Set<() => void>();
+const subscribeFlag = (fn: () => void) => {
+  flagListeners.add(fn);
+  return () => {
+    flagListeners.delete(fn);
+  };
+};
+const readFlag = () => flaggedKey;
+function writeFlag(key: string | null): void {
+  if (flaggedKey === key) return;
+  flaggedKey = key;
+  flagListeners.forEach((fn) => fn());
+}
+export function forgetCellFlag(): void {
+  writeFlag(null);
+}
 
 /** 헷갈려요 표시(차트 채널). 칸이 바뀌면 표시 상태도 그 칸 것으로 — 시트·카드를 다시 마운트하지 않습니다. */
 export function useCellFlag(step: Step): [boolean, () => void] {
-  const [flaggedKey, setFlaggedKey] = useState<string | null>(() => lastFlaggedKey);
+  const current = useSyncExternalStore(subscribeFlag, readFlag);
   const key = stepKey(step);
-  const flagged = flaggedKey === key;
+  const flagged = current === key;
   const flag = () => {
-    if (flagged) return;
+    if (readFlag() === key) return;
     rate(step, 'unsure', 'chart');
-    lastFlaggedKey = key;
-    setFlaggedKey(key);
+    writeFlag(key);
     vibrate([18, 30, 18]);
     toast('헷갈려요로 표시했어요 · 다음 세션에 먼저 나와요', 'amber');
   };

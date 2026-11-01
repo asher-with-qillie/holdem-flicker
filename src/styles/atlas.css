@@ -139,6 +139,16 @@ html[data-layout="land"] .atlas--two > .atlas__l { gap: 10px; }
 
 /* ---- 손패 고르기 ---- */
 .atlas__picker { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+/* wide: the picker splits on the crease like the 차트 tab — help line and legend in the left pane, the 13 × 13 grid in
+   the right (full width, its 7th column of hands sat on the hinge). The panel body is symmetric about the viewport
+   centre, so two equal columns with the pane gap meet at x = 50 % ± 24. */
+html[data-layout="wide"] .atlas__picker {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--pane-gap); row-gap: 10px;
+  grid-template-areas: "help grid" "legend grid"; grid-template-rows: auto 1fr; align-items: start;
+}
+html[data-layout="wide"] .atlas__picker > p { grid-area: help; }
+html[data-layout="wide"] .atlas__picker > .charts__panel { grid-area: grid; }
+html[data-layout="wide"] .atlas__picker > .charts__legend { grid-area: legend; }
 
 /* ---- 푸터 ---- */
 .atlas__quiz { flex: 1 1 auto; min-width: 0; }

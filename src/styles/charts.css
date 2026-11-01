@@ -12,7 +12,9 @@
 
 /* ---------- sticky chip rows (상황 / 나 / 상대) ---------- */
 .charts__filters {
-  position: sticky; top: var(--safe-top); z-index: var(--z-sticky);
+  /* top 0: sticky offsets count from the scroller's content box, and .app__main already pads by --safe-top — with
+     top: var(--safe-top) the bar pinned at twice the inset (94 in a standalone portrait app), off its glass */
+  position: sticky; top: 0; z-index: var(--z-sticky);
   display: flex; flex-direction: column;
   margin-inline: calc(-1 * var(--gutter)); padding: 6px var(--gutter);
 }
@@ -259,6 +261,9 @@ html[data-layout="wide"] .charts__side .charts__situation { margin-top: -8px; }
 .cellcard__in { display: flex; flex-direction: column; gap: 10px; }
 .cellcard__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cellcard__title { min-width: 0; word-break: keep-all; }
+/* the separator stays with the hand: a narrow card (land, ~180 px) breaks inside the situation ("HJ 오픈" / "대응 · KQo"),
+   never as "HJ 오픈 대응 ·" / "KQo" */
+.cellcard__title-hand { white-space: nowrap; }
 .cellcard__close { flex: none; margin: -6px -6px -6px 0; }
 .cellcard__body { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .cellcard__cap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }

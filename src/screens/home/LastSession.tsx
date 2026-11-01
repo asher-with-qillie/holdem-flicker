@@ -26,11 +26,12 @@ function speedLabel(r: SessionResult): string {
   return r.config.exposure ? `노출 · ${name}` : name;
 }
 
-/** One-line row text: "20장 · 정답 80% · 2분 08초" (노출만 when nothing was rated). */
+/** Row text: "20장 · 정답 80% · 2분 08초" (노출만 when nothing was rated). Each label–value pair is held together with a
+ *  no-break space — in a two-line clamp it wraps only at the ' · ' separators, never between '정답' and '70%'. */
 export function lastSessionText(r: SessionResult): string {
-  const seen = r.mode === 'quiz' ? `퀴즈 ${r.seen}문제` : `${r.seen}장`;
-  const acc = r.rated > 0 ? `정답 ${pct(r.known / r.rated)}` : '노출만';
-  return `${seen} · ${acc} · ${formatDuration(r.activeMs)}`;
+  const seen = r.mode === 'quiz' ? `퀴즈\u00a0${r.seen}문제` : `${r.seen}장`;
+  const acc = r.rated > 0 ? `정답\u00a0${pct(r.known / r.rated)}` : '노출만';
+  return `${seen} · ${acc} · ${formatDuration(r.activeMs).replace(/ /g, '\u00a0')}`;
 }
 
 function unsureRows(keys: string[]): SummaryRow[] {

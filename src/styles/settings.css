@@ -89,10 +89,11 @@ input[type='range'].st-range::-moz-range-thumb { width: 22px; height: 22px; bord
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .app__push-body .st {
   display: grid; align-content: start; align-items: start; column-gap: 24px; row-gap: 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  /* 기기 goes under 훈련 so both columns end near the same height (훈련 + 기기 ≈ 범위 + 고급 + 데이터); the flexible
-     third row absorbs 훈련's extra height so 범위 · 고급 stay together */
-  grid-template-areas: "title title" "train range" "train adv" "device data";
-  grid-template-rows: auto auto 1fr auto;
+  /* 기기 goes under 훈련 so both columns end near the same height (훈련 + 기기 ≈ 범위 + 고급 + 데이터). 훈련 and 데이터
+     both span the fourth row, so each column stacks without a hole: 데이터 starts right under 고급 and 기기 right under
+     훈련 (with 기기 and 데이터 in one shared row, the right column opened a ~160 px gap under 고급) */
+  grid-template-areas: "title title" "train range" "train adv" "train data" "device data";
+  grid-template-rows: auto;
 }
 html[data-layout="land"] .app__push-body .st { grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr); column-gap: 16px; }
 /* two-column settings: the speed segment is ~65 px per option — 순간기억 needs 55 + padding */

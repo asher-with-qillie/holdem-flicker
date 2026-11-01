@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { barSide, clampH, classify, shortTier } from '../viewport';
+import { barSide, clampH, classify, isJump, shortTier } from '../viewport';
 
 // §1.3 matrix: [w, h, layout, short]
 const MATRIX: [number, number, string, number][] = [
@@ -62,5 +62,21 @@ describe('viewport classify', () => {
     expect(clampH(600, 500)).toBe(600);
     expect(clampH(601.5, 500)).toBe(500);
     expect(clampH(580, 618)).toBe(580);
+  });
+});
+
+describe('viewport jumps (fold / unfold / rotation)', () => {
+  it('fires on the Duo folds and on rotation', () => {
+    expect(isJump(382, 669)).toBe(true); // unfold, outer → inner portrait
+    expect(isJump(669, 951)).toBe(true); // inner portrait → inner landscape
+    expect(isJump(951, 382)).toBe(true); // fold from landscape
+    expect(isJump(390, 844)).toBe(true); // phone rotation
+    expect(isJump(382, 594)).toBe(true); // outer rotation
+  });
+  it('ignores the toolbars, split-view nudges and the first measurement', () => {
+    expect(isJump(382, 382)).toBe(false); // Safari toolbars only change the height
+    expect(isJump(382, 385)).toBe(false); // Split View 385 vs full 382
+    expect(isJump(390, 430)).toBe(false); // 40 pt is not a fold
+    expect(isJump(0, 669)).toBe(false); // first resize after init
   });
 });

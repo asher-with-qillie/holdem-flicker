@@ -39,9 +39,13 @@ function Disclosure({ label, open, onToggle }: { label: string; open: boolean; o
 /**
  * Per-cell UI state that outlives the component. The detail renders inside the tile section in one column and in the
  * right column in two, so a fold / rotation that switches the atlas between them remounts it — 해설 전체 보기 stays
- * open, and a cell already flagged 헷갈려요 is not rated twice.
+ * open, and a cell already flagged 헷갈려요 is not rated twice. Scoped to one opening of the atlas sheet: the sheet
+ * calls forgetKept() when it opens, so a cell met again later (after it was reviewed in training) starts fresh.
  */
 const kept = new Map<string, boolean>();
+export function forgetKept(): void {
+  kept.clear();
+}
 function useKept(key: string, init = false): [boolean, (next: boolean | ((prev: boolean) => boolean)) => void] {
   const [v, setV] = useState(() => kept.get(key) ?? init);
   const set = useCallback(
