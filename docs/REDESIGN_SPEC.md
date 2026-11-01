@@ -1608,6 +1608,26 @@ places stay masked, so retrieval practice is preserved.
   summaries mirror the rail on the right so their two columns split on the crease.
 - **Corners (land)**: `--content-bottom` 24, push header / setup / home / coach / side-sheet insets keep tap targets
   inside the 59 px rounded corners.
+- **Summaries (≥ 460 wide, so land 594 too)** are a grid of the card's three groups, `"a b" / "c b"`: result ·
+  streak, then speed · CTAs on the left; weak spot and card rows on the right. CSS columns flowed the CTAs after the
+  rows into the right column. In two columns a card row puts the hand above its situation (2 lines max).
+- **시작 never leaves the screen**: phone / squat pin it to the setup scroller's bottom edge (sticky inside the
+  scroller, not the viewport); land makes only the button sticky at the top of a right column that stretches the grid.
+- **tall half sheet** (해설, hold) starts on the session seam (`safe-top + 166 + G`), not at 50 % — it no longer
+  slices the seat row and the hand label.
+- **Panels carry a ✕** (land / wide full sheets cover everything but a 10 px margin; there is no grabber or backdrop
+  to dismiss them).
+- **Phone keeps the short-stage behaviour it had**: the stage ≤ 88 rule (hide the fan, enlarge the label) applies to
+  the Duo classes only; on phone FitBox alone decides, so a fan seen while thinking never vanishes on reveal.
+- **Timers survive a fold**: the think / reveal countdown is carried per card key when its element moves between the
+  phone row and the HUD, so a fold or rotation never grants a fresh full countdown. A new card or ◀ starts fresh.
+- **Paused (land)**: the rail starts below the session HUD (56) with 48 px items, so the HUD ✕ keeps its whole target.
+  Paused / held / sheet up: the slack band's last-cards ribbon is hidden (it printed through the tab bar and glass).
+- **tall chart stage** takes the toolbar's frame − core as top padding (top bar → the bottom edge is the fixed one),
+  so the header, grid and cell card never move; the dock keeps its size.
+- **wide home** pairs rows of similar height: `"hero stats" "hero activity" "weak activity" "last prog"`.
+- A new tab always opens at its top (the tab pages share one scroller). The stylesheet cascade test
+  (`tests/css-cascade.test.ts`) fails when a later base rule silently overrides an `@container` / `@media` rule.
 
 ### 11.8 Open risks / real-device checks
 
