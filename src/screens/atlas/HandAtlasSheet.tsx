@@ -296,17 +296,20 @@ function AtlasBody({
   // starts at the top. Keep an anchor and put it back after the flip, so the reader lands where they were (§11.6), with
   // or without a selection:
   //  - 'block': the block at the scroller's top edge and how far into it the edge was (head, thesis, a tile section);
-  //  - 'detail': the reader is in the selected cell's comparison — inline in one column (.atlas__l .atlas__detail), or
-  //    scrolled into in the right column of two. It is restored at the same offset into the comparison, in the inline
-  //    one or in the right column (the left column then shows the selected tile). It remounts on every flip, so it is
-  //    found again by role, not by element;
+  //  - 'detail': the reader is in the selected cell's inline comparison (one column: .atlas__l .atlas__detail). Unfolded,
+  //    the left column shows the selected tile and the right column the comparison at the same offset. It remounts on
+  //    every flip, so it is found again by role, not by element;
   //  - 'tile': a tap anchors on the tapped tile; folded to one column, its comparison (under the section's tiles) is
   //    brought into view as well.
-  // The anchor is re-applied for a few frames after a flip and after a size-class change (data-layout settles ~150 ms
-  // after the width and reflows the head). A drag or wheel ends that hold, and the reader's own scroll then wins: it is
-  // recorded even while the size is still settling, and the size-class change that follows a flip does not undo it.
-  // A flip itself always restores — the new scroller starts at the top, so a finger resting across the fold or rotation
-  // still lands where it was. Other scrolls in that window (the browser's own adjustments to the reflow) are not recorded.
+  // In two columns the left column keeps that anchor and the right column its own offset into the comparison
+  // (rAnchor), so a size-class change that keeps two columns (tall ↔ wide) restores each column from its own. A fold
+  // carries the column the reader scrolled last: the right column's offset becomes the inline comparison's.
+  // The anchors are re-applied for a few frames after a flip and after a size-class change (data-layout settles
+  // ~150 ms after the width and reflows the head). A drag (> 10 px) or wheel ends that hold, and the reader's own scroll
+  // then wins: it is recorded even while the size is still settling, and the size-class change that follows a flip
+  // does not undo it. A flip itself always restores — the new scroller starts at the top, so a finger resting (or
+  // jittering) across the fold or rotation still lands where it was. Other scrolls in that window (the browser's own
+  // adjustments to the reflow) are not recorded.
   // The first measurement after opening (false → true on a wide body) is not a change: the open effect above decides
   // where the sheet starts. Only later flips count.
   const layout = useLayout();
@@ -317,10 +320,17 @@ function AtlasBody({
   const measured = useRef(false);
   type Anchor = { type: 'block' | 'tile'; el: HTMLElement; kind: string | null; delta: number } | { type: 'detail'; kind: string | null; delta: number };
   const anchor = useRef<Anchor | null>(null);
+  /** two columns: how far the right column's top edge is into the comparison (> 0), from its own scrolls */
+  const rAnchor = useRef<number | null>(null);
+  /** the column the reader scrolled last in two columns — a fold carries that one */
+  const lastCol = useRef<'l' | 'r'>('l');
   const holdUntil = useRef(0);
-  /** last drag / wheel on the sheet, and the last flip or size-class change that restored the anchor */
+  /** last drag / wheel on the sheet, and the last flip or size-class change that restored the anchors */
   const userAt = useRef(-Infinity);
   const restoredAt = useRef(-Infinity);
+  /** where the current touch is measured from (NaN: take the next move as the start — a rotation moves the
+   *  coordinates of a finger that never moved) */
+  const touchY = useRef(NaN);
   const scrollerOf = useCallback(
     (two: boolean) => {
       const root = rootRef.current;
@@ -350,20 +360,17 @@ function AtlasBody({
       const sc = scrollerOf(two);
       const now = performance.now();
       if (now - userAt.current >= 400 && (now < holdUntil.current || isSettling() || msSinceClassChange() < 300)) return;
-      // two columns: scrolled into the right column's comparison → 'detail'; back at its top → the selected tile again
+      // two columns: the right column has its own offset into the comparison (none above it); the left anchor stays
       const r = two ? root.querySelector<HTMLElement>(':scope > .atlas__r') : null;
       if (r && e.target === r) {
         const det = r.querySelector<HTMLElement>('.atlas__detail');
-        const tile = root.querySelector<HTMLElement>('.atlas__cell--sel');
-        if (!det || !sc) return;
-        const edge = r.getBoundingClientRect().top;
-        const delta = edge - det.getBoundingClientRect().top;
-        const kind = tile?.closest<HTMLElement>('[data-kind]')?.dataset.kind ?? null;
-        if (delta > 0) anchor.current = { type: 'detail', kind, delta };
-        else if (tile) anchor.current = { type: 'tile', el: tile, kind, delta: sc.getBoundingClientRect().top - tile.getBoundingClientRect().top };
+        const delta = det ? r.getBoundingClientRect().top - det.getBoundingClientRect().top : 0;
+        rAnchor.current = delta > 0 ? delta : null;
+        lastCol.current = 'r';
         return;
       }
       if (!sc || e.target !== sc) return;
+      lastCol.current = 'l';
       const edge = sc.getBoundingClientRect().top;
       let best: { el: HTMLElement; top: number; h: number } | null = null;
       let next: { el: HTMLElement; top: number } | null = null;
@@ -380,18 +387,35 @@ function AtlasBody({
       anchor.current = pick.el.classList.contains('atlas__detail') ? { type: 'detail', kind, delta: edge - pick.top } : { type: 'block', el: pick.el, kind, delta: edge - pick.top };
     };
     // a drag or wheel on the sheet ends the post-flip hold at once — the reader's own scroll wins. A finger that only
-    // rests does not: it does not scroll, and its touchend can be lost when the fold remounts the node under it.
+    // rests (or jitters a few px) does not: it does not scroll, and its touchend can be lost when the fold remounts
+    // the node under it. Only vertical travel past 10 px counts — a scroll starts about there.
     const release = () => {
       holdUntil.current = 0;
       userAt.current = performance.now();
     };
+    const down = (e: TouchEvent) => {
+      touchY.current = e.touches[0]?.clientY ?? NaN;
+    };
+    const move = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY;
+      if (y === undefined) return;
+      if (Number.isNaN(touchY.current)) touchY.current = y;
+      else if (Math.abs(y - touchY.current) > 10) release();
+    };
+    const rebase = () => {
+      touchY.current = NaN;
+    };
     sheet.addEventListener('scroll', record, { capture: true, passive: true });
-    sheet.addEventListener('touchmove', release, { passive: true });
+    sheet.addEventListener('touchstart', down, { passive: true });
+    sheet.addEventListener('touchmove', move, { passive: true });
     sheet.addEventListener('wheel', release, { passive: true });
+    window.addEventListener('resize', rebase);
     return () => {
       sheet.removeEventListener('scroll', record, { capture: true });
-      sheet.removeEventListener('touchmove', release);
+      sheet.removeEventListener('touchstart', down);
+      sheet.removeEventListener('touchmove', move);
       sheet.removeEventListener('wheel', release);
+      window.removeEventListener('resize', rebase);
     };
   }, [rootRef, scrollerOf]);
   // a tap anchors on the tapped tile, at its current distance from the top edge
@@ -401,6 +425,9 @@ function AtlasBody({
     const tile = root?.querySelector<HTMLElement>('.atlas__cell--sel');
     if (!sc || !tile) return;
     anchor.current = { type: 'tile', el: tile, kind: tile.closest<HTMLElement>('[data-kind]')?.dataset.kind ?? null, delta: sc.getBoundingClientRect().top - tile.getBoundingClientRect().top };
+    // the tap is the reader's focus now, not where the right column was in the previous comparison
+    rAnchor.current = null;
+    lastCol.current = 'l';
   }, [st.selected, rootRef, scrollerOf]);
   useEffect(() => {
     const flipped = splitSeen.current !== split;
@@ -412,12 +439,37 @@ function AtlasBody({
     const now = performance.now();
     if (!flipped && now - restoredAt.current < 1000 && userAt.current > restoredAt.current) return;
     const root = rootRef.current;
+    if (!root) return;
+    touchY.current = NaN;
+    if (flipped) {
+      // folded from two columns where the reader was in the right column: its offset is now the inline comparison's
+      if (!split && lastCol.current === 'r' && rAnchor.current !== null) {
+        const kind = root.querySelector<HTMLElement>('.atlas__cell--sel')?.closest<HTMLElement>('[data-kind]')?.dataset.kind ?? null;
+        anchor.current = { type: 'detail', kind, delta: rAnchor.current };
+      }
+      // unfolded from inside the inline comparison: the right column carries it on
+      const fromInline = split && anchor.current?.type === 'detail' ? anchor.current.delta : null;
+      rAnchor.current = fromInline !== null && fromInline > 0 ? fromInline : null;
+      lastCol.current = rAnchor.current !== null ? 'r' : 'l';
+    }
     const a0 = anchor.current;
-    if (!root || !a0) return;
+    const r0 = split ? rAnchor.current : null;
+    if (!a0 && r0 === null) return;
     restoredAt.current = now;
+    /** an offset into an element, kept inside it (the comparison reflows to another height in another width) */
+    const into = (delta: number, el: HTMLElement) => Math.min(delta, Math.max(0, el.getBoundingClientRect().height - 24));
     const apply = () => {
       const sc = scrollerOf(split);
       if (!sc) return;
+      if (r0 !== null) {
+        const r = root.querySelector<HTMLElement>(':scope > .atlas__r');
+        const det = r?.querySelector<HTMLElement>('.atlas__detail');
+        if (r && det) {
+          const ry = det.getBoundingClientRect().top - r.getBoundingClientRect().top + into(r0, det);
+          if (Math.abs(ry) > 1) r.scrollTop += ry;
+        }
+      }
+      if (!a0) return;
       const top = sc.getBoundingClientRect().top;
       const bottom = top + sc.clientHeight;
       const section = a0.kind ? root.querySelector<HTMLElement>(`[data-kind="${a0.kind}"]`) : null;
@@ -425,17 +477,10 @@ function AtlasBody({
       let dy = 0;
       if (a0.type === 'detail') {
         const inline = split ? null : root.querySelector<HTMLElement>('.atlas__l .atlas__detail');
-        if (inline) dy = inline.getBoundingClientRect().top - top + a0.delta;
+        if (inline) dy = inline.getBoundingClientRect().top - top + into(a0.delta, inline);
         else if (sel) dy = sel.getBoundingClientRect().top - top - 12;
         else if (section) dy = section.getBoundingClientRect().top - top;
         else return;
-        // two columns: the right column picks the comparison up at the same offset
-        const r = split ? root.querySelector<HTMLElement>(':scope > .atlas__r') : null;
-        const det = r?.querySelector<HTMLElement>('.atlas__detail');
-        if (r && det && a0.delta > 0) {
-          const ry = det.getBoundingClientRect().top - r.getBoundingClientRect().top + a0.delta;
-          if (Math.abs(ry) > 1) r.scrollTop += ry;
-        }
       } else {
         const el = a0.el.isConnected && root.contains(a0.el) ? a0.el : section;
         if (!el) return;

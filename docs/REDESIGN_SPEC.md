@@ -1671,10 +1671,11 @@ places stay masked, so retrieval practice is preserved.
 - **Round 5**:
   - FitBox scales only children rendered for the current box: a box change re-renders the children first and measures
     them in the layout effect, so a reveal never paints a frame of the previous size's content measured as "hidden".
-  - Atlas anchor: a flip always restores (a finger resting across the fold still lands where it was); a drag or wheel
-    ends the hold and is recorded even while the size settles, and the size-class change after the flip does not undo
-    it. In two columns, scrolling into the right column's comparison is the 'detail' anchor, carried to the inline
-    comparison after a fold and back into the right column after an unfold.
+  - Atlas anchor: a flip always restores (a finger resting or jittering across the fold still lands where it was); a
+    drag (> 10 px) or wheel ends the hold and is recorded even while the size settles, and the size-class change after
+    the flip does not undo it. In two columns each column keeps its own anchor (tall ↔ wide restores both); a fold
+    carries the column scrolled last, so the right column's offset into the comparison becomes the inline one's and
+    comes back on unfold. Offsets into the comparison are kept inside it when it reflows shorter.
   - The 헷갈려요 store is scoped to a chart visit; an atlas opened outside one (training, quiz, summaries) clears it.
   - Setup on a short outer screen with nothing to start (amber reason): the dock is not pinned over the chips.
   - Settings with 고급 open: the groups carry the 16 px, not the row gaps (the empty fourth row added 8 px).
