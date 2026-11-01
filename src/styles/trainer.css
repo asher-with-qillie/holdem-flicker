@@ -175,22 +175,25 @@ html[data-layout="wide"] .trainer-pause {
   .trainer-stage--reveal:has(.trainer-revealmap) .trainer-stage__card:not(.trainer-stage__card--ghost) { opacity: 0; }
 }
 /* below 96 px of stage the map goes; below 64 the fan goes and the label grows (it carries the hand alone) */
-@container stage (max-height: 120px) {
-  .trainer-stage__map { display: none; }
-  /* T is gone, so the 차트 entry moves onto the label line (squat / land reveal) */
-  .trainer-handlabel__chart { display: inline-grid; }
-}
+/* (base rule first: the container query below must come later to win at equal specificity) */
 .trainer-handlabel__chart {
   display: none; position: relative; place-items: center; width: 30px; height: 25px; margin-left: 8px; padding: 0; border: 0; border-radius: var(--r-capsule);
   vertical-align: top; color: var(--ink-2); background: rgba(255, 255, 255, 0.10); -webkit-tap-highlight-color: transparent;
 }
 .trainer-handlabel__chart::before { content: ''; position: absolute; inset: -10px -8px; }   /* 44+ px hit area */
 .trainer-handlabel__chart svg { width: 16px; height: 16px; }
+@container stage (max-height: 120px) {
+  .trainer-stage__map { display: none; }
+  /* T is gone, so the 차트 entry moves onto the label line (squat / land reveal) */
+  .trainer-handlabel__chart { display: inline-grid; }
+}
 /* (visibility + zero flex, not display: none — a display toggle would restart the card's entry animation whenever a
    layout pass briefly measures the stage small) */
 @container stage (max-height: 88px) {
+  .trainer-stage__row { flex: 0 0 0; overflow: hidden; }   /* the label takes the whole stage */
   .trainer-stage__area { flex: 0 0 0; visibility: hidden; overflow: hidden; }
-  .trainer-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
+  /* .trainer-stage prefix: the base .trainer-handlabel rule comes later in this file and would win at equal specificity */
+  .trainer-stage .trainer-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
 }
 
 /* fan: takes the leftover height; FitBox scales the cards down to fit (quantized; hidden below 0.5) */

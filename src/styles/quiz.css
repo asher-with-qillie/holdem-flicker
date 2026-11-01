@@ -110,8 +110,10 @@ html[data-layout="land"] .quiz--idle, html[data-layout="land"] .quiz--summary { 
 }
 @container qstage (max-height: 120px) { .quiz-stage__map { display: none; } }
 @container qstage (max-height: 88px) {
+  .quiz-stage__row { flex: 0 0 0; overflow: hidden; }   /* the label takes the whole stage */
   .quiz-stage__area { flex: 0 0 0; visibility: hidden; overflow: hidden; }
-  .quiz-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
+  /* .quiz-stage prefix: the base .quiz-handlabel rule comes later in this file and would win at equal specificity */
+  .quiz-stage .quiz-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
 }
 .quiz-handlabel { flex: none; height: 25px; text-align: center; white-space: nowrap; }
 .quiz-handlabel__card { margin: 0 3px; }

@@ -50,7 +50,7 @@ export function HandLabel({ cards, hand, onChart }: { cards: [Card, Card]; hand:
       <span className="trainer-handlabel__sep">·</span>
       <span className="trainer-handlabel__name">{hand}</span>
       {onChart && (
-        <button type="button" className="trainer-handlabel__chart trainer-chartbtn" onClick={onChart} aria-label="차트 보기">
+        <button type="button" className="trainer-handlabel__chart" onClick={onChart} aria-label="차트 보기">
           <IconGrid />
         </button>
       )}
