@@ -159,7 +159,6 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
    24px 이 번져 나가고, 그만큼 컨테이너가 세로 자리를 내줘야 합니다. 컨트롤은 더 얕게 앉힙니다. */
 .ui-btn.glass, .ui-ibtn.glass { box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.16), 0 6px 14px -8px rgba(0, 0, 0, 0.7); }
 .ui-btn.glass-tint, .ui-ibtn.glass-tint { box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--tint) 26%, transparent), inset 0 0.5px 0 rgba(255, 255, 255, 0.20), 0 6px 16px -8px color-mix(in srgb, var(--tint) 58%, transparent); }
-@media (max-width: 370px) { .ui-seg__opt { padding-inline: 2px; letter-spacing: -0.01em; } }
 .ui-chiprow--wrap { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
 
 /* =============================================================== SegmentedControl */
@@ -175,6 +174,8 @@ button.ui-panel { width: 100%; text-align: left; font: inherit; }
   color: var(--ink-2); font-size: var(--fs-callout); font-weight: 600; border-radius: var(--r-capsule);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color var(--dur-quick);
 }
+/* 좁은 폰(≤370): 네 글자 라벨(순간기억)이 말줄임 없이 들어가게. 기본 규칙 뒤에 둬야 이깁니다. */
+@media (max-width: 370px) { .ui-seg__opt { padding-inline: 2px; letter-spacing: -0.01em; } }
 .ui-seg__opt--active { color: var(--ink); font-weight: 700; }
 .ui-seg__opt[disabled] { color: var(--ink-4); }
 .ui-seg__opt:active { transform: scale(0.97); }
@@ -241,6 +242,13 @@ html:is([data-layout="land"],[data-layout="wide"]) .ui-tabbar {
 html[data-layout="wide"][data-bar="top"] .ui-tabbar {
   top: auto;
   bottom: max(calc(var(--rail-gap) + var(--safe-bottom)), calc((var(--vh-core) - var(--safe-top) - var(--n,5) * var(--rail-item) - 2 * var(--tab-padx)) / 2));
+}
+/* land · 일시정지: 레일이 세션 위로 다시 떠오르는데 세션 HUD(8 + 40)도 그 위에 남습니다. 레일을 HUD 아래(56)에서
+   시작해 ✕(세션 끝내기)가 터치 영역을 다 지키게 하고, 칸을 48 로 줄여(5 × 48 + 20 = 260) 짧은 화면(340)에서도
+   아래 59pt 모서리를 피합니다. */
+html[data-layout="land"]:has(.trainer-session--paused) .ui-tabbar {
+  --rail-item: 48px;
+  top: calc(var(--safe-top) + max(56px, (var(--vh-core) - var(--safe-top) - var(--n,5) * var(--rail-item) - 2 * var(--tab-padx)) / 2));
 }
 html:is([data-layout="land"],[data-layout="wide"]) .ui-tabbar__pill {
   left: 3px; right: 3px; width: auto; bottom: auto; top: calc(var(--tab-padx) + var(--tab-pill-gap) / 2);
@@ -357,9 +365,13 @@ html[data-bar="top"] .ui-sheet--panel { top: auto; bottom: calc(var(--safe-botto
 .ui-sheet--panel.ui-sheet--in { transform: none; }
 .ui-sheet--panel .ui-sheet__grab { display: none; }
 .ui-sheet--panel .ui-sheet__title { padding-top: 16px; }
+/* the panel's own ✕ (Sheet.tsx): top-right, 12 px in — inside the 59 px display corner on land, right of the crease on wide */
+.ui-sheet__close { position: absolute; top: 12px; right: 12px; z-index: 2; }
 /* 사이드 시트와 패널은 이미 안전 영역 안쪽에 떠 있으므로 안쪽 여백은 gutter 만 둡니다(안전 영역을 두 번 빼지 않게). */
 .ui-sheet--side :is(.ui-sheet__title, .ui-sheet__body, .ui-sheet__footer),
 .ui-sheet--panel :is(.ui-sheet__title, .ui-sheet__body, .ui-sheet__footer) { padding-left: var(--gutter); padding-right: var(--gutter); }
+.ui-sheet--panel .ui-sheet__title { padding-right: 64px; }   /* room for the ✕ (after the rule above, same specificity) */
+html[data-layout="land"] .ui-sheet--panel .ui-sheet__title { padding-top: 12px; padding-bottom: 4px; }   /* land: every px of the ~348 px panel counts */
 /* wide: 패널을 좌우 대칭으로 띄워 가운데가 늘 접힘선(50%)에 오게 합니다 — 한쪽 inset 만 있어도 두 칸이 접힘선에서 나뉩니다.
    푸터도 두 칸(간격 = --pane-gap)이라 버튼이 접힘선을 가로지르지 않습니다. */
 html[data-layout="wide"] .ui-sheet--panel {
@@ -435,6 +447,8 @@ html[data-layout="wide"] :is(.quiz-sub, .screen__sub) { max-width: var(--pane-l)
 .ui-summary__hand { flex: none; width: 40px; font-weight: 700; font-size: var(--fs-callout); }
 .ui-summary__title { flex: 1; min-width: 0; font-size: var(--fs-footnote); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ui-summary__more { align-self: flex-start; min-height: 36px; padding: 0 4px; border: 0; background: none; color: var(--mint); font-size: var(--fs-footnote); font-weight: 600; }
+/* groups (see SessionSummaryCard): no box on a phone; .ui-summary--two (set by the screen's container query) places them */
+.ui-summary__col { display: contents; }
 .ui-summary__allknown { font-size: var(--fs-footnote); color: var(--ink-2); text-align: center; }
 .ui-summary__speed { display: flex; flex-direction: column; gap: 8px; }
 .ui-summary__speed-q { font-size: var(--fs-footnote); color: var(--ink-2); }

@@ -4,6 +4,17 @@ import type { Action } from '../poker/types';
 import { cellBackground } from './RangeGrid';
 import '../styles/linestrip.css';
 
+/** Two-character labels (AA, T9) keep their second character in a span the narrow-strip container query hides. */
+function SlotLabel({ text }: { text: string }) {
+  if (text.length !== 2) return <>{text}</>;
+  return (
+    <>
+      {text[0]}
+      <span className="lstrip__l2">{text[1]}</span>
+    </>
+  );
+}
+
 /**
  * 줄 스트립(docs/EXPLAIN_SPEC.md §3.2). 이 패가 속한 차트 줄 13칸을 13×13 그리드에서 그대로 잘라 와 한 줄로 눕힙니다.
  * 리빌·퀴즈(sm, 21×22 · 297px)와 해설 시트·자리별 보기(md, 23×28 · 323px)가 같은 컴포넌트를 씁니다.
@@ -30,7 +41,7 @@ export function LineStrip({ view, size = 'sm', label, className }: { view: Strip
         if (slot.role === 'unreachable') {
           return (
             <span key={i} className={`lstrip__cell lstrip__cell--gated${ring ? ' lstrip__cell--ring' : ''}`} aria-hidden="true">
-              {slot.label}
+              <SlotLabel text={slot.label} />
             </span>
           );
         }
@@ -40,7 +51,7 @@ export function LineStrip({ view, size = 'sm', label, className }: { view: Strip
         const cls = ['lstrip__cell', `lstrip__cell--${tone}`, ring && 'lstrip__cell--ring', edge && 'lstrip__cell--edge'].filter(Boolean).join(' ');
         return (
           <span key={i} className={cls} style={background ? { background } : undefined} aria-hidden="true">
-            {slot.label}
+            <SlotLabel text={slot.label} />
           </span>
         );
       })}

@@ -136,3 +136,4 @@ button.seatchips:focus-visible { outline: 2px solid var(--mint); outline-offset:
   .term-pop, .ui-explain__more-body { animation: none; }
   .ui-explain__more-btn svg { transition: none; }
 }
+.ui-explain__pair { white-space: nowrap; }

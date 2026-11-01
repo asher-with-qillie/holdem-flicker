@@ -11,22 +11,57 @@ export interface RafTimer {
 }
 
 /**
+ * Elapsed time per `scope|duration|resetKey`, so a timer that is remounted under a new parent (the phone ↔ HUD
+ * placement swap when a fold or rotation changes the size class) carries on where it stopped instead of
+ * granting a fresh full countdown. Only the last few keys are kept.
+ */
+const carry = new Map<string, { elapsed: number; fired: boolean }>();
+const CARRY_MAX = 8;
+
+function carryKey(scope: string | undefined, durationMs: number, resetKey: string): string | null {
+  return scope ? `${scope}|${durationMs}|${resetKey}` : null;
+}
+
+function remember(key: string | null, elapsed: number, fired: boolean): void {
+  if (!key) return;
+  carry.delete(key);
+  carry.set(key, { elapsed, fired });
+  while (carry.size > CARRY_MAX) carry.delete(carry.keys().next().value as string);
+}
+
+/** Test hook: forget every carried countdown. */
+export function resetTimerCarry(): void {
+  carry.clear();
+}
+
+/**
  * requestAnimationFrame countdown. Elapsed time accumulates only while `running` (a paused timer keeps its
  * remaining time); `resetKey` change restarts from zero; `onExpire` fires once per key when the duration is reached.
+ * With a `scope`, the elapsed time survives a remount with the same key (see `carry`).
  */
-export function useRafTimer(durationMs: number, running: boolean, resetKey: string, onExpire: () => void): RafTimer {
-  const [progress, setProgress] = useState(1);
-  const [remainingMs, setRemainingMs] = useState(durationMs);
-  const elapsed = useRef(0);
-  const fired = useRef(false);
+export function useRafTimer(durationMs: number, running: boolean, resetKey: string, onExpire: () => void, scope?: string): RafTimer {
+  const key = carryKey(scope, durationMs, resetKey);
+  const start = (key && carry.get(key)) || null;
+  const [progress, setProgress] = useState(() => (start && durationMs > 0 ? Math.max(0, durationMs - start.elapsed) / durationMs : 1));
+  const [remainingMs, setRemainingMs] = useState(() => (start ? Math.ceil(Math.max(0, durationMs - start.elapsed) / 100) * 100 : durationMs));
+  const elapsed = useRef(start?.elapsed ?? 0);
+  const fired = useRef(start?.fired ?? false);
   const expireRef = useRef(onExpire);
   expireRef.current = onExpire;
 
+  // Restore only on mount (a remount with the same key). A key change inside one instance is a new card / phase —
+  // or ◀ back to a card whose key was seen before — and starts fresh, as it always did.
+  const seenKey = useRef<string | null>(null);
   useEffect(() => {
-    elapsed.current = 0;
-    fired.current = false;
-    setProgress(1);
-    setRemainingMs(durationMs);
+    const fresh = seenKey.current !== null && seenKey.current !== resetKey;
+    seenKey.current = resetKey;
+    if (fresh && key) carry.delete(key);
+    const kept = key && !fresh ? carry.get(key) : undefined;
+    elapsed.current = kept?.elapsed ?? 0;
+    fired.current = kept?.fired ?? false;
+    const left = Math.max(0, durationMs - elapsed.current);
+    setProgress(durationMs > 0 ? left / durationMs : 0);
+    setRemainingMs(Math.ceil(left / 100) * 100);
   }, [resetKey, durationMs]);
 
   useEffect(() => {
@@ -42,6 +77,7 @@ export function useRafTimer(durationMs: number, running: boolean, resetKey: stri
       if (elapsed.current >= durationMs) {
         if (!fired.current) {
           fired.current = true;
+          remember(key, elapsed.current, true);
           expireRef.current();
         }
         return;
@@ -49,7 +85,10 @@ export function useRafTimer(durationMs: number, running: boolean, resetKey: stri
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      remember(key, elapsed.current, fired.current);
+    };
   }, [running, durationMs, resetKey]);
 
   return { progress, remainingMs };

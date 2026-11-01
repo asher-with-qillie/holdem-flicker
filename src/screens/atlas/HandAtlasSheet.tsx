@@ -283,6 +283,34 @@ function AtlasBody({
   // 본문이 540 이상(tall 시트 · land/wide 패널)이면 두 칸(Duo spec §4.5): 왼쪽 = 패 · 주장 · 타일 섹션, 오른쪽 = 선택/비교 블록.
   // 두 칸 모두 따로 스크롤하므로 타일을 눌러도 왼쪽 스크롤은 그대로, 오른쪽만 바뀝니다.
   const [rootRef, split] = useWideBox<HTMLDivElement>(540);
+  // One ↔ two columns (fold, unfold, rotation): the selected tile moves to a different scroller, which starts at the
+  // top — bring its section back into view so the reader lands where they were (§11.6).
+  // The first measurement after opening (false → true on a wide body) is not a change: the open effect above decides
+  // where the sheet starts. Only later flips count.
+  const splitSeen = useRef(split);
+  const measured = useRef(false);
+  useEffect(() => {
+    let b = 0;
+    const a = requestAnimationFrame(() => {
+      b = requestAnimationFrame(() => {
+        measured.current = true;
+      });
+    });
+    return () => {
+      cancelAnimationFrame(a);
+      cancelAnimationFrame(b);
+    };
+  }, []);
+  useEffect(() => {
+    if (splitSeen.current === split) return;
+    splitSeen.current = split;
+    if (!measured.current) return;
+    const id = requestAnimationFrame(() => {
+      const sel = rootRef.current?.querySelector<HTMLElement>('.atlas__cell--sel');
+      sel?.closest<HTMLElement>('[data-kind]')?.scrollIntoView({ block: 'start' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [split, rootRef]);
   const detail = selected ? <AtlasDetail key={selected.key} atlas={atlas} cell={selected} compare={compare} /> : null;
   const detailFor = (kind: ScenarioKind) => (!split && selected && selected.scenario.kind === kind ? detail : null);
 

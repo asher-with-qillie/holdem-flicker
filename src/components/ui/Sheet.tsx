@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLayout } from '../../state/viewport';
+import { IconButton } from './IconButton';
+import { IconClose } from './icons';
 
 export interface SheetProps {
   open: boolean;
@@ -170,6 +172,9 @@ export function Sheet({ open, onClose, title, detent = 'auto', held, footer, sid
         <div className="ui-sheet__grab" aria-hidden="true">
           <span />
         </div>
+        {/* A panel (land/wide full) covers the whole screen but a 10 px margin — no grabber, no backdrop to speak of —
+            so it carries its own ✕. Bottom sheets keep the grabber + backdrop; side sheets leave a wide backdrop. */}
+        {presentation === 'panel' && !held && <IconButton className="ui-sheet__close" icon={<IconClose />} label="닫기" onClick={onClose} />}
         {title && <h2 className="ui-sheet__title">{title}</h2>}
         <div className="ui-sheet__body">{children}</div>
         {footer && <div className="ui-sheet__footer">{footer}</div>}

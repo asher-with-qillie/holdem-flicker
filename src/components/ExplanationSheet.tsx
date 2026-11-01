@@ -88,12 +88,13 @@ function SeatNumbers({ seat }: { seat: Explanation['seat'] }) {
       {seat.ladder.map((x, i) => (
         <Fragment key={x.pos}>
           {i > 0 && ' · '}
+          {/* a seat and its % never part at a line break — lines break only at the ' · ' separators */}
           {x.me ? (
-            <b>
+            <b className="ui-explain__pair">
               {x.pos} {x.pct}%
             </b>
           ) : (
-            `${x.pos} ${x.pct}%`
+            <span className="ui-explain__pair">{`${x.pos} ${x.pct}%`}</span>
           )}
         </Fragment>
       ))}

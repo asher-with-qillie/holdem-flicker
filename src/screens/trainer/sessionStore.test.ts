@@ -31,6 +31,7 @@ import {
   expireThink,
   flagToggle,
   getSession,
+  jumpAction,
   next,
   NEXT_AUTO_MS,
   prev,
@@ -586,5 +587,18 @@ describe('sessionStore', () => {
     const s = start({ onlyKeys: keys, manual: true });
     expect(s.queue.map((c) => c.key)).toEqual(keys);
     expect(s.config.manual).toBe(true);
+  });
+  it('jumpAction: a fold pauses a running countdown, otherwise only cancels the armed auto-advance', () => {
+    expect(jumpAction(null)).toBe('none');
+    start();
+    vi.advanceTimersByTime(300);
+    expect(jumpAction(getSession())).toBe('pause'); // think: the countdown is running
+    setHolding(true);
+    expect(jumpAction(getSession())).toBe('cancel'); // held: the timer is frozen already
+    setHolding(false);
+    choose(currentCard()!.step.answer); // choose-mode reveal waits for 다음 (auto-advance armed)
+    expect(jumpAction(getSession())).toBe('cancel');
+    togglePause();
+    expect(jumpAction(getSession())).toBe('none'); // paused: nothing to do
   });
 });

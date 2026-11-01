@@ -25,7 +25,7 @@ import { ChoiceButtons } from './ChoiceButtons';
 import { RevealChart } from './RevealChart';
 import { SessionHud } from './SessionHud';
 import { cardOutcome, SessionRibbon, type Outcome, type RibbonItem } from './SessionRibbon';
-import { awaitsNext, cancelAutoNext, getSession, NEXT_AUTO_MS, setCoachOpen, togglePause, type SessionCard } from './sessionStore';
+import { cancelAutoNext, getSession, jumpAction, NEXT_AUTO_MS, setCoachOpen, togglePause, type SessionCard } from './sessionStore';
 import { StageChart } from './StageChart';
 import { StepCrumbs } from './StepCrumbs';
 import { SwipeStage, useHoldGesture } from './SwipeStage';
@@ -56,7 +56,7 @@ function outcomeLine(card: SessionCard): { text: string; tone: 'correct' | 'part
  * `waitNext` (choose-mode reveal): no countdown row — the 다음 button carries it; the row states how the card leaves.
  */
 function PhaseTimer({ durationMs, running, resetKey, paused, hidden, waitNext, autoNext, phase, hud, onExpire }: { durationMs: number; running: boolean; resetKey: string; paused: boolean; hidden: boolean; waitNext: boolean; autoNext: boolean; phase: 'think' | 'reveal'; hud?: boolean; onExpire: () => void }) {
-  const { progress, remainingMs } = useRafTimer(durationMs, running, resetKey, onExpire);
+  const { progress, remainingMs } = useRafTimer(durationMs, running, resetKey, onExpire, 'phase');
   const num = formatCountdown(remainingMs);
   if (hud) {
     // Inside the HUD capsule (squat / land / tall / wide): the number + a 3 px line along the capsule's bottom edge.
@@ -106,7 +106,7 @@ const noop = () => {};
  * once per second instead of moving every frame. Cancelled (any other interaction) → plain 다음, no number.
  */
 function NextButton({ armed, resetKey, reduced, onNext }: { armed: boolean; resetKey: string; reduced: boolean; onNext: () => void }) {
-  const { progress, remainingMs } = useRafTimer(NEXT_AUTO_MS, armed, resetKey, noop);
+  const { progress, remainingMs } = useRafTimer(NEXT_AUTO_MS, armed, resetKey, noop, 'next');
   const secs = Math.min(Math.ceil(NEXT_AUTO_MS / 1000), Math.max(1, Math.ceil(remainingMs / 1000)));
   // The visible number is clamped to 1 so it never reads 0, and the reduced-motion fill steps on the same
   // ceil() boundary so bar and label always agree: 100 % while it reads 5, 20 % while it reads 1. The card
@@ -127,11 +127,11 @@ function NextButton({ armed, resetKey, reduced, onNext }: { armed: boolean; rese
       data-auto={armed ? 'on' : 'off'}
     >
       다음
-      {armed && (
-        <span className="trainer-next__count tnum" aria-hidden="true">
-          · {secs}
-        </span>
-      )}
+      {/* Always mounted (hidden when disarmed): a mouse press on '· 5' cancels the countdown, and removing the pressed
+          node would swallow the click that should advance. */}
+      <span className="trainer-next__count tnum" aria-hidden="true" hidden={!armed}>
+        · {secs}
+      </span>
     </CapsuleButton>
   );
 }
@@ -193,11 +193,9 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
   useEffect(
     () =>
       onViewportJump(() => {
-        const st = getSession();
-        if (!st) return;
-        const timerRunning = st.status === 'running' && !st.holding && (st.phase === 'think' || !awaitsNext(st));
-        if (timerRunning) togglePause();
-        else cancelAutoNext();
+        const act = jumpAction(getSession());
+        if (act === 'pause') togglePause();
+        else if (act === 'cancel') cancelAutoNext();
       }),
     [],
   );
@@ -274,6 +272,7 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
     reveal ? `trainer-session--reveal trainer-session--${s.tone}` : 'trainer-session--think',
     s.holding ? 'trainer-session--holding' : '',
     s.paused ? 'trainer-session--paused' : '',
+    s.sheetOpen || confirmOpen || (chartOpen && !inlineChart) ? 'trainer-session--sheet' : '',
     quiet ? 'trainer-session--quiet' : '',
   ]
     .filter(Boolean)

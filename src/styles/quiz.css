@@ -51,13 +51,22 @@ html[data-layout="land"] .quiz--idle, html[data-layout="land"] .quiz--summary { 
 .quiz-mistake__title { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .quiz-mistake__actions { display: flex; align-items: center; gap: 6px; font-size: var(--fs-caption); color: var(--ink-2); flex-wrap: wrap; }
 .quiz-mistake__time { font-size: var(--fs-caption); color: var(--ink-3); flex: none; }
+.quiz-mistake__pair { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+/* two-column idle (land / tall / wide): the list column is ~200–300 px — the time moves under the hand so the
+   'chosen → answer' line keeps the body's full width and stays on one line */
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .quiz-mistake {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "hand body" "time body"; column-gap: 10px; row-gap: 0;
+}
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .quiz-mistake__hand { grid-area: hand; align-self: end; }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .quiz-mistake__time { grid-area: time; align-self: start; }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .quiz-mistake__body { grid-area: body; align-self: center; }
 
 /* =============================================================== round (tab bar hidden)
    Duo spec §4.2: .quiz-vb (= .vb) > .vb__core.quiz-round + .vb__slack. The core is the worst-toolbar height and never
    scrolls; Question returns its zones (.quiz-zq · .quiz-za · .quiz-ctx) as siblings of the HUD so the grid can place
    them per size class. phone / squat flatten zq / za (display: contents) — the phone column flows as before. */
 .quiz-vb { position: relative; isolation: isolate; flex: 1; min-height: 0; }
-.quiz-vb > .vb__slack { display: flex; align-items: center; padding: 0 max(var(--gutter), var(--safe-left)) 0 max(var(--gutter), var(--safe-right)); }
+.quiz-vb > .vb__slack { display: flex; align-items: center; padding: 0 var(--gutter); }   /* .app__main carries the safe insets */
 .quiz-round {
   display: flex; flex-direction: column; gap: 8px; overflow: hidden;
   padding: 8px var(--gutter) calc(12px + var(--safe-bottom));
@@ -109,11 +118,11 @@ html[data-layout="land"] .quiz--idle, html[data-layout="land"] .quiz--summary { 
   .quiz-stage--done:has(.quiz-revealmap) .quiz-hand { opacity: 0; }
 }
 @container qstage (max-height: 120px) { .quiz-stage__map { display: none; } }
+/* Duo classes only (phone: FitBox decides, as before — see trainer.css) */
 @container qstage (max-height: 88px) {
-  .quiz-stage__row { flex: 0 0 0; overflow: hidden; }   /* the label takes the whole stage */
-  .quiz-stage__area { flex: 0 0 0; visibility: hidden; overflow: hidden; }
-  /* .quiz-stage prefix: the base .quiz-handlabel rule comes later in this file and would win at equal specificity */
-  .quiz-stage .quiz-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
+  html:not([data-layout="phone"]) .quiz-stage__row { flex: 0 0 0; overflow: hidden; }   /* the label takes the whole stage */
+  html:not([data-layout="phone"]) .quiz-stage__area { flex: 0 0 0; visibility: hidden; overflow: hidden; }
+  html:not([data-layout="phone"]) .quiz-stage .quiz-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
 }
 .quiz-handlabel { flex: none; height: 25px; text-align: center; white-space: nowrap; }
 .quiz-handlabel__card { margin: 0 3px; }
@@ -176,19 +185,37 @@ html[data-layout="land"] .quiz--idle, html[data-layout="land"] .quiz--summary { 
 
 /* =============================================================== summary (tab bar back) */
 .quiz--summary { gap: 10px; padding-top: 12px; container: qsummary / inline-size; }
-/* ≥ 540 wide: the summary card in two columns (same rule as the trainer's summary) */
-@container qsummary (min-width: 540px) {
-  .quiz--summary .ui-summary { display: block; columns: 2; column-gap: 24px; column-fill: balance; }
-  .quiz--summary .ui-summary > * { break-inside: avoid; margin: 0 0 14px; }
-  .quiz--summary .ui-summary > :not(.ui-summary__section) + .ui-summary__section { break-before: column; }
+/* ≥ 460 wide: the summary card in two columns (same rule as the trainer's summary — see trainer.css) */
+@container qsummary (min-width: 460px) {
+  .quiz--summary .ui-summary {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
+    grid-template-areas: "a b" "c b"; column-gap: 24px; row-gap: 14px; align-items: start;
+  }
+  .quiz--summary .ui-summary > .ui-summary__col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .quiz--summary .ui-summary__col--a { grid-area: a; }
+  .quiz--summary .ui-summary__col--b { grid-area: b; }
+  .quiz--summary .ui-summary__col--c { grid-area: c; }
+  .quiz--summary .ui-summary__col--b:empty { display: none; }
+  /* nothing for the right column (all known, exposure only): one column, except on wide where the crease splits it */
+  html:not([data-layout="wide"]) .quiz--summary .ui-summary:has(> .ui-summary__col--b:empty) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "a" "c"; grid-template-rows: auto auto; }
+  /* card rows in a ~230–300 px column: the hand above its situation, the situation on up to two lines */
+  .quiz--summary .ui-summary__row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: "cards hand badge" "cards title badge"; column-gap: 10px; align-items: center; padding: 6px 0; }
+  .quiz--summary .ui-summary__cards { grid-area: cards; }
+  .quiz--summary .ui-summary__hand { grid-area: hand; width: auto; line-height: 20px; }
+  .quiz--summary .ui-summary__title { grid-area: title; white-space: normal; word-break: keep-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 17px; }
+  .quiz--summary .ui-summary__row > :last-child { grid-area: badge; }
+  .quiz--summary .ui-summary__cta-row { flex-wrap: wrap; }
+  .quiz--summary .ui-summary__cta-row .ui-btn { flex: 1 1 120px; }
 }
 /* wide: the body is made symmetric about the viewport centre (the rail's width is mirrored on the right) and the column
    gap is the pane gap, so the two columns split on the crease (x = 50% ± 24) instead of across it. */
 html[data-layout="wide"] .quiz--summary { padding-right: calc(var(--gutter) + var(--rail-space) - var(--safe-right)); }
-@container qsummary (min-width: 540px) {
+@container qsummary (min-width: 460px) {
   html[data-layout="wide"] .quiz--summary .ui-summary { column-gap: var(--pane-gap); }
 }
 .quiz-roundline { text-align: center; color: var(--ink-2); font-size: var(--fs-footnote); line-height: var(--lh-footnote); }
+/* wide: the line sits over the left column only — centred across the full width it ran over the crease */
+html[data-layout="wide"] .quiz-roundline { width: calc(50% - var(--pane-gap) / 2); }
 .quiz-msheet__top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
 .quiz-msheet__top .hand { padding: 0; }
 .quiz-msheet__top .pc { --pc-w: 30px; }
@@ -234,7 +261,8 @@ html[data-layout="land"] .quiz-round {
      same 304 px measure it has on a 360 phone, so it stays within its 2 lines (EXPLAIN_SPEC §3.1) */
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 54%); grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas: "hud hud" "q a"; gap: 6px 12px;
-  padding: 8px max(var(--corner-clear), calc(var(--safe-right) + 12px)) calc(16px + var(--safe-bottom)) max(var(--corner-clear), calc(var(--safe-left) + 12px));
+  /* .app__main already pads by the safe insets — count them once: 20 clears the 59 px corners at inset 0, 12 beyond a notch */
+  padding: 8px max(12px, calc(var(--corner-clear) - var(--safe-right))) calc(16px + var(--safe-bottom)) max(12px, calc(var(--corner-clear) - var(--safe-left)));
 }
 html[data-layout="land"] .quiz-hud { grid-area: hud; height: 40px; padding: 0 14px 0 10px; }
 html[data-layout="land"] .quiz-zq { grid-area: q; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; }

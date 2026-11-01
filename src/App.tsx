@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChartsScreen } from './screens/ChartsScreen';
 import { CoachScreen } from './screens/CoachScreen';
 import { QuizScreen } from './screens/QuizScreen';
@@ -49,9 +49,16 @@ export default function App() {
   // 일시정지한 훈련: 탭 바는 돌아오지만 화면은 바 없는 배치를 그대로 씁니다(접기·펼치기 자동 정지에도 화면이 다시 흐르지 않게).
   const barless = barHidden || (chrome.overlay && fixed);
 
+  // Every tab page shares the one .app__main scroller: a new tab starts at its top, not at the last tab's offset.
+  // (Layout effect, so the first paint is already at 0; screens that scroll on mount do it later, in effects / rAF.)
+  const mainRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, [nav.tab]);
+
   return (
     <div className="app">
-      <main className={`app__main${fixed ? ' app__main--fixed' : ''}${barless ? ' app__main--barless' : ''}`}>
+      <main ref={mainRef} className={`app__main${fixed ? ' app__main--fixed' : ''}${barless ? ' app__main--barless' : ''}`}>
         <div key={nav.tab} className="app__view">
           {nav.tab === 'home' && <HomeScreen />}
           {nav.tab === 'train' && <TrainerScreen />}

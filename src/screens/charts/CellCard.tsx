@@ -16,14 +16,19 @@ import { rate } from '../../state/srs';
 /** 칸 하나를 가리키는 키(상황 + 패). 헷갈려요 표시는 이 키로 기억해서, 다른 칸을 누르면 저절로 풀립니다. */
 export const stepKey = (step: Step): string => `${scenarioKey(step.scenario)}|${step.hand}`;
 
+/** The last cell flagged from the chart. Module-level so the sheet (phone/squat) and the inline card (tall dock,
+ *  land/wide column) agree after a fold or rotation swaps one for the other — the cell is never rated twice. */
+let lastFlaggedKey: string | null = null;
+
 /** 헷갈려요 표시(차트 채널). 칸이 바뀌면 표시 상태도 그 칸 것으로 — 시트·카드를 다시 마운트하지 않습니다. */
 export function useCellFlag(step: Step): [boolean, () => void] {
-  const [flaggedKey, setFlaggedKey] = useState<string | null>(null);
+  const [flaggedKey, setFlaggedKey] = useState<string | null>(() => lastFlaggedKey);
   const key = stepKey(step);
   const flagged = flaggedKey === key;
   const flag = () => {
     if (flagged) return;
     rate(step, 'unsure', 'chart');
+    lastFlaggedKey = key;
     setFlaggedKey(key);
     vibrate([18, 30, 18]);
     toast('헷갈려요로 표시했어요 · 다음 세션에 먼저 나와요', 'amber');
@@ -55,11 +60,18 @@ export function CellCard({
   const e = explanation;
   const [settings] = useSettings();
   const [flagged, flag] = useCellFlag(step);
+  const cut = e.title.lastIndexOf(' · ');
+  const titleSit = cut > 0 ? e.title.slice(0, cut) : e.title;
+  const titleHand = cut > 0 ? e.title.slice(cut) : '';
   return (
     <section className={`cellcard glass-flat${expanded ? ' cellcard--expanded' : ''}`} aria-label={`${e.title} 해설`}>
       <div className="cellcard__in">
         <div className="cellcard__head">
-          <h3 className="cellcard__title t-headline">{e.title}</h3>
+          <h3 className="cellcard__title t-headline">
+            {/* "HJ 오픈 대응 · KQo": in the narrow dock title slot the situation ellipsizes, the hand never does */}
+            <span className="cellcard__title-sit">{titleSit}</span>
+            {titleHand && <span className="cellcard__title-hand">{titleHand}</span>}
+          </h3>
           <IconButton icon={<IconClose />} label="선택 해제" size={40} tone="ghost" className="cellcard__close" onClick={onClose} />
         </div>
         {expanded ? (

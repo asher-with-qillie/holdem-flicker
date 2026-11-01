@@ -2,6 +2,8 @@
 
 /* ---------- screen ---------- */
 .charts { gap: 12px; }
+/* phone/squat with the cell sheet at half (더 보기): room below the grid so any row can scroll up above the sheet */
+.charts--expanded { padding-bottom: calc(var(--vh-frame) - var(--sheet-half-top)); }
 .charts__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
 .charts__toggle {
   display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding-left: 8px; flex: none;
@@ -209,10 +211,12 @@ html[data-layout="land"] .charts__side .charts__train { padding-inline: 12px; }
 html[data-layout="land"] .charts__side .charts__train :is(.ui-btn__trailing, .ui-btn__icon) { display: none; }
 
 /* ---------- tall (Duo 안쪽 세로 669×867): 머리 · 칩(나|상대 한 줄) · 시나리오 한 줄 · 격자 ≤440 · dock ---------- */
-/* --g: 머리 176 + dock 172(셀 카드 세 줄) 을 core 에서 뺀 값, 440 상한. 툴바가 접혀 생긴 높이는 dock 이 가져갑니다. */
+/* --g: 머리 176 + dock 172(셀 카드 세 줄) 을 core 에서 뺀 값, 440 상한.
+   위쪽 툴바(data-bar=top)가 접히면 화면이 위로 35 늘어나고, 물리적으로 고정된 쪽은 아래 가장자리입니다. 늘어난 만큼(frame − core)을
+   위 여백으로 받아 머리 · 칩 · 격자 · 셀 카드가 아래 가장자리 기준으로 한 픽셀도 움직이지 않게 합니다(§11.3). dock 높이도 그대로. */
 html[data-layout="tall"] .charts--stage {
   --g: min(100%, 440px, calc(var(--vh-core) - var(--safe-top) - 176px - 172px - var(--content-bottom)));
-  display: flex; flex-direction: column; gap: 6px; padding-top: 6px; padding-bottom: 4px;
+  display: flex; flex-direction: column; gap: 6px; padding-top: calc(6px + var(--vh-frame) - var(--vh-core)); padding-bottom: 4px;
 }
 html[data-layout="tall"] .charts__filters { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 12px; padding-block: 0; }
 html[data-layout="tall"] .charts__row--kind { grid-column: 1 / -1; }
@@ -276,7 +280,9 @@ html[data-layout="wide"] .charts__side .charts__situation { margin-top: -8px; }
     display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; column-gap: 12px; row-gap: 8px; align-items: center;
   }
   .cellcard__head, .cellcard__body, .cellcard__cap { display: contents; }
-  .cellcard__title { grid-column: 1; grid-row: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cellcard__title { grid-column: 1; grid-row: 1; display: flex; min-width: 0; white-space: nowrap; }
+  .cellcard__title-sit { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .cellcard__title-hand { flex: none; white-space: pre; }
   .cellcard__cap > .lcap { grid-column: 2; grid-row: 1; }
   .cellcard__caption { display: none; }
   .cellcard__actions { grid-column: 4; grid-row: 1; flex-wrap: nowrap; justify-self: end; }

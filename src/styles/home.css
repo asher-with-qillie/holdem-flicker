@@ -61,6 +61,7 @@
 .home-spot__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .home-spot__name { font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-spot__meta { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .home-spot__meta { white-space: normal; word-break: keep-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .home-spot .ui-chip { flex: none; }
 
 /* ---- empty copy panels ---- */
@@ -80,6 +81,8 @@
 .home-last:active { background: rgba(255, 255, 255, 0.06); transform: scale(0.99); }
 .home-last__label { flex: none; font-size: var(--fs-subhead); line-height: var(--lh-subhead); font-weight: 600; color: var(--ink-2); }
 .home-last__value { flex: 1; min-width: 0; font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* two-column homes: the row is ~140–190 px — the value takes two lines instead of losing accuracy and time */
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .home-last__value { white-space: normal; word-break: keep-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .home-last svg { color: var(--ink-3); flex: none; }
 
 /* ---- narrow phones (360): the ring row keeps one line per stat ---- */
@@ -121,9 +124,11 @@ html[data-layout="land"] .home__area--today { position: sticky; top: 8px; z-inde
 html[data-layout="land"] .home__group--stats { gap: 12px; }
 html[data-layout="land"] .home__eyebrow { min-height: 32px; }
 html[data-layout="land"] .home__top { align-items: center; }
-html[data-layout="land"] .home__head { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: 14px; }
-html[data-layout="land"] .home__eyebrow { grid-column: 1 / -1; }
-html[data-layout="land"] .home__sub { margin: 0; }
+/* land head: title and subtitle share a line when they fit; otherwise the subtitle drops under the title as a whole
+   line (a grid squeezed it into an ~80 px column, one word per line) */
+html[data-layout="land"] .home__head { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 14px; }
+html[data-layout="land"] .home__eyebrow { flex-basis: 100%; }
+html[data-layout="land"] .home__sub { margin: 0; flex: 1 0 11em; min-width: 0; }
 html[data-layout="land"] .home-today { gap: 12px; }
 html[data-layout="land"] .home-today__row { gap: 12px; }
 html[data-layout="land"] .home__tiles { gap: 6px; }
@@ -145,12 +150,14 @@ html[data-layout="tall"] .home {
 /* wide 951×585 (+ rail): crease 를 사이에 두고 두 패널. 왼쪽 = 머리 + 오늘 · 약한 곳 · 지난 세션, 오른쪽 = 타일·레벨 · 12주 · 상황별로 외운 정도. */
 html[data-layout="wide"] .home {
   grid-template-columns: var(--pane-l) minmax(0, 1fr); column-gap: var(--pane-gap); row-gap: 16px;
-  grid-template-areas: "hero stats" "hero activity" "weak activity" "weak prog" "last prog";
+  /* rows are shared by both panes, so every row pairs items of similar height: a left item spanning two right
+     items (weak over activity + prog) pushed 지난 세션 a whole row down and opened a ~100 px hole on the right */
+  grid-template-areas: "hero stats" "hero activity" "weak activity" "last prog";
 }
 html[data-layout="wide"] .home__group--hero { grid-area: hero; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 html[data-layout="wide"] .home__eyebrow { min-height: 32px; }
 html[data-layout="wide"] .home__title { font-size: var(--fs-title-1); line-height: var(--lh-title-1); }
-html[data-layout="wide"] .home-activity .ui-heat { grid-template-columns: 24px repeat(var(--weeks, 12), minmax(16px, 24px)); }
+html[data-layout="wide"] .home-activity .ui-heat { grid-template-columns: 24px repeat(var(--weeks, 12), minmax(14px, 20px)); }   /* 20: the right pane fits the 585 core */
 
 /* ---- reduced motion (§8): the ring is passed animate={false}; these are the screen's own transitions ---- */
 @media (prefers-reduced-motion: reduce) {

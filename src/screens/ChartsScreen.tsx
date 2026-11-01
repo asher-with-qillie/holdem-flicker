@@ -118,7 +118,8 @@ export function ChartsScreen() {
     const cell = root?.querySelector<HTMLElement>(`.rgrid__cell[aria-label="${hand}"]`);
     if (!root || !scroller || !cell) return;
     const row = cell.closest<HTMLElement>('.rgrid__row') ?? cell;
-    const sheet = document.querySelector<HTMLElement>('.ui-sheet.ui-sheet--peek');
+    // peek, or half after 더 보기 (the detent change is instant — only the sheet's transform animates)
+    const sheet = document.querySelector<HTMLElement>('.ui-sheet.ui-sheet--peek, .ui-sheet.ui-sheet--half');
     const peekH = sheet?.offsetHeight || Math.min(232, window.innerHeight * 0.42);
     const sheetTop = window.innerHeight - peekH;
     const filters = root.querySelector<HTMLElement>('.charts__filters');
@@ -145,6 +146,14 @@ export function ChartsScreen() {
     if (c.top >= s.top && c.bottom <= s.bottom) return;
     scroller.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' });
   }, []);
+
+  // land/wide: after a rotation or fold back into the side-column layout, bring the open card back into view (its
+  // column starts at the top again).
+  useEffect(() => {
+    if (layout !== 'land' && layout !== 'wide') return;
+    const id = requestAnimationFrame(() => requestAnimationFrame(revealCard));
+    return () => cancelAnimationFrame(id);
+  }, [layout, revealCard]);
 
   const openHand = useCallback(
     (hand: HandName) => {
@@ -281,15 +290,21 @@ export function ChartsScreen() {
     />
   );
 
-  // 셀 시트는 한 노드를 유지합니다(접기/펼치기로 클래스가 바뀌어도 다시 마운트하지 않음).
+  // 셀 시트는 한 노드를 유지합니다(접기/펼치기로 클래스가 바뀌어도 다시 마운트하지 않음). 세 배치가 루트의 다른 자리에
+  // 시트를 두므로 key 로 같은 노드임을 알려 줍니다 — 없으면 클래스가 바뀔 때마다 새로 마운트되어 스크롤과 등장 애니메이션이 되풀이됩니다.
   const sheet = picked && (
     <CellSheet
+      key="cellsheet"
       step={picked.step}
       explanation={picked.explanation}
       open={!stage ? sheetOpen : layout === 'tall' ? sheetOpen && expanded : false}
       detent={layout === 'tall' ? 'auto' : undefined}
       expanded={expanded}
-      onExpand={setExpanded}
+      onExpand={(v) => {
+        setExpanded(v);
+        // phone/squat: 더 보기로 시트가 반으로 올라오면 고른 칸의 행을 그 위로 다시 올립니다.
+        if (!stage && v) requestAnimationFrame(() => requestAnimationFrame(() => revealRow(picked.step.hand)));
+      }}
       onClose={layout === 'tall' ? () => setExpanded(false) : closeCell}
       onAcross={across}
     />
@@ -297,7 +312,7 @@ export function ChartsScreen() {
 
   if (!stage) {
     return (
-      <div ref={rootRef} className={`screen charts charts--${layout}`}>
+      <div ref={rootRef} className={`screen charts charts--${layout}${sheetOpen && expanded ? ' charts--expanded' : ''}`}>
         {head}
         {filters}
         <section key={key} className="charts__chart">

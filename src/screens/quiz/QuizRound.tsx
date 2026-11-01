@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { actionLabel } from '../../components/ActionBadge';
 import { ExplanationSheet } from '../../components/ExplanationSheet';
 import { SeatChips } from '../../components/SeatChips';
@@ -87,8 +87,17 @@ function Question({ q, autoAdvance, showMix, layout, ribbon }: { q: QuizQuestion
     return () => window.clearTimeout(t);
   }, [autoPending]);
 
-  // Fold / unfold / rotate (Duo spec §6.2): never flip the card while the screen is changing shape.
-  useEffect(() => onViewportJump(() => setAutoCancelled(true)), []);
+  // Fold / unfold / rotate (Duo spec §6.2): never flip the card while the screen is changing shape. Only an armed
+  // auto-advance is cancelled — a jump before answering leaves this question's 1.5 s advance intact.
+  const pendingRef = useRef(autoPending);
+  pendingRef.current = autoPending;
+  useEffect(
+    () =>
+      onViewportJump(() => {
+        if (pendingRef.current) setAutoCancelled(true);
+      }),
+    [],
+  );
 
   // Keyboard (desktop QA, §9): 1…n picks an answer, Enter / Space goes on after an answer.
   useEffect(() => {

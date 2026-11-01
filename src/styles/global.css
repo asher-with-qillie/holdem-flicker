@@ -146,7 +146,10 @@ html[data-layout="land"] {
 html[data-layout="tall"] {
   --app-max: 960px; --sheet-max-w: 640px; --gutter: 24px; --tab-gap: 16px;
   --slot-h: 132px; --slot-cap: 36px;
-  --sheet-half-top: calc(var(--vh-core) * 0.5);
+  /* half sheet top edge on the session's seam, not at 50 %: the top block (pad 8 + HUD 44 + gap 8 + G + shares/S 90)
+     ends at safe-top + G + 150 and the seam (≥ 24) follows the 8 px gap — 166 puts the edge 8 px into it, so the
+     sheet never slices the seat row or the hand label. G is trainer.css's --g, recomputed here (sheets are portaled). */
+  --sheet-half-top: calc(var(--safe-top) + 166px + min(var(--tall-grid), calc(var(--vh-core) - var(--safe-top) - 508px - var(--safe-bottom))));
 }
 html[data-layout="wide"] {
   --app-max: none; --sheet-max-w: 640px; --gutter: 24px;

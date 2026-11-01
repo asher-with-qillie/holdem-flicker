@@ -369,6 +369,17 @@ export function awaitsNext(s: SessionState): boolean {
   return s.phase === 'reveal' && (!quiet(s) || s.config.manual);
 }
 
+/**
+ * What a fold / unfold / rotation does to the session (Duo spec §6.2): a running countdown (think, or a timed reveal)
+ * pauses so no time is lost while the screen changes shape; otherwise (choose-mode reveal waiting for 다음, holding)
+ * only an armed 다음 auto-advance is cancelled.
+ */
+export function jumpAction(st: SessionState | null): 'pause' | 'cancel' | 'none' {
+  if (!st || st.status !== 'running') return 'none';
+  const timerRunning = !st.holding && (st.phase === 'think' || !awaitsNext(st));
+  return timerRunning ? 'pause' : 'cancel';
+}
+
 /** True while the reveal is counting down to 다음 (choose mode, 'know' card, armed, not cancelled) — drives the button countdown. */
 export function autoNextArmed(s: SessionState | null = state): boolean {
   return !!s && s.status === 'running' && s.phase === 'reveal' && s.autoNextAt !== null;

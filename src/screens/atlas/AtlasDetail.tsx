@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ExplanationBody, MixChips } from '../../components/ExplanationSheet';
 import { LineCapsule, LineStrip } from '../../components/LineStrip';
 import { PlainText } from '../../components/Term';
@@ -36,13 +36,36 @@ function Disclosure({ label, open, onToggle }: { label: string; open: boolean; o
  * 미도달 칸이면 G 문장 한 줄뿐입니다. 비교 상대가 없으면(행·열이 전부 같은 답) 결론을 지어내지 않고,
  * 섹션 전체가 같은 답일 때만 "어느 자리에서나 …" 를 말합니다.
  */
+/**
+ * Per-cell UI state that outlives the component. The detail renders inside the tile section in one column and in the
+ * right column in two, so a fold / rotation that switches the atlas between them remounts it — 해설 전체 보기 stays
+ * open, and a cell already flagged 헷갈려요 is not rated twice.
+ */
+const kept = new Map<string, boolean>();
+function useKept(key: string, init = false): [boolean, (next: boolean | ((prev: boolean) => boolean)) => void] {
+  const [v, setV] = useState(() => kept.get(key) ?? init);
+  const set = useCallback(
+    (next: boolean | ((prev: boolean) => boolean)) =>
+      setV((prev) => {
+        const val = typeof next === 'function' ? next(prev) : next;
+        kept.delete(key);
+        kept.set(key, val);
+        while (kept.size > 96) kept.delete(kept.keys().next().value as string);
+        return val;
+      }),
+    [key],
+  );
+  return [v, set];
+}
+
 export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: AtlasCell; compare: AtlasCell | null }) {
   const { hand } = atlas;
   const kind = cell.scenario.kind;
   const [settings] = useSettings();
-  const [expanded, setExpanded] = useState(false);
-  const [memoOpen, setMemoOpen] = useState(false);
-  const [flagged, setFlagged] = useState(false);
+  const keyBase = `${hand}|${cell.key}`;
+  const [expanded, setExpanded] = useKept(`${keyBase}|expanded`);
+  const [memoOpen, setMemoOpen] = useKept(`${keyBase}|memo`);
+  const [flagged, setFlagged] = useKept(`${keyBase}|flagged`);
 
   const step: Step | null = useMemo(() => {
     try {

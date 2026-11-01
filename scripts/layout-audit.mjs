@@ -584,10 +584,23 @@ const DUO_PROBE = (o) => {
       if (cx === null || cy === null) return true;
       return Math.hypot(x - cx, y - cy) <= R + 0.5;
     };
+    // 실제로 스크롤하는 조상(overflow auto/scroll + 넘치는 내용) 안에 있는지
+    const inScroller = (el) => {
+      for (let n = el.parentElement; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+        const c = getComputedStyle(n);
+        const sy = /auto|scroll/.test(c.overflowY) && n.scrollHeight > n.clientHeight + 1;
+        const sx = /auto|scroll/.test(c.overflowX) && n.scrollWidth > n.clientWidth + 1;
+        if (sx || sy) return true;
+        if (c.position === 'fixed') break;
+      }
+      return false;
+    };
     for (const el of tappables()) {
       const r = visRect(el), b = el.getBoundingClientRect();
-      // 스크롤러에 반쯤 잘린 대상(스크롤 도중)은 건너뜁니다 — 스크롤하는 글이 모서리 밑으로 지나가는 건 정상이고, 끝까지 밀면 제자리에 옵니다.
-      if (Math.abs(r.top - b.top) > 0.5 || Math.abs(r.bottom - b.bottom) > 0.5 || Math.abs(r.left - b.left) > 0.5 || Math.abs(r.right - b.right) > 0.5) continue;
+      // 스크롤러에 반쯤 잘린 대상(스크롤 도중)만 건너뜁니다 — 스크롤하는 글이 모서리 밑으로 지나가는 건 정상이고, 끝까지 밀면 제자리에
+      // 옵니다. 스크롤하지 않는 overflow:hidden 에 잘린 대상은 보이는 부분(visRect)으로 그대로 검사합니다.
+      const clipped = Math.abs(r.top - b.top) > 0.5 || Math.abs(r.bottom - b.bottom) > 0.5 || Math.abs(r.left - b.left) > 0.5 || Math.abs(r.right - b.right) > 0.5;
+      if (clipped && inScroller(el)) continue;
       const bad = [[r.left, r.top], [r.right, r.top], [r.left, r.bottom], [r.right, r.bottom]].filter(([x, y]) => !inside(x, y));
       if (bad.length) push('corner', el, `tap target [${r0(r.left)},${r0(r.top)} – ${r0(r.right)},${r0(r.bottom)}] reaches into a ${R}px screen corner`);
     }

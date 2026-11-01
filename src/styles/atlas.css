@@ -114,6 +114,12 @@
 html[data-layout="wide"] .atlas--two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--pane-gap); }
 /* land 패널(본문 ~540): 타일 칸을 넓게(1.25fr) 잡아 타일이 44px 아래로 줄지 않게 — 오른쪽 비교 칸은 스트립이 줄어듭니다 */
 html[data-layout="land"] .atlas--two { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); column-gap: 16px; }
+/* land 패널은 본문이 ~215 px 뿐입니다: 머리(카드 · 주장)를 줄여 첫 타일 줄이 열자마자 보이게 — 카드는 작게(패 이름은 제목에
+   있음), 주장은 한 단계 작은 글자와 8px 여백. */
+html[data-layout="land"] .atlas--two .atlas__hand .pc { --pc-w: 26px; }
+html[data-layout="land"] .atlas--two .atlas__thesis { padding: 8px 10px; }
+html[data-layout="land"] .atlas--two .atlas__thesis p { font-size: var(--fs-subhead); line-height: var(--lh-subhead); }
+html[data-layout="land"] .atlas--two > .atlas__l { gap: 10px; }
 /* 한 칸: 래퍼가 흐름에서 빠집니다(타일 섹션은 .atlas 의 직계처럼 흐름). 두 칸에서만 칼럼이 됩니다. */
 .atlas:not(.atlas--two) > .atlas__l { display: contents; }
 .atlas:not(.atlas--two) > .atlas__r { display: none; }

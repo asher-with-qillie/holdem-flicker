@@ -38,10 +38,15 @@ export function MistakeList({ mistakes, defaultOpen = false }: { mistakes: Mista
                   <div className="quiz-mistake__body">
                     <span className="quiz-mistake__title">{m.title}</span>
                     <span className="quiz-mistake__actions">
-                      <span>내 선택</span>
-                      <ActionBadge action={m.chosen} kind={kind} size="sm" short />
-                      <span>→ 정답</span>
-                      <ActionBadge action={m.answer} kind={kind} size="sm" short />
+                      {/* each label keeps its badge: a wrap falls between the two pairs, never inside one */}
+                      <span className="quiz-mistake__pair">
+                        <span>내 선택</span>
+                        <ActionBadge action={m.chosen} kind={kind} size="sm" short />
+                      </span>
+                      <span className="quiz-mistake__pair">
+                        <span>→ 정답</span>
+                        <ActionBadge action={m.answer} kind={kind} size="sm" short />
+                      </span>
                     </span>
                   </div>
                   <span className="quiz-mistake__time">{formatAgo(m.at, now)}</span>

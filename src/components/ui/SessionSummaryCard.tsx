@@ -82,6 +82,10 @@ export function SessionSummaryCard({ data: d, onRetryUnsure, onAgain, onHome, on
 
   return (
     <GlassPanel radius="xl" padding={16} className="ui-summary" as="section" aria-label={d.headline}>
+      {/* Three groups with no box of their own on a phone (display: contents → one column in this order). A summary
+          ≥ 460 wide places them as "a b" / "c b": result · streak, then speed · CTAs under it on the left, the weak
+          spot and the card rows on the right. Always rendered, so a fold never remounts the card. */}
+      <div className="ui-summary__col ui-summary__col--a">
       <h2 className="ui-summary__headline t-title-1">{d.headline}</h2>
       <p className="ui-summary__meta tnum">
         {d.seen}장 · {formatDuration(d.durationMs)} · {d.speedLabel}
@@ -144,7 +148,9 @@ export function SessionSummaryCard({ data: d, onRetryUnsure, onAgain, onHome, on
         </div>
         {d.levelUp && <p className="ui-summary__levelup">{d.levelUp}</p>}
       </GlassPanel>
+      </div>
 
+      <div className="ui-summary__col ui-summary__col--b">
       {d.weakest && (
         <section className="ui-summary__section">
           <h3 className="t-title-3">이번 세션 약점</h3>
@@ -187,6 +193,9 @@ export function SessionSummaryCard({ data: d, onRetryUnsure, onAgain, onHome, on
       ) : (
         !d.exposureOnly && d.rated > 0 && <p className="ui-summary__allknown">다 맞혔어요. 다음엔 새 카드를 더 섞을게요</p>
       )}
+      </div>
+
+      <div className="ui-summary__col ui-summary__col--c">
 
       {d.firstSession && onSpeedFeedback && (
         <div className="ui-summary__speed" role="group" aria-label="속도 어땠어요?">
@@ -224,6 +233,7 @@ export function SessionSummaryCard({ data: d, onRetryUnsure, onAgain, onHome, on
         <CapsuleButton tone="ghost" size="md" onClick={onHome}>
           홈으로
         </CapsuleButton>
+      </div>
       </div>
     </GlassPanel>
   );
