@@ -595,7 +595,10 @@ const DUO_PROBE = (o) => {
       }
       return false;
     };
+    // 모달 시트가 열려 있으면 그 밖의 대상은 배경막 아래라 누를 수 없습니다(누르면 시트가 닫힘) — 검사하지 않습니다.
+    const modal = [...document.querySelectorAll('.ui-sheet[aria-modal="true"]')].pop() || null;
     for (const el of tappables()) {
+      if (modal && !modal.contains(el)) continue;
       const r = visRect(el), b = el.getBoundingClientRect();
       // 스크롤러에 반쯤 잘린 대상(스크롤 도중)만 건너뜁니다 — 스크롤하는 글이 모서리 밑으로 지나가는 건 정상이고, 끝까지 밀면 제자리에
       // 옵니다. 스크롤하지 않는 overflow:hidden 에 잘린 대상은 보이는 부분(visRect)으로 그대로 검사합니다.
