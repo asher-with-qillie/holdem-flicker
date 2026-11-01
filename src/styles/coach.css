@@ -214,3 +214,4 @@ html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .coach
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .coach[data-stage="0"] { grid-template-areas: "head head" "sum more"; grid-template-rows: auto 1fr; }
 /* land: 오른쪽 위·아래 둥근 모서리(반경 59)에서 버튼이 비켜 서도록 오른쪽 여백을 corner-clear 로 */
 html[data-layout="land"] .coach { padding-right: max(var(--gutter), var(--corner-clear)); }
+html[data-layout="land"] .coach-section > .ui-btn { padding-inline: 14px; }

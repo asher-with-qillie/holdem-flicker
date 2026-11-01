@@ -223,6 +223,8 @@ const PROBE = () => {
     if (cs.visibility === 'hidden' || cs.display === 'none') return false;
     if (Number(cs.opacity) === 0) return false;
     if (el.closest('[aria-hidden="true"], [hidden]')) return false;
+    // 스크린리더 전용 글자(1px 상자로 clip)는 화면에 그려지지 않으니 잘림 검사 대상이 아닙니다.
+    if (el.closest('.trainer-sr, .ui-sr, .sr-only')) return false;
     if (el.matches('.ui-sr, .sr-only')) return false;  // 스크린리더 전용 — 1px로 숨기는 게 정상
     return true;
   };
@@ -797,10 +799,11 @@ async function flowAt(size) {
   if (L === 'tall' || L === 'wide') {
     na.push(`${size.name}/train-chart-sheet: ${L} 은 차트(G)가 세션 안에 있어 차트 시트가 없습니다`);
   } else {
-    const opener = page.locator(L === 'phone' ? '.trainer-chartbtn' : '.stagechart--button').first();
+    let opener = page.locator(L === 'phone' ? '.trainer-chartbtn' : '.stagechart--button').first();
+    // 무대가 낮아 T 가 숨으면 차트 입구는 패 라벨 줄의 작은 차트 버튼으로 옮겨 갑니다 — 그것도 안 보이면 길이 없는 것(실패).
+    if (L !== 'phone' && (await opener.count()) && !(await opener.isVisible())) opener = page.locator('.trainer-handlabel__chart').first();
     if (L !== 'phone' && (await opener.count()) && !(await opener.isVisible())) {
-      // 무대가 95 이하면 T 를 숨깁니다(스펙 §4.1) — 그 크기에는 차트를 여는 길이 없습니다.
-      na.push(`${size.name}/train-chart-sheet: 무대가 낮아 지도(T)가 숨겨져 차트 시트를 열 곳이 없습니다`);
+      missed.push(`${size.name}/train-chart-sheet: 지도(T)도 패 라벨의 차트 버튼도 보이지 않아 차트 시트를 열 곳이 없습니다`);
     } else if (!(await opener.count())) {
       missed.push(`${size.name}/train-chart-sheet: ${L === 'phone' ? '차트 버튼' : '무대의 지도 버튼(.stagechart--button)'}이 없습니다`);
     } else {

@@ -204,8 +204,9 @@ html[data-layout="land"] .charts__side .charts__situation { margin-top: -8px; }
 html[data-layout="land"] .charts__row--wrap { flex-direction: column; align-items: stretch; gap: 0; }
 html[data-layout="land"] .charts__row--wrap .charts__rowlabel { width: auto; padding-top: 0; }
 html[data-layout="land"] .charts__row--wrap > .ui-chiprow { gap: 6px; }
-/* land 옆 칼럼(~180)에서는 훈련 버튼의 "· 20장"을 빼서 라벨이 잘리지 않게 */
-html[data-layout="land"] .charts__side .charts__train .ui-btn__trailing { display: none; }
+/* land 옆 칼럼(~180)에서는 훈련 버튼의 "· 20장"과 아이콘을 빼고 좌우 여백을 줄여 라벨이 잘리지 않게 */
+html[data-layout="land"] .charts__side .charts__train { padding-inline: 12px; }
+html[data-layout="land"] .charts__side .charts__train :is(.ui-btn__trailing, .ui-btn__icon) { display: none; }
 
 /* ---------- tall (Duo 안쪽 세로 669×867): 머리 · 칩(나|상대 한 줄) · 시나리오 한 줄 · 격자 ≤440 · dock ---------- */
 /* --g: 머리 176 + dock 172(셀 카드 세 줄) 을 core 에서 뺀 값, 440 상한. 툴바가 접혀 생긴 높이는 dock 이 가져갑니다. */
@@ -233,7 +234,7 @@ html[data-layout="tall"] .charts__stagegrid { align-self: center; }
 @container dock (min-width: 540px) {
   .charts__dockinfo { flex-direction: row; gap: 20px; }
   .charts__dockcol { flex: 1 1 0; }
-  .charts__dockcol + .charts__dockcol { flex: 0 1 260px; }
+  .charts__dockcol + .charts__dockcol { flex: 0 1 290px; }
 }
 .charts__dock .cellcard { padding: 0; background: none; box-shadow: none; }
 .charts__dock--under > * { visibility: hidden; }

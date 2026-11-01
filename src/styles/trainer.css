@@ -108,9 +108,11 @@ html:is([data-layout="squat"], [data-layout="land"]) .trainer-hud--timer .traine
   display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 20px; border: 0; margin: 0;
   font: inherit; color: var(--ink); background: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
-/* wide: the message sits in the left pane, off the crease (the scrim still covers both panes) */
-html[data-layout="wide"] .trainer-pause { justify-content: flex-start; padding-left: var(--gutter); }
-html[data-layout="wide"] .trainer-pause__btn { width: var(--pane-l); }
+/* wide: the message sits centred in the left pane, off the crease and clear of the rail (the scrim covers both panes) */
+html[data-layout="wide"] .trainer-pause {
+  display: grid; grid-template-columns: var(--pane-l) minmax(0, 1fr); align-items: center; justify-items: center;
+  padding-left: var(--gutter); column-gap: var(--pane-gap);
+}
 .trainer-pause__icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: var(--ink-on-tint); background: var(--mint); box-shadow: 0 8px 24px rgba(77, 227, 166, 0.28); }
 .trainer-pause__icon svg { width: 28px; height: 28px; }
 .trainer-pause__title { margin-top: 6px; font-size: var(--fs-title-3); font-weight: 700; }

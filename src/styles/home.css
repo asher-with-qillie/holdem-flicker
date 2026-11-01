@@ -129,8 +129,10 @@ html[data-layout="land"] .home-today__row { gap: 12px; }
 html[data-layout="land"] .home__tiles { gap: 6px; }
 html[data-layout="land"] .home__tiles .ui-stat { padding: 10px 8px; }
 html[data-layout="land"] .home__tiles .ui-stat__label { gap: 4px; letter-spacing: -0.02em; }
-/* land 왼쪽 칼럼(~190)에서는 CTA 의 "· 11장 · 약 2분"을 빼고 라벨을 온전히 둡니다(장수는 패널 위에 이미 있음). */
-html[data-layout="land"] .home__area--today .ui-btn__trailing { display: none; }
+/* 오늘 패널이 좁으면(land 왼쪽 칼럼 ~190, wide + 왼쪽 inset 84) CTA 의 "· 11장 · 약 2분"을 빼고 라벨을 온전히 둡니다
+   (장수는 패널 위에 이미 있음). 360 폰의 패널 안쪽 폭은 296 이라 걸리지 않습니다. */
+.home-today { container: hometoday / inline-size; }
+@container hometoday (max-width: 260px) { .home-today .ui-btn__trailing { display: none; } }
 /* land 오른쪽 칼럼(~215)에서 12주 지도가 패널 밖으로 나가지 않게: 칸은 폭을 따라 줄고(최소 0) 간격은 3 */
 html[data-layout="land"] .home-activity .ui-heat { grid-template-columns: 22px repeat(var(--weeks, 12), minmax(0, 28px)); gap: 3px; }
 
