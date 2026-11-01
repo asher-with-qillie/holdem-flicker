@@ -102,7 +102,11 @@ html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .app__
   grid-template-areas: "title title" "train range" "train adv" "device adv" "device data";
   /* (rows as closed: the flexible fourth row keeps 고급 and 기기 out of the intrinsic pass, so it is exactly what 고급
      needs below 훈련's end — with auto rows Chromium split 고급's height across rows 3 and 4 and opened a gap under it) */
+  /* the groups carry the 16 instead of the row gaps: when 훈련 alone fills row 3 (a narrow left pane, e.g. 951×669 L84),
+     the fourth row is 0 and two row gaps would put 데이터 24 under 고급 */
+  row-gap: 0;
 }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .app__push-body .st:has(.st-disclosure[aria-expanded="true"]) > .st-group { margin-top: 16px; }
 html[data-layout="land"] .app__push-body .st { grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr); column-gap: 16px; }
 /* two-column settings: the speed segment is ~65 px per option — 순간기억 needs 55 + padding */
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .st-speed .ui-seg__opt { padding-inline: 2px; letter-spacing: -0.02em; }

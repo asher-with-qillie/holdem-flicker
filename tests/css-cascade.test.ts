@@ -143,6 +143,32 @@ function shadowedIn(rules: Rule[], file: string): string[] {
   return hits;
 }
 
+/** Unconditional declarations a later unconditional rule with the same selector re-sets to another value — dead on
+ *  arrival (a land CTA's padding fix sat above an older rule for the same button and never applied). */
+export function deadBaseDecls(file: string): string[] {
+  return deadIn(rulesOf(file), file);
+}
+function deadIn(rules: Rule[], file: string): string[] {
+  const hits: string[] = [];
+  rules.forEach((r, idx) => {
+    if (r.at.length) return;
+    for (const later of rules.slice(idx + 1)) {
+      if (later.at.length) continue;
+      const shared = r.selectors.filter((s) => later.selectors.includes(s));
+      // only when the earlier rule is wholly that selector — a selector list can stay alive through its other members
+      if (!shared.length || shared.length !== r.selectors.length) continue;
+      for (const [prop, d] of r.decls) {
+        if (d.important) continue;
+        const by = overriddenBy(later.decls, prop);
+        if (!by) continue;
+        if (by === prop && later.decls.get(prop)!.value === d.value) continue;
+        hits.push(`${file}:${r.line} ${shared[0]} { ${prop} } ← dead: re-set by ${by} at line ${later.line}`);
+      }
+    }
+  });
+  return hits;
+}
+
 describe('stylesheet cascade', () => {
   // fonts.css holds only @font-face blocks.
   const files = readdirSync(DIR).filter((f) => f.endsWith('.css') && f !== 'fonts.css');
@@ -154,6 +180,19 @@ describe('stylesheet cascade', () => {
   it('never lets a later base rule silently override a @container / @media rule with the same selector', () => {
     const hits = files.flatMap(shadowedConditionalRules);
     expect(hits).toEqual([]);
+  });
+
+  it('never declares a property that a later rule with the same selector re-sets', () => {
+    const hits = files.flatMap(deadBaseDecls);
+    expect(hits).toEqual([]);
+  });
+
+  it('catches a dead base declaration, and only that', () => {
+    expect(deadIn(rulesIn('.a { padding-inline: 10px }\n.a { padding-inline: 14px }'), 't.css')).toEqual(['t.css:1 .a { padding-inline } ← dead: re-set by padding-inline at line 2']);
+    expect(deadIn(rulesIn('.a { padding-inline: 10px }\n.a { padding: 0 }'), 't.css')).toHaveLength(1);
+    expect(deadIn(rulesIn('.a { color: red }\n.a { color: red }'), 't.css')).toEqual([]);
+    expect(deadIn(rulesIn('.a, .b { color: red }\n.a { color: blue }'), 't.css')).toEqual([]);
+    expect(deadIn(rulesIn('.a { color: red }\n@media (min-width: 1px) { .a { color: blue } }'), 't.css')).toEqual([]);
   });
 
   it('catches the pattern it guards against', () => {

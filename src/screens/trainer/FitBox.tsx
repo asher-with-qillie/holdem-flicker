@@ -58,6 +58,9 @@ export function FitBox({ className, children, onScale }: { className?: string; c
   const applied = useRef(1);
   const cb = useRef(onScale);
   cb.current = onScale;
+  // The box the children were last rendered for: a measurement of children still sized for another box is stale.
+  const rendered = useRef<BoxSize>({ width: 0, height: 0 });
+  const measure = useRef<() => void>(() => {});
 
   useLayoutEffect(() => {
     const o = outer.current;
@@ -67,7 +70,11 @@ export function FitBox({ className, children, onScale }: { className?: string; c
     const update = () => {
       const ow = o.clientWidth;
       const oh = o.clientHeight;
-      setBox((b) => (b.width === ow && b.height === oh ? b : { width: ow, height: oh }));
+      if (ow !== rendered.current.width || oh !== rendered.current.height) {
+        // re-render the children for this box first; the layout effect on [box] measures them then
+        setBox((b) => (b.width === ow && b.height === oh ? b : { width: ow, height: oh }));
+        return;
+      }
       const iw = i.offsetWidth;
       const ih = i.offsetHeight;
       if (!iw || !ih) return;
@@ -86,6 +93,7 @@ export function FitBox({ className, children, onScale }: { className?: string; c
         cb.current?.(s);
       }
     };
+    measure.current = update;
     update();
     const ro = new ResizeObserver(update);
     ro.observe(o);
@@ -95,6 +103,11 @@ export function FitBox({ className, children, onScale }: { className?: string; c
       window.clearTimeout(retry);
     };
   }, []);
+
+  useLayoutEffect(() => {
+    rendered.current = box;
+    measure.current();
+  }, [box]);
 
   return (
     <div ref={outer} className={`fitbox${className ? ` ${className}` : ''}${scale === 0 ? ' fitbox--hidden' : ''}`}>

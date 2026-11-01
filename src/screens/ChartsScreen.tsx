@@ -17,7 +17,7 @@ import { launch } from '../state/nav';
 import { useSettings } from '../state/settings';
 import { useSrs } from '../state/srs';
 import { useLayout } from '../state/viewport';
-import { CellCard, forgetCellFlag } from './charts/CellCard';
+import { CellCard, openChartVisit } from './charts/CellCard';
 import { CellSheet } from './charts/CellSheet';
 import { DISCLAIMER } from './charts/disclaimer';
 import { ChartFilters, FilterRow } from './charts/ChartFilters';
@@ -83,10 +83,7 @@ export function ChartsScreen() {
 
   useEffect(() => saveSelection(sel), [sel]);
   // a visit of the chart tab scopes the flag memory: a cell met again on a later visit can be flagged again
-  useEffect(() => {
-    forgetCellFlag();
-    return forgetCellFlag;
-  }, []);
+  useEffect(openChartVisit, []);
   useEffect(() => saveOverlay(overlayOn), [overlayOn]);
 
   const scenario = useMemo(() => toScenario(sel), [sel]);

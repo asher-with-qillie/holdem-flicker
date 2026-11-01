@@ -247,8 +247,9 @@ export function SetupView({ settings, preset, onStart, lastResult, onOpenLast }:
           <button type="button" className="trainer-lastrow" onClick={onOpenLast}>
             <span className="t-callout">지난 세션</span>
             <span className="trainer-lastrow__meta t-footnote tnum">
-              {/* no-break space inside each pair: it wraps only at ' · ' (as on the home row) */}
-              {lastResult.seen}장{lastPct !== null ? ` · 정답\u00a0${lastPct}%` : ''} · {formatDuration(lastResult.activeMs).replace(/ /g, '\u00a0')}
+              {/* no-break space inside each pair and after each '·': it wraps only before a '·', so a wrapped line always
+                  starts with one (binding it to the item before instead took three lines in the 104 px land column) */}
+              {`${lastResult.seen}장${lastPct !== null ? ` ·\u00a0정답\u00a0${lastPct}%` : ''} ·\u00a0${formatDuration(lastResult.activeMs).replace(/ /g, '\u00a0')}`}
             </span>
             <span className="trainer-lastrow__chev" aria-hidden="true">
               ▸

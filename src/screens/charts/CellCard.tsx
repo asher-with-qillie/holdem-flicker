@@ -19,7 +19,8 @@ export const stepKey = (step: Step): string => `${scenarioKey(step.scenario)}|${
 /** Cells flagged 헷갈려요 in this visit of the chart — a tiny store shared live by the sheet (phone / squat / tall 자세히),
  *  the inline card (tall dock, land / wide column) and the atlas opened from them. The sheet stays mounted (closed)
  *  while a cell is picked, so a flag made in the card must reach it, or 헷갈려요 there would rate the cell a second
- *  time. ChartsScreen clears it when it mounts and unmounts, so a cell met again on a later visit can be flagged again. */
+ *  time. A chart visit (openChartVisit) clears it when it starts and ends, and an atlas opened outside one clears it
+ *  when it opens, so a cell met again later — on another visit or in another atlas — can be flagged again. */
 const flaggedKeys = new Set<string>();
 let flagVersion = 0;
 const flagListeners = new Set<() => void>();
@@ -34,10 +35,28 @@ function bumpFlag(): void {
   flagVersion += 1;
   flagListeners.forEach((fn) => fn());
 }
-export function forgetCellFlag(): void {
+function forgetCellFlag(): void {
   if (!flaggedKeys.size) return;
   flaggedKeys.clear();
   bumpFlag();
+}
+let chartVisits = 0;
+/** ChartsScreen's mount effect: one visit of the chart tab scopes the flag memory. Returns its end. */
+export function openChartVisit(): () => void {
+  chartVisits += 1;
+  forgetCellFlag();
+  return () => {
+    chartVisits -= 1;
+    forgetCellFlag();
+  };
+}
+/** An atlas opened outside a chart visit (training, quiz, summaries) is its own scope: it starts with no flag memory.
+ *  Runs in the atlas's state initializer, before its AtlasDetail reads the store, so it does not notify — no chart
+ *  subscriber is mounted outside a visit, and notifying during render would update another component mid-render. */
+export function forgetCellFlagOutsideChart(): void {
+  if (chartVisits > 0 || !flaggedKeys.size) return;
+  flaggedKeys.clear();
+  flagVersion += 1;
 }
 
 /** 헷갈려요 표시(차트 채널). 칸이 바뀌면 표시 상태도 그 칸 것으로 — 시트·카드를 다시 마운트하지 않습니다. */

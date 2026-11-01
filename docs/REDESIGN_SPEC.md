@@ -1668,6 +1668,19 @@ places stay masked, so retrieval practice is preserved.
   - Known and accepted: in a two-column summary, reading / focus order is result → card rows → CTAs while the CTAs are
     drawn above the rows (DOM order keeps the phone order); the tall chart's 자세히 sheet can cover a picked cell in
     the bottom two rows; the picker's grid is ~23 px cells at the L/R 84 stress insets.
+- **Round 5**:
+  - FitBox scales only children rendered for the current box: a box change re-renders the children first and measures
+    them in the layout effect, so a reveal never paints a frame of the previous size's content measured as "hidden".
+  - Atlas anchor: a flip always restores (a finger resting across the fold still lands where it was); a drag or wheel
+    ends the hold and is recorded even while the size settles, and the size-class change after the flip does not undo
+    it. In two columns, scrolling into the right column's comparison is the 'detail' anchor, carried to the inline
+    comparison after a fold and back into the right column after an unfold.
+  - The 헷갈려요 store is scoped to a chart visit; an atlas opened outside one (training, quiz, summaries) clears it.
+  - Setup on a short outer screen with nothing to start (amber reason): the dock is not pinned over the chips.
+  - Settings with 고급 open: the groups carry the 16 px, not the row gaps (the empty fourth row added 8 px).
+  - The cascade test also fails on a base declaration that a later rule with the same selector re-sets (dead CSS).
+  - Known and accepted: settings with 고급 closed at 594 / 678 land puts 39 / 21 px above 기기 (both columns end
+    level); on the tall hold sheet a long card's last 자리 line can sit in the 48 px fade (the chart is never cut).
 
 ### 11.8 Open risks / real-device checks
 

@@ -458,6 +458,8 @@ html:is([data-layout="phone"], [data-layout="squat"]) .trainer--idle { container
    (the estimate is in 시작 already; a block reason stays) and the subtitle goes, so the dock is 80 px and the row clears it */
 @container setup (max-height: 495px) {
   html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go .trainer-preview__counts:not(.trainer-go__reason) { display: none; }
+  /* nothing can start (the amber reason stays, so the dock is 108): it is not pinned over the chips that fix it */
+  html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go:has(.trainer-go__reason) { position: static; }
   html:is([data-layout="phone"], [data-layout="squat"]) .trainer-setup__head .t-callout { display: none; }
 }
 html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go { position: sticky; bottom: 0; z-index: 2; }
