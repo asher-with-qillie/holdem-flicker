@@ -451,8 +451,9 @@ html:is([data-layout="land"], [data-layout="wide"]) .trainer-setup .ui-seg__opt 
    a disabled 시작 sits on the dock, not over the reason it is disabled. Sticky inside .trainer--idle, not the viewport,
    so iOS's bottom-fixed quirks do not apply. scroll-padding keeps a focused chip clear of it. */
 html:is([data-layout="phone"], [data-layout="squat"]) .trainer--idle { scroll-padding-bottom: 116px; }
-/* the setup scroller's height decides how much the pinned dock may hold */
-.trainer--idle { container: setup / size; }
+/* the setup scroller's height decides how much the pinned dock may hold. phone / squat only: a size container also
+   becomes the box cqw resolves against, and the land / tall / wide setup splits on --pane-l (50cqw of the app) */
+html:is([data-layout="phone"], [data-layout="squat"]) .trainer--idle { container: setup / size; }
 /* a short scroller (≤ 495: 382×540, 375×553, 385×571 — the dock pinned over the 세션 크기 row): the counts leave the dock
    (the estimate is in 시작 already; a block reason stays) and the subtitle goes, so the dock is 80 px and the row clears it */
 @container setup (max-height: 495px) {
