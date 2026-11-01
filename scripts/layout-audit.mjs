@@ -969,10 +969,18 @@ async function flowAt(size) {
         // non-modal 자세히 상태에서도 격자는 살아 있어야 합니다.
         const cellC = page.locator('.charts .rgrid__cell[aria-label]').nth(17);
         const hC = await cellC.getAttribute('aria-label');
-        await cellC.tap({ timeout: 3000 }).catch(() => {});
+        // what is under the cell's centre, and why a tap did not go through — a failure must say which
+        const under = () => cellC.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return h === el || el.contains(h) ? 'self' : `${h?.tagName.toLowerCase()}.${String(h?.className).split(' ').slice(0, 2).join('.')} @${Math.round(r.top)}`;
+        }).catch((e) => `? ${String(e).split('\n')[0]}`);
+        const before = await under();
+        let tapErr = '';
+        await cellC.tap({ timeout: 3000 }).catch((e) => { tapErr = String(e.message || e).split('\n').filter((l) => /Timeout|intercepts|not stable|not visible|outside/.test(l)).slice(0, 3).join(' / '); });
         await wait(page, 600);
         const t3 = await titleOf();
-        if (t3 === null || !t3.includes(hC)) fail(size, 'charts-cell-more', 'cell-nonmodal', `with 자세히 open, tapping ${hC} did not swap the detail (title "${t3}")`);
+        if (t3 === null || !t3.includes(hC)) fail(size, 'charts-cell-more', 'cell-nonmodal', `with 자세히 open, tapping ${hC} did not swap the detail (title "${t3}"; under the cell: ${before}${tapErr ? `; tap: ${tapErr}` : ''})`);
       } else {
         missed.push(`${size.name}/charts-cell-more: 셀 상세에 「자세히」 버튼이 없습니다`);
       }
