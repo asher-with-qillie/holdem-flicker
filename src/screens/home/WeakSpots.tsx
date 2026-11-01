@@ -50,7 +50,7 @@ export function WeakSpots({ spots, weakCount, onTrainSpot, onTrainWeak }: WeakSp
                     <span className="home-spot__meta tnum">{meta}</span>
                   </div>
                   <Chip size={32} onClick={() => onTrainSpot(s)} aria-label={`${label} 이 상황만 훈련`}>
-                    이 상황만 훈련
+                    <span className="home-spot__chiplead">이 상황만 </span>훈련
                   </Chip>
                 </li>
               );

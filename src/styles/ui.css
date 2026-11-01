@@ -334,8 +334,11 @@ html[data-bar="top"] .ui-sheet--auto { max-height: calc(var(--vh-core) - var(--s
 .ui-sheet--held.ui-sheet--in { transition: transform 260ms var(--ease-out); }
 .ui-sheet--held .ui-sheet__body { overflow: hidden; -webkit-mask-image: linear-gradient(#000 calc(100% - 48px), transparent); mask-image: linear-gradient(#000 calc(100% - 48px), transparent); }
 /* tall: the hold sheet cannot scroll (finger down), so it does not stop at the seam like the 해설 half sheet — it rises
-   to 42 % of the core (the cards above stay in view) and the 자리 block fits instead of leaving a bare heading */
-html[data-layout="tall"] .ui-sheet--held.ui-sheet--half { height: calc(var(--vh-core) * 0.58); }
+   to just under the session's chart (safe-top + 8 + HUD 44 + 8 + G + 8, G as in --sheet-half-top) and the 자리 block
+   fits instead of leaving a bare heading; the chart itself is never cut */
+html[data-layout="tall"] .ui-sheet--held.ui-sheet--half {
+  height: calc(var(--vh-core) - var(--safe-top) - 68px - min(var(--tall-grid), calc(var(--vh-core) - var(--safe-top) - 508px - var(--safe-bottom))));
+}
 .ui-sheet__grab { flex: none; display: flex; justify-content: center; padding: 8px 0 4px; }
 .ui-sheet__grab span { width: 40px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.28); }
 .ui-sheet__title { flex: none; padding: 6px var(--gutter) 8px; font-size: var(--fs-title-2); line-height: var(--lh-title-2); font-weight: 700; letter-spacing: -0.015em; }
@@ -487,6 +490,8 @@ html[data-layout="wide"] :is(.quiz-sub, .screen__sub) { max-width: var(--pane-l)
   .ui-summary > .ui-summary__col--c { grid-area: c; }
   .ui-summary > .ui-summary__col--b:empty { display: none; }
   .ui-summary__ctas { margin-top: 0; }
+  /* first session: the CTAs lead the column, the 속도 어땠어요? chips follow (above them they pushed 홈으로 under 344) */
+  .ui-summary__col--c > .ui-summary__speed { order: 1; }
   /* card rows in a ~230–420 px column: the hand above its situation, the situation on up to two lines */
   .ui-summary .ui-summary__row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: "cards hand badge" "cards title badge"; column-gap: 10px; align-items: center; padding: 6px 0; }
   .ui-summary .ui-summary__cards { grid-area: cards; }
@@ -548,9 +553,9 @@ html[data-layout="wide"] :is(.quiz-sub, .screen__sub) { max-width: var(--pane-l)
 .kindprog__legend { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--ink-3); }
 .kindprog__legend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; background: rgba(255, 255, 255, 0.22); }
 .kindprog { container: kindprog / inline-size; }
-/* narrow column (land setup at 594: ~200 px): name and count share a line and the bar takes the full width under them —
+/* narrow column (land setup at 594: ~200 px; tall's 279 px keeps one line): name and count share a line and the bar takes the full width under them —
    beside them it shrank to a 19 px pill that could not show the learned / learning split */
-@container kindprog (max-width: 280px) {
+@container kindprog (max-width: 240px) {
   .kindprog__row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name num" "bar bar"; row-gap: 4px; }
   .kindprog__name { grid-area: name; }
   .kindprog__num { grid-area: num; min-width: 0; }

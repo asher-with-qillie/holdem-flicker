@@ -16,11 +16,12 @@ import { rate } from '../../state/srs';
 /** 칸 하나를 가리키는 키(상황 + 패). 헷갈려요 표시는 이 키로 기억해서, 다른 칸을 누르면 저절로 풀립니다. */
 export const stepKey = (step: Step): string => `${scenarioKey(step.scenario)}|${step.hand}`;
 
-/** The last cell flagged from the chart — a tiny store shared by the sheet (phone / squat / tall 자세히) and the inline
- *  card (tall dock, land / wide column). Both read it live: the sheet stays mounted (closed) while a cell is picked,
- *  so a flag made in the card must reach it, or 헷갈려요 there would rate the cell a second time. ChartsScreen clears it
- *  when it unmounts, so a cell met again on a later visit can be flagged again. */
-let flaggedKey: string | null = null;
+/** Cells flagged 헷갈려요 in this visit of the chart — a tiny store shared live by the sheet (phone / squat / tall 자세히),
+ *  the inline card (tall dock, land / wide column) and the atlas opened from them. The sheet stays mounted (closed)
+ *  while a cell is picked, so a flag made in the card must reach it, or 헷갈려요 there would rate the cell a second
+ *  time. ChartsScreen clears it when it mounts and unmounts, so a cell met again on a later visit can be flagged again. */
+const flaggedKeys = new Set<string>();
+let flagVersion = 0;
 const flagListeners = new Set<() => void>();
 const subscribeFlag = (fn: () => void) => {
   flagListeners.add(fn);
@@ -28,25 +29,27 @@ const subscribeFlag = (fn: () => void) => {
     flagListeners.delete(fn);
   };
 };
-const readFlag = () => flaggedKey;
-function writeFlag(key: string | null): void {
-  if (flaggedKey === key) return;
-  flaggedKey = key;
+const readFlag = () => flagVersion;
+function bumpFlag(): void {
+  flagVersion += 1;
   flagListeners.forEach((fn) => fn());
 }
 export function forgetCellFlag(): void {
-  writeFlag(null);
+  if (!flaggedKeys.size) return;
+  flaggedKeys.clear();
+  bumpFlag();
 }
 
 /** 헷갈려요 표시(차트 채널). 칸이 바뀌면 표시 상태도 그 칸 것으로 — 시트·카드를 다시 마운트하지 않습니다. */
-export function useCellFlag(step: Step): [boolean, () => void] {
-  const current = useSyncExternalStore(subscribeFlag, readFlag);
-  const key = stepKey(step);
-  const flagged = current === key;
+export function useCellFlag(step: Step | null): [boolean, () => void] {
+  useSyncExternalStore(subscribeFlag, readFlag);
+  const key = step ? stepKey(step) : null;
+  const flagged = key !== null && flaggedKeys.has(key);
   const flag = () => {
-    if (readFlag() === key) return;
+    if (!step || key === null || flaggedKeys.has(key)) return;
     rate(step, 'unsure', 'chart');
-    writeFlag(key);
+    flaggedKeys.add(key);
+    bumpFlag();
     vibrate([18, 30, 18]);
     toast('헷갈려요로 표시했어요 · 다음 세션에 먼저 나와요', 'amber');
   };

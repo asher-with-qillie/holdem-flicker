@@ -225,7 +225,7 @@ export function SetupView({ settings, preset, onStart, lastResult, onOpenLast }:
               </span>
             </p>
           ) : (
-            <p className="trainer-preview__counts t-footnote" style={{ color: 'var(--amber)' }}>
+            <p className="trainer-preview__counts trainer-go__reason t-footnote" style={{ color: 'var(--amber)' }}>
               {effectiveDeck === 'weak' ? WEAK_HINT : NO_CHARTS}
             </p>
           )}
@@ -247,7 +247,8 @@ export function SetupView({ settings, preset, onStart, lastResult, onOpenLast }:
           <button type="button" className="trainer-lastrow" onClick={onOpenLast}>
             <span className="t-callout">지난 세션</span>
             <span className="trainer-lastrow__meta t-footnote tnum">
-              {lastResult.seen}장{lastPct !== null ? ` · 정답 ${lastPct}%` : ''} · {formatDuration(lastResult.activeMs)}
+              {/* no-break space inside each pair: it wraps only at ' · ' (as on the home row) */}
+              {lastResult.seen}장{lastPct !== null ? ` · 정답\u00a0${lastPct}%` : ''} · {formatDuration(lastResult.activeMs).replace(/ /g, '\u00a0')}
             </span>
             <span className="trainer-lastrow__chev" aria-hidden="true">
               ▸

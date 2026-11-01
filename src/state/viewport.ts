@@ -61,10 +61,12 @@ function write(c: ViewportClass) {
   d.layout = c.layout; d.bar = c.bar;
   if (c.short) d.short = String(c.short); else delete d.short;
 }
+let changedAt = -Infinity;
 function settle() {
   timer = 0;
   const next = compute();
   if (next.layout === cls.layout && next.bar === cls.bar && next.short === cls.short) return;
+  changedAt = typeof performance !== 'undefined' ? performance.now() : 0;
   cls = next; write(cls); subs.forEach((f) => f());
 }
 let lastVv = -1;
@@ -99,6 +101,9 @@ export function initViewport(): void {
 }
 /** 디바운스가 걸려 있는 동안(크기 바뀌는 중)에는 true입니다. FitBox가 마지막 배율을 유지하는 데 씁니다. */
 export const isSettling = (): boolean => timer !== 0;
+/** ms since the size class (data-layout / bar / short) last changed. The reflow it causes, and the browser's scroll
+ *  adjustments to it, land a frame or two after isSettling() has already turned false. */
+export const msSinceClassChange = (): number => (typeof performance !== 'undefined' ? performance.now() : 0) - changedAt;
 export const getViewportClass = (): ViewportClass => cls;
 export function onLayoutChange(cb: () => void): () => void { subs.add(cb); return () => { subs.delete(cb); }; }
 export function onViewportJump(cb: () => void): () => void { jumpSubs.add(cb); return () => { jumpSubs.delete(cb); }; }

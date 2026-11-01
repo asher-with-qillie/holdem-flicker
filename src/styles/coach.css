@@ -174,6 +174,13 @@
 .coach-spot__name { flex: 1; min-width: 0; font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .coach-spot__meta { flex: none; font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-2); }
 .coach-spot svg { flex: none; color: var(--ink-3); }
+/* land (594): a ~76 px name column cut 'BTN · 3벳 대응' to 'BTN · 3…' — the meta goes under the name */
+html[data-layout="land"] .coach-spot { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name chev" "meta chev"; column-gap: 10px; row-gap: 2px; }
+html[data-layout="land"] .coach-spot__name { grid-area: name; }
+html[data-layout="land"] .coach-spot__meta { grid-area: meta; }
+html[data-layout="land"] .coach-spot svg { grid-area: chev; }
+/* land: '틀린 것만 다시 풀기 · 20문제' is 209 px in a 201 px label box — tighter padding instead of a cut glyph */
+html[data-layout="land"] .coach-section > .ui-btn { padding-inline: 10px; letter-spacing: -0.02em; }
 
 /* ---- 최근 실수 아래 [틀린 것만 다시 풀기] ---- */
 .coach-section .quiz-mistakes + .ui-btn { margin-top: 2px; }

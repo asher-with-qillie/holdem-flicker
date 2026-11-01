@@ -82,7 +82,11 @@ export function ChartsScreen() {
   const openRef = useRef<{ hand: HandName | null; sheetOpen: boolean }>({ hand: null, sheetOpen: false });
 
   useEffect(() => saveSelection(sel), [sel]);
-  useEffect(() => forgetCellFlag, []);   // leaving the chart tab: a later visit can flag the same cell again
+  // a visit of the chart tab scopes the flag memory: a cell met again on a later visit can be flagged again
+  useEffect(() => {
+    forgetCellFlag();
+    return forgetCellFlag;
+  }, []);
   useEffect(() => saveOverlay(overlayOn), [overlayOn]);
 
   const scenario = useMemo(() => toScenario(sel), [sel]);

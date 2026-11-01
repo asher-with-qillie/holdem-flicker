@@ -206,12 +206,15 @@ html[data-layout="wide"] .trainer-pause {
   html:not([data-layout="phone"]) .trainer-stage__area { flex: 0 0 0; visibility: hidden; overflow: hidden; }
   html:not([data-layout="phone"]) .trainer-stage .trainer-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
 }
-/* phone: once the current card's fan has hidden itself (below .5 — the reveal of a deep chain step on a ≤ 650 px phone
-   costs the stage 18 px), the label takes the stage the same way instead of sitting under an empty band. The fan
-   remounts with every card, so the next card measures afresh; the outgoing ghost is not counted. */
-html[data-layout="phone"] .trainer-stage:has(> .trainer-stage__row .trainer-stage__card:not(.trainer-stage__card--ghost) > .trainer-fan.fitbox--hidden) .trainer-stage__row { flex: 0 0 0; overflow: hidden; }
-html[data-layout="phone"] .trainer-stage:has(> .trainer-stage__row .trainer-stage__card:not(.trainer-stage__card--ghost) > .trainer-fan.fitbox--hidden) .trainer-stage__area { flex: 0 0 0; visibility: hidden; overflow: hidden; }
-html[data-layout="phone"] .trainer-stage:has(> .trainer-stage__row .trainer-stage__card:not(.trainer-stage__card--ghost) > .trainer-fan.fitbox--hidden) .trainer-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
+/* phone: below the smallest fan's .5 step (fan area = stage − 25 px label; 'sm' at .5 needs 44 → stage < 69 — the
+   reveal of a deep chain step on a ≤ 650 px phone) the label takes the stage the same way, instead of sitting under an
+   empty band. Keyed on the stage's own height, which the collapse does not change: keying it on the fan's hidden state
+   collapsed the area, FitBox then measured 0 and the fan latched hidden even where it fit. */
+@container stage (max-height: 68.5px) {
+  html[data-layout="phone"] .trainer-stage__row { flex: 0 0 0; overflow: hidden; }
+  html[data-layout="phone"] .trainer-stage__area { flex: 0 0 0; visibility: hidden; overflow: hidden; }
+  html[data-layout="phone"] .trainer-stage .trainer-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
+}
 
 /* fan: takes the leftover height; FitBox scales the cards down to fit (quantized; hidden below 0.5) */
 .fitbox { display: flex; align-items: center; justify-content: center; }
@@ -440,13 +443,21 @@ html[data-layout="land"] .trainer-go { order: -1; position: sticky; top: 0; z-in
 html[data-layout="land"] .trainer-go__lead { display: none; }
 /* land: the left column gets the wider share so the four speed labels (순간기억) fit without an ellipsis */
 html[data-layout="land"] .trainer-setup { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); column-gap: 16px; }
-html[data-layout="land"] .trainer-setup .ui-seg__opt { padding-inline: 3px; letter-spacing: -0.02em; }
+html:is([data-layout="land"], [data-layout="wide"]) .trainer-setup .ui-seg__opt { padding-inline: 3px; letter-spacing: -0.02em; }   /* wide: L84 leaves 54 px per option */
 /* phone / squat: when the settings run past the scrollport (the 580 px outer screen, short phones), the dock (counts +
    시작 with the estimate inside it) pins to the scroller's bottom edge instead of waiting below the fold, and settles back
    into place at the end of the list. It is glass: rows above pass under it blurred, never cut by an opaque button, and
    a disabled 시작 sits on the dock, not over the reason it is disabled. Sticky inside .trainer--idle, not the viewport,
    so iOS's bottom-fixed quirks do not apply. scroll-padding keeps a focused chip clear of it. */
 html:is([data-layout="phone"], [data-layout="squat"]) .trainer--idle { scroll-padding-bottom: 116px; }
+/* the setup scroller's height decides how much the pinned dock may hold */
+.trainer--idle { container: setup / size; }
+/* a short scroller (≤ 495: 382×540, 375×553, 385×571 — the dock pinned over the 세션 크기 row): the counts leave the dock
+   (the estimate is in 시작 already; a block reason stays) and the subtitle goes, so the dock is 80 px and the row clears it */
+@container setup (max-height: 495px) {
+  html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go .trainer-preview__counts:not(.trainer-go__reason) { display: none; }
+  html:is([data-layout="phone"], [data-layout="squat"]) .trainer-setup__head .t-callout { display: none; }
+}
 html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go { position: sticky; bottom: 0; z-index: 2; }
 html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go__head { display: none; }   /* the estimate is in 시작; a block reason is the amber line */
 html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go__est { display: inline; }

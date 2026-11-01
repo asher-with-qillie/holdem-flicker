@@ -93,7 +93,15 @@ html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .app__
      both span the fourth row, so each column stacks without a hole: 데이터 starts right under 고급 and 기기 right under
      훈련 (with 기기 and 데이터 in one shared row, the right column opened a ~160 px gap under 고급) */
   grid-template-areas: "title title" "train range" "train adv" "train data" "device data";
-  grid-template-rows: auto;
+  /* 훈련's surplus height goes to the fourth row only (데이터 spans it), so 범위 → 고급 → 데이터 stay 16 apart */
+  grid-template-rows: auto auto auto 1fr auto;
+}
+/* 고급 open (its panel is ~300 px): 기기 starts beside the lower part of 고급 instead of waiting for 데이터's row — with the
+   closed areas a 220–300 px hole opened under 훈련 */
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .app__push-body .st:has(.st-disclosure[aria-expanded="true"]) {
+  grid-template-areas: "title title" "train range" "train adv" "device adv" "device data";
+  /* (rows as closed: the flexible fourth row keeps 고급 and 기기 out of the intrinsic pass, so it is exactly what 고급
+     needs below 훈련's end — with auto rows Chromium split 고급's height across rows 3 and 4 and opened a gap under it) */
 }
 html[data-layout="land"] .app__push-body .st { grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr); column-gap: 16px; }
 /* two-column settings: the speed segment is ~65 px per option — 순간기억 needs 55 + padding */

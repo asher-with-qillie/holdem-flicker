@@ -28,7 +28,7 @@ export function WeakSpotList({ spots }: { spots: Spot[] }): JSX.Element {
               <li key={`${s.kind}:${s.hero}`}>
                 <button type="button" className="coach-spot" onClick={() => go(s)} aria-label={`${label} 이 상황만 훈련`}>
                   <span className="coach-spot__name">{label}</span>
-                  <span className="coach-spot__meta tnum">헷갈려요 {pct(s.unsureRate)}</span>
+                  <span className="coach-spot__meta tnum">헷갈려요{'\u00a0'}{pct(s.unsureRate)}</span>
                   <IconNext size={18} />
                 </button>
               </li>

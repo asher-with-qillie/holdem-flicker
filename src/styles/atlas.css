@@ -147,7 +147,7 @@ html[data-layout="wide"] .atlas__picker {
   grid-template-areas: "help grid" "legend grid"; grid-template-rows: auto 1fr; align-items: start;
 }
 html[data-layout="wide"] .atlas__picker > p { grid-area: help; }
-html[data-layout="wide"] .atlas__picker > .charts__panel { grid-area: grid; }
+html[data-layout="wide"] .atlas__picker > .charts__panel { grid-area: grid; width: min(100%, calc(var(--vh-core) - 157px)); justify-self: start; }   /* 543: all 13 rows above the footer */
 html[data-layout="wide"] .atlas__picker > .charts__legend { grid-area: legend; }
 
 /* ---- 푸터 ---- */

@@ -63,6 +63,18 @@
 .home-spot__meta { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .home-spot__meta { white-space: normal; word-break: keep-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .home-spot .ui-chip { flex: none; }
+/* land (594): the list column is ~250 px and the chip takes ~110 — the meta runs under the name and the chip, so neither
+   the name ('BTN · 3벳 대응') nor the percentage ('헷갈려요 100%') is cut to an ellipsis */
+html[data-layout="land"] .home-spot {
+  display: grid; grid-template-columns: 6px minmax(0, 1fr) auto; grid-template-areas: "dot name chip" ". meta meta";
+  column-gap: 10px; row-gap: 2px; align-items: center;
+}
+html[data-layout="land"] .home-spot__text { display: contents; }
+html[data-layout="land"] .home-spot__dot { grid-area: dot; }
+html[data-layout="land"] .home-spot__name { grid-area: name; }
+html[data-layout="land"] .home-spot__meta { grid-area: meta; }
+html[data-layout="land"] .home-spot .ui-chip { grid-area: chip; }
+html[data-layout="land"] .home-spot__chiplead { display: none; }   /* '훈련' — the name needs the room ('이 상황만 훈련' stays its accessible name) */
 
 /* ---- empty copy panels ---- */
 .home-empty { text-align: center; color: var(--ink-3); font-size: var(--fs-footnote); line-height: var(--lh-footnote); }

@@ -4,14 +4,13 @@ import { LineCapsule, LineStrip } from '../../components/LineStrip';
 import { PlainText } from '../../components/Term';
 import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { GlassPanel } from '../../components/ui/GlassPanel';
-import { toast } from '../../components/ui/Toast';
 import { IconCheck } from '../../components/ui/icons';
 import { compareAxis, compareCells, differingLevers, gateText, uniformLine, type AtlasCell, type HandAtlas } from '../../poker/atlas';
 import { explainStep } from '../../poker/explain';
 import { lineOf, lineSentence, stripView } from '../../poker/line';
 import { stepFor, type Step } from '../../poker/trainer';
-import { useSettings, vibrate } from '../../state/settings';
-import { rate } from '../../state/srs';
+import { useSettings } from '../../state/settings';
+import { useCellFlag } from '../charts/CellCard';
 import { DISCLAIMER } from '../charts/disclaimer';
 
 /** 펼침 줄(차트 메모 › · 해설 전체 보기): 44px, 오른쪽 셰브런. */
@@ -69,7 +68,7 @@ export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: 
   const keyBase = `${hand}|${cell.key}`;
   const [expanded, setExpanded] = useKept(`${keyBase}|expanded`);
   const [memoOpen, setMemoOpen] = useKept(`${keyBase}|memo`);
-  const [flagged, setFlagged] = useKept(`${keyBase}|flagged`);
+  const [keptFlag, setKeptFlag] = useKept(`${keyBase}|flagged`);
 
   const step: Step | null = useMemo(() => {
     try {
@@ -78,6 +77,7 @@ export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: 
       return null;
     }
   }, [cell, hand]);
+  const [chartFlagged, chartFlag] = useCellFlag(step);
   const explanation = useMemo(() => (step ? explainStep(step) : null), [step]);
 
   // 비교 칸의 줄(같은 패라 줄은 같고, 자리가 달라 문장·경계가 다를 수 있음). 문장이 같으면 쌓지 않습니다.
@@ -120,12 +120,13 @@ export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: 
       </div>
     ) : null;
 
+  // the chart's flag store too: a cell flagged in the chart sheet opens here as done, and one flagged here shows done
+  // back in the chart — the chart channel rates a cell once per visit
+  const flagged = keptFlag || chartFlagged;
   const flag = () => {
     if (flagged || !step) return;
-    rate(step, 'unsure', 'chart');
-    setFlagged(true);
-    vibrate([18, 30, 18]);
-    toast('헷갈려요로 표시했어요 · 다음 세션에 먼저 나와요', 'amber');
+    chartFlag();
+    setKeptFlag(true);
   };
 
   return (
