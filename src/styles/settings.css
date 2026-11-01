@@ -84,6 +84,25 @@ input[type='range'].st-range::-moz-range-thumb { width: 22px; height: 22px; bord
 .st-confirm__body { padding: 4px 0 12px; font-size: var(--fs-body); line-height: var(--lh-body); color: var(--ink-2); }
 .st-confirm__btn { flex: 1; padding-inline: 12px; }
 
+/* ---- size classes (Duo spec §4.8): land/tall = two columns, wide = split on the crease. Groups keep their
+   phone order in the DOM; grid areas only place them (훈련 왼쪽 전체, 범위·고급·기기·데이터 오른쪽). ---- */
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .app__push-body .st {
+  display: grid; align-content: start; align-items: start; column-gap: 24px; row-gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas: "title title" "train range" "train adv" "train device" "train data";
+  grid-template-rows: auto auto auto auto 1fr;
+}
+html[data-layout="land"] .app__push-body .st { grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr); column-gap: 16px; }
+html[data-layout="land"] .st-speed .ui-seg__opt { padding-inline: 2px; letter-spacing: -0.02em; }
+html[data-layout="land"] .st-pos .ui-chiprow--wrap { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+html[data-layout="wide"] .app__push-body .st { grid-template-columns: var(--pane-l) minmax(0, 1fr); column-gap: var(--pane-gap); }
+.st-title { grid-area: title; }
+.st-group--train { grid-area: train; }
+.st-group--range { grid-area: range; }
+.st-group--adv { grid-area: adv; }
+.st-group--device { grid-area: device; }
+.st-group--data { grid-area: data; }
+
 @media (prefers-reduced-motion: reduce) {
   .st-disclosure__chev, .st-minhint, .st-row--btn { transition: none; }
 }
@@ -92,3 +111,6 @@ input[type='range'].st-range::-moz-range-thumb { width: 22px; height: 22px; bord
 @media (max-width: 370px) {
   .st-speed .ui-seg__opt { padding-inline: 2px; letter-spacing: -0.02em; }
 }
+/* wide: --pane-l 은 '왼쪽 여백 = 레일 몫 + gutter' 를 전제로 합니다. L84 처럼 inset 이 gutter 보다 큰 경우에도
+   crease 가 50cqw 에 남도록 왼쪽 여백을 같은 식으로 맞춥니다. */
+html[data-layout="wide"] .app__push-body .st { padding-left: calc(var(--rail-space) + var(--gutter)); }

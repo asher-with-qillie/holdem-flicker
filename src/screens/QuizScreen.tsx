@@ -7,6 +7,7 @@ import type { Pos } from '../poker/types';
 import { consumeLaunch, setChromeHidden, useNav } from '../state/nav';
 import { getSettings, updateSettings, useSettings, type DeckId, type Settings } from '../state/settings';
 import { useSrs, weakKeys } from '../state/srs';
+import { useLayout } from '../state/viewport';
 import { useStats } from '../state/stats';
 import { DeckChips, NO_CHARTS_HINT, PositionChips, WEAK_LOCKED_HINT, WEAK_MIN, resolvePositions } from './quiz/DeckChips';
 import { MistakeList } from './quiz/MistakeList';
@@ -26,6 +27,7 @@ function QuizIdle() {
   const [settings, update] = useSettings();
   const stats = useStats();
   const srsVersion = useSrs();
+  const layout = useLayout();
 
   const deck = settings.lastDeck;
   const positions = resolvePositions(settings.lastPositions, settings.positions);
@@ -43,23 +45,27 @@ function QuizIdle() {
       <QuizHeader stats={stats} />
       <p className="quiz-sub">10문제씩 풀어요. 틀린 카드는 복습으로 돌아가요</p>
 
-      <section className="quiz-group">
-        <h2 className="quiz-label t-caption">덱</h2>
-        <DeckChips value={deck} onChange={setDeck} weakCount={weakCount} />
-      </section>
-      <section className="quiz-group">
-        <h2 className="quiz-label t-caption">포지션</h2>
-        <PositionChips value={positions} all={settings.positions} onChange={setPositions} />
-      </section>
-
-      <div className="quiz-start">
-        <CapsuleButton tone="primary" size="xl" block icon={<IconPlay />} disabled={reason !== null} onClick={() => startToast(startRound({ deck, positions }))}>
-          10문제 시작
-        </CapsuleButton>
-        {reason && <p className="quiz-start__reason">{reason}</p>}
+      <div className="quiz-idle__col quiz-idle__col--l">
+        <section className="quiz-group">
+          <h2 className="quiz-label t-caption">덱</h2>
+          <DeckChips value={deck} onChange={setDeck} weakCount={weakCount} />
+        </section>
+        <section className="quiz-group">
+          <h2 className="quiz-label t-caption">포지션</h2>
+          <PositionChips value={positions} all={settings.positions} onChange={setPositions} />
+        </section>
       </div>
 
-      <MistakeList mistakes={stats.mistakes} />
+      <div className="quiz-idle__col quiz-idle__col--r">
+        <div className="quiz-start">
+          <CapsuleButton tone="primary" size="xl" block icon={<IconPlay />} disabled={reason !== null} onClick={() => startToast(startRound({ deck, positions }))}>
+            10문제 시작
+          </CapsuleButton>
+          {reason && <p className="quiz-start__reason">{reason}</p>}
+        </div>
+
+        <MistakeList mistakes={stats.mistakes} defaultOpen={layout === 'tall' || layout === 'wide'} />
+      </div>
     </div>
   );
 }

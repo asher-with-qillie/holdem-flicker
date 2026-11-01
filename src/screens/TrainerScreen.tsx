@@ -3,7 +3,7 @@ import { CapsuleButton } from '../components/ui/CapsuleButton';
 import { SessionSummaryCard } from '../components/ui/SessionSummaryCard';
 import { Sheet } from '../components/ui/Sheet';
 import { toast } from '../components/ui/Toast';
-import { consumeLaunch, launch, setChromeHidden, setTab, useNav, type LaunchIntent } from '../state/nav';
+import { consumeLaunch, launch, setChromeHidden, setChromeOverlay, setTab, useNav, type LaunchIntent } from '../state/nav';
 import { getProgress, useProgress } from '../state/progress';
 import { getSettings, updateSettings, useSettings, type DeckId, type Settings } from '../state/settings';
 import { weakKeys } from '../state/srs';
@@ -96,10 +96,15 @@ export function TrainerScreen() {
   const [ask, setAsk] = useState<PendingAsk | null>(null);
   const status = s.status;
 
-  // Tab bar hidden while running; back on pause / summary / unmount.
+  // Tab bar hidden while running; back on pause / summary / unmount. Paused, the bar floats over the session, which
+  // keeps its running geometry (a fold auto-pauses — the screen must not reflow under the user's thumb).
   useEffect(() => {
     setChromeHidden('trainer', status === 'running');
-    return () => setChromeHidden('trainer', false);
+    setChromeOverlay('trainer', status === 'paused');
+    return () => {
+      setChromeHidden('trainer', false);
+      setChromeOverlay('trainer', false);
+    };
   }, [status]);
 
   /** 인텐트를 실제로 여는 곳. 자동 시작이면 바로 시작하고, 아니면 설정 화면을 그 값으로 채웁니다. */

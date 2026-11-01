@@ -13,7 +13,7 @@
 .atlas__tag { font-size: var(--fs-caption); line-height: 1; padding: 3px 7px; border-radius: var(--r-capsule); background: rgba(255, 255, 255, 0.10); color: var(--ink-2); font-weight: 600; white-space: nowrap; }
 
 /* ---- 격자: 라벨 열 36px + N 칸(1fr). 360px(내용 328) 에서 칸 52px, 넓어지면 같이 자랍니다. ---- */
-.atlas__grid { --n: 5; display: grid; grid-template-columns: 36px repeat(var(--n), minmax(0, 1fr)); gap: 6px; align-items: center; }
+.atlas__grid { --n: 5; display: grid; grid-template-columns: 36px repeat(var(--n), minmax(0, var(--atlas-tile-max))); gap: 6px; align-items: center; }
 .atlas__corner { min-width: 0; text-align: right; padding-right: 2px; font-size: 11px; white-space: nowrap; }
 .atlas__seat { text-align: center; min-width: 0; }
 .atlas__tri-h { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
@@ -103,6 +103,33 @@
 .atlas__more { border-top: 1px solid rgba(255, 255, 255, 0.10); }
 .atlas__more .ui-explain__more-btn { min-height: 44px; }
 .atlas__more-body { display: flex; flex-direction: column; gap: 10px; padding-bottom: 4px; }
+
+/* ---- 두 칸 (본문 ≥540: tall 시트 · land/wide 패널, Duo spec §4.5) ----
+   왼쪽 = 패 · 주장 · 타일 섹션, 오른쪽 = 선택/비교 블록. 두 칸이 시트 본문 높이를 꽉 채우고 따로 스크롤합니다 —
+   타일을 눌러도 왼쪽 스크롤은 그대로, 오른쪽만 바뀝니다. wide 에서는 1fr 1fr · 간격 48 이라 가운데 접힘선 위에서 나뉩니다. */
+.atlas--two {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); column-gap: 24px;
+  height: 100%; min-height: 0; padding-top: 0;
+}
+html[data-layout="wide"] .atlas--two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--pane-gap); }
+/* land 패널(본문 ~540): 타일 칸을 넓게(1.25fr) 잡아 타일이 44px 아래로 줄지 않게 — 오른쪽 비교 칸은 스트립이 줄어듭니다 */
+html[data-layout="land"] .atlas--two { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); column-gap: 16px; }
+/* 한 칸: 래퍼가 흐름에서 빠집니다(타일 섹션은 .atlas 의 직계처럼 흐름). 두 칸에서만 칼럼이 됩니다. */
+.atlas:not(.atlas--two) > .atlas__l { display: contents; }
+.atlas:not(.atlas--two) > .atlas__r { display: none; }
+.atlas--two > .atlas__l, .atlas--two > .atlas__r {
+  min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; gap: 14px;
+  /* 칼럼이 스크롤러라 그림자가 잘리지 않게 글로우 여백만큼 안쪽 여백을 두고 같은 만큼 밖으로 */
+  padding: 4px var(--glow-room) 16px; margin-inline: calc(-1 * var(--glow-room));
+}
+.atlas--two > .atlas__r { gap: 10px; }
+.atlas__pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.atlas__pick .atlas__linechip { padding: 0 10px; }
+.atlas__placeholder { padding: 12px 14px; border-radius: var(--r-md); background: rgba(255, 255, 255, 0.04); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.10); }
+/* 두 칸일 때 시트 본문은 스크롤하지 않고(안쪽 두 칼럼이 스크롤) 바닥 여백도 칼럼이 가집니다. */
+.ui-sheet__body:has(> div > .atlas--two) { overflow: hidden; padding-bottom: 0; }
+.ui-sheet__body > div:has(> .atlas--two) { height: 100%; }
 
 /* ---- 손패 고르기 ---- */
 .atlas__picker { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }

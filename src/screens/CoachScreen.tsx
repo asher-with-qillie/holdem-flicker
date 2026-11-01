@@ -155,10 +155,7 @@ export function CoachScreen(): JSX.Element {
   // 단계 2는 표본이 아직 얇아서 한 장만 냅니다(SPEC §7).
   const focus = cards.filter((c) => c.tone === 'focus').slice(0, stage === 2 ? 1 : 3);
   // 목록에 보이는 실수를 그대로 다시 풉니다 — 분석에서 뺀 실수도 문제로는 멀쩡합니다.
-  const retryKeys = useMemo(
-    () => Array.from(new Set(stats.mistakes.slice(0, RETRY_LIMIT).map((m) => `${m.scenarioId}|${m.hand}`))),
-    [stats],
-  );
+  const retryKeys = useMemo(() => Array.from(new Set(stats.mistakes.slice(0, RETRY_LIMIT).map((m) => `${m.scenarioId}|${m.hand}`))), [stats]);
 
   const openAxis = (a: AxisView) => {
     setAxis(a);
@@ -167,123 +164,136 @@ export function CoachScreen(): JSX.Element {
 
   return (
     <div className="screen coach" data-stage={stage}>
-      <header className="coach__head">
-        <h1 className="screen__title">코치</h1>
-        <p className="screen__sub">{used > 0 ? `퀴즈·훈련에서 낸 실수 ${used}개를 봤어요` : '퀴즈·훈련에서 낸 실수를 모아 성향을 봐요'}</p>
-        {excluded > 0 && <p className="coach__note">틀린 {excluded}개는 정답이 갈리는 문제라 성향에는 안 넣었어요</p>}
-      </header>
+      {/* .coach__area--* 래퍼(Duo spec §4.7): phone/squat 에서는 display: contents(한 칼럼 그대로),
+          land/tall/wide 에서는 왼쪽 = 성향·집중 포인트·목록, 오른쪽 = 요약·AI 코치로 놓입니다. */}
+      <div className="coach__area coach__area--head">
+        <header className="coach__head">
+          <h1 className="screen__title">코치</h1>
+          <p className="screen__sub">{used > 0 ? `퀴즈·훈련에서 낸 실수 ${used}개를 봤어요` : '퀴즈·훈련에서 낸 실수를 모아 성향을 봐요'}</p>
+          {excluded > 0 && <p className="coach__note">틀린 {excluded}개는 정답이 갈리는 문제라 성향에는 안 넣었어요</p>}
+        </header>
 
-      {/* 한 축도 안 열렸으면 단계와 상관없이 '무엇이 얼마나 더 필요한지'를 먼저 보여 줍니다. */}
-      {used > 0 && unlockedCount === 0 && gateAxis && <GateBar axis={gateAxis} />}
+        {/* 한 축도 안 열렸으면 단계와 상관없이 '무엇이 얼마나 더 필요한지'를 먼저 보여 줍니다. */}
+        {used > 0 && unlockedCount === 0 && gateAxis && <GateBar axis={gateAxis} />}
+      </div>
 
       {stage === 0 ? (
         <>
-          <CoachEmpty
-            quizTotal={digest.volume.quizTotal}
-            trials={digest.volume.trials}
-            mistakesStored={digest.volume.mistakesStored}
-            reducedMotion={reducedMotion}
-          />
-          <BasicsCards />
+          <div className="coach__area coach__area--sum">
+            <CoachEmpty
+              quizTotal={digest.volume.quizTotal}
+              trials={digest.volume.trials}
+              mistakesStored={digest.volume.mistakesStored}
+              reducedMotion={reducedMotion}
+            />
+          </div>
         </>
       ) : (
         <>
-          {stage >= 2 && (
-            <GlassPanel variant="strong" radius="lg" padding={20} className="coach-summary">
-              {/* 재 본 축이 하나도 없으면 '중립'이라고 말할 수 없습니다 — 재지 않은 것과 재 보니 가운데인 것은 다릅니다. */}
-              <p className="t-title-2 coach-summary__line">
-                {unlockedCount === 0 ? '아직 성향을 재는 중이에요' : (tendency ? tendency.title : '아직 한쪽으로 치우치지 않았어요')}
-              </p>
-              <p className="coach-summary__note">
-                {unlockedCount === 0 ? '표본이 모이면 어느 쪽으로 기우는지 말해 드려요' : '퀴즈·훈련에서 문제를 풀 때의 성향입니다'}
-              </p>
-              <p className="coach-summary__note tnum">{unlockedCount === 0 ? `실수 ${used}개를 모았어요` : `실수 ${used}개 기준`}</p>
-            </GlassPanel>
-          )}
+          <div className="coach__area coach__area--sum">
+            {stage >= 2 && (
+              <GlassPanel variant="strong" radius="lg" padding={20} className="coach-summary">
+                {/* 재 본 축이 하나도 없으면 '중립'이라고 말할 수 없습니다 — 재지 않은 것과 재 보니 가운데인 것은 다릅니다. */}
+                <p className="t-title-2 coach-summary__line">
+                  {unlockedCount === 0 ? '아직 성향을 재는 중이에요' : tendency ? tendency.title : '아직 한쪽으로 치우치지 않았어요'}
+                </p>
+                <p className="coach-summary__note">
+                  {unlockedCount === 0 ? '표본이 모이면 어느 쪽으로 기우는지 말해 드려요' : '퀴즈·훈련에서 문제를 풀 때의 성향입니다'}
+                </p>
+                <p className="coach-summary__note tnum">{unlockedCount === 0 ? `실수 ${used}개를 모았어요` : `실수 ${used}개 기준`}</p>
+              </GlassPanel>
+            )}
+          </div>
 
-          {stage >= 2 && good && (
-            <GlassPanel variant="tint" tint="var(--mint)" radius="md" padding={12} className="coach-good">
-              <span className="coach-good__title">{good.title}</span>
-              <span className="coach-good__ev tnum">{good.evidence}</span>
-            </GlassPanel>
-          )}
+          <div className="coach__area coach__area--focus">
+            {stage >= 2 && good && (
+              <GlassPanel variant="tint" tint="var(--mint)" radius="md" padding={12} className="coach-good">
+                <span className="coach-good__title">{good.title}</span>
+                <span className="coach-good__ev tnum">{good.evidence}</span>
+              </GlassPanel>
+            )}
 
-          <section className="coach-section" aria-label="내 성향">
-            <header className="coach-sec">
-              <h2 className="t-title-3">내 성향</h2>
-            </header>
-            <TendencyAxes axes={digest.axes} entering={reducedMotion ? [] : entering} onOpen={openAxis} />
-          </section>
-
-          {stage >= 2 && focus.length > 0 && (
-            <section className="coach-section" aria-label="집중할 포인트">
+            <section className="coach-section" aria-label="내 성향">
               <header className="coach-sec">
-                <h2 className="t-title-3">집중할 포인트</h2>
+                <h2 className="t-title-3">내 성향</h2>
               </header>
-              <div className="coach-stack">
-                {focus.map((c, i) => (
-                  <CoachCardView key={c.id} card={c} rank={i + 1} accent={i === 0 ? 'var(--flame)' : 'var(--mint)'} primary={i === 0} />
-                ))}
-              </div>
+              <TendencyAxes axes={digest.axes} entering={reducedMotion ? [] : entering} onOpen={openAxis} />
             </section>
-          )}
 
-          {/*
+            {stage >= 2 && focus.length > 0 && (
+              <section className="coach-section" aria-label="집중할 포인트">
+                <header className="coach-sec">
+                  <h2 className="t-title-3">집중할 포인트</h2>
+                </header>
+                <div className="coach-stack">
+                  {focus.map((c, i) => (
+                    <CoachCardView key={c.id} card={c} rank={i + 1} accent={i === 0 ? 'var(--flame)' : 'var(--mint)'} primary={i === 0} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          <div className="coach__area coach__area--ai">
+            {/*
             AI 카드는 규칙 카드를 대체하지 않고 그 아래에 붙습니다 — 답이 안 와도 화면은 이미 완성돼 있습니다.
             섹션이 뜨는 조건(받아 둔 답이 있거나 키가 있다)과 버튼이 열리는 조건(다시 물어볼 때가 됐다)을
             갈라 둡니다. 둘을 묶어 두면 [새로 받기]는 답이 있을 때만 보이는데 답이 있으면 곧바로 잠기는,
             구조적으로 눌리지 않는 버튼이 됩니다.
           */}
-          {stage >= 2 && (coach.answer !== null || coach.hasKey) && (
-            <section className="coach-section" aria-label="AI 코치">
-              {coach.answer !== null && (
-                <div className="coach-stack">
-                  {coach.answer.map((c) => (
-                    <CoachCardView key={`ai:${c.id}`} card={c} accent="var(--sky)" />
-                  ))}
+            {stage >= 2 && (coach.answer !== null || coach.hasKey) && (
+              <section className="coach-section" aria-label="AI 코치">
+                {coach.answer !== null && (
+                  <div className="coach-stack">
+                    {coach.answer.map((c) => (
+                      <CoachCardView key={`ai:${c.id}`} card={c} accent="var(--sky)" />
+                    ))}
+                  </div>
+                )}
+                <div className="coach-again">
+                  <span className="coach-again__at tnum">{coach.at === null ? '아직 받은 답이 없어요' : `${formatAgo(coach.at)} 받았어요`}</span>
+                  <CapsuleButton tone="ghost" size="md" disabled={!coach.canAsk} onClick={coach.ask}>
+                    {coach.busy ? '받는 중' : coach.answer !== null ? '새로 받기' : '바로 받기'}
+                  </CapsuleButton>
                 </div>
-              )}
-              <div className="coach-again">
-                <span className="coach-again__at tnum">{coach.at === null ? '아직 받은 답이 없어요' : `${formatAgo(coach.at)} 받았어요`}</span>
-                <CapsuleButton tone="ghost" size="md" disabled={!coach.canAsk} onClick={coach.ask}>
-                  {coach.busy ? '받는 중' : coach.answer !== null ? '새로 받기' : '바로 받기'}
-                </CapsuleButton>
-              </div>
-              {/*
+                {/*
                 왜 못 누르는지를 적습니다. 남은 개수는 적지 않습니다 — 그 기준값은 aiStore 안에 있어서
                 여기서 읽을 수 없고, 읽지 못한 숫자를 지어내는 건 이 화면이 하지 않는 일입니다.
               */}
-              {!coach.canAsk && !coach.busy && (
-                <p className="coach-again__why">
-                  {coach.hasKey ? '새 실수가 더 쌓이거나 하루가 지나면 다시 받을 수 있어요' : 'API 키가 없어서 지금은 못 받아요'}
-                </p>
-              )}
-            </section>
-          )}
+                {!coach.canAsk && !coach.busy && (
+                  <p className="coach-again__why">
+                    {coach.hasKey ? '새 실수가 더 쌓이거나 하루가 지나면 다시 받을 수 있어요' : 'API 키가 없어서 지금은 못 받아요'}
+                  </p>
+                )}
+              </section>
+            )}
 
-          {stage >= 2 && <AskAiPanel digest={digest} coach={coach} />}
-
-          {stage === 1 && <BasicsCards />}
+            {stage >= 2 && <AskAiPanel digest={digest} coach={coach} />}
+          </div>
         </>
       )}
 
-      {/*
+      <div className="coach__area coach__area--more">
+        {stage <= 1 && <BasicsCards />}
+
+        {/*
         아래 두 섹션은 단계 밖입니다(SPEC §7: 1건이라도 있으면 켠다). 성향을 못 재는 것과 실수 목록이
         없는 것은 다른 이야기인데, 단계 0 분기 안에 두면 같은 기기의 퀴즈 탭에는 보이는 실수가
         코치 탭에서만 사라집니다.
       */}
-      {digest.weakSpots.length > 0 && <WeakSpotList spots={digest.weakSpots} />}
+        {digest.weakSpots.length > 0 && <WeakSpotList spots={digest.weakSpots} />}
 
-      {stats.mistakes.length > 0 && (
-        <section className="coach-section" aria-label="최근 실수">
-          <MistakeList mistakes={stats.mistakes} />
-          {retryKeys.length > 0 && (
-            <CapsuleButton tone="ghost" block onClick={() => launch({ target: 'quiz', onlyKeys: retryKeys, autostart: true })}>
-              틀린 것만 다시 풀기 · {retryKeys.length}문제
-            </CapsuleButton>
-          )}
-        </section>
-      )}
+        {stats.mistakes.length > 0 && (
+          <section className="coach-section" aria-label="최근 실수">
+            <MistakeList mistakes={stats.mistakes} />
+            {retryKeys.length > 0 && (
+              <CapsuleButton tone="ghost" block onClick={() => launch({ target: 'quiz', onlyKeys: retryKeys, autostart: true })}>
+                틀린 것만 다시 풀기 · {retryKeys.length}문제
+              </CapsuleButton>
+            )}
+          </section>
+        )}
+      </div>
 
       <AxisSheet axis={axis} open={axisOpen} onClose={() => setAxisOpen(false)} mistakes={digest.recentMistakes} />
     </div>

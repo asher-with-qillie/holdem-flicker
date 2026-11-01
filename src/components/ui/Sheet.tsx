@@ -1,14 +1,34 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useLayout } from '../../state/viewport';
 
 export interface SheetProps {
   open: boolean;
   onClose(): void;
   title?: string;
-  detent?: 'auto' | 'half' | 'full'; // auto = content height ≤ 62vh; half = 62vh; full = 92vh (scrollable)
+  /** auto = content height ≤ 62% core; half = top edge at 38% core; full = top edge at 8% core; peek = ≤ min(232, 42% core).
+   *  peek exists only on phone/squat; on other classes it is treated as auto. Switching detent never remounts. */
+  detent?: 'auto' | 'half' | 'full' | 'peek';
   held?: boolean; // hold overlay variant: pointer-events none, height 72%, no backdrop tap, bottom fade mask 48px
-  footer?: ReactNode; // sticky bottom row
+  footer?: ReactNode; // bottom row (flex: none, never sticky)
+  /** land/wide: which edge the side sheet docks to (default 'end'). Ignored on phone/squat/tall. */
+  side?: 'start' | 'end';
+  /** default true. false = no backdrop, no scroll lock, aria-modal=false, no focus trap; Esc closes it while top-most. */
+  modal?: boolean;
+  /** land/wide: keep the bottom-sheet presentation instead of side/panel. */
+  forceBottom?: boolean;
+  /** sheet with a text field: height follows the visual viewport (keyboard) via --vv-h. */
+  input?: boolean;
   children: ReactNode;
+}
+
+export type SheetPresentation = 'bottom' | 'side' | 'panel';
+/** §7: (land|wide) ? (forceBottom ? bottom : detent==='full' && !side ? panel : side) : bottom. held → side end. */
+export function sheetPresentation(layout: string, detent: SheetProps['detent'], side: SheetProps['side'], forceBottom?: boolean, held?: boolean): SheetPresentation {
+  if (layout !== 'land' && layout !== 'wide') return 'bottom';
+  if (held) return 'side';
+  if (forceBottom) return 'bottom';
+  return detent === 'full' && !side ? 'panel' : 'side';
 }
 
 const DISMISS_MS = 220;
@@ -34,7 +54,10 @@ function unlock() {
  * Backdrop tap / Esc close it; focus is trapped and restored; the app scroller is locked while open.
  * Keep it mounted with `open={false}` to get the exit animation (it unmounts itself after the transition).
  */
-export function Sheet({ open, onClose, title, detent = 'auto', held, footer, children }: SheetProps): JSX.Element | null {
+export function Sheet({ open, onClose, title, detent = 'auto', held, footer, side, modal = true, forceBottom, input, children }: SheetProps): JSX.Element | null {
+  const layout = useLayout();
+  const presentation = sheetPresentation(layout, detent, side, forceBottom, held);
+  const effDetent = detent === 'peek' && layout !== 'phone' && layout !== 'squat' ? 'auto' : detent;
   const [present, setPresent] = useState(open);
   const [shown, setShown] = useState(false);
   const panel = useRef<HTMLElement>(null);
@@ -70,16 +93,18 @@ export function Sheet({ open, onClose, title, detent = 'auto', held, footer, chi
     };
   }, [present, open]);
 
-  // focus trap, Esc, scroll lock (not for the held overlay)
+  // focus trap, Esc, scroll lock (not for the held overlay; a non-modal sheet only gets Esc)
   useEffect(() => {
     if (!present || held) return;
     const id = ++sheetSeq;
     idRef.current = id;
     stack.push(id);
-    restore.current = document.activeElement;
-    lock();
     const el = panel.current;
-    el?.focus({ preventScroll: true });
+    if (modal) {
+      restore.current = document.activeElement;
+      lock();
+      el?.focus({ preventScroll: true });
+    }
     const onKey = (e: KeyboardEvent) => {
       if (stack[stack.length - 1] !== id) return;
       if (e.key === 'Escape') {
@@ -87,7 +112,7 @@ export function Sheet({ open, onClose, title, detent = 'auto', held, footer, chi
         onCloseRef.current();
         return;
       }
-      if (e.key === 'Tab' && el) {
+      if (modal && e.key === 'Tab' && el) {
         const nodes = Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((n) => n.offsetParent !== null);
         if (nodes.length === 0) {
           e.preventDefault();
@@ -111,19 +136,37 @@ export function Sheet({ open, onClose, title, detent = 'auto', held, footer, chi
       document.removeEventListener('keydown', onKey);
       const i = stack.indexOf(id);
       if (i >= 0) stack.splice(i, 1);
-      unlock();
-      const r = restore.current;
-      if (r instanceof HTMLElement && r.isConnected) r.focus({ preventScroll: true });
+      if (modal) {
+        unlock();
+        const r = restore.current;
+        if (r instanceof HTMLElement && r.isConnected) r.focus({ preventScroll: true });
+      }
     };
-  }, [present, held]);
+  }, [present, held, modal]);
 
   if (!present) return null;
 
-  const cls = ['ui-sheet', 'glass-strong', `ui-sheet--${detent}`, held ? 'ui-sheet--held' : '', shown ? 'ui-sheet--in' : ''].filter(Boolean).join(' ');
+  const cls = [
+    'ui-sheet',
+    'glass-strong',
+    presentation === 'bottom' ? `ui-sheet--${effDetent}` : `ui-sheet--${presentation}`,
+    presentation === 'side' && side === 'start' && !held ? 'ui-sheet--start' : '',
+    input ? 'ui-sheet--input' : '',
+    held ? 'ui-sheet--held' : '',
+    modal ? '' : 'ui-sheet--modeless',
+    shown ? 'ui-sheet--in' : '',
+  ].filter(Boolean).join(' ');
+  const backdrop = modal || held;
   const node = (
     <>
-      <div className={`ui-sheet__backdrop${shown ? ' ui-sheet__backdrop--in' : ''}${held ? ' ui-sheet__backdrop--held' : ''}`} onClick={held ? undefined : onClose} aria-hidden="true" />
-      <section ref={panel} className={cls} role="dialog" aria-modal={held ? undefined : true} aria-label={title} tabIndex={-1}>
+      {backdrop && (
+        <div
+          className={`ui-sheet__backdrop${presentation === 'side' ? ' ui-sheet__backdrop--side' : ''}${shown ? ' ui-sheet__backdrop--in' : ''}${held ? ' ui-sheet__backdrop--held' : ''}`}
+          onClick={held ? undefined : onClose}
+          aria-hidden="true"
+        />
+      )}
+      <section ref={panel} className={cls} role="dialog" aria-modal={held ? undefined : modal} aria-label={title} tabIndex={-1} data-presentation={presentation}>
         <div className="ui-sheet__grab" aria-hidden="true">
           <span />
         </div>

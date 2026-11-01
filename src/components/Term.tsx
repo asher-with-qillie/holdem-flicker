@@ -2,6 +2,7 @@ import { Fragment, createContext, useContext, useEffect, useLayoutEffect, useRef
 import { createPortal } from 'react-dom';
 import { glossSentence } from '../poker/explain';
 import { GLOSSARY_WORDS, glossaryLookup, type GlossaryEntry } from '../poker/glossary';
+import { viewportHeight, viewportTop } from '../state/viewport';
 import '../styles/explain.css';
 
 /*
@@ -236,15 +237,17 @@ export function TermPopover({ open }: { open: OpenTerm }) {
       return;
     }
     const r = open.anchor.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vw = document.documentElement.clientWidth || window.innerWidth;
+    // 보이는 영역(visualViewport) 기준 — Safari 툴바 · 키보드 · 접었다 펼친 뒤의 이상값은 viewport.ts 가 걸러 냅니다.
+    const vTop = viewportTop();
+    const vBottom = vTop + viewportHeight();
     const w = Math.min(WIDTH, vw - MARGIN * 2);
     const h = boxRef.current?.offsetHeight ?? 96;
     let left = r.left + r.width / 2 - w / 2;
     left = Math.max(MARGIN, Math.min(left, vw - MARGIN - w));
     const below = r.bottom + 8;
-    const fitsBelow = below + h <= vh - MARGIN;
-    const top = fitsBelow ? below : Math.max(MARGIN, r.top - 8 - h);
+    const fitsBelow = below + h <= vBottom - MARGIN;
+    const top = fitsBelow ? below : Math.max(vTop + MARGIN, r.top - 8 - h);
     setAbove(!fitsBelow);
     setStyle({ left, top, width: w, '--arrow-x': `${r.left + r.width / 2 - left}px` } as CSSProperties);
   }, [open]);
@@ -277,11 +280,17 @@ export function TermPopover({ open }: { open: OpenTerm }) {
     document.addEventListener('keydown', onKey, true);
     document.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onScroll);
+    // 페이지 끝에서 툴바가 다시 자라거나 접기·펼치기 직후에는 visualViewport 이벤트만 옵니다(Duo spec §2.5).
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', onScroll);
+    vv?.addEventListener('scroll', onScroll);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
       document.removeEventListener('keydown', onKey, true);
       document.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onScroll);
+      vv?.removeEventListener('resize', onScroll);
+      vv?.removeEventListener('scroll', onScroll);
     };
   }, [open]);
 

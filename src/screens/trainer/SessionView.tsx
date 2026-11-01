@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { ExplanationBody, ExplanationSheet } from '../../components/ExplanationSheet';
+import { SeatChips } from '../../components/SeatChips';
 import { TableDiagram } from '../../components/TableDiagram';
 import { TimerBar } from '../../components/TimerBar';
 import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { CoachMark, defaultCoachSteps } from '../../components/ui/CoachMark';
 import { IconButton } from '../../components/ui/IconButton';
 import { Sheet } from '../../components/ui/Sheet';
-import { IconNext, IconPrev } from '../../components/ui/icons';
+import { IconNext, IconPlay, IconPrev } from '../../components/ui/icons';
+import { ActionShares } from '../charts/ChartStats';
+import { getChartDef } from '../../poker/data';
+import { restAction } from '../../poker/range';
 import { nearestCellWithAction } from '../../poker/atlas';
 import { explainStep, suitOrientation } from '../../poker/explain';
 import { scenarioSituation } from '../../poker/scenarios';
@@ -14,14 +18,17 @@ import { scenarioActions } from '../../poker/types';
 import { openAtlas } from '../../state/atlas';
 import { useProgress } from '../../state/progress';
 import { COACH_VERSION, updateSettings, type Settings } from '../../state/settings';
+import { onViewportJump, useLayout } from '../../state/viewport';
 import { useReducedMotion } from '../home/useReducedMotion';
 import { AnswerSlot } from './AnswerSlot';
 import { ChoiceButtons } from './ChoiceButtons';
 import { RevealChart } from './RevealChart';
 import { SessionHud } from './SessionHud';
-import { NEXT_AUTO_MS, setCoachOpen, type SessionCard } from './sessionStore';
+import { cardOutcome, SessionRibbon, type Outcome, type RibbonItem } from './SessionRibbon';
+import { awaitsNext, cancelAutoNext, getSession, NEXT_AUTO_MS, setCoachOpen, togglePause, type SessionCard } from './sessionStore';
+import { StageChart } from './StageChart';
 import { StepCrumbs } from './StepCrumbs';
-import { SwipeStage } from './SwipeStage';
+import { SwipeStage, useHoldGesture } from './SwipeStage';
 import { formatCountdown, useRafTimer } from './useRafTimer';
 import type { TrainerSession } from './useTrainerSession';
 
@@ -48,9 +55,29 @@ function outcomeLine(card: SessionCard): { text: string; tone: 'correct' | 'part
  * Owns the rAF loop so per-frame progress updates re-render only the bar + the countdown number.
  * `waitNext` (choose-mode reveal): no countdown row — the 다음 button carries it; the row states how the card leaves.
  */
-function PhaseTimer({ durationMs, running, resetKey, paused, hidden, waitNext, autoNext, phase, onExpire }: { durationMs: number; running: boolean; resetKey: string; paused: boolean; hidden: boolean; waitNext: boolean; autoNext: boolean; phase: 'think' | 'reveal'; onExpire: () => void }) {
+function PhaseTimer({ durationMs, running, resetKey, paused, hidden, waitNext, autoNext, phase, hud, onExpire }: { durationMs: number; running: boolean; resetKey: string; paused: boolean; hidden: boolean; waitNext: boolean; autoNext: boolean; phase: 'think' | 'reveal'; hud?: boolean; onExpire: () => void }) {
   const { progress, remainingMs } = useRafTimer(durationMs, running, resetKey, onExpire);
   const num = formatCountdown(remainingMs);
+  if (hud) {
+    // Inside the HUD capsule (squat / land / tall / wide): the number + a 3 px line along the capsule's bottom edge.
+    // The choose-mode reveal shows no number (the 다음 button counts); its hint stays for screen readers.
+    return (
+      <div className={`trainer-timer trainer-timer--hud${hidden ? ' trainer-timer--hidden' : ''}${waitNext ? ' trainer-timer--wait' : ''}`} aria-hidden={hidden || undefined}>
+        {waitNext ? (
+          <span className="trainer-timer__num trainer-timer__num--wait trainer-sr" role="status">
+            {paused ? '일시정지' : autoNext ? NEXT_HINT_AUTO : NEXT_HINT_MANUAL}
+          </span>
+        ) : (
+          <>
+            <span className={`trainer-timer__num tnum trainer-timer__num--${paused ? 'paused' : phase}`} role="timer" aria-live="off">
+              {paused ? '멈춤' : num}
+            </span>
+            <TimerBar progress={progress} paused={paused} />
+          </>
+        )}
+      </div>
+    );
+  }
   if (waitNext) {
     return (
       <div className="trainer-timer__wrap trainer-timer__wrap--wait">
@@ -109,12 +136,27 @@ function NextButton({ armed, resetKey, reduced, onNext }: { armed: boolean; rese
   );
 }
 
+/** Ribbon items: cards already shown this session (and the current one once revealed), newest first. */
+function ribbonItems(queue: SessionCard[], index: number, revealed: boolean, limit: number): RibbonItem[] {
+  const end = revealed ? index + 1 : index;
+  const out: RibbonItem[] = [];
+  for (let i = end - 1; i >= 0 && out.length < limit; i--) {
+    const c = queue[i];
+    out.push({ key: c.id, hand: c.step.hand, outcome: cardOutcome(c) });
+  }
+  return out;
+}
+
 export function SessionView({ s, settings }: { s: TrainerSession; settings: Settings }) {
   const { card, step, session } = s;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [chartOpen, setChartOpen] = useState(false);
   const pv = useProgress(settings.dailyGoal);
   const reduced = useReducedMotion();
+  const layout = useLayout();
+  const phone = layout === 'phone';
+  /** tall / wide: the labelled 13×13 G lives in the session itself, so the 차트 sheet is not needed. */
+  const inlineChart = layout === 'tall' || layout === 'wide';
 
   // 해설 속 예시 카드는 지금 화면에 깔린 카드와 같은 무늬 배치로 나옵니다.
   const explanation = useMemo(() => (step && card ? explainStep(step, suitOrientation(card.cards)) : null), [step, card]);
@@ -141,6 +183,25 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
     s.setSheetOpen(false);
   }, [s.setSheetOpen]);
 
+  // Unfolded (tall / wide): G is inline, so an open 차트 sheet closes itself (Duo spec §6.4).
+  useEffect(() => {
+    if (inlineChart && chartOpen) closeChart();
+  }, [inlineChart, chartOpen, closeChart]);
+
+  // Fold / unfold / rotate (width jump ≥ 80, Duo spec §6.2): a running timer pauses — the overlay waits for a tap —
+  // and the reveal auto-advance is always cancelled, so the card never flips while the screen is changing shape.
+  useEffect(
+    () =>
+      onViewportJump(() => {
+        const st = getSession();
+        if (!st) return;
+        const timerRunning = st.status === 'running' && !st.holding && (st.phase === 'think' || !awaitsNext(st));
+        if (timerRunning) togglePause();
+        else cancelAutoNext();
+      }),
+    [],
+  );
+
   /** 해설 시트의 「이 패, 다른 자리에서는?」 — 시트를 닫고 아틀라스로. 오답이면 고른 답이 정답인 가장 가까운 칸을 비교로 넘깁니다. */
   const across = useCallback(() => {
     if (!step || !card) return;
@@ -148,6 +209,12 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
     const compare = card.grade === 'wrong' && card.chosenAction ? nearestCellWithAction(step.scenario, step.hand, card.chosenAction) : null;
     openAtlas({ hand: step.hand, origin: step.scenario, ...(compare ? { compare } : {}) });
   }, [s.setSheetOpen, step, card]);
+  /** S (tall / wide reveal) → 자리별 보기 for this hand. openAtlas pauses the session. */
+  const seatsAcross = useCallback(() => {
+    if (!step || !card) return;
+    const compare = card.grade === 'wrong' && card.chosenAction ? nearestCellWithAction(step.scenario, step.hand, card.chosenAction) : null;
+    openAtlas({ hand: step.hand, origin: step.scenario, ...(compare ? { compare } : {}) });
+  }, [step, card]);
 
   const coachDone = useCallback(() => {
     updateSettings({ coachSeen: COACH_VERSION });
@@ -159,6 +226,7 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
   const onHoldEnd = useCallback(() => s.setHolding(false), [s.setHolding]);
   /** Touching the card area counts as "I am reading this" — the auto-advance stops for good on this card. */
   const onStagePress = useCallback(() => s.cancelAutoNext(), [s.cancelAutoNext]);
+  const hold = useHoldGesture({ onHoldStart, onHoldEnd, onPress: onStagePress });
 
   // Keyboard equivalents (desktop testing): 1–3 pick a choice · Space / Enter / → = 다음 in the reveal state.
   useEffect(() => {
@@ -179,17 +247,30 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
     return () => window.removeEventListener('keydown', onKey);
   }, [s.status, s.sheetOpen, s.coachOpen, s.phase, quiet, step, s.choose, s.next]);
 
+  const queue = session?.queue;
+  const reveal = s.phase === 'reveal';
+  const results = useMemo<Array<Outcome | undefined> | undefined>(() => {
+    if (!queue) return undefined;
+    return queue.map((c, i) => (i < s.index || (i === s.index && reveal) ? cardOutcome(c) : undefined));
+  }, [queue, s.index, reveal]);
+  const ribbon = useMemo(() => (queue ? ribbonItems(queue, s.index, reveal, 24) : []), [queue, s.index, reveal]);
+  const shareRest = useMemo(() => (step ? restAction(getChartDef(step.scenario)) : 'fold'), [step]);
+
   if (!card || !step || !explanation || !session) return null;
 
-  const seenCount = session.queue.filter((c) => c.exposed).length + (s.phase === 'reveal' && !card.exposed ? 1 : 0);
+  const seenCount = session.queue.filter((c) => c.exposed).length + (reveal && !card.exposed ? 1 : 0);
   const showHint = pv.totalCards < HINT_UNTIL_CARDS;
   const timerPaused = s.paused || s.holding || s.sheetOpen || s.coachOpen;
-  const reveal = s.phase === 'reveal';
   const outcome = reveal && !quiet ? outcomeLine(card) : null;
   const canFlag = reveal && (quiet || card.rating === 'know' || card.flagged);
+  /** Masked G / T while thinking; 순간기억 flips think↔reveal every 1.5 s, so its map stays masked to avoid flashing. */
+  const flashing = quiet && !session.config.exposure;
+  const masked = !reveal || flashing;
+  const slotSize = inlineChart ? 'md' : 'sm';
 
-  const rootCls = [
-    'trainer-session',
+  const wrapCls = [
+    'vb',
+    'trainer-vb',
     reveal ? `trainer-session--reveal trainer-session--${s.tone}` : 'trainer-session--think',
     s.holding ? 'trainer-session--holding' : '',
     s.paused ? 'trainer-session--paused' : '',
@@ -198,74 +279,182 @@ export function SessionView({ s, settings }: { s: TrainerSession; settings: Sett
     .filter(Boolean)
     .join(' ');
 
+  const timer = (
+    <PhaseTimer
+      durationMs={s.durationMs}
+      running={s.running}
+      resetKey={s.timerKey}
+      paused={timerPaused}
+      hidden={s.timerHidden}
+      waitNext={s.waitNext}
+      autoNext={s.autoNext}
+      phase={s.phase}
+      hud={!phone}
+      onExpire={s.onExpire}
+    />
+  );
+
+  const answerSlot = <AnswerSlot phase={s.phase} explanation={explanation} showMix={s.showMix} animKey={s.timerKey} hint={showHint ? HOLD_HINT : undefined} grade={quiet ? undefined : card.grade} size={slotSize} />;
+
+  // T (label-less map): squat / land beside the cards (masked → painted; reveal = opens the 차트 sheet);
+  // phone: crossfades over the cards on reveal only (think stays exactly as before).
+  // (in the reveal the map carries .trainer-chartbtn too — it is the 차트 entry on squat / land, where the button row has none)
+  const sideMap =
+    layout === 'squat' || layout === 'land' ? <StageChart step={step} masked={masked} variant="thumb" onOpen={reveal ? openChart : undefined} className={reveal ? 'trainer-chartbtn trainer-chartbtn--map' : undefined} /> : undefined;
+  const revealMap = phone && reveal && !flashing ? <StageChart step={step} masked={false} variant="thumb" onOpen={openChart} className="trainer-revealmap__chart" /> : undefined;
+
+  const flagIcon: ReactNode = canFlag ? (
+    <IconButton
+      icon={<span className="trainer-flagicon__glyph" aria-hidden="true">🤔</span>}
+      label={card.flagged ? '헷갈려요 표시 지우기' : '헷갈려요로 표시'}
+      active={!!card.flagged}
+      onClick={s.flagToggle}
+      className={`trainer-flagicon${card.flagged ? ' trainer-flagicon--on' : ''}`}
+    />
+  ) : null;
+
+  const seats = <SeatChips step={step} explanation={explanation} masked={masked} onPress={reveal ? seatsAcross : undefined} />;
+  const shares = (
+    <div className={`trainer-shares${masked ? ' trainer-shares--masked' : ''}`} aria-hidden={masked || undefined}>
+      <ActionShares cells={step.cells} kind={step.scenario.kind} hero={step.scenario.hero} rest={shareRest} />
+    </div>
+  );
+
   return (
-    <div className={rootCls}>
+    <div className={wrapCls}>
       <div className="trainer-session__wash" aria-hidden="true" />
-      <SessionHud index={s.index} total={session.queue.length} size={session.config.size} origin={card.origin} phase={s.phase} quiet={quiet} paused={s.paused} holding={s.holding} onClose={openConfirm} onTogglePause={s.togglePause} />
+      <div className={`vb__core trainer-session trainer-session--${layout}`} {...hold}>
+        <SessionHud
+          index={s.index}
+          total={session.queue.length}
+          size={session.config.size}
+          origin={card.origin}
+          phase={s.phase}
+          quiet={quiet}
+          paused={s.paused}
+          holding={s.holding}
+          results={results}
+          timer={phone ? undefined : timer}
+          onClose={openConfirm}
+          onTogglePause={s.togglePause}
+        />
 
-      <div className="trainer-strip fill">
-        <TableDiagram scenario={step.scenario} compact />
-      </div>
-      <p className="trainer-situation t-headline">
-        <span>{scenarioSituation(step.scenario)}</span>
-      </p>
-      <div className="trainer-crumbs-slot">{s.chain.length > 1 && <StepCrumbs steps={s.chain} current={s.chainIndex} />}</div>
-
-      <SwipeStage card={card} phase={s.phase} crossfade={quiet} transitionMs={session.timing.transition} onHoldStart={onHoldStart} onHoldEnd={onHoldEnd} onPress={onStagePress}>
-        <div className="trainer-timer">
-          <PhaseTimer durationMs={s.durationMs} running={s.running} resetKey={s.timerKey} paused={timerPaused} hidden={s.timerHidden} waitNext={s.waitNext} autoNext={s.autoNext} phase={s.phase} onExpire={s.onExpire} />
+        <div className="trainer-q">
+          <div className="trainer-strip fill">
+            <TableDiagram scenario={step.scenario} compact />
+          </div>
+          <p className="trainer-situation t-headline">
+            <span>{scenarioSituation(step.scenario)}</span>
+          </p>
+          <div className="trainer-crumbs-slot">{s.chain.length > 1 && <StepCrumbs steps={s.chain} current={s.chainIndex} />}</div>
+          <SwipeStage card={card} phase={s.phase} crossfade={quiet} transitionMs={session.timing.transition} map={sideMap} revealMap={revealMap} onChart={sideMap && reveal ? openChart : undefined} />
         </div>
 
-        {!quiet && (
-          <div className="trainer-choose">
-            <p className={`trainer-choose__prompt t-headline${outcome ? ` trainer-choose__prompt--${outcome.tone}` : ''}`} role="status" aria-live="polite">
-              {outcome ? outcome.text : PROMPT}
-            </p>
-            <ChoiceButtons step={step} chosen={card.chosenAction} grade={card.grade} revealed={reveal} onChoose={s.choose} />
+        <div className="trainer-a" data-hold="">
+          {phone && <div className="trainer-timer">{timer}</div>}
+
+          {!quiet && (
+            <div className="trainer-choose">
+              <p className={`trainer-choose__prompt t-headline${outcome ? ` trainer-choose__prompt--${outcome.tone}` : ''}`} role="status" aria-live="polite">
+                {outcome ? outcome.text : PROMPT}
+              </p>
+              <ChoiceButtons step={step} chosen={card.chosenAction} grade={card.grade} revealed={reveal} onChoose={s.choose} />
+            </div>
+          )}
+          {quiet && !phone && <p className="trainer-quietcap t-footnote">{QUIET_CAPTION}</p>}
+
+          {layout !== 'wide' && answerSlot}
+
+          {phone && (
+            <div className="trainer-rateslot">
+              {canFlag ? (
+                <CapsuleButton tone={card.flagged ? 'unsure' : 'ghost'} size="md" className="trainer-flagbtn" onClick={s.flagToggle} aria-pressed={!!card.flagged}>
+                  {card.flagged ? '🤔 헷갈려요로 표시됨' : '헷갈려요로 표시'}
+                </CapsuleButton>
+              ) : reveal && !quiet ? (
+                <p className="trainer-rateslot__caption t-footnote">{UNSURE_CAPTION}</p>
+              ) : quiet ? (
+                <p className="trainer-rateslot__caption t-footnote">{QUIET_CAPTION}</p>
+              ) : null}
+            </div>
+          )}
+
+          {/* choose-mode reveal: the only way forward is the prominent 다음 (also Enter / →); 노출·순간기억 keep ▶ */}
+          <div className={`trainer-controls${s.waitNext ? ' trainer-controls--next' : ''}`}>
+            <IconButton icon={<IconPrev />} label="이전 카드" onClick={s.prev} disabled={s.index === 0} />
+            <CapsuleButton tone="neutral" size={s.waitNext ? 'xl' : 'lg'} className="trainer-controls__main" onClick={() => s.setSheetOpen(true)}>
+              해설
+            </CapsuleButton>
+            {/* phone only: 노출은 reveal이 계속 유지되지만 순간기억은 1.5초마다 think↔reveal을 오가므로 행이 흔들려요 — 차트 버튼을 빼요.
+                Other classes open the chart from the map (T) or show it inline (G). */}
+            {phone && reveal && (!quiet || session.config.exposure) && (
+              <CapsuleButton tone="neutral" size={s.waitNext ? 'xl' : 'lg'} className="trainer-controls__main trainer-chartbtn" onClick={openChart}>
+                차트
+              </CapsuleButton>
+            )}
+            {!phone && flagIcon}
+            {s.waitNext ? (
+              <NextButton armed={s.autoNext} resetKey={s.autoNextKey} reduced={reduced} onNext={s.next} />
+            ) : (
+              <IconButton icon={<IconNext />} label="다음 카드" onClick={s.next} />
+            )}
+          </div>
+        </div>
+
+        {inlineChart && (
+          <div className="trainer-ctx" data-hold="">
+            {layout === 'wide' && answerSlot}
+            {layout === 'tall' && (
+              <>
+                <div className="trainer-ctx__grid">
+                  <StageChart step={step} masked={masked} variant="full" />
+                </div>
+                {shares}
+                {seats}
+              </>
+            )}
+            {layout === 'wide' && (
+              <>
+                {seats}
+                <div className="trainer-ctx__row">
+                  <div className="trainer-ctx__grid">
+                    <StageChart step={step} masked={masked} variant="full" />
+                  </div>
+                  <SessionRibbon items={ribbon} vertical className="trainer-ctx__rib" />
+                </div>
+              </>
+            )}
           </div>
         )}
-
-        <AnswerSlot phase={s.phase} explanation={explanation} showMix={s.showMix} animKey={s.timerKey} hint={showHint ? HOLD_HINT : undefined} grade={quiet ? undefined : card.grade} />
-      </SwipeStage>
-
-      <div className="trainer-rateslot">
-        {canFlag ? (
-          <CapsuleButton tone={card.flagged ? 'unsure' : 'ghost'} size="md" className="trainer-flagbtn" onClick={s.flagToggle} aria-pressed={!!card.flagged}>
-            {card.flagged ? '🤔 헷갈려요로 표시됨' : '헷갈려요로 표시'}
-          </CapsuleButton>
-        ) : reveal && !quiet ? (
-          <p className="trainer-rateslot__caption t-footnote">{UNSURE_CAPTION}</p>
-        ) : quiet ? (
-          <p className="trainer-rateslot__caption t-footnote">{QUIET_CAPTION}</p>
-        ) : null}
-      </div>
-
-      {/* choose-mode reveal: the only way forward is the prominent 다음 (also Enter / →); 노출·순간기억 keep ▶ */}
-      <div className={`trainer-controls${s.waitNext ? ' trainer-controls--next' : ''}`}>
-        <IconButton icon={<IconPrev />} label="이전 카드" onClick={s.prev} disabled={s.index === 0} />
-        <CapsuleButton tone="neutral" size={s.waitNext ? 'xl' : 'lg'} className="trainer-controls__main" onClick={() => s.setSheetOpen(true)}>
-          해설
-        </CapsuleButton>
-        {/* 노출은 reveal이 계속 유지되지만 순간기억은 1.5초마다 think↔reveal을 오가므로 행이 흔들려요 — 차트 버튼을 빼요 */}
-        {reveal && (!quiet || session.config.exposure) && (
-          <CapsuleButton tone="neutral" size={s.waitNext ? 'xl' : 'lg'} className="trainer-controls__main trainer-chartbtn" onClick={openChart}>
-            차트
-          </CapsuleButton>
+        {layout === 'tall' && (
+          <div className="trainer-rib">
+            <SessionRibbon items={ribbon} />
+          </div>
         )}
-        {s.waitNext ? (
-          <NextButton armed={s.autoNext} resetKey={s.autoNextKey} reduced={reduced} onNext={s.next} />
-        ) : (
-          <IconButton icon={<IconNext />} label="다음 카드" onClick={s.next} />
+        {/* Paused (by ‖ or by a fold / unfold, Duo spec §6.2): one scrim over the core — the layout underneath stays put,
+            the HUD (✕ · ▶) stays on top, and a tap anywhere resumes. The tab bar floats over it (App: chrome overlay). */}
+        {s.paused && (
+          // 스크림 아무 데나 눌러도 이어집니다(포인터 편의). 키보드 · 스크린리더는 안쪽 버튼을 씁니다.
+          <div className="trainer-pause" onClick={s.togglePause}>
+            <button type="button" className="trainer-pause__btn" onClick={(e) => { e.stopPropagation(); s.togglePause(); }}>
+              <span className="trainer-pause__icon" aria-hidden="true">
+                <IconPlay />
+              </span>
+              <span className="trainer-pause__title">일시정지</span>
+              <span className="trainer-pause__sub t-footnote">누르면 이어서 해요</span>
+            </button>
+          </div>
         )}
       </div>
+      <div className="vb__slack">{!inlineChart && <SessionRibbon items={ribbon} className="vb__ribbon" />}</div>
 
-      <Sheet open={s.holding} onClose={onHoldEnd} held title={explanation.title} footer={<p className="trainer-hold__foot t-footnote">{HOLD_FOOTER}</p>}>
+      <Sheet open={s.holding} onClose={onHoldEnd} held detent={layout === 'tall' ? 'half' : undefined} title={explanation.title} footer={<p className="trainer-hold__foot t-footnote">{HOLD_FOOTER}</p>}>
         <ExplanationBody step={step} explanation={explanation} />
       </Sheet>
 
       {s.sheetOpen && !confirmOpen && !chartOpen && <ExplanationSheet step={step} explanation={explanation} onClose={() => s.setSheetOpen(false)} onAcross={across} />}
 
-      <RevealChart open={chartOpen} step={step} onClose={closeChart} />
+      {!inlineChart && <RevealChart open={chartOpen} step={step} onClose={closeChart} />}
 
       <Sheet
         open={confirmOpen}

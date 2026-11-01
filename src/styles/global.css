@@ -78,6 +78,29 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
+  /* ---- Duo / adaptive layout (docs/DUO_SPEC §3). Size class lives on <html data-layout|data-bar|data-short>,
+     written by src/state/viewport.ts before the first render. Never branch structure on @media height. ---- */
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --vh-frame: 100vh;                /* 지금 보이는 높이 (툴바를 따라 변함) */
+  --vh-core: 100vh;                 /* 가장 나쁜 툴바 상태에서도 보이는 높이 (불변) */
+  --app-max: 520px;
+  --sheet-max-w: 520px;
+  --rail-w: 56px; --rail-gap: 8px; --rail-item: 52px;
+  --rail-space: var(--safe-left);   /* .app__main 왼쪽 오프셋(land/wide 에서는 레일 포함) */
+  --pane-gap: 48px;                 /* wide: 가운데 crease ±24 */
+  --pane-l: calc(50cqw - var(--pane-gap) / 2 - var(--rail-space) - var(--gutter));
+  --seam-min: 24px;
+  --corner-clear: 0px;
+  --slot-h: 120px; --slot-cap: 32px; /* EXPLAIN_SPEC §3.1 */
+  --tall-grid: clamp(280px, calc(var(--vh-core) * 0.35), 340px);
+  --sheet-top: max(calc(var(--safe-top) + 24px), calc(var(--vh-core) * 0.08));
+  --sheet-half-top: calc(var(--vh-core) * 0.38);
+  --sheet-peek-max: min(232px, calc(var(--vh-core) * 0.42));
+  --sheet-side-w: 360px;
+  --atlas-tile-max: 64px;
+  --measure: 34em;
+
   /* ---- motion ---- */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);        /* arrivals */
   --ease-in: cubic-bezier(0.55, 0, 1, 0.45);        /* departures */
@@ -99,10 +122,45 @@
   --radius: var(--r-md); --radius-sm: var(--r-sm); --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
+@supports (height: 1dvh) {
+  :root { --vh-frame: 100dvh; --vh-core: min(100svh, 100dvh); }
+}
+
+/* 높이 tier: 기존 @media (max-height:740px) 를 대체 (svh 기준이라 툴바가 접혀도 뒤집히지 않음) */
+html[data-short] { --slot-h: 114px; --slot-cap: 28px; }
+
+/* 클래스별 덮어쓰기 (반드시 위 블록보다 아래에) */
+html[data-layout="squat"] {
+  --tab-h: 56px; --tab-gap: 8px; --tab-pill-pad: 3px;
+  --fs-title-l: 28px; --lh-title-l: 34px;
+}
+html[data-layout="land"] {
+  --app-max: none; --sheet-max-w: 640px;
+  --rail-space: calc(var(--safe-left) + 2 * var(--rail-gap) + var(--rail-w));
+  /* 24: 스크롤 끝의 마지막 줄이 오른쪽 아래 둥근 모서리(반경 59)에 걸리지 않게 */
+  --content-bottom: calc(24px + var(--safe-bottom));
+  --corner-clear: 20px;
+  --fs-title-l: 28px; --lh-title-l: 34px;
+  --sheet-side-w: min(340px, 58cqw);
+}
+html[data-layout="tall"] {
+  --app-max: 960px; --sheet-max-w: 640px; --gutter: 24px; --tab-gap: 16px;
+  --slot-h: 132px; --slot-cap: 36px;
+  --sheet-half-top: calc(var(--vh-core) * 0.5);
+}
+html[data-layout="wide"] {
+  --app-max: none; --sheet-max-w: 640px; --gutter: 24px;
+  --rail-space: calc(var(--safe-left) + 2 * var(--rail-gap) + var(--rail-w));
+  --content-bottom: calc(16px + var(--safe-bottom));
+  --slot-h: 132px; --slot-cap: 36px;
+  /* right-anchored at safe-right + 10 → the left edge lands on 50cqw (the crease) whatever the right inset is */
+  --sheet-side-w: calc(50cqw - var(--pane-gap) / 2 + 14px - var(--safe-right));
+}
+
 /* ---- base ---------------------------------------------------------------- */
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; background-color: var(--bg-0); }
 body {
   margin: 0; font-family: var(--font); color: var(--ink);
   background:
@@ -279,7 +337,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.01em; }
 
 /* Legacy sheet classes — ExplanationSheet now renders through components/ui/Sheet; kept for stragglers. */
 .sheet-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); z-index: var(--z-sheet-backdrop); }
-.sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 82vh; overflow: auto; z-index: var(--z-sheet); background: var(--bg-1); border-radius: var(--r-xl) var(--r-xl) 0 0; padding: 16px 18px calc(20px + var(--safe-bottom)); box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5); max-width: 520px; margin: 0 auto; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: calc(var(--vh-frame) - var(--sheet-top)); overflow: auto; z-index: var(--z-sheet); background: var(--bg-1); border-radius: var(--r-xl) var(--r-xl) 0 0; padding: 16px 18px calc(20px + var(--safe-bottom)); box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5); max-width: var(--sheet-max-w); margin: 0 auto; }
 .sheet__handle { width: 40px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); margin: 0 auto 12px; }
 .sheet h3 { font-size: var(--fs-callout); margin: 14px 0 6px; color: var(--mint); }
 .sheet p, .sheet li { font-size: var(--fs-subhead); line-height: 1.6; color: var(--ink); }

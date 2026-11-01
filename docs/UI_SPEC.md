@@ -1,11 +1,20 @@
-# UI spec — Holdem Flicker (mobile-only)
+# UI spec — Holdem Flicker (phones + iPhone Duo)
 
-Preflop GTO memorization trainer. Korean UI. **Mobile only**: design for portrait phones 360–430px wide
-(iPhone 13 = 390×844 is the reference). Desktop is irrelevant; the app is capped at 520px wide and centered.
+Preflop GTO memorization trainer. Korean UI. **Mobile only, but not one width**: portrait phones 360–430px wide
+(iPhone 13 = 390×844 is the reference) **and every iPhone Duo posture** — outer screen portrait (382×540–678) and
+landscape (594×340–466), inner screen portrait (669×825–951) and landscape (951×543–669), Split View panes
+(≈385 wide), phones in landscape — in every Safari toolbar state (expanded, collapsed, Shared with You, standalone).
+The supported range is therefore 360–951 px wide and 340–951 px tall, split into five size classes
+(`phone · squat · land · tall · wide`) written on `<html data-layout>` by `src/state/viewport.ts`; each class has its
+own layout that uses the whole screen. The 520px centered cap now applies to the phone and squat classes only.
+**Read `docs/REDESIGN_SPEC.md` §11 before touching layout**: it replaces the old "360–430 only" rule, the
+`@media (max-height)` breakpoints and `100dvh` screens with the svh-based class/tier attributes and the core/slack
+toolbar model. Desktop browsers are still irrelevant.
 
 ## Non-negotiables
 - Touch first: every control ≥ 44px tall, no hover-only behaviour, no tiny text (≥ 12px, body 14–15px).
-- Respect safe areas (`var(--safe-top)`, `var(--safe-bottom)` in `src/styles/global.css`). No horizontal scroll ever.
+- Respect safe areas (`var(--safe-top)`, `var(--safe-bottom)`, `var(--safe-left)`, `var(--safe-right)` in `src/styles/global.css` — the Duo's standalone landscape has 84px side insets). No horizontal scroll ever; the document itself never scrolls (scroll inside `.app__main`, panels and sheet bodies).
+- Branch layout only on `html[data-layout|data-bar|data-short]`; no new `@media (max-height|min-height|max-width)`. No-scroll screens size to `--vh-core` (worst toolbar state), never to `100dvh`/`100vh`.
 - Cards use **only ♠ (black) and ♦ (red)**: suited hand = both cards same suit, offsuit/pair = one ♠ one ♦. Never use hearts/clubs.
 - Korean labels only (poker terms: 오픈, 콜, 폴드, 3벳, 4벳, 올인, 포지션 names UTG/HJ/CO/BTN/SB/BB stay Latin).
 - Dark felt theme via the CSS tokens in `src/styles/global.css` (read-only for you: add your own stylesheet instead, e.g. `src/styles/trainer.css`, imported by your component).

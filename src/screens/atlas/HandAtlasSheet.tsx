@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PlayingCard } from '../../components/PlayingCard';
+import { useWideBox } from '../../components/ExplanationSheet';
 import { PlainText, TermScope } from '../../components/Term';
 import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { GlassPanel } from '../../components/ui/GlassPanel';
@@ -47,6 +48,16 @@ const TIE_NOTE = '비중이 같으면 더 공격적인 쪽을 정답으로 쳐�
 const NEWCOMER_MAX = 9;
 /** 섹션 row 문장으로 쓰는 레버(자리만 보는 것). 숫자 레버·상대 레버는 비교 블록이 맡습니다. */
 const ROW_LEVERS: LeverId[] = ['behind', 'bbPrice', 'sbRaiseOrFold', 'bbFree'];
+/** 두 칸 배치의 오른쪽 머리 — 고른 칸이 어느 섹션인지. */
+const SECTION_LABEL: Record<ScenarioKind, string> = {
+  rfi: '오픈',
+  vs_open: '오픈 대응',
+  vs_3bet: '3벳 대응',
+  vs_4bet: '4벳 대응',
+  vs_5bet: '올인 대응',
+  cold_4bet: '콜드 4벳',
+  vs_limp: '림프 대응',
+};
 /** 미도달 칸의 이유 — 범례 한 줄에 씁니다. */
 const GATE_REASON: Partial<Record<ScenarioKind, string>> = { rfi: '오픈하지 않는 자리', vs_open: '그 오픈에 3벳하지 않는 자리', vs_3bet: '4벳하지 않는 자리' };
 
@@ -269,7 +280,11 @@ function AtlasBody({
   const { hand, rfi, sections } = atlas;
   const cards = useMemo(() => dealCardsFor(hand), [hand]);
   const thesis = rfiThesis(atlas).map((l) => l.text).join(' ');
-  const detailFor = (kind: ScenarioKind) => (selected && selected.scenario.kind === kind ? <AtlasDetail key={selected.key} atlas={atlas} cell={selected} compare={compare} /> : null);
+  // 본문이 540 이상(tall 시트 · land/wide 패널)이면 두 칸(Duo spec §4.5): 왼쪽 = 패 · 주장 · 타일 섹션, 오른쪽 = 선택/비교 블록.
+  // 두 칸 모두 따로 스크롤하므로 타일을 눌러도 왼쪽 스크롤은 그대로, 오른쪽만 바뀝니다.
+  const [rootRef, split] = useWideBox<HTMLDivElement>(540);
+  const detail = selected ? <AtlasDetail key={selected.key} atlas={atlas} cell={selected} compare={compare} /> : null;
+  const detailFor = (kind: ScenarioKind) => (!split && selected && selected.scenario.kind === kind ? detail : null);
 
   // 새로 들어오는 패: firstAlways ?? firstAny 자리. 없으면(never·sbOnly) 줄 자체를 뺍니다.
   const entry = rfi.firstAlways ?? rfi.firstAny;
@@ -300,8 +315,8 @@ function AtlasBody({
 
   const limp = sections.vs_limp;
 
-  return (
-    <div className="atlas">
+  const left = (
+    <>
       <div className="atlas__hand">
         <PlayingCard card={cards[0]} size="sm" />
         <PlayingCard card={cards[1]} size="sm" />
@@ -444,6 +459,29 @@ function AtlasBody({
             <span className="atlas__fold-title t-headline">콜드 4벳</span>
             <span className="atlas__fold-digest t-footnote ink-2">{sectionDigest(cold).text}</span>
           </button>
+        )}
+      </div>
+    </>
+  );
+
+  // 한 칸이든 두 칸이든 같은 DOM(.atlas > .atlas__l + .atlas__r)입니다. 한 칸이면 .atlas__l 은 display: contents,
+  // .atlas__r 는 숨김이라 예전 한 칼럼과 같고, 폭이 바뀌어도 타일 섹션이 다시 마운트되지 않습니다(Duo spec §6.4).
+  const where = (c: AtlasCell) => (c.scenario.villain ? `${c.scenario.hero} vs ${c.scenario.villain}` : c.scenario.hero);
+  return (
+    <div ref={rootRef} className={`atlas${split ? ' atlas--two' : ''}`}>
+      <div className="atlas__l">{left}</div>
+      <div className="atlas__r" aria-live="polite" hidden={!split}>
+        {!split ? null : selected ? (
+          <>
+            <p className="atlas__pick t-caption">
+              <span className="atlas__linechip atlas__linechip--sel">선택 {where(selected)}</span>
+              {compare && <span className="atlas__linechip atlas__linechip--cmp">비교 {where(compare)}</span>}
+              <span className="ink-2">{SECTION_LABEL[selected.scenario.kind]}</span>
+            </p>
+            {detail}
+          </>
+        ) : (
+          <p className="atlas__placeholder t-footnote ink-2">타일을 누르면 여기에 그 자리의 답과 이웃 자리 비교가 나와요. 같은 줄의 다른 타일을 누르면 비교 상대가 바뀌어요.</p>
         )}
       </div>
     </div>

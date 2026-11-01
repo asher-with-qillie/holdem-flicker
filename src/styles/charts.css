@@ -72,27 +72,57 @@
 .charts-sheet__done svg { width: 18px; height: 18px; flex: none; }
 
 /* ---------- 13×13 range grid ---------- */
-.rgrid { --rg-fold: rgba(255, 255, 255, 0.09); display: flex; flex-direction: column; gap: 2px; width: 100%; }
+/* 글자는 격자 폭(cqi)을 따라 10–13px: 격자 ≥355 → 11px, ≥420 → 13px. 360 폰(격자 312)은 지금처럼 10px. */
+.rgrid { --rg-fold: rgba(255, 255, 255, 0.09); container-type: inline-size; display: flex; flex-direction: column; gap: 2px; width: 100%; }
 .rgrid__row { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 2px; }
 .rgrid__cell {
-  position: relative; aspect-ratio: 1; min-width: 0; padding: 0; margin: 0; border: 0; border-radius: var(--r-xs);
+  position: relative; isolation: isolate; aspect-ratio: 1; min-width: 0; padding: 0; margin: 0; border: 0; border-radius: var(--r-xs);
   display: flex; align-items: center; justify-content: center;
   background: var(--rg-fold);
-  font-size: clamp(10px, 2.7vw, 11px); font-weight: 700; line-height: 1; letter-spacing: -0.02em;
+  font-size: clamp(10px, 3.1cqi, 13px); font-weight: 700; line-height: 1; letter-spacing: -0.02em;
   color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
   overflow: hidden; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-  transition: filter var(--dur-micro), opacity var(--dur-quick);
+  transition: filter var(--dur-micro), opacity var(--dur-quick), background-color var(--dur-quick) var(--ease-out);
+}
+/* 칠이 있는 칸은 바탕을 비웁니다 — 섞인 칸의 폴드 몫(var(--rg-fold))이 바탕 위에 한 번 더 겹쳐 밝아지지 않게.
+   가림이 풀릴 때 바탕은 200 ms 동안 빠지고 칠은 같은 시간 동안 들어오므로 칸이 깜빡이지 않습니다. */
+.rgrid__cell--painted { background-color: transparent; }
+/* 칠(--paint)은 글자 아래 층. 가림(.rgrid--masked)이 풀리면 이 층만 200 ms 페이드인합니다 — 기하·글자는 그대로. */
+.rgrid__cell::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: var(--paint, transparent); transition: opacity var(--dur-quick) var(--ease-out);
+}
+.rgrid--masked .rgrid__cell::before { opacity: 0; }
+/* 테두리 표시(페어 대각선 · 외웠어요 · 줄 외곽선)는 칠 위의 ::after 한 겹에 겹쳐 그립니다. */
+.rgrid__cell::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: var(--rg-ring-line, 0 0 #0000), var(--rg-ring-m, 0 0 #0000), var(--rg-ring-pair, 0 0 #0000);
 }
 .rgrid__cell--fold { color: var(--ink-2); text-shadow: none; }
-.rgrid__cell--pair { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent); }
+.rgrid__cell--pair { --rg-ring-pair: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent); }
 .rgrid__cell:active { filter: brightness(1.25); }
 .rgrid__cell--hl { z-index: 2; outline: 1px solid var(--mint); outline-offset: 1px; box-shadow: 0 0 0 5px color-mix(in srgb, var(--mint) 22%, transparent), 0 2px 8px rgba(0, 0, 0, 0.5); color: #fff; }
-.rgrid__cell--hl.rgrid__cell--pair { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent), 0 0 0 5px color-mix(in srgb, var(--mint) 22%, transparent), 0 2px 8px rgba(0, 0, 0, 0.5); }
 .rgrid__cell--hl.rgrid__cell--fold { color: var(--ink); }
+
+/* 가림(think): 모든 칸 같은 중립색, 폴드 칸 글자색 구분도 없음. 라벨 · 페어 · 링 · 줄 외곽선은 그대로 */
+.rgrid--masked .rgrid__cell { background: rgba(255, 255, 255, 0.11); color: var(--ink-2); text-shadow: none; }
+.rgrid--masked .rgrid__cell--hl { color: var(--ink); }
+
+/* 줄 초점: 이 패의 13칸 줄에 흰 외곽선, 나머지는 45% */
+.rgrid__cell--line { --rg-ring-line: inset 0 0 0 1.5px rgba(255, 255, 255, 0.82); }
+.rgrid--focus .rgrid__cell:not(.rgrid__cell--line) { opacity: 0.45; }
+
+/* 썸네일: 라벨 없음, 누를 수 없음, 칸 사이 1px */
+.rgrid--thumb { gap: 1px; pointer-events: none; }
+.rgrid--thumb .rgrid__row { gap: 1px; }
+.rgrid--thumb .rgrid__cell { font-size: 0; border-radius: 2px; }
+.rgrid--thumb .rgrid__cell--hl { outline-width: 1.5px; outline-offset: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 30%, transparent); }
+.rgrid--thumb .rgrid__cell--line { --rg-ring-line: inset 0 0 0 1px rgba(255, 255, 255, 0.8); }
+.rgrid--thumb .rgrid__dot { display: none; }
 
 /* 내 기록 overlay (P2) */
 .rgrid__cell--unseen { opacity: 0.5; }
-.rgrid__cell--mastered { border: 0; box-shadow: inset 0 0 0 1px var(--mint); }
+.rgrid__cell--mastered { --rg-ring-m: inset 0 0 0 1px var(--mint); }
 .rgrid__dot { position: absolute; top: 2px; right: 2px; width: 5px; height: 5px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); pointer-events: none; }
 .rgrid__cell--learning .rgrid__dot { background: var(--amber); }
 .rgrid__cell--weak .rgrid__dot { background: var(--coral); }
@@ -100,9 +130,163 @@
 /* ---------- reduced motion (§8): the only transform-free motion here is a crossfade; keep it ≤ 150 ms ---------- */
 @media (prefers-reduced-motion: reduce) {
   .charts__chart { animation-duration: 150ms; }
-  .rgrid__cell { transition: none; }
+  .rgrid__cell, .rgrid__cell::before { transition: none; }
 }
 
 /* 헤더: 제목 · [핸드로 보기] · 내 기록 — 아이콘 버튼은 스위치 왼쪽에 붙고 제목이 남는 폭을 가져갑니다. */
 .charts__head h1 { flex: 1 1 auto; min-width: 0; }
 .charts__atlas { flex: none; margin-bottom: 2px; }
+
+/* =====================================================================================================
+   Duo 크기 클래스 (docs Duo spec §4.4). 구조는 html[data-layout] 로만 가릅니다 — @media (max-height) 없음.
+   ===================================================================================================== */
+
+/* 시나리오 블록: phone 에서는 래퍼가 사라져 예전과 똑같이 .charts__chart 의 flex 항목입니다. */
+.charts__scen { display: contents; }
+
+/* ---------- squat (Duo 바깥 세로 382×580 · SE · Split): 머리를 압축해 격자를 y≈200 에 — 탭 바 위로 11행 이상 ---------- */
+html[data-layout="squat"] .charts { gap: 6px; padding-top: 4px; }
+html[data-layout="squat"] .charts__head { min-height: 44px; align-items: center; }
+html[data-layout="squat"] .charts__filters { padding-block: 2px; }
+html[data-layout="squat"] .charts__chart { gap: 8px; }
+html[data-layout="squat"] .charts__scen { display: flex; align-items: center; gap: 10px; min-height: 24px; }
+html[data-layout="squat"] .charts__title { flex: 1 1 auto; min-width: 0; font-size: var(--fs-callout); line-height: var(--lh-callout); font-weight: 600; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-layout="squat"] .charts__situation { display: none; }
+html[data-layout="squat"] .charts__shares { flex: 0 1 auto; min-width: 0; flex-direction: row; align-items: center; gap: 8px; }
+html[data-layout="squat"] .charts__bar { flex: none; width: 40px; height: 6px; }
+html[data-layout="squat"] .charts__sharetext { flex-wrap: nowrap; overflow: hidden; }
+html[data-layout="squat"] .charts__sharetext .share:nth-child(n + 3), html[data-layout="squat"] .charts__sharetext .share--fold { display: none; }
+
+/* ---------- peek 셀 시트 (phone/squat): 제목 · 캡슐+줄 이름 · 스트립 · 문장 두 줄이 232 안에 들게 ---------- */
+.ui-sheet--peek .ui-sheet__title { font-size: var(--fs-headline); line-height: var(--lh-headline); padding-top: 0; padding-bottom: 4px; }
+.ui-sheet--peek .ui-sheet__body { padding-top: 4px; }
+.ui-sheet--peek .ui-sheet__footer { padding-top: 8px; padding-bottom: calc(8px + var(--safe-bottom)); }
+.ui-sheet--peek .ui-explain__line { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 6px; }
+.ui-sheet--peek .ui-explain__line > :not(.lcap):not(.ui-explain__caption) { flex-basis: 100%; }
+.ui-sheet--peek .ui-explain__line .lcap--md { height: 32px; }
+.charts-sheet__more { flex: 0 0 auto; padding-inline: 14px; }
+.ui-sheet__footer .charts-sheet__done { min-height: 44px; }
+
+/* ---------- 스테이지 공통 (land · tall · wide): 문서도 .app__main 도 스크롤하지 않습니다 ---------- */
+.charts--stage { padding: 0 var(--gutter); gap: 0; }
+.charts--stage .charts__head h1 { font-size: 28px; line-height: 34px; }
+.charts--stage .charts__head { align-items: center; min-height: 44px; flex-wrap: wrap; row-gap: 0; }
+.charts__filters--inline { position: static; }
+.charts__row--wrap { align-items: flex-start; }
+.charts__row--wrap .charts__rowlabel { padding-top: 10px; }
+.charts__row--wrap > .ui-chiprow { margin-left: 0; padding-left: 0; padding-block: 4px; }
+.charts__stagegrid { flex: none; width: var(--g); min-width: 0; }
+.charts__stagegrid .charts__panel { padding: 6px; }
+.charts__side {
+  min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; gap: 12px;
+  /* 칩 글로우 · 패널 그림자가 스크롤러 가장자리에서 잘리지 않게 안쪽 여백을 두고 같은 만큼 밖으로 */
+  margin-inline: calc(-1 * var(--glow-room)); padding: 12px var(--glow-room) 16px;
+}
+.charts__side > * { flex: none; }
+.charts__side .charts__filters { margin-inline: 0; padding: 0; gap: 6px; }
+/* 옆 칼럼 안의 가로 스크롤 칩 줄(land): 오른쪽으로 글로우 여백만큼만 번집니다(칼럼이 스크롤러라 그 밖은 잘림). */
+.charts__side .charts__row:not(.charts__row--wrap) > .ui-chiprow { margin-right: calc(-1 * var(--glow-room)); padding-right: var(--glow-room); scroll-padding-right: var(--glow-room); }
+.charts__side .charts__chip--pos { padding-inline: 10px; }
+
+/* ---------- land (Duo 바깥 가로 594×368 · 폰 가로): [옆 칼럼 | 격자] — 격자는 core 기준 크기, 세로 가운데 ---------- */
+html[data-layout="land"] .charts--stage {
+  --g: min(calc(var(--vh-core) - var(--safe-top) - var(--content-bottom) - 24px),
+           calc(100cqw - var(--rail-space) - var(--safe-right) - var(--corner-clear) - var(--gutter) - 12px - 180px));
+  flex: none; height: calc(var(--vh-core) - var(--safe-top) - var(--content-bottom));
+  display: grid; grid-template-columns: minmax(180px, 1fr) var(--g); column-gap: 12px;
+  padding-right: max(var(--corner-clear), 12px);
+}
+html[data-layout="land"] .charts__pane { display: flex; align-items: center; min-height: 0; }
+html[data-layout="land"] .charts__side .charts__title { font-size: var(--fs-headline); line-height: var(--lh-headline); }
+html[data-layout="land"] .charts__side .charts__situation { margin-top: -8px; }
+/* land 옆 칼럼(~180): 줄 이름을 칩 위로 올려 칩이 칼럼 폭을 다 쓰게 합니다 — 상황 칩이 한 줄에 둘씩 감깁니다. */
+html[data-layout="land"] .charts__row--wrap { flex-direction: column; align-items: stretch; gap: 0; }
+html[data-layout="land"] .charts__row--wrap .charts__rowlabel { width: auto; padding-top: 0; }
+html[data-layout="land"] .charts__row--wrap > .ui-chiprow { gap: 6px; }
+/* land 옆 칼럼(~180)에서는 훈련 버튼의 "· 20장"을 빼서 라벨이 잘리지 않게 */
+html[data-layout="land"] .charts__side .charts__train .ui-btn__trailing { display: none; }
+
+/* ---------- tall (Duo 안쪽 세로 669×867): 머리 · 칩(나|상대 한 줄) · 시나리오 한 줄 · 격자 ≤440 · dock ---------- */
+/* --g: 머리 176 + dock 172(셀 카드 세 줄) 을 core 에서 뺀 값, 440 상한. 툴바가 접혀 생긴 높이는 dock 이 가져갑니다. */
+html[data-layout="tall"] .charts--stage {
+  --g: min(100%, 440px, calc(var(--vh-core) - var(--safe-top) - 176px - 172px - var(--content-bottom)));
+  display: flex; flex-direction: column; gap: 6px; padding-top: 6px; padding-bottom: 4px;
+}
+html[data-layout="tall"] .charts__filters { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 12px; padding-block: 0; }
+html[data-layout="tall"] .charts__row--kind { grid-column: 1 / -1; }
+html[data-layout="tall"] .charts__row--hero:last-child { grid-column: 1 / -1; }
+html[data-layout="tall"] .charts__row--hero:not(:last-child) > .ui-chiprow { margin-right: 0; padding-right: 8px; scroll-padding-right: 8px; }
+html[data-layout="tall"] .charts__scen { display: flex; align-items: center; gap: 14px; min-height: 28px; }
+html[data-layout="tall"] .charts__title { flex: 0 1 auto; min-width: 0; font-size: var(--fs-headline); line-height: var(--lh-headline); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-layout="tall"] .charts__situation { display: none; }
+html[data-layout="tall"] .charts__shares { flex: 1 1 0; min-width: 0; flex-direction: row; align-items: center; gap: 10px; }
+html[data-layout="tall"] .charts__bar { flex: 0 1 140px; min-width: 60px; }
+html[data-layout="tall"] .charts__sharetext { flex-wrap: nowrap; overflow: hidden; }
+html[data-layout="tall"] .charts__stagegrid { align-self: center; }
+.charts__dock {
+  container: dock / inline-size; flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  border-radius: var(--r-md); padding: 12px; background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+}
+.charts__dockinfo { display: flex; flex-direction: column; gap: 10px; }
+.charts__dockcol { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+@container dock (min-width: 540px) {
+  .charts__dockinfo { flex-direction: row; gap: 20px; }
+  .charts__dockcol { flex: 1 1 0; }
+  .charts__dockcol + .charts__dockcol { flex: 0 1 260px; }
+}
+.charts__dock .cellcard { padding: 0; background: none; box-shadow: none; }
+.charts__dock--under > * { visibility: hidden; }
+
+/* ---------- wide (Duo 안쪽 가로 951×585): 접힘선(50cqw)에서 나눈 두 패널 ---------- */
+html[data-layout="wide"] .charts--stage {
+  --g: min(100%, calc(var(--vh-core) - var(--safe-top) - var(--content-bottom) - 120px));
+  flex: none; margin-top: auto; height: calc(var(--vh-core) - var(--safe-top) - var(--content-bottom));
+  display: grid; grid-template-columns: var(--pane-l) minmax(0, 1fr); column-gap: var(--pane-gap);
+}
+html[data-layout="wide"] .charts__pane { display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 0; padding-top: 12px; }
+html[data-layout="wide"] .charts__paneinfo { display: flex; flex-direction: column; gap: 10px; width: var(--g); }
+html[data-layout="wide"] .charts__side .charts__title { font-size: var(--fs-title-3); line-height: var(--lh-title-3); }
+html[data-layout="wide"] .charts__side .charts__situation { margin-top: -8px; }
+
+/* ---------- 인라인 셀 카드 (land/wide 옆 칼럼 · tall dock) ---------- */
+.cellcard { container: cellcard / inline-size; padding: 12px; border-radius: var(--r-md); background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12); }
+.cellcard__in { display: flex; flex-direction: column; gap: 10px; }
+.cellcard__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cellcard__title { min-width: 0; word-break: keep-all; }
+.cellcard__close { flex: none; margin: -6px -6px -6px 0; }
+.cellcard__body { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.cellcard__cap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.cellcard__caption { color: var(--ink-2); }
+.cellcard__strip { justify-content: start; }
+.cellcard__sentence { color: var(--ink); word-break: keep-all; overflow-wrap: break-word; text-wrap: pretty; max-inline-size: var(--measure); }
+.cellcard__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cellcard__actions > * { flex: 1 1 auto; }
+.cellcard__done { min-height: 44px; }
+/* 좁은 카드(land 옆 칼럼 ~180): 스트립은 칸이 12px 까지 줄어도 한 글자 라벨이라 읽힙니다. S 는 3칸 두 줄 */
+@container cellcard (max-width: 259px) {
+  .cellcard .seatchips { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 8px; }
+  .cellcard__actions > * { padding-inline: 10px; }
+}
+/* 넓은 카드(tall dock ≥540): 세 줄로 접습니다 — dock 은 ~170px 입니다.
+   [제목 · 캡슐 ……… 헷갈려요 · 자세히 · 자리별 · ✕] / [스트립 | S] / [줄 문장] */
+@container cellcard (min-width: 540px) {
+  .cellcard__in {
+    display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; column-gap: 12px; row-gap: 8px; align-items: center;
+  }
+  .cellcard__head, .cellcard__body, .cellcard__cap { display: contents; }
+  .cellcard__title { grid-column: 1; grid-row: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cellcard__cap > .lcap { grid-column: 2; grid-row: 1; }
+  .cellcard__caption { display: none; }
+  .cellcard__actions { grid-column: 4; grid-row: 1; flex-wrap: nowrap; justify-self: end; }
+  .cellcard__actions > * { flex: none; }
+  .cellcard__close { grid-column: 5; grid-row: 1; margin: 0; }
+  .cellcard__strip { grid-column: 1 / 4; grid-row: 2; }
+  .cellcard__body > .seatchips { grid-column: 4 / 6; grid-row: 2; justify-self: end; }
+  .cellcard__sentence { grid-column: 1 / -1; grid-row: 3; }
+}
+
+/* peek 셀 시트의 위 가장자리를 svh(core) 에 고정합니다(Duo spec §2.4 — 바텀 시트는 툴바가 접히면 아래로만 늘어남).
+   높이 = peek 상한 + (frame − core): 툴바가 펼쳐진 상태에서는 상한 그대로, 접히면 늘어난 만큼 본문이 더 보입니다.
+   peek 는 차트 셀 시트만 쓰므로 여기 둡니다. */
+.ui-sheet.ui-sheet--peek { height: calc(var(--sheet-peek-max) + var(--vh-frame) - var(--vh-core)); max-height: none; }

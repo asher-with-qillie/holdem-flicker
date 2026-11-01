@@ -189,3 +189,28 @@
   .coach-axis__marker--enter { animation: none; }
   .coach-gate__bar i, .coach-axis__btn, .coach-spot, .coach-ai__link { transition: none; }
 }
+
+/* ---- size classes (Duo spec §4.7). phone/squat: 래퍼가 사라져 한 칼럼 그대로.
+   land/tall/wide: 왼쪽 = 잘하는 것 · 성향 축 · 집중할 포인트, 오른쪽 = 요약 · AI 코치 · 기본기 · 약한 곳 · 실수.
+   (성향 패널이 길어서 목록을 오른쪽에 둬야 두 칼럼 길이가 맞습니다.) ---- */
+.coach__area { display: contents; }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .coach {
+  display: grid; align-content: start; align-items: start; column-gap: 24px; row-gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas: "head head" "focus sum" "focus ai" "focus more";
+  grid-template-rows: auto auto auto 1fr;
+}
+html[data-layout="wide"] .coach { grid-template-columns: var(--pane-l) minmax(0, 1fr); column-gap: var(--pane-gap); }
+/* tall/wide: 머리글 옆 칸이 비지 않도록 요약 카드를 머리글 줄로 올립니다 */
+html:is([data-layout="tall"], [data-layout="wide"]) .coach { grid-template-areas: "head sum" "focus ai" "focus more"; grid-template-rows: auto auto 1fr; }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .coach__area { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .coach__area:empty { display: none; }
+.coach__area--head { grid-area: head; }
+.coach__area--sum { grid-area: sum; }
+.coach__area--focus { grid-area: focus; }
+.coach__area--ai { grid-area: ai; }
+.coach__area--more { grid-area: more; }
+/* stage 0: 왼쪽 칼럼이 비므로 빈 상태 카드가 왼쪽, 기본기가 오른쪽 */
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .coach[data-stage="0"] { grid-template-areas: "head head" "sum more"; grid-template-rows: auto 1fr; }
+/* land: 오른쪽 위·아래 둥근 모서리(반경 59)에서 버튼이 비켜 서도록 오른쪽 여백을 corner-clear 로 */
+html[data-layout="land"] .coach { padding-right: max(var(--gutter), var(--corner-clear)); }

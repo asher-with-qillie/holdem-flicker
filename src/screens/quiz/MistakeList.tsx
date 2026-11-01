@@ -12,9 +12,10 @@ function kindOf(m: Mistake): ScenarioKind | undefined {
   return (SCENARIO_KINDS as readonly string[]).includes(k) ? (k as ScenarioKind) : undefined;
 }
 
-/** Collapsed "최근 실수" disclosure (§5.7) — the last 20 quiz mistakes: hand, scenario, 내 선택 → 정답, when. */
-export function MistakeList({ mistakes }: { mistakes: Mistake[] }) {
-  const [open, setOpen] = useState(false);
+/** Collapsed "최근 실수" disclosure (§5.7) — the last 20 quiz mistakes: hand, scenario, 내 선택 → 정답, when.
+ *  `defaultOpen` — the unfolded Duo (tall / wide) has the room, so the list starts open there (Duo spec §4.3). */
+export function MistakeList({ mistakes, defaultOpen = false }: { mistakes: Mistake[]; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const items = mistakes.slice(0, SHOWN);
   const now = Date.now();
   return (

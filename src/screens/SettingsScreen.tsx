@@ -77,7 +77,7 @@ function usePrefersReducedMotion(): boolean {
 
 function Group({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <section className="st-group" aria-labelledby={id}>
+    <section className={`st-group st-group--${id.replace('st-', '')}`} aria-labelledby={id}>
       <h2 className="st-group__cap" id={id}>
         {title}
       </h2>
@@ -294,7 +294,7 @@ export function SettingsScreen(): JSX.Element {
         </Row>
       </Group>
 
-      <section className="st-group">
+      <section className="st-group st-group--adv">
         <button type="button" className="st-disclosure" aria-expanded={advOpen} aria-controls="st-adv-panel" onClick={() => setAdvOpen((o) => !o)}>
           <span className="st-group__cap">고급</span>
           <span className="st-disclosure__val">{s.speedPreset === 'custom' ? `생각 ${fmtSec(s.thinkSeconds)} · 답 ${fmtSec(s.revealSeconds)}` : '직접 시간 조절'}</span>

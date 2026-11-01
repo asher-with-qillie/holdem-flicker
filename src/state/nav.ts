@@ -95,10 +95,16 @@ export interface UiChrome {
   /** true while at least one source asked for the bar to hide */
   tabBarHidden: boolean;
   sources: readonly string[];
+  /**
+   * true while a source shows the bar *over* a fixed screen: the bar is back (so another tab is one tap away) but the
+   * screen keeps its bar-less geometry, so nothing reflows. Used by a paused training session (Duo spec §6.2).
+   */
+  overlay: boolean;
 }
 
 const hiddenSources = new Set<string>();
-let chrome: UiChrome = { tabBarHidden: false, sources: [] };
+const overlaySources = new Set<string>();
+let chrome: UiChrome = { tabBarHidden: false, sources: [], overlay: false };
 const chromeListeners = new Set<() => void>();
 
 function subscribeChrome(l: () => void) {
@@ -114,7 +120,19 @@ export function setChromeHidden(source: string, hidden: boolean): void {
   if (hiddenSources.has(source) === hidden) return;
   if (hidden) hiddenSources.add(source);
   else hiddenSources.delete(source);
-  chrome = { tabBarHidden: hiddenSources.size > 0, sources: [...hiddenSources] };
+  publishChrome();
+}
+
+/** Keep the bar-less layout while the bar shows on top (see `UiChrome.overlay`). */
+export function setChromeOverlay(source: string, on: boolean): void {
+  if (overlaySources.has(source) === on) return;
+  if (on) overlaySources.add(source);
+  else overlaySources.delete(source);
+  publishChrome();
+}
+
+function publishChrome(): void {
+  chrome = { tabBarHidden: hiddenSources.size > 0, sources: [...hiddenSources], overlay: overlaySources.size > 0 };
   chromeListeners.forEach((l) => l());
 }
 

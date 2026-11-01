@@ -3,6 +3,13 @@ import { ChipRow } from '../../components/ui/ChipRow';
 import { toast } from '../../components/ui/Toast';
 import { POSITIONS, type Pos, type ScenarioKind } from '../../poker/types';
 import { DECK_KINDS, type DeckId } from '../../state/settings';
+import { useLayout } from '../../state/viewport';
+
+/** land / tall / wide: chip rows wrap inside their column instead of scrolling sideways (Duo spec §4.3). */
+function useWrapChips(): boolean {
+  const layout = useLayout();
+  return layout === 'land' || layout === 'tall' || layout === 'wide';
+}
 
 /**
  * Focus-deck and position chip rows (spec §5.2 / §5.7 — the shared DeckChips logic lives here; the
@@ -42,9 +49,10 @@ export interface DeckChipsProps {
 }
 
 export function DeckChips({ value, onChange, weakCount }: DeckChipsProps): JSX.Element {
+  const wrapChips = useWrapChips();
   const weakLocked = weakCount < WEAK_MIN;
   return (
-    <ChipRow ariaLabel="덱">
+    <ChipRow ariaLabel="덱" wrap={wrapChips}>
       {DECK_ORDER.map((d) => {
         if (d === 'weak') {
           return (
@@ -81,6 +89,7 @@ export interface PositionChipsProps {
 }
 
 export function PositionChips({ value, all, onChange }: PositionChipsProps): JSX.Element {
+  const wrapChips = useWrapChips();
   const offered = POSITIONS.filter((p) => all.includes(p));
   const isAll = offered.every((p) => value.includes(p));
   const toggle = (p: Pos) => {
@@ -95,7 +104,7 @@ export function PositionChips({ value, all, onChange }: PositionChipsProps): JSX
     onChange(POSITIONS.filter((q) => q === p || value.includes(q)));
   };
   return (
-    <ChipRow ariaLabel="포지션">
+    <ChipRow ariaLabel="포지션" wrap={wrapChips}>
       <Chip className="quiz-chip" selected={isAll} onClick={() => onChange(offered)}>
         전체
       </Chip>

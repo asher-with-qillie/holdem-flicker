@@ -7,14 +7,22 @@ export interface FloatingTabBarProps {
   active: TabId;
   onChange(id: TabId): void;
   hidden?: boolean;
+  /** 'vertical' = left rail (land/wide). CSS keys off html[data-layout]; this adds the class + aria. */
+  orientation?: 'horizontal' | 'vertical';
 }
 
 /** Floating glass capsule tab bar (§3.1): 64 high, inset 16, tinted pill glides to the active column. */
-export function FloatingTabBar({ items, active, onChange, hidden }: FloatingTabBarProps): JSX.Element {
+export function FloatingTabBar({ items, active, onChange, hidden, orientation = 'horizontal' }: FloatingTabBarProps): JSX.Element {
   const index = Math.max(0, items.findIndex((t) => t.id === active));
   const style = { '--n': items.length, '--i': index } as CSSProperties;
   return (
-    <nav className={`ui-tabbar glass-strong${hidden ? ' ui-tabbar--hidden' : ''}`} aria-label="메뉴" aria-hidden={hidden || undefined} style={style}>
+    <nav
+      className={`ui-tabbar glass-strong${orientation === 'vertical' ? ' ui-tabbar--rail' : ''}${hidden ? ' ui-tabbar--hidden' : ''}`}
+      aria-label="메뉴"
+      aria-orientation={orientation}
+      aria-hidden={hidden || undefined}
+      style={style}
+    >
       <span className="ui-tabbar__pill glass-tint glass-flat" aria-hidden="true" />
       {items.map((t) => {
         const on = t.id === active;

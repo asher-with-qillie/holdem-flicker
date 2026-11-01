@@ -1,11 +1,11 @@
-import { Fragment, useState, type CSSProperties } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Explanation } from '../poker/explain';
 import type { Step } from '../poker/trainer';
 import type { Action, ScenarioKind } from '../poker/types';
 import { useSettings } from '../state/settings';
-import { AtlasTile } from '../screens/atlas/SeatStrip';
 import { actionLabel } from './ActionBadge';
 import { LineCapsule, LineStrip } from './LineStrip';
+import { SeatChips } from './SeatChips';
 import { PlainText, TermScope } from './Term';
 import { CapsuleButton } from './ui/CapsuleButton';
 import { Sheet } from './ui/Sheet';
@@ -45,6 +45,25 @@ function ExampleLine({ text }: { text: string }) {
       )}
     </>
   );
+}
+
+/**
+ * 상자 폭이 `min` 이상인가(ResizeObserver). 자리별 보기가 두 칸으로 갈 때 씁니다(Duo spec §4.5, 시트 본문 ≥540):
+ * 선택한 타일의 상세가 섹션 안(한 칸)과 오른쪽 칸(두 칸) 중 어디에 그려질지가 폭에 따라 달라서 JS 로 고릅니다.
+ */
+export function useWideBox<T extends HTMLElement>(min: number): [RefObject<T>, boolean] {
+  const ref = useRef<T>(null);
+  const [wide, setWide] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setWide(el.clientWidth >= min);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [min]);
+  return [ref, wide];
 }
 
 /** 섞는 비율 칩 "콜 75% · 3벳 25%" (정수 %, 엔진 mixBlock 값 그대로). 해설 시트 ③과 자리별 보기 상세가 같이 씁니다. */
@@ -108,21 +127,13 @@ export function ExplanationBody({ step, explanation, onAcross, variant = 'sheet'
   const memo = full ? e.more.memo : null;
   const example = e.more.memo ? null : e.more.example;
   const hasMore = !!(memo || example);
-  const marks = { selected: step.scenario };
 
   const across = (
     <>
       <span className="ui-explain__h ui-explain__across-h">
         이 패, 다른 자리에서는{onAcross && <span aria-hidden="true"> ›</span>}
       </span>
-      <span className="ui-explain__tiles" style={{ '--n': e.across.cells.length } as CSSProperties}>
-        {e.across.cells.map((c) => (
-          <span key={c.key} className="ui-explain__tile">
-            <span className="ui-explain__tile-seat t-caption">{c.scenario.hero}</span>
-            <AtlasTile cell={c} kind={kind} marks={marks} compact />
-          </span>
-        ))}
-      </span>
+      <SeatChips step={step} explanation={e} />
       {e.across.line.text && (
         <span className="ui-explain__seatline">
           <PlainText text={e.across.line.text} />
@@ -131,92 +142,108 @@ export function ExplanationBody({ step, explanation, onAcross, variant = 'sheet'
     </>
   );
 
+  // 두 칸 래퍼는 늘 그립니다. 좁으면 display: contents 라 예전 한 칼럼과 같은 흐름이고, 시트 본문이 540 이상이면
+  // CSS 컨테이너 쿼리가 두 칸(왼쪽 = 줄 블록 · 숫자, 오른쪽 = 자리 축 · 자세히)으로 바꿉니다. DOM 이 바뀌지 않으니
+  // 접고 펼쳐도 본문이 다시 마운트되지 않고 스크롤 위치가 그대로입니다(Duo spec §6.4).
+  // 컴포넌트가 아니라 함수 호출입니다 — 렌더 안에서 만든 컴포넌트는 매번 새 타입이라 자식(용어 버튼)이 다시 마운트됩니다.
+  const col = (side: 'a' | 'b', children: ReactNode) => <div className={`ui-explain__col ui-explain__col--${side}`}>{children}</div>;
+
   // resetKey: 해설 객체가 바뀔 때만 용어 장부를 새로 만듭니다 (핸드가 바뀌면 밑줄이 다시 살아납니다).
   return (
     <TermScope resetKey={explanation}>
       <div className={`ui-explain ui-explain--${variant}`}>
-        {full && (
-          <section className="ui-explain__line" aria-label="이 줄">
-            <LineCapsule capsule={e.capsule} size="md" showSplit={settings.showMixFrequencies} />
-            <p className="ui-explain__caption t-caption">이 줄 · {e.line.def.label}</p>
-            <LineStrip view={e.line} size="md" />
-            {e.line.sentence && (
-              <p className="ui-explain__sentence">
-                <PlainText text={e.line.sentence.text} />
-              </p>
+        {col(
+          'a',
+          <>
+            {full && (
+              <section className="ui-explain__line" aria-label="이 줄">
+                <LineCapsule capsule={e.capsule} size="md" showSplit={settings.showMixFrequencies} />
+                <p className="ui-explain__caption t-caption">이 줄 · {e.line.def.label}</p>
+                <LineStrip view={e.line} size="md" />
+                {e.line.sentence && (
+                  <p className="ui-explain__sentence">
+                    <PlainText text={e.line.sentence.text} />
+                  </p>
+                )}
+                {e.sibling && (
+                  <p className="ui-explain__sibling">
+                    <PlainText text={e.sibling.text} />
+                  </p>
+                )}
+                {e.mix && (settings.showMixFrequencies || e.mix.partial) && (
+                  <div className="ui-explain__mix">
+                    {settings.showMixFrequencies && <MixChips chips={e.mix.chips} kind={kind} />}
+                    {e.mix.partial && (
+                      <p className="ui-explain__partial">
+                        <PlainText text={e.mix.partial} />
+                      </p>
+                    )}
+                  </div>
+                )}
+              </section>
             )}
-            {e.sibling && (
+            {!full && e.sibling && (
               <p className="ui-explain__sibling">
                 <PlainText text={e.sibling.text} />
               </p>
             )}
-            {e.mix && (settings.showMixFrequencies || e.mix.partial) && (
-              <div className="ui-explain__mix">
-                {settings.showMixFrequencies && <MixChips chips={e.mix.chips} kind={kind} />}
-                {e.mix.partial && (
-                  <p className="ui-explain__partial">
-                    <PlainText text={e.mix.partial} />
-                  </p>
+
+            <section className="ui-explain__seat">
+              <h3 className="ui-explain__h">
+                자리 <small>전체 패 기준</small>
+              </h3>
+              <SeatNumbers seat={e.seat} />
+              {e.seat.lever && (
+                <p className="ui-explain__lever">
+                  <PlainText text={e.seat.lever} />
+                </p>
+              )}
+            </section>
+          </>,
+        )}
+
+        {col(
+          'b',
+          <>
+            {full &&
+              (onAcross ? (
+                <button type="button" className="ui-explain__across" onClick={onAcross} aria-label={`이 패, 다른 자리에서는 · ${e.across.line.text}`}>
+                  {across}
+                </button>
+              ) : (
+                <div className="ui-explain__across ui-explain__across--static">{across}</div>
+              ))}
+
+            {hasMore && (
+              <div className="ui-explain__more">
+                <button type="button" className="ui-explain__more-btn" aria-expanded={more} aria-controls="explain-more" onClick={() => setMore((v) => !v)}>
+                  <span>자세히</span>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                {more && (
+                  <div id="explain-more" className="ui-explain__more-body">
+                    {memo && (
+                      <p>
+                        <b className="ui-explain__label">차트 메모</b>
+                        <PlainText text={memo} />
+                      </p>
+                    )}
+                    {example && (
+                      <p>
+                        <b className="ui-explain__label">예시</b>
+                        <ExampleLine text={example} />
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             )}
-          </section>
+
+            {full && e.disclaimer && <p className="ui-explain__disclaimer t-footnote">{e.disclaimer}</p>}
+          </>,
         )}
-        {!full && e.sibling && (
-          <p className="ui-explain__sibling">
-            <PlainText text={e.sibling.text} />
-          </p>
-        )}
-
-        <section className="ui-explain__seat">
-          <h3 className="ui-explain__h">
-            자리 <small>전체 패 기준</small>
-          </h3>
-          <SeatNumbers seat={e.seat} />
-          {e.seat.lever && (
-            <p className="ui-explain__lever">
-              <PlainText text={e.seat.lever} />
-            </p>
-          )}
-        </section>
-
-        {full &&
-          (onAcross ? (
-            <button type="button" className="ui-explain__across" onClick={onAcross} aria-label={`이 패, 다른 자리에서는 · ${e.across.line.text}`}>
-              {across}
-            </button>
-          ) : (
-            <div className="ui-explain__across ui-explain__across--static">{across}</div>
-          ))}
-
-        {hasMore && (
-          <div className="ui-explain__more">
-            <button type="button" className="ui-explain__more-btn" aria-expanded={more} aria-controls="explain-more" onClick={() => setMore((v) => !v)}>
-              <span>자세히</span>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
-            {more && (
-              <div id="explain-more" className="ui-explain__more-body">
-                {memo && (
-                  <p>
-                    <b className="ui-explain__label">차트 메모</b>
-                    <PlainText text={memo} />
-                  </p>
-                )}
-                {example && (
-                  <p>
-                    <b className="ui-explain__label">예시</b>
-                    <ExampleLine text={example} />
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {full && e.disclaimer && <p className="ui-explain__disclaimer t-footnote">{e.disclaimer}</p>}
       </div>
     </TermScope>
   );

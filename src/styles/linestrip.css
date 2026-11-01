@@ -10,6 +10,11 @@
   flex: none;
 }
 .lstrip--md { --ls-w: 23px; --ls-h: 28px; --ls-fs: 11px; }
+/* 좁은 칼럼(land 옆 칼럼 · 자리별 패널 ~180–240)에서 13칸이 15px 아래로 줄면 라벨도 9px 로 — 칸 밖으로 넘치지 않게 */
+.lstrip { container: lstrip / inline-size; }
+@container lstrip (max-width: 240px) {
+  .lstrip__cell { font-size: 9px; letter-spacing: -0.05em; border-radius: 4px; }
+}
 .lstrip__cell {
   position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; height: var(--ls-h);
   border-radius: 6px; background: var(--rg-fold);
@@ -60,9 +65,10 @@
 }
 .lcap--split { padding-bottom: 3px; }
 
-@media (max-height: 740px) {
-  .lcap--sm { height: 28px; }
-  /* 28px 캡슐에서는 3px 막대가 글자 줄 상자에 닿습니다 — 막대를 2px 로 낮게 깔고 글자를 2px 더 올립니다. */
-  .lcap--sm.lcap--split { padding-bottom: 5px; }
-  .lcap--sm .lcap__split { bottom: 2px; height: 2px; }
-}
+/* 리빌 슬롯·퀴즈 피드백의 캡슐 높이는 토큰 하나: 32 · 짧은 화면 28 · 펼친 Duo(tall/wide, md) 36 (global.css --slot-cap). */
+.trainer-answer .lcap, .quiz-feedback .lcap { height: var(--slot-cap); }
+/* 28px 캡슐에서는 3px 막대가 글자 줄 상자에 닿습니다 — 막대를 2px 로 낮게 깔고 글자를 2px 더 올립니다.
+   (예전 @media (max-height: 740px) — 이제 svh 기준 html[data-short] 라 툴바가 접혀도 뒤집히지 않습니다.) */
+html[data-short] .lcap--sm { height: 28px; }
+html[data-short] .lcap--sm.lcap--split { padding-bottom: 5px; }
+html[data-short] .lcap--sm .lcap__split { bottom: 2px; height: 2px; }

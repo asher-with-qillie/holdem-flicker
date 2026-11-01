@@ -5,8 +5,14 @@
  * days, lastResult), srs (`useSrs()` version + `counts` / `weakSpots` / `weakKeys` / `previewQueue`).
  * Writes nothing; navigation goes through `launch()` / `openSettings()` (§3). App.tsx renders this for
  * the `home` tab; the screen adds `padding-bottom: var(--content-bottom)` via `.screen`.
+ *
+ * Every section sits in a `.home__area--*` wrapper, grouped as hero (head + today) and stats (tiles + level)
+ * (Duo spec §4.6). On phone/squat all wrappers are `display: contents` (one column, unchanged); land/tall/wide
+ * place them with grid-template-areas in home.css. DOM order never changes, so local state survives a fold.
  */
 import { useMemo } from 'react';
+import { KindProgress } from '../components/KindProgress';
+import { SCENARIO_KINDS } from '../poker/types';
 import { IconButton } from '../components/ui/IconButton';
 import { StatTile } from '../components/ui/StatTile';
 import { IconFlame, IconGear } from '../components/ui/icons';
@@ -14,6 +20,7 @@ import { launch, openSettings, type DeckId } from '../state/nav';
 import { getProgress, levelName, useProgress, type DayLog } from '../state/progress';
 import { presetTiming, useSettings } from '../state/settings';
 import { counts, previewQueue, useSrs, weakKeys, weakSpots, type WeakSpot } from '../state/srs';
+import { useLayout } from '../state/viewport';
 import { ActivityPanel } from './home/ActivityPanel';
 import { deckForKind, homeCopy, levelInfo, streakLabel } from './home/copy';
 import { LastSession } from './home/LastSession';
@@ -35,6 +42,11 @@ export function HomeScreen(): JSX.Element {
   const srsVersion = useSrs();
   const progress = useProgress(settings.dailyGoal);
   const reducedMotion = useReducedMotion();
+  const layout = useLayout();
+  // tall 은 약한 곳이 전체 폭 한 줄로 내려와 세로 자리가 남습니다 — 다섯 곳까지 보여 줍니다(§4.6).
+  const spotCount = layout === 'tall' ? 5 : 3;
+  // land · tall · wide: 남는 칸에 상황별로 외운 정도(타일과 같은 상황 × 자리 기준).
+  const wideCols = layout === 'land' || layout === 'tall' || layout === 'wide';
 
   const positions = settings.lastPositions ?? settings.positions;
   const srs = useMemo(() => {
@@ -55,8 +67,15 @@ export function HomeScreen(): JSX.Element {
     } catch {
       /* a bad deck/position combination previews as zeros; the trainer shows the real reason */
     }
-    return { weakCount, deck, preview, tiles: counts(settings.kinds, settings.positions), learnedAll: counts().learned, spots: weakSpots(3) };
-  }, [srsVersion, settings.lastDeck, settings.sessionSize, positions, settings.kinds, settings.positions, settings.interestingBias, progress.activeDays]);
+    return {
+      weakCount,
+      deck,
+      preview,
+      tiles: counts(settings.kinds, settings.positions),
+      learnedAll: counts().learned,
+      spots: weakSpots(spotCount),
+    };
+  }, [srsVersion, settings.lastDeck, settings.sessionSize, positions, settings.kinds, settings.positions, settings.interestingBias, progress.activeDays, spotCount]);
 
   const timing = presetTiming(settings);
   const cadenceMs = settings.exposureMode ? timing.expose + timing.transition : timing.think + timing.reveal + timing.transition;
@@ -80,60 +99,97 @@ export function HomeScreen(): JSX.Element {
   const empty = copy.state === 'empty';
 
   const start = () => launch({ target: 'train', deck: srs.deck, autostart: true });
-  const trainSpot = (s: WeakSpot) => launch({ target: 'train', deck: deckForKind(s.kind), positions: [s.hero], autostart: true });
+  const trainSpot = (s: WeakSpot) =>
+    launch({
+      target: 'train',
+      deck: deckForKind(s.kind),
+      positions: [s.hero],
+      autostart: true,
+    });
   const trainWeak = () => launch({ target: 'train', deck: 'weak', autostart: true });
 
   return (
     <div className="screen home" data-state={copy.state}>
-      <div className="home__top">
-        <div className="home__head">
-          <p className={`home__eyebrow${progress.streak > 0 ? '' : ' home__eyebrow--cold'}`}>
-            <IconFlame size={16} />
-            <span className="tnum">{streakLabel(progress.streak)}</span>
-            {showLevel && <span> · {levelName(srs.learnedAll)}</span>}
-          </p>
-          <h1 className="t-title-l home__title">{copy.headline}</h1>
-          <p className="home__sub">{copy.sub}</p>
-        </div>
-        <IconButton icon={<IconGear />} label="설정" onClick={() => openSettings(true)} />
-      </div>
-
-      <TodayPanel
-        todayCards={progress.today.cards}
-        goal={settings.dailyGoal}
-        rated={progress.today.rated}
-        goalDone={progress.goalReachedToday}
-        preview={srs.preview}
-        quizToday={progress.today.quiz}
-        cta={copy.cta}
-        ctaTrailing={copy.ctaTrailing}
-        onStart={start}
-        reducedMotion={reducedMotion}
-      />
-
-      <div className="home__tiles" role="group" aria-label="카드 현황">
-        <StatTile label="외웠어요" value={srs.tiles.learned} dot="var(--mint)" />
-        <StatTile label="배우는 중" value={srs.tiles.learning} dot="var(--amber)" />
-        <StatTile label="새 카드" value={srs.tiles.fresh} dot="var(--lilac)" />
-      </div>
-
-      {showLevel && (
-        <div className="home-level" aria-label="레벨">
-          <div className="home-level__row">
-            <span className="home-level__name">{level.name}</span>
-            <span className="home-level__next tnum">{level.next ? `${level.next.name}까지 ${level.next.remaining}장` : '최고 레벨이에요'}</span>
-          </div>
-          <div className="home-level__bar" role="progressbar" aria-valuenow={Math.round(level.ratio * 100)} aria-valuemin={0} aria-valuemax={100}>
-            <div className="home-level__fill" style={{ width: `${Math.round(level.ratio * 100)}%` }} />
+      <div className="home__group home__group--hero">
+        <div className="home__area home__area--head">
+          <div className="home__top">
+            <div className="home__head">
+              <p className={`home__eyebrow${progress.streak > 0 ? '' : ' home__eyebrow--cold'}`}>
+                <IconFlame size={16} />
+                <span className="tnum">{streakLabel(progress.streak)}</span>
+                {showLevel && <span> · {levelName(srs.learnedAll)}</span>}
+              </p>
+              <h1 className="t-title-l home__title">{copy.headline}</h1>
+              <p className="home__sub">{copy.sub}</p>
+            </div>
+            <IconButton icon={<IconGear />} label="설정" onClick={() => openSettings(true)} />
           </div>
         </div>
-      )}
 
-      <WeakSpots spots={srs.spots} weakCount={srs.weakCount} onTrainSpot={trainSpot} onTrainWeak={trainWeak} />
+        <div className="home__area home__area--today">
+          <TodayPanel
+            todayCards={progress.today.cards}
+            goal={settings.dailyGoal}
+            rated={progress.today.rated}
+            goalDone={progress.goalReachedToday}
+            preview={srs.preview}
+            quizToday={progress.today.quiz}
+            cta={copy.cta}
+            ctaTrailing={copy.ctaTrailing}
+            onStart={start}
+            reducedMotion={reducedMotion}
+          />
+        </div>
+      </div>
 
-      <ActivityPanel days={progress.days} goal={settings.dailyGoal} todayKey={progress.todayKey} totalCards={progress.totalCards} empty={empty} logFor={(key) => logForDay(settings.dailyGoal, key)} />
+      <div className="home__group home__group--stats">
+        <div className="home__area home__area--tiles">
+          <div className="home__tiles" role="group" aria-label="카드 현황">
+            <StatTile label="외웠어요" value={srs.tiles.learned} dot="var(--mint)" />
+            <StatTile label="배우는 중" value={srs.tiles.learning} dot="var(--amber)" />
+            <StatTile label="새 카드" value={srs.tiles.fresh} dot="var(--lilac)" />
+          </div>
+        </div>
 
-      {progress.lastResult && !empty && <LastSession result={progress.lastResult} goal={settings.dailyGoal} todayCards={progress.today.cards} weekDots={progress.weekDots} />}
+        <div className="home__area home__area--level">
+          {showLevel && (
+            <div className="home-level" aria-label="레벨">
+              <div className="home-level__row">
+                <span className="home-level__name">{level.name}</span>
+                <span className="home-level__next tnum">{level.next ? `${level.next.name}까지 ${level.next.remaining}장` : '최고 레벨이에요'}</span>
+              </div>
+              <div className="home-level__bar" role="progressbar" aria-valuenow={Math.round(level.ratio * 100)} aria-valuemin={0} aria-valuemax={100}>
+                <div className="home-level__fill" style={{ width: `${Math.round(level.ratio * 100)}%` }} />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="home__area home__area--weak">
+        <WeakSpots spots={srs.spots} weakCount={srs.weakCount} onTrainSpot={trainSpot} onTrainWeak={trainWeak} />
+      </div>
+
+      <div className="home__area home__area--activity">
+        <ActivityPanel
+          days={progress.days}
+          goal={settings.dailyGoal}
+          todayKey={progress.todayKey}
+          totalCards={progress.totalCards}
+          empty={empty}
+          logFor={(key) => logForDay(settings.dailyGoal, key)}
+        />
+      </div>
+
+      <div className="home__area home__area--prog">
+        {wideCols && <KindProgress kinds={settings.kinds.length ? settings.kinds : SCENARIO_KINDS} positions={settings.positions.length ? settings.positions : undefined} />}
+      </div>
+
+      <div className="home__area home__area--last">
+        {progress.lastResult && !empty && (
+          <LastSession result={progress.lastResult} goal={settings.dailyGoal} todayCards={progress.today.cards} weekDots={progress.weekDots} />
+        )}
+      </div>
     </div>
   );
 }

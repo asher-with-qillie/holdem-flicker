@@ -1,4 +1,9 @@
-# Holdem Flicker v2 — FINAL REDESIGN SPEC (mobile only)
+# Holdem Flicker v2 — FINAL REDESIGN SPEC (phones + iPhone Duo)
+
+> Size support: portrait phones 360–430 (§1–§10, reference 390×844) **and** every iPhone Duo posture — outer screen
+> portrait/landscape, inner screen portrait/landscape, Split View, standalone — in every Safari toolbar state. The
+> five size classes, the toolbar model and the per-class layouts are in **§11**; it overrides anything here that
+> assumes a single 360–430 column (the 520 px cap, `@media (max-height)`, `100dvh` screens).
 
 Status: **implementation-ready**. Implementers read only this file plus the code. Reference viewport 390×844
 (iPhone 13, safe-top 47, safe-bottom 34). Wireframes are 48 columns wide (1 col ≈ 8 px). Korean UI.
@@ -547,6 +552,9 @@ Kept unchanged (contracts in `docs/UI_SPEC.md`): `PlayingCard`/`HandView`, `Tabl
 
 ## 5. Per-screen specs (390 px, 48 cols). Legend: `╭╮╰╯` glass, `[ ]` capsule button, `( )` chip / 44 px
 circle, `▓` solid primary, `◉` ring, `━` progress, `▪` heat cell.
+
+> These wireframes are the **phone** class (360–559 wide, svh ≥ 640). The other four classes (squat · land · tall ·
+> wide) re-arrange the same blocks — see §11.4 for their wireframes and §11.5 for what each one shows at once.
 
 ### 5.1 홈 (Home / 진행)
 
@@ -1346,3 +1354,270 @@ chips → heatmap tooltip row → 노출 모드 tap-flag (노출 becomes pure ex
 steps 2–3 (keep hold; rely on the choice-button flash). **Never cut**: 4-tab floating glass bar, session size +
 summary, speed presets with 순간기억, choice-button rating, shared SRS store, daily goal ring + streak,
 hold-to-pause, coach step 1.
+
+---
+
+## 11. iPhone Duo — size classes, Safari toolbars, per-class layouts
+
+The owner's brief: adapt to every screen of the iPhone Duo (Apple's 2026 foldable) **without just stretching
+widths** — each posture gets a layout that uses the whole screen and shows as much of the chart-memorisation loop
+as fits (more of the chart, the line strip, the seat comparison, recent cards, progress) — and stay correct while
+Safari's top/bottom toolbars have real height *and change it* (collapse on scroll, compact bottom bar vs top address
+bar, landscape, home-screen standalone with no toolbars). Numbers are CSS px.
+
+### 11.1 One source of truth: `src/state/viewport.ts`
+
+- `initViewport()` runs synchronously in `main.tsx` before the first render and writes three attributes on `<html>`:
+  `data-layout = phone | squat | land | tall | wide`, `data-bar = bottom | top` (which side the toolbar slack goes to),
+  `data-short = 740 | 700` (absent when H > 740).
+- Input: `W = documentElement.clientWidth`, `H = min(svh, innerHeight)`. svh is measured with a hidden
+  `position:fixed; height:100svh` probe; any value outside 200…innerHeight+100 falls back to innerHeight (guards the
+  −33554432 that standalone reports right after unfolding).
+- svh does not move when the toolbars collapse or expand, so **the class and the short tier never flip while the
+  user scrolls**. A bar that shrinks the viewport below svh (Shared with You) lowers innerHeight, so H follows it.
+- CSS structure branches **only** on these attributes. No new `@media (max-height|min-height|max-width)`; the old
+  `@media (max-height:740px/700px)` blocks became `html[data-short]` / `html[data-short="700"]` rules. The tiny
+  existing `max-width: 370/380` tweaks stay.
+- Resizes are debounced 150 ms before the class changes. A raw resize whose width moves ≥ 80 (fold, unfold, rotate;
+  toolbars never change width) fires `onViewportJump` immediately. React reads the class with `useLayout()` /
+  `useViewportClass()`; FitBox holds its last scale while `isSettling()`.
+
+```ts
+classify(w, h):  w < 560  → h < 640 ? 'squat' : 'phone'
+                 h < 480 || (h < 760 && w < 820) → 'land'
+                 h < 760 ? 'wide' : 'tall'
+data-bar:   tall | wide → 'top', otherwise 'bottom'
+data-short: h ≤ 700 → '700', h ≤ 740 → '740'
+```
+
+### 11.2 Target viewports (H = svh) and their class
+
+| Viewport W×H | Situation | layout | short | bar |
+|---|---|---|---|---|
+| 360×640 · 360×780 | audit reveal size · audit phone | phone | 700 · — | bottom |
+| 390×844 (Safari 390×664, collapsed ~750) | iPhone 13 | phone | 700 (also when collapsed) | bottom |
+| 430×932 (Safari 430×~739) | Pro Max | phone | 740 | bottom |
+| 375×553 | iPhone SE Safari | squat | 700 | bottom |
+| 382×580 (collapsed 618, Shared with You 540) | **Duo outer, portrait, Safari** | squat | 700 | bottom |
+| 382×678, bottom inset 34 | Duo outer, portrait, standalone | phone | 700 | bottom |
+| 466×678, right inset 84 | outer standalone alternative (stress) | phone | 700 | bottom |
+| 385×571 / 609 | Split View, one pane | squat | 700 | bottom |
+| 466×498 | transient frame while folding | squat | 700 | bottom |
+| 594×368 (406 collapsed, 356 top-bar minimum), 594×466 standalone (B21) | **Duo outer, landscape** | land | 700 | bottom |
+| 678×340 · 844×390 · 932×430 | simulator outlier · phones in landscape | land | 700 | bottom |
+| 669×867 (825 several tabs, 902 collapsed), 669×951 standalone (T24/B34) | **Duo inner, portrait** | tall | — | top |
+| 951×585 (543 several tabs, 620 collapsed), 951×669 standalone (B34, L/R 84 stress) | **Duo inner, landscape** | wide | 700 | top |
+| 867×587 (B34) | standalone window not yet updated after unfolding | wide | 700 | top |
+
+No viewport in the matrix sits near a boundary (466/594 are ≥ 94 from 560; 620/669 are ≥ 91 from 760).
+
+### 11.3 Safari toolbars: units, scroll model, fixed UI
+
+1. **The document never scrolls.** `.app { position: fixed; inset: 0 }` always equals the layout viewport, so it
+   follows the toolbars without JS. Scrolling happens only inside `.app__main` (tab pages), panel scrollers (chart
+   side column / dock), sheet bodies and the 설정 push body. Screens without scrolling (training session, quiz round,
+   the chart stage in land/tall/wide) have nothing to scroll, so they cannot collapse the toolbar either.
+2. **Two vertical units.** `--vh-frame = 100dvh` (what is visible now, follows the toolbars) and
+   `--vh-core = min(100svh, 100dvh)` (visible in the worst toolbar state, never moves). `vh` is only the
+   no-dvh fallback; `lvh` is not used.
+3. **No-scroll screens lay everything out inside the core** (`.vb > .vb__core + .vb__slack`). The difference
+   frame − core (0 expanded; 38 outer screen and Split View; 35 inner screen) collects in one slack band on the
+   toolbar's side: `data-bar=bottom` (phone/squat/land) → core on top, slack below; `data-bar=top` (tall/wide) →
+   core at the bottom, slack above (`order: -1`). Result: **the choice buttons, 다음 and ✕ never move on screen
+   when a toolbar appears or disappears.** The slack shows the last-cards ribbon (R) when it is ≥ 28 tall (two rows
+   from 64).
+4. **Tab pages** scroll inside `.app__main`; when the toolbar collapses the frame grows and 35–38 more px of
+   content show. Only the tab bar is pinned to the bottom, and it follows the viewport bottom like Safari's own bar.
+   Whether an inner scroller collapses Safari's toolbar on iOS 27 needs a real device; if it does not, the toolbar
+   stays expanded and the layout is still correct.
+5. **Fixed bottom UI.** Tab capsule (phone/squat/tall): `bottom: calc(var(--tab-gap) + var(--safe-bottom))`, sides
+   respect `--safe-left/right`; translucent glass, ≥ 16 from the edges. Rail (land/wide): a 56-wide vertical capsule
+   (5 × 52 + 20 = 280 tall) centred on the core, so it never moves (wide anchors it from the bottom); it clears the
+   59 px screen corners even at 340 tall. Session control rows and 다음 are in-flow at the bottom of the core —
+   never `position: fixed/sticky` (avoids the iOS 26.0 sticky-bottom bug and the clipping of opaque fixed layers).
+   Sheet footers are `flex: none` with `padding-bottom: calc(12px + var(--safe-bottom))`.
+6. **No transitions on height-dependent properties** (`height`, `top`, `max-height`); sheets animate transforms only.
+7. **Sheets.** Bottom sheets hang their top edge off svh tokens (`--sheet-top` = max(safe-top + 24, 8 % core),
+   `--sheet-half-top` = 38 % core, peek ≤ min(232, 42 % core)) and only grow downward when the toolbar collapses —
+   the text being read does not jump. With the toolbar on top (tall/wide) the heights are core-based and the sheet is
+   anchored at the bottom, so its top edge is physically still. In land/wide, sheets become **side sheets** (end side
+   by default, `side="start"` for chart details; 10 px from every edge, core height) and `detent="full"` sheets
+   without a side become **panels** (10 px inset, covering the rail). Sheets with text inputs (coach API key, Ask AI)
+   use `.ui-sheet--input`, sized by `--vv-h` (visualViewport height, written by viewport.ts) so the keyboard never
+   hides the field. A sheet keeps one DOM node across class changes; only its classes change.
+
+### 11.4 Per-class layouts
+
+Abbreviations: **Q** question block (seat ladder, situation, step crumbs, stage with cards, hand label) · **A** answer
+block (prompt/result, choices, reveal slot, controls) · **G** labelled 13×13 chart — masked during think (all cells
+neutral, labels kept, ring on this hand, outline on its 13-cell line), painted with a 200 ms fade on reveal, geometry
+never changes · **T** label-less G thumbnail (not interactive during think; on reveal a button that opens the chart
+sheet) · **S** SeatChips (six seat tiles, "?" during think) · **R** last-cards ribbon (`AQo ✓ · 76s ✕ · A5s △` + tally).
+
+| Screen | phone | squat (382×580) | land (594×368) | tall (669×867) | wide (951×585) |
+|---|---|---|---|---|---|
+| Training session | as before; on reveal the cards crossfade to a painted T if the box is ≥ 104; R in the slack | vertical stack, timer in the HUD, stage = [cards \| T] (T hidden ≤ 95, cards hidden ≤ 63), 44-px 헷갈려요 icon toggle in the control row, R in the slack | `"hud hud" "q a"`, session hides the rail, stage = [cards \| T 138], right column ≥ 292: choices + 114 slot + controls | `"hud hud" "q ctx" "seam seam" "a a" "rib rib"`: Q beside G 303 + shares + S; seam ≥ 24 over the fold; 132 slot with md strip; R row (hidden when core < 860) | split at the crease: left pane HUD + Q + A, right pane md slot + S + G 355 + R column |
+| Quiz round | as before (no overflow) + painted T after answering | same zones, stage 135, feedback 186 | two columns, feedback 186 fully visible | Q \| G, answers 60, feedback 220 (md), R | left Q + answers, right feedback + S + G + R |
+| Setup · summary · quiz idle | one column | one column, 28 px large title | two columns | two columns | two panes at the crease (summary no longer scrolls) |
+| Charts | scroll page; cell detail = non-modal **peek** sheet (≤ 232) with the line outlined | compact header (grid starts y ≈ 200, ≥ 11 rows visible), peek sheet | stage: filter side column (scrolls) + fixed grid ≈ 298 (13 rows), inline CellCard, 자세히 = start side sheet | stage: header, G 440, dock below (card / legend / train), 자세히 = auto bottom sheet | stage: left pane filters + CellCard, right pane G 427 + legend + train |
+| 자리별 보기 (atlas) | full bottom sheet, one column | same | panel, two columns (tiles \| comparison) | full sheet ≤ 640, two columns | panel split at the crease |
+| 해설 sheet | bottom sheet | bottom sheet | end side sheet (cards and T stay visible) | half sheet whose top edge sits on the seam | side sheet covering exactly the right pane |
+| Home · coach · settings | one column | one column, 28 px title, 56 px tab bar | header + sticky left column (CTA always visible) \| stats, weak spots, 12-week map | two columns, no scroll | two panes at the crease |
+
+Shared rules: tapping a chart cell outlines its 13-cell line and dims the rest to 45 %; the cell detail is
+non-modal (another tap just swaps its content); explanation, atlas, cell card and summary bodies go two-column when
+their container is ≥ 540 (`@container sheet`); prose is capped at `--measure: 34em`. FitBox scales the cards in
+steps [1, .875, .75, .625, .5] and hides them below .5 (the hand label stays). Wide content never crosses the
+crease (x = 50 % ± 24); land tap targets stay inside the 59 px rounded screen corners; 84 px insets on standalone
+(L/R) contain no controls.
+
+Wireframes (training reveal; think has the same geometry with G/T masked, S as "?", the slot showing its idle hint):
+
+```
+squat 382×580 (core 580; budget without the stage 421 → stage 159, 131 with crumbs, 119 at 540)
+┌──────────────────────────────┐
+│✕ ●✓✕●○○ 3/10 정답        ⏸ │ 40  HUD + timer
+│[UTG][HJ][CO●][BTN][SB][BB]   │ 36  compact chips
+│ HJ 오픈 · 내 차례 (CO)        │ 22
+│┌──────────┐┌───────────────┐ │
+││ A♠  Q♦   ││▓▓ T painted ◎⤢│ │159 stage [cards | T]
+│└──────────┘└───────────────┘ │
+│         A♠ Q♦ · AQo           │ 25
+│ 정답 ✓                         │ 20
+│ [ 폴드 ] [ ✓ 콜 ] [ 3벳 ]     │ 56
+│┌────────────────────────────┐│114 slot: capsule 28 · sm strip 297 · 2-line sentence
+│└────────────────────────────┘│
+│[◀][ 해설 ][?!][ 다음 · 5 ▶ ]│ 52
+└──────────────────────────────┘
+ slack (toolbar collapsed, +38): R, one row
+
+land 594×368 — columns minmax(0,1fr) minmax(292px,52%), gap 12; padding max(corner-clear 20, safe + 12)
+┌───────────────────────────────────────────────────────────┐
+│ ✕  ●✓✕●○○○○○○  3/10  정답            ▬▬▬▬▬▬░░░      ⏸   │ 40
+├──────────────────────────┬────────────────────────────────┤
+│[UTG][HJ][CO●][BTN][SB][BB]│ 정답 ✓                          │ 20
+│ HJ 오픈 · 내 차례 CO       │ [ 폴드 ][ ✓ 콜 ][ 3벳 ]         │ 52
+│┌────────┐┌────────────┐  │┌──────────────────────────────┐│
+││ A♠  Q♦ ││▓▓ T 138  ⤢ │  ││ slot 114                      ││
+│└────────┘└────────────┘  │└──────────────────────────────┘│
+│      A♠ Q♦ · AQo          │[◀][ 해설 ][?!][ 다음 · 5 ▶ ]   │ 48
+└───────────────────────────┴────────────────────────────────┘
+
+tall 669×867 (gutter 24 → 621 wide; top block glued to the top, bottom block to the bottom)
+┌────────────────────────────────────────────────────┐
+│ ✕  ●✓✕●○○○○○○○○○○○○○○○  4/20  정답  ▬▬▬▬░░    ⏸ │ 44
+│┌─────────────────────────┐ ┌──────────────────────┐│
+││ seats · situation ·       │ │ G 303 (cells 23, ◎ AQo,││
+││ crumbs · cards · label    │ │ line outlined)        ││
+│└─────────────────────────┘ │ 콜 18% · 3벳 6% ▬▬▬▬   │ 20
+│                             │ S UTG HJ CO BTN SB BB  │ 46
+│ · · · · · · seam minmax(24px,1fr) · · · · · · · · · │
+│ 정답 ✓                                              │ 28
+│ [     폴드     ][    ✓ 콜    ][     3벳     ]       │ 60
+│┌──────────────────────────────────────────────────┐│132 slot: capsule 36 · md strip 323
+│└──────────────────────────────────────────────────┘│
+│ [◀]  [    해설    ]  [?!]  [       다음 · 5     ▶ ] │ 56
+│ R  AKo✓ 76s✕ QJs✓ A5s△ 98o✓ KTs✕ …  정답 7·부분1·오답2│ 40 (hidden when core < 860)
+└────────────────────────────────────────────────────┘
+
+wide 951×585 — columns var(--pane-l) minmax(0,1fr), column-gap 48 centred on the crease (x 475.5)
+┌──────────────────────────────────┐ ┊ ┌──────────────────────────────────┐
+│✕ ●✓✕●○○○ 4/20 정답 ▬▬▬░░    ⏸ │ ┊ │ slot 132 (md capsule, md strip)  │
+│[UTG][HJ][CO●][BTN][SB][BB]       │ ┊ │ S UTG HJ CO BTN SB BB            │
+│situation (2 lines)               │ ┊ │ ┌─────────────────────┐ AKo ✓   │
+│      ┌────────────────┐ stage 196│ ┊ │ │ G 355 (cells 27)     │ 76s ✕   │ R column
+│      └────────────────┘          │ ┊ │ │                      │ QJs ✓   │
+│          A♠ Q♦ · AQo             │ ┊ │ └─────────────────────┘ A5s △   │
+│정답 ✓ · [폴드][✓ 콜][3벳]          │ ┊ │                                  │
+│[◀][   해설   ][?!][ 다음 · 5 ▶]  │ ┊ │                                  │
+└──────────────────────────────────┘ ┊ └──────────────────────────────────┘
+
+charts — tall 669×867: header 44 · kind chips 40 · me|villain chips in one row 40 · scenario + shares 28 ·
+G = min(100%, 440, core − 176 − 150 − content-bottom) · dock (≥ 150, scrolls; takes the +35 of a collapsed toolbar)
+· capsule tab bar. land 594×368: rail 72 · filter side column (scrolls, chips wrap) · fixed G ≈ 298.
+wide 951×585: rail · left pane filters + CellCard (x 96–451.5) · right pane G 427 + legend + train (x 499.5–927).
+```
+
+### 11.5 What one screen shows (before → after)
+
+| Mode | Screen | Before | After |
+|---|---|---|---|
+| phone 390×664 | training reveal | seats, situation, cards, 1-row strip, sentence | + painted 13×13 map in the card box, result-coloured HUD dots |
+| squat 382×580 | training | cards at 10–15 px, explanation covered the stage | md cards + T 131–159 (masked → painted), hand label always, R when the toolbar collapses |
+| squat | charts | 9.5 rows, cell sheet covered the grid | ≥ 11 rows; peek sheet leaves grid + line outline visible |
+| land 594×368 | training · quiz · charts | broken (controls overlapping, no cards, 0 grid rows) | two columns, nothing clipped; all 13 rows (G ≈ 298) with filters and the cell card |
+| tall 669×867 | training | 520 column, cards 26 % of the height | Q + labelled G 303 + shares + S + md slot + R (8 cards) |
+| tall | charts | grid 472, sheet covered 89 % | G 440 + dock (capsule, md strip, sentence, S), no scroll |
+| wide 951×585 | training | 520 column, 31–47 % coverage | two 427 panes: Q \| md slot + S + G 355 + R column; 해설 covers only the right pane |
+| wide | charts | 6 of 13 rows | all 13 rows (G 427) + filters + cell card + non-modal 자세히 |
+| wide | home · coach · settings · summary | one column with 216 px empty margins | two panes, summary without scrolling |
+
+Learning rationale: charts are memorised as shapes (lines, borders) and as moves between seats; at feedback time
+the cell, its line, the whole grid and the other seats' answers should be visible together. During think the same
+places stay masked, so retrieval practice is preserved.
+
+### 11.6 Folding and unfolding
+
+- Event order: 2–3 resizes (incl. 466×498) → orientationchange → final resize; no reload.
+- Width jump ≥ 80 during think (running, not holding) → the session pauses; the user taps to resume. Any armed
+  auto-advance (training 다음 countdown, quiz 1.5 s) is cancelled. Rotating a phone does the same (intended).
+- Paused (by ‖ or by a jump): a scrim (`.trainer-pause`, "일시정지 · 누르면 이어서 해요") covers the core and a tap anywhere
+  resumes; the HUD (✕ · ▶) stays above it. The tab bar / rail comes back so another tab is one tap away, but it floats
+  *over* the session (`setChromeOverlay` → App keeps `.app__main--barless`), so the session geometry never changes and
+  nothing reflows on fold, unfold or pause.
+- The class switches after 150 ms of quiet; meanwhile the old layout draws at the new size (all tracks are
+  `minmax(0, …)` and `.app` clips overflow-x, so no horizontal scroll or torn frame).
+- State survives: nothing is keyed by class, and no component changes its element tree with the class: the
+  explanation body always renders its two column wrappers (`display: contents` when narrow, a grid under
+  `@container sheet (min-width: 540px)`), and the atlas always renders `.atlas__l` + `.atlas__r` (one column = contents /
+  hidden). So the sheet body is never remounted and its scrollTop survives. Sheets keep their node; the picked chart cell and
+  its detail stay (rendered as sheet, card or dock per class); RevealChart closes when the class becomes tall/wide
+  (G is inline); atlas selection lives in its sheet state.
+- Device Posture / Viewport Segments APIs are not used; production assumes no fold information.
+
+### 11.7 Verification
+
+- Unit: `src/state/__tests__/viewport.test.ts` (every viewport above, boundaries, `clampH(-33554432)`),
+  `quantizeScale` tests.
+- `scripts/layout-audit.mjs` runs every existing probe at the three phones, the phone Safari states (390×664/750,
+  430×739) and every Duo viewport above with its safe-area and toolbar state emulated (`--safe-*` overridden;
+  a collapsed toolbar = viewport at lvh with `--vh-core` and the svh probe pinned to svh, since Chromium cannot tell
+  svh from dvh), plus gate checks that fail the run (exit 1): `class`, `stage-fit`, `control-hidden`,
+  `toolbar-step` (svh ↔ lvh mid-session: buttons, ✕, 다음, sheet top edge and tab bar physically still; R shown when
+  the slack is ≥ 38; still no overflow while collapsed), `fan-min`, `masked`, `seam`, `crease`, `corner`, `band-84`,
+  `rail-overlap`, `grid-visible`, `cell-nonmodal`, `fold` (382×580 → 466×498 → 669×867 → 951×585 → 951×620 →
+  382×580 → 385×571 during think, with the 해설 sheet open, and with a picked chart cell) and `reveal-slot`
+  (114 / 120, 132 on tall/wide with the 323 md strip). Screens a class does not have are listed as n/a, not missed.
+- `scripts/e2e.mjs` runs the smoke flow three times: iPhone 13, Duo outer 382×580 (squat) and Duo inner 951×585
+  (wide), DPR 3.
+
+### 11.7a Decisions changed during verification
+
+- **land / wide 차트 「자세히」** expands the cell card in place in the side column (non-modal: the grid stays tappable
+  and another cell swaps the card) instead of a START side sheet — a side sheet would cover 148 px of the land grid
+  and cross the crease on wide. tall keeps the auto bottom sheet.
+- **land chart filters wrap** (row label above the chips) so all 7 situations and every seat are visible in the
+  ~180 px side column; wide wraps too.
+- **Setup right column (land / tall / wide)**: preview · 시작 · 지난 세션, then "상황별로 외운 정도" — one bar per
+  situation of the chosen deck × positions (외웠어요 / 배우는 중 / 새 카드, the same `srs.counts` as the home tiles).
+  A masked mini chart before the first card would show nothing, so it was dropped.
+- **HUD dots** keep the configured count; each dot is a contiguous run of queue entries (chained steps and requeues
+  make the queue longer than the size) painted with the run's worst outcome once all of it is revealed.
+- **Crease**: wide panels are inset symmetrically (`max(safe-left, safe-right) + 10`), their footers are two columns
+  split by `--pane-gap`; the side sheet's width subtracts `--safe-right`, so its left edge stays on the crease; wide
+  summaries mirror the rail on the right so their two columns split on the crease.
+- **Corners (land)**: `--content-bottom` 24, push header / setup / home / coach / side-sheet insets keep tap targets
+  inside the 59 px rounded corners.
+
+### 11.8 Open risks / real-device checks
+
+1. Whether inner scrollers collapse Safari's toolbars on iOS 27 (if not, tab pages just don't gain 35–38 px).
+2. `data-bar` is a guess per class: outer screen with the Top address bar or inner screen with the Bottom bar move
+   the core by 35–38 when the toolbar changes on no-scroll screens (nothing gets hidden — same as before).
+3. Chromium cannot reproduce svh ≠ dvh; collapsed states are emulated. Check on device: outer portrait
+   expanded/collapsed, inner portrait/landscape, the four standalone variants, Shared with You.
+4. The phone reveal map and the masked T change the learning flow; turning the phone map off is one CSS line
+   (`html[data-layout=phone] .trainer-revealmap{display:none}`) — owner's call.
+5. Unconfirmed device values: Safari-mode insets, outer-landscape standalone insets, inner Dynamic Island, corner
+   radius, how the inner screen splits chrome top/bottom (the tall seam may sit 20–40 px off the physical crease).
+6. Performance: G (169 cells) and S re-render per card; keep G, R and T on `.glass-flat`/`.fill` (blur budget ≤ 3).

@@ -39,6 +39,7 @@ export function ApiKeySheet({ open, onClose }: { open: boolean; onClose(): void 
       open={open}
       onClose={onClose}
       detent="auto"
+      input
       title="Claude API 키"
       footer={
         <CapsuleButton tone="neutral" block onClick={onClose}>

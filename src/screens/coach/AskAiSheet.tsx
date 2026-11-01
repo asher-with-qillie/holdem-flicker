@@ -56,6 +56,7 @@ export function AskAiSheet({ open, onClose, prompt, hasKey, canAsk, busy, onAsk 
       open={open}
       onClose={onClose}
       detent="auto"
+      input
       title="AI에게 물어보기"
       footer={
         <div className="coach-asksheet__foot">

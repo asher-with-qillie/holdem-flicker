@@ -13,11 +13,12 @@ import type { Phase } from './sessionStore';
  * 기존 rotateX flip(240ms)에 세 줄이 함께 실립니다. 생각하는 동안에는 조용한 자리 표시만 둡니다.
  *
  * `grade` — 트레이너 선택 모드에서 고른 답의 채점. 경계 꼬리표(`한 칸 밖`/`마지막 칸`)는 오답·부분 정답일 때만 보입니다.
+ * `size` — md on the unfolded Duo (tall / wide): slot 132, capsule 36, strip md (23×28 · 323 px).
  */
-export function AnswerSlot({ phase, explanation, showMix, animKey, hint, grade }: { phase: Phase; explanation: Explanation; showMix: boolean; animKey: string; hint?: string; grade?: Grade }) {
+export function AnswerSlot({ phase, explanation, showMix, animKey, hint, grade, size = 'sm' }: { phase: Phase; explanation: Explanation; showMix: boolean; animKey: string; hint?: string; grade?: Grade; size?: 'sm' | 'md' }) {
   if (phase === 'think') {
     return (
-      <div className="trainer-answer trainer-answer--idle glass-clear" aria-live="polite">
+      <div className={`trainer-answer trainer-answer--idle trainer-answer--${size} glass-clear`} aria-live="polite">
         <div className="trainer-answer__idle t-footnote">{hint ?? '고르면 정답과 해설이 나와요'}</div>
       </div>
     );
@@ -25,13 +26,13 @@ export function AnswerSlot({ phase, explanation, showMix, animKey, hint, grade }
   const near = (grade === 'wrong' || grade === 'partial') && explanation.nearMiss;
   const sentence = explanation.line.sentence?.text ?? '';
   return (
-    <div className="trainer-answer glass-clear" aria-live="polite">
+    <div className={`trainer-answer trainer-answer--${size} glass-clear`} aria-live="polite">
       <div key={animKey} className="trainer-answer__flip">
         <div className="trainer-answer__caprow">
-          <LineCapsule capsule={explanation.capsule} size="sm" showSplit={showMix} className="trainer-answer__cap" />
+          <LineCapsule capsule={explanation.capsule} size={size} showSplit={showMix} className="trainer-answer__cap" />
           {near && <span className="trainer-answer__near fill t-caption">{near}</span>}
         </div>
-        <LineStrip view={explanation.line} size="sm" className="trainer-answer__strip" />
+        <LineStrip view={explanation.line} size={size} className="trainer-answer__strip" />
         <p className="trainer-answer__reason t-footnote">
           <PlainText text={sentence} />
         </p>

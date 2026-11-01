@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { KindProgress } from '../../components/KindProgress';
 import { formatDuration } from '../../components/ui/SessionSummaryCard';
 import { CapsuleButton } from '../../components/ui/CapsuleButton';
 import { Chip } from '../../components/ui/Chip';
@@ -12,7 +13,8 @@ import { openSettings } from '../../state/nav';
 import { useProgress, type SessionResult } from '../../state/progress';
 import { applySpeedPreset, updateSettings, type DeckId, type Settings } from '../../state/settings';
 import { previewQueue, useSrs, weakKeys } from '../../state/srs';
-import { DECK_LABEL, DECK_ORDER, estimateMs, formatEstimate, hasChartsFor, resolvePositions, timingFor, WEAK_MIN } from './decks';
+import { useLayout } from '../../state/viewport';
+import { DECK_LABEL, DECK_ORDER, deckKinds, estimateMs, formatEstimate, hasChartsFor, resolvePositions, timingFor, WEAK_MIN } from './decks';
 import type { SessionConfig } from './sessionStore';
 
 /** Pre-selection from a `LaunchIntent` that did not autostart (§5.2). */
@@ -37,6 +39,8 @@ export interface SetupViewProps {
 
 export function SetupView({ settings, preset, onStart, lastResult, onOpenLast }: SetupViewProps) {
   useSrs();
+  const layout = useLayout();
+  const wideCols = layout === 'land' || layout === 'tall' || layout === 'wide';
   const pv = useProgress(settings.dailyGoal);
   const [deck, setDeck] = useState<DeckId>(() => preset?.deck ?? settings.lastDeck);
   const [positions, setPositions] = useState<Pos[] | null>(() => (preset?.positions?.length ? preset.positions : settings.lastPositions));
@@ -121,6 +125,9 @@ export function SetupView({ settings, preset, onStart, lastResult, onOpenLast }:
   const estimate = formatEstimate(estimateMs(planned, timing, settings.exposureMode));
   const lastPct = lastResult && lastResult.rated > 0 ? Math.round((lastResult.known / lastResult.rated) * 100) : null;
 
+  // land / tall / wide: the chip rows wrap inside their column instead of scrolling sideways (Duo spec §4.3)
+  const wrapChips = layout === 'land' || layout === 'tall' || layout === 'wide';
+
   return (
     <div className="trainer-setup">
       <header className="trainer-setup__head">
@@ -131,101 +138,109 @@ export function SetupView({ settings, preset, onStart, lastResult, onOpenLast }:
         <IconButton icon={<IconMore />} label="설정" onClick={() => openSettings(true)} />
       </header>
 
-      <section className="trainer-setup__group">
-        <h2 className="trainer-setup__label t-caption">덱</h2>
-        <ChipRow ariaLabel="덱">
-          {scenarioId && (
-            <Chip selected tint="var(--sky)" onClick={() => undefined}>
-              이 상황
-            </Chip>
-          )}
-          {onlyKeys && (
-            <Chip selected tint="var(--amber)" count={onlyKeys.length} onClick={() => undefined}>
-              선택한 카드
-            </Chip>
-          )}
-          {DECK_ORDER.map((d) =>
-            d === 'weak' ? (
-              <Chip key={d} selected={effectiveDeck === 'weak'} tint="var(--amber)" count={weakCount} disabled={!weakOk} onClick={() => pickDeck('weak')} title={weakOk ? undefined : WEAK_HINT}>
-                ⚡ {DECK_LABEL.weak}
+      <div className="trainer-setup__col trainer-setup__col--l">
+        <section className="trainer-setup__group">
+          <h2 className="trainer-setup__label t-caption">덱</h2>
+          <ChipRow ariaLabel="덱" wrap={wrapChips}>
+            {scenarioId && (
+              <Chip selected tint="var(--sky)" onClick={() => undefined}>
+                이 상황
               </Chip>
-            ) : (
-              <Chip key={d} selected={effectiveDeck === d} onClick={() => pickDeck(d)}>
-                {DECK_LABEL[d]}
+            )}
+            {onlyKeys && (
+              <Chip selected tint="var(--amber)" count={onlyKeys.length} onClick={() => undefined}>
+                선택한 카드
               </Chip>
-            ),
+            )}
+            {DECK_ORDER.map((d) =>
+              d === 'weak' ? (
+                <Chip key={d} selected={effectiveDeck === 'weak'} tint="var(--amber)" count={weakCount} disabled={!weakOk} onClick={() => pickDeck('weak')} title={weakOk ? undefined : WEAK_HINT}>
+                  ⚡ {DECK_LABEL.weak}
+                </Chip>
+              ) : (
+                <Chip key={d} selected={effectiveDeck === d} onClick={() => pickDeck(d)}>
+                  {DECK_LABEL[d]}
+                </Chip>
+              ),
+            )}
+          </ChipRow>
+          {!weakOk && <p className="trainer-setup__hint t-footnote">내 약점 · {WEAK_HINT}</p>}
+        </section>
+
+        <section className="trainer-setup__group">
+          <h2 className="trainer-setup__label t-caption">포지션</h2>
+          <ChipRow ariaLabel="포지션" wrap={wrapChips}>
+            <Chip selected={allSelected} onClick={() => togglePos('all')} disabled={!!scenarioId}>
+              전체
+            </Chip>
+            {pool.map((p) => (
+              <Chip key={p} selected={!allSelected && chosen.includes(p)} onClick={() => togglePos(p)} disabled={!!scenarioId}>
+                {p}
+              </Chip>
+            ))}
+          </ChipRow>
+        </section>
+
+        <section className="trainer-setup__group">
+          <h2 className="trainer-setup__label t-caption">속도</h2>
+          <SpeedPicker value={settings.speedPreset} onChange={applySpeedPreset} exposure={settings.exposureMode} onExposureChange={(v) => updateSettings({ exposureMode: v })} />
+        </section>
+
+        <section className="trainer-setup__group trainer-setup__group--row">
+          <h2 className="trainer-setup__label t-caption">세션 크기</h2>
+          <div className="trainer-setup__sizes" role="group" aria-label="세션 크기">
+            {SIZES.map((n) => (
+              <Chip key={n} selected={settings.sessionSize === n} onClick={() => updateSettings({ sessionSize: n })} disabled={!!onlyKeys}>
+                {n}
+              </Chip>
+            ))}
+          </div>
+        </section>
+
+      </div>
+
+      <div className="trainer-setup__col trainer-setup__col--r">
+        <GlassPanel variant="clear" radius="md" padding={12} className="trainer-preview">
+          <p className="t-headline">{charts ? `이번 세션 ${planned}장 · ${estimate}` : '지금은 시작할 수 없어요'}</p>
+          {charts ? (
+            <p className="trainer-preview__counts t-footnote tnum">
+              <span>
+                <i style={{ background: 'var(--sky)' }} /> 복습 {counts.due}
+              </span>
+              <span>
+                <i style={{ background: 'var(--amber)' }} /> 헷갈려요 {counts.unsure}
+              </span>
+              <span>
+                <i style={{ background: 'var(--lilac)' }} /> 새 카드 {counts.new}
+              </span>
+            </p>
+          ) : (
+            <p className="trainer-preview__counts t-footnote" style={{ color: 'var(--amber)' }}>
+              {effectiveDeck === 'weak' ? WEAK_HINT : NO_CHARTS}
+            </p>
           )}
-        </ChipRow>
-        {!weakOk && <p className="trainer-setup__hint t-footnote">내 약점 · {WEAK_HINT}</p>}
-      </section>
+        </GlassPanel>
 
-      <section className="trainer-setup__group">
-        <h2 className="trainer-setup__label t-caption">포지션</h2>
-        <ChipRow ariaLabel="포지션">
-          <Chip selected={allSelected} onClick={() => togglePos('all')} disabled={!!scenarioId}>
-            전체
-          </Chip>
-          {pool.map((p) => (
-            <Chip key={p} selected={!allSelected && chosen.includes(p)} onClick={() => togglePos(p)} disabled={!!scenarioId}>
-              {p}
-            </Chip>
-          ))}
-        </ChipRow>
-      </section>
+        <CapsuleButton tone="primary" size="xl" block icon={<IconPlay />} onClick={start} disabled={!charts} className="trainer-setup__start">
+          시작
+        </CapsuleButton>
+        {!charts && <p className="trainer-setup__hint t-footnote">{effectiveDeck === 'weak' ? WEAK_HINT : NO_CHARTS}</p>}
 
-      <section className="trainer-setup__group">
-        <h2 className="trainer-setup__label t-caption">속도</h2>
-        <SpeedPicker value={settings.speedPreset} onChange={applySpeedPreset} exposure={settings.exposureMode} onExposureChange={(v) => updateSettings({ exposureMode: v })} />
-      </section>
-
-      <section className="trainer-setup__group trainer-setup__group--row">
-        <h2 className="trainer-setup__label t-caption">세션 크기</h2>
-        <div className="trainer-setup__sizes" role="group" aria-label="세션 크기">
-          {SIZES.map((n) => (
-            <Chip key={n} selected={settings.sessionSize === n} onClick={() => updateSettings({ sessionSize: n })} disabled={!!onlyKeys}>
-              {n}
-            </Chip>
-          ))}
-        </div>
-      </section>
-
-      <GlassPanel variant="clear" radius="md" padding={12} className="trainer-preview">
-        <p className="t-headline">{charts ? `이번 세션 ${planned}장 · ${estimate}` : '지금은 시작할 수 없어요'}</p>
-        {charts ? (
-          <p className="trainer-preview__counts t-footnote tnum">
-            <span>
-              <i style={{ background: 'var(--sky)' }} /> 복습 {counts.due}
+        {lastResult && (
+          <button type="button" className="trainer-lastrow" onClick={onOpenLast}>
+            <span className="t-callout">지난 세션</span>
+            <span className="trainer-lastrow__meta t-footnote tnum">
+              {lastResult.seen}장{lastPct !== null ? ` · 정답 ${lastPct}%` : ''} · {formatDuration(lastResult.activeMs)}
             </span>
-            <span>
-              <i style={{ background: 'var(--amber)' }} /> 헷갈려요 {counts.unsure}
+            <span className="trainer-lastrow__chev" aria-hidden="true">
+              ▸
             </span>
-            <span>
-              <i style={{ background: 'var(--lilac)' }} /> 새 카드 {counts.new}
-            </span>
-          </p>
-        ) : (
-          <p className="trainer-preview__counts t-footnote" style={{ color: 'var(--amber)' }}>
-            {effectiveDeck === 'weak' ? WEAK_HINT : NO_CHARTS}
-          </p>
+          </button>
         )}
-      </GlassPanel>
 
-      <CapsuleButton tone="primary" size="xl" block icon={<IconPlay />} onClick={start} disabled={!charts}>
-        시작
-      </CapsuleButton>
-      {!charts && <p className="trainer-setup__hint t-footnote">{effectiveDeck === 'weak' ? WEAK_HINT : NO_CHARTS}</p>}
-
-      {lastResult && (
-        <button type="button" className="trainer-lastrow" onClick={onOpenLast}>
-          <span className="t-callout">지난 세션</span>
-          <span className="trainer-lastrow__meta t-footnote tnum">
-            {lastResult.seen}장{lastPct !== null ? ` · 정답 ${lastPct}%` : ''} · {formatDuration(lastResult.activeMs)}
-          </span>
-          <span className="trainer-lastrow__chev" aria-hidden="true">
-            ▸
-          </span>
-        </button>
-      )}
+        {/* land / tall / wide: 오른쪽 칼럼의 남는 높이에 이 덱 · 자리의 상황별 외운 정도(차트가 머리에 얼마나 들어왔는지) */}
+        {wideCols && <KindProgress kinds={deckKinds(effectiveDeck, settings.kinds)} positions={chosen} />}
+      </div>
     </div>
   );
 }

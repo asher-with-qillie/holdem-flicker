@@ -26,14 +26,29 @@
 .trainer-lastrow__meta { flex: 1; color: var(--ink-2); text-align: right; }
 .trainer-lastrow__chev { color: var(--ink-3); }
 
-/* ================================================================ session (§5.3–5.5) — nothing scrolls */
+/* ================================================================ session (§5.3–5.5) — nothing scrolls
+   Duo spec §4.1: .trainer-vb (= .vb, carries the state modifiers + wash) > .vb__core.trainer-session + .vb__slack.
+   The core is the worst-toolbar height (svh) and holds every control; the slack band (0–38 px, on the toolbar's side)
+   only ever shows the ribbon, so collapsing / expanding Safari's bars never moves a button.
+   Zones: .trainer-hud | .trainer-q (strip · situation · crumbs · stage) | .trainer-a (timer · choices · slot · rate ·
+   controls) | .trainer-ctx (tall / wide: G · shares · S · R) | .trainer-rib (tall). phone / squat flatten q / a with
+   display: contents, so the phone DOM flows exactly like the old single column. */
+.trainer-vb { position: relative; isolation: isolate; flex: 1; min-height: 0; animation: trainer-fade-in var(--dur-std) var(--ease-out); }
 .trainer-session {
-  position: relative; isolation: isolate; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px;
-  padding: 6px var(--gutter) 16px; overflow: hidden; animation: trainer-fade-in var(--dur-std) var(--ease-out);
+  position: relative; display: flex; flex-direction: column; gap: 8px;
+  padding: 6px var(--gutter) 16px; overflow: hidden;
 }
 .app__main--barless .trainer-session { padding-bottom: calc(16px + var(--safe-bottom)); }
+/* --core-h = the core's height (worst-toolbar svh). Paused: the tab bar / rail comes back (TrainerScreen releases the
+   chrome) and .app__main pads for it — the core gives that height back so the controls never sit under the bar. */
+.vb__core.trainer-session { --core-h: calc(var(--vh-core) - var(--safe-top)); height: var(--core-h); }
+.app__main:not(.app__main--barless) .vb__core.trainer-session { --core-h: calc(var(--vh-core) - var(--safe-top) - var(--content-bottom)); }
+.trainer-q, .trainer-a { display: contents; }
+.trainer-session [data-hold] { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.trainer-vb > .vb__slack { display: flex; align-items: center; padding: 0 max(var(--gutter), var(--safe-left)) 0 max(var(--gutter), var(--safe-right)); }
+.trainer-sr { position: absolute !important; width: 1px; height: 1px; min-width: 0 !important; min-height: 0 !important; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 /* extra felt blob behind the cards (§2 background rules) — the think / choose ground */
-.trainer-session::before {
+.trainer-vb::before {
   content: ''; position: absolute; inset: 0; z-index: -2; pointer-events: none;
   background: radial-gradient(50% 30% at 50% 45%, rgba(77, 227, 166, 0.10), transparent 70%);
 }
@@ -49,12 +64,25 @@
 .trainer-session--neutral .trainer-session__wash { background: radial-gradient(120% 80% at 50% 0%, #1e2a44 0%, #0b1020 70%); }
 
 /* ---- HUD ---- */
-.trainer-hud { flex: none; height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 2px; animation: trainer-hud-in var(--dur-std) var(--ease-spring); }
+.trainer-hud { position: relative; flex: none; height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 2px; animation: trainer-hud-in var(--dur-std) var(--ease-spring); }
+/* timer inside the HUD (squat / land / tall / wide): number at the right, 3 px line along the capsule's bottom edge */
+.trainer-timer--hud { flex: none; display: flex; align-items: center; }
+.trainer-timer--hud .trainer-timer__num { min-width: 46px; font-size: var(--fs-headline); line-height: 1; }
+.trainer-timer--hud .trainer-timer__num--think { font-size: var(--fs-headline); font-weight: 800; }
+.trainer-timer--hud .timerbar { position: absolute; left: 24px; right: 24px; bottom: 3px; height: 3px; pointer-events: none; }
+.trainer-timer--hidden { visibility: hidden; }
+.trainer-hud--status .trainer-timer--hud .trainer-timer__num { display: none; }
+html:is([data-layout="squat"], [data-layout="land"]) .trainer-hud--timer .trainer-hud__tag-label { display: none; }
 .trainer-hud__btn { color: var(--ink-2); }
 .trainer-hud__btn.ui-ibtn--tinted { color: var(--ink); }
 .trainer-hud__dots { flex: 1; min-width: 0; height: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; align-items: center; justify-items: center; }
 .trainer-hud__dots i { display: block; width: 6px; max-width: 100%; aspect-ratio: 1; border-radius: 50%; background: var(--ink-4); transition: background-color var(--dur-quick); }
 .trainer-hud__dots i.on { background: var(--mint); }
+/* dots painted by result (Duo spec §0.2) — the session's history at a glance; the current card is a hollow ring */
+.trainer-hud__dots i.on--partial { background: var(--amber); }
+.trainer-hud__dots i.on--wrong { background: var(--coral); }
+.trainer-hud__dots i.on--neutral { background: var(--ink-2); }
+.trainer-hud__dots i.now { background: transparent; box-shadow: inset 0 0 0 1px var(--ink-2); }
 .trainer-hud__bar { flex: 1; height: 4px; border-radius: 2px; background: var(--ink-4); overflow: hidden; }
 .trainer-hud__bar i { display: block; height: 100%; border-radius: inherit; background: var(--mint); transition: width var(--dur-quick) var(--ease-out); }
 .trainer-hud__count { flex: none; font-size: var(--fs-footnote); font-weight: 700; }
@@ -69,6 +97,27 @@
 @media (max-width: 380px) { .trainer-hud__tag-label { display: none; } }
 @keyframes trainer-hud-in { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes trainer-fade-in { from { opacity: 0; } to { opacity: 1; } }
+/* paused: a scrim over the core (the layout under it never moves); the HUD stays tappable above it */
+.trainer-pause {
+  position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center;
+  padding: 0 0 var(--content-bottom, 0px); cursor: pointer;
+  background: rgba(6, 10, 18, 0.66); -webkit-backdrop-filter: blur(10px) saturate(0.9); backdrop-filter: blur(10px) saturate(0.9);
+  animation: trainer-fade-in var(--dur-quick) var(--ease-out); -webkit-tap-highlight-color: transparent;
+}
+.trainer-pause__btn {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 20px; border: 0; margin: 0;
+  font: inherit; color: var(--ink); background: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+/* wide: the message sits in the left pane, off the crease (the scrim still covers both panes) */
+html[data-layout="wide"] .trainer-pause { justify-content: flex-start; padding-left: var(--gutter); }
+html[data-layout="wide"] .trainer-pause__btn { width: var(--pane-l); }
+.trainer-pause__icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: var(--ink-on-tint); background: var(--mint); box-shadow: 0 8px 24px rgba(77, 227, 166, 0.28); }
+.trainer-pause__icon svg { width: 28px; height: 28px; }
+.trainer-pause__title { margin-top: 6px; font-size: var(--fs-title-3); font-weight: 700; }
+.trainer-pause__sub { color: var(--ink-2); }
+.trainer-pause__btn:focus-visible { outline: none; }
+.trainer-pause__btn:focus-visible .trainer-pause__icon { box-shadow: 0 0 0 3px var(--bg-0), 0 0 0 5px var(--mint); }
+.trainer-session--paused .trainer-hud { z-index: 5; }
 @keyframes trainer-fade-out { to { opacity: 0; } }
 
 /* ---- position strip (flat .fill, no blur) ---- */
@@ -97,26 +146,58 @@
 .crumb--done { color: var(--ink-2); background: rgba(255, 255, 255, 0.12); }
 .crumb--on { color: var(--ink-on-tint); background: var(--mint); border-color: transparent; box-shadow: 0 3px 9px -3px color-mix(in srgb, var(--mint) 48%, transparent); }
 
-/* ---- stage (§6.3 v2.1: hold-to-pause only) ---- */
+/* ---- stage (§6.3 v2.1: hold-to-pause only) — a size container: the map (T), the fan and the label react to its height ---- */
 .trainer-stage {
-  flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px;
-  touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column;
+  container: stage / size;
   transition: transform var(--dur-quick) var(--ease-out);
 }
-.trainer-session--holding .trainer-stage { transform: scale(0.98); }
-.trainer-stage__area { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.trainer-stage__card { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; animation: trainer-card-in var(--t-in, 300ms) var(--ease-spring); }
+.trainer-session--holding .trainer-stage, .trainer-session--holding .trainer-a > * { transform: scale(0.98); }
+.trainer-a > * { transition: transform var(--dur-quick) var(--ease-out); }
+.trainer-stage__row { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; gap: 8px; }
+.trainer-stage__area { position: relative; align-self: stretch; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.trainer-stage__card { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; animation: trainer-card-in var(--t-in, 300ms) var(--ease-spring); transition: opacity 200ms var(--ease-out); }
 .trainer-stage__card--ghost { position: absolute; inset: 0; z-index: 0; pointer-events: none; animation: trainer-card-out 180ms var(--ease-in) forwards; }
 .trainer-stage--xfade .trainer-stage__card { animation: trainer-fade-in var(--t-in, 120ms) ease; }
 .trainer-stage--xfade .trainer-stage__card--ghost { animation: trainer-fade-out 120ms ease forwards; }
 @keyframes trainer-card-in { from { transform: translateX(60%) scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes trainer-card-out { to { transform: translateX(-40%) rotate(-6deg); opacity: 0; } }
+/* T beside the cards (squat / land): min(stage − label, 45 % of the stage width) */
+.trainer-stage__map { flex: none; width: min(100cqh - 25px, 45cqw); display: flex; }
+.trainer-stage__map > .stagechart { width: 100%; }
+/* phone reveal: the painted map crossfades over the cards when the fan box is ≥ 104 tall (think stays as before) */
+.trainer-revealmap { position: absolute; inset: 0; z-index: 1; display: none; align-items: center; justify-content: center; animation: trainer-fade-in 200ms var(--ease-out); }
+.trainer-revealmap > .stagechart { width: min(100cqw, 100cqh - 25px); }
+@container stage (min-height: 129px) {
+  .trainer-revealmap { display: flex; }
+  .trainer-stage--reveal:has(.trainer-revealmap) .trainer-stage__card:not(.trainer-stage__card--ghost) { opacity: 0; }
+}
+/* below 96 px of stage the map goes; below 64 the fan goes and the label grows (it carries the hand alone) */
+@container stage (max-height: 120px) {
+  .trainer-stage__map { display: none; }
+  /* T is gone, so the 차트 entry moves onto the label line (squat / land reveal) */
+  .trainer-handlabel__chart { display: inline-grid; }
+}
+.trainer-handlabel__chart {
+  display: none; position: relative; place-items: center; width: 30px; height: 25px; margin-left: 8px; padding: 0; border: 0; border-radius: var(--r-capsule);
+  vertical-align: top; color: var(--ink-2); background: rgba(255, 255, 255, 0.10); -webkit-tap-highlight-color: transparent;
+}
+.trainer-handlabel__chart::before { content: ''; position: absolute; inset: -10px -8px; }   /* 44+ px hit area */
+.trainer-handlabel__chart svg { width: 16px; height: 16px; }
+/* (visibility + zero flex, not display: none — a display toggle would restart the card's entry animation whenever a
+   layout pass briefly measures the stage small) */
+@container stage (max-height: 88px) {
+  .trainer-stage__area { flex: 0 0 0; visibility: hidden; overflow: hidden; }
+  .trainer-handlabel { flex: 1; height: auto; display: flex; align-items: center; justify-content: center; font-size: var(--fs-title-2); line-height: var(--lh-title-2); }
+}
 
-/* fan: takes the leftover height; FitBox scales the cards down to fit */
+/* fan: takes the leftover height; FitBox scales the cards down to fit (quantized; hidden below 0.5) */
 .fitbox { display: flex; align-items: center; justify-content: center; }
 .fitbox__inner { flex: none; transform-origin: center center; will-change: transform; }
+.fitbox--hidden .fitbox__inner { visibility: hidden; }
 .trainer-fan { flex: 1; min-height: 0; }
-.trainer-handlabel { flex: none; height: 25px; text-align: center; letter-spacing: 0.01em; }
+.trainer-fan .hand--lg, .trainer-fan .pc--lg { --pc-w: 160px; }
+.trainer-handlabel { flex: none; height: 25px; text-align: center; letter-spacing: 0.01em; white-space: nowrap; }
 .trainer-handlabel__card { margin: 0 3px; }
 .trainer-handlabel__card--s { color: var(--ink); }
 .trainer-handlabel__card--d { color: #ff7070; }
@@ -124,6 +205,54 @@
 .trainer-handlabel__name { color: var(--ink-2); }
 .trainer-flag { position: absolute; top: 2px; right: 10%; font-size: 24px; line-height: 1; animation: trainer-pop var(--dur-quick) var(--ease-spring); }
 @keyframes trainer-pop { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ---- StageChart: G (labelled) / T (thumb) — RangeGrid masked / focusLine / thumb do the drawing; this only sizes it.
+   The line's neighbours dim to 45 % while thinking (where they are all neutral anyway) but only to 75 % once painted,
+   so the revealed chart keeps its whole shape readable. ---- */
+.stagechart { position: relative; width: 100%; border-radius: 6px; }
+.stagechart .rgrid__cell { pointer-events: none; border-radius: 4px; }
+.stagechart--thumb .rgrid__cell { border-radius: 1.5px; }
+.stagechart--painted .rgrid--focus .rgrid__cell:not(.rgrid__cell--line) { opacity: 0.75; }
+/* a labelled G squeezed under 270 px (wide quiz at 543, tall while paused) has ~19 px cells: the 10 px labels would
+   spill out of them, so it reads as a large map instead (ring + line outline stay) */
+@container (max-width: 269px) { .stagechart--full .rgrid__cell { font-size: 0; } }
+.stagechart--button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.stagechart--button:active { filter: brightness(1.15); }
+.stagechart--button:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+/* S row inside the session: tiles share the row (C's .seatchips caps them at 58 px for the sheets) */
+.trainer-ctx .seatchips { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 4px; width: 100%; }
+
+/* ---- action shares above S (tall), hidden but space-keeping while thinking ---- */
+.trainer-shares { flex: none; height: 28px; overflow: hidden; display: flex; align-items: center; }
+.trainer-shares > .charts__shares { width: 100%; flex-direction: row; align-items: center; gap: 8px; }
+/* numbers first: the text keeps its natural width, the bar takes what's left (≤ 56, down to nothing) — so a three-way
+   split like 4벳 · 올인 · 콜 still reads whole in the 303 px tall column */
+.trainer-shares .charts__bar { flex: 1 1 0; min-width: 0; max-width: 56px; height: 6px; }
+.trainer-shares .charts__sharetext { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+.trainer-shares .share { gap: 3px; }
+.trainer-shares .share + .share::before { margin: 0 5px; }
+.trainer-shares .charts__shares { gap: 4px; }
+.trainer-shares--masked { visibility: hidden; }
+.trainer-shares .share--fold { display: none; }   /* the rest is fold — the bar says it; keeps the line to one row */
+
+/* ---- R: the cards already played ---- */
+.ribbon { display: flex; align-items: center; gap: 10px; min-width: 0; width: 100%; }
+.ribbon__list { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; margin: 0; padding: 0; list-style: none; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+.ribbon__chip { flex: none; display: inline-flex; align-items: center; gap: 3px; height: 24px; padding: 0 8px; border-radius: var(--r-capsule); background: rgba(255, 255, 255, 0.07); font-size: var(--fs-caption); font-weight: 700; white-space: nowrap; }
+.ribbon__mark { font-weight: 800; color: var(--ink-3); }
+.ribbon__chip--correct .ribbon__mark { color: var(--mint); }
+.ribbon__chip--partial .ribbon__mark { color: var(--amber); }
+.ribbon__chip--wrong .ribbon__mark { color: var(--coral); }
+.ribbon__empty { color: var(--ink-3); white-space: nowrap; }
+.ribbon__tally { flex: none; margin: 0; color: var(--ink-2); white-space: nowrap; }
+.ribbon--v { flex-direction: column; align-items: stretch; gap: 6px; height: 100%; }
+.ribbon--v .ribbon__list { flex-direction: column; align-items: stretch; -webkit-mask-image: linear-gradient(#000 85%, transparent); mask-image: linear-gradient(#000 85%, transparent); }
+.ribbon--v .ribbon__chip { justify-content: space-between; padding: 0 6px; }
+.ribbon--v .ribbon__empty { white-space: normal; text-align: center; }
+.ribbon--v .ribbon__tally { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ribbon__t--correct { color: var(--mint); }
+.ribbon__t--partial { color: var(--amber); }
+.ribbon__t--wrong { color: var(--coral); }
 
 /* ---- timer: bar + visible countdown ("6.4초" think · "일시정지"); the choose-mode reveal has no countdown:
    the row reads "다음을 눌러 넘어가요" (bar gone) · "다음까지 3.2초" only in 노출 / 순간기억 ---- */
@@ -163,9 +292,9 @@
 @keyframes trainer-choice-flash { from { filter: brightness(1.35); } to { filter: none; } }
 @keyframes trainer-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
 
-/* ---- AnswerSlot (fixed 120, glass-clear; a quiet placeholder while thinking) ---- */
+/* ---- AnswerSlot (fixed --slot-h: 120 · short 114 · tall/wide 132, glass-clear; a quiet placeholder while thinking) ---- */
 .trainer-answer {
-  flex: none; min-height: 120px; padding: 8px 12px; border-radius: var(--r-md);
+  flex: none; min-height: var(--slot-h); padding: 8px 12px; border-radius: var(--r-md);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; overflow: hidden;
   perspective: 800px;
 }
@@ -204,7 +333,7 @@
 .trainer-flagbtn.ui-btn--ghost { color: var(--ink-2); }
 
 /* ---- controls: ◀ · 해설 · ▶ while thinking (44 row); the choose-mode reveal swaps ▶ for the primary 다음 (56 row) ---- */
-.trainer-controls { flex: none; display: flex; align-items: center; gap: 10px; height: 44px; transition: height var(--dur-quick) var(--ease-out); }
+.trainer-controls { flex: none; display: flex; align-items: center; gap: 10px; height: 44px; }
 .trainer-controls__main { flex: 1; min-height: 44px; }
 .trainer-controls--next { height: 56px; }
 .trainer-controls--next .trainer-controls__main { flex: 1; min-height: 56px; }
@@ -222,6 +351,11 @@
 .trainer-controls--next .trainer-controls__main { padding-inline: 12px; }
 .trainer-controls--next .trainer-next { padding-inline: 12px; gap: 6px; }
 .trainer-chartbtn { flex: 1; }
+/* 헷갈려요 as a 44 px icon toggle in the controls row (every class but phone, which keeps its rate slot) */
+.trainer-flagicon { flex: none; }
+.trainer-flagicon__glyph { font-size: 20px; line-height: 1; filter: grayscale(0.6); }
+.trainer-flagicon--on .trainer-flagicon__glyph { filter: none; }
+.trainer-quietcap { flex: none; margin: 0; text-align: center; color: var(--ink-2); }
 /* narrow phones: the chevron goes, the row keeps ◀ · 해설 · 차트 · 다음 · 5 unclipped at 360 (and 320) */
 @media (max-width: 380px) {
   .trainer-controls--next { gap: 8px; }
@@ -239,32 +373,178 @@
 .trainer-chart__you b { color: var(--ink); font-weight: 700; }
 .trainer-chart__you i { flex: none; width: 14px; height: 14px; border-radius: var(--r-xs); border: 0; box-shadow: inset 0 0 0 1px var(--mint), 0 0 0 3px color-mix(in srgb, var(--mint) 22%, transparent); }
 .trainer-chart__summary { color: var(--ink-2); }
+/* land panel (the 차트 sheet is a 10-px-inset panel there, body ≥ 540): grid on the left sized to the panel's height so
+   all 13 rows show without scrolling; shares · 내 패 · legend · summary in the right column */
+@container sheet (min-width: 540px) {
+  .trainer-chart { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-auto-rows: min-content; column-gap: 18px; row-gap: 10px; align-items: start; }
+  .trainer-chart__grid { grid-column: 1; grid-row: 1 / span 6; width: clamp(200px, calc(var(--vh-core) - var(--safe-top) - var(--safe-bottom) - 160px), 440px); }
+  .trainer-chart > :not(.trainer-chart__grid) { grid-column: 2; }
+  .trainer-chart__you { justify-content: flex-start; text-align: left; }
+  .trainer-chart__grid { padding: 4px; }
+  .trainer-chart__grid .rgrid, .trainer-chart__grid .rgrid__row { gap: 1px; }
+  .trainer-chart__grid .rgrid__cell { border-radius: 3px; }
+}
+/* under 270 px the 10–11 px labels no longer fit their cells: the grid reads as a map (ring + colours), 전체 차트 보기
+   opens the labelled chart */
+@container (max-width: 269px) { .trainer-chart__grid .rgrid__cell { font-size: 0; } }
 
 /* ---- hold overlay footer / confirm ---- */
 .trainer-hold__foot { width: 100%; text-align: center; color: var(--ink-3); }
 .trainer-confirm { color: var(--ink-2); padding: 4px 0 8px; }
 
 /* ================================================================ summary (§5.6) */
-.trainer-summary { padding: 12px var(--gutter) 26px; }
-
-/* ================================================================ short viewports (Safari with its chrome ≈ 664px) */
-@media (max-height: 740px) {
-  .trainer-session { gap: 6px; }
-  .trainer-stage { gap: 6px; }
-  .trainer-strip .pstrip__caption { display: none; }
-  .trainer-situation { min-height: 22px; }
-  .trainer-situation > span { -webkit-line-clamp: 1; }
-  .trainer-crumbs-slot:empty { display: none; }
-  .trainer-timer__wrap { min-height: 24px; }
-  .trainer-choose { gap: 4px; }
-  .trainer-choose__prompt { min-height: 20px; }
-  /* 리빌은 짧은 화면에서도 문장 두 줄을 다 보여 줍니다: 8 + 28 + 4 + 22 + 4 + 36 + 8 = 110 ≤ 114 (캡슐 28 은 linestrip.css) */
-  .trainer-answer { min-height: 114px; gap: 4px; }
-  .trainer-answer__flip { gap: 4px; }
-  .trainer-rateslot { min-height: 30px; }
-  /* 다음 버튼은 56 그대로 두고 줄만 52 — 48 줄이면 버튼이 위아래로 4px 씩 삐져나와 아래 그림자가 화면 끝에서 2px 잘립니다(360×640). */
-  .trainer-controls--next { height: 52px; }
+.trainer-summary { padding: 12px var(--gutter) 26px; container: tsummary / inline-size; }
+/* Duo spec §4.3: a summary body ≥ 540 wide reads in two columns — ring · headline · streak · week · CTAs on the left,
+   the weak spot and the card rows on the right (the first .ui-summary__section starts column 2). */
+@container tsummary (min-width: 540px) {
+  .trainer-summary .ui-summary { display: block; columns: 2; column-gap: 24px; column-fill: balance; }
+  .trainer-summary .ui-summary > * { break-inside: avoid; margin: 0 0 14px; }
+  .trainer-summary .ui-summary > :not(.ui-summary__section) + .ui-summary__section { break-before: column; }
 }
+/* wide: the body is made symmetric about the viewport centre (the rail's width is mirrored on the right) and the column
+   gap is the pane gap, so the two columns split on the crease (x = 50% ± 24) instead of across it. */
+html[data-layout="wide"] .trainer-summary { padding-right: calc(var(--gutter) + var(--rail-space) - var(--safe-right)); }
+@container tsummary (min-width: 540px) {
+  html[data-layout="wide"] .trainer-summary .ui-summary { column-gap: var(--pane-gap); }
+}
+
+/* ================================================================ setup columns (Duo spec §4.3)
+   phone / squat: one column (the wrappers have no box). land / tall: two equal columns; wide: split at the crease.
+   left = deck · positions · speed · size; right = preview · 시작 · last session (land: 시작 first, sticky). */
+.trainer-setup__col { display: contents; }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .trainer-setup {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 24px; align-items: start;
+}
+html[data-layout="wide"] .trainer-setup { grid-template-columns: var(--pane-l) minmax(0, 1fr); column-gap: var(--pane-gap); }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .trainer-setup__head { grid-column: 1 / -1; }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .trainer-setup__col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+html[data-layout="land"] .trainer-setup__col--r { position: sticky; top: 8px; }
+html[data-layout="land"] .trainer-setup__start { order: -1; }
+/* land: keep the header's ⋯ and the last row's right edge out of the 59 px display corners */
+html[data-layout="land"] .trainer-setup { padding-top: 18px; padding-right: max(var(--gutter), var(--corner-clear)); }
+html[data-layout="land"] .trainer-summary { padding-right: max(var(--gutter), var(--corner-clear)); }
+
+/* ================================================================ short tier (svh ≤ 740 — html[data-short], set by viewport.ts)
+   Was @media (max-height: 740px); svh does not move with Safari's toolbars, so collapsing them no longer flips this. */
+html[data-short] .trainer-session { gap: 6px; }
+html[data-short] .trainer-strip .pstrip__caption { display: none; }
+html[data-short] .trainer-situation { min-height: 22px; }
+html[data-short] .trainer-situation > span { -webkit-line-clamp: 1; }
+/* squat (Duo 바깥 세로 382): 상황 문장이 한 줄을 넘으면 두 줄까지 — 끝("다시 내 차례예요")이 잘리지 않게. 무대가 그만큼 줄어듭니다. */
+html[data-layout="squat"] .trainer-situation { font-size: var(--fs-callout); line-height: 20px; }
+html[data-layout="squat"] .trainer-situation > span { -webkit-line-clamp: 2; }
+html[data-short] .trainer-crumbs-slot:empty { display: none; }
+html[data-short] .trainer-timer__wrap { min-height: 24px; }
+html[data-short] .trainer-choose { gap: 4px; }
+html[data-short] .trainer-choose__prompt { min-height: 20px; }
+/* 리빌은 짧은 화면에서도 문장 두 줄을 다 보여 줍니다: 8 + 28 + 4 + 22 + 4 + 36 + 8 = 110 ≤ 114 (캡슐 28 = --slot-cap) */
+html[data-short] .trainer-answer { gap: 4px; }
+html[data-short] .trainer-answer__flip { gap: 4px; }
+html[data-short] .trainer-rateslot { min-height: 30px; }
+/* 다음 버튼은 56 그대로 두고 줄만 52 — 48 줄이면 버튼이 위아래로 4px 씩 삐져나와 아래 그림자가 화면 끝에서 2px 잘립니다(360×640). */
+html[data-short] .trainer-controls--next { height: 52px; }
+
+/* ================================================================ Duo size classes (docs: Duo spec §4.1) — after the tier rules */
+
+/* compact seat strip for squat / land: 26 px chips in a 36 px band; the action tags become a 3 px underline in the
+   tag colour (the situation line right below says it in words) */
+html:is([data-layout="squat"], [data-layout="land"]) .trainer-strip .pstrip--compact { gap: 0; padding: 5px 4px; }
+html:is([data-layout="squat"], [data-layout="land"]) .trainer-strip .pstrip__tags,
+html:is([data-layout="squat"], [data-layout="land"]) .trainer-strip .pstrip__caption { display: none; }
+html:is([data-layout="squat"], [data-layout="land"]) .trainer-strip .pstrip__chip { height: 26px; border-radius: 8px; }
+html:is([data-layout="squat"], [data-layout="land"]) .trainer-strip .pstrip__dealer { top: -5px; right: -5px; width: 14px; height: 14px; }
+.trainer-strip .pstrip__seat:has(.pstrip__tag--raise) .pstrip__chip { --tagc: var(--act-raise); }
+.trainer-strip .pstrip__seat:has(.pstrip__tag--threebet) .pstrip__chip { --tagc: var(--act-threebet); }
+.trainer-strip .pstrip__seat:has(.pstrip__tag--fourbet) .pstrip__chip { --tagc: var(--act-fourbet); }
+.trainer-strip .pstrip__seat:has(.pstrip__tag--allin) .pstrip__chip { --tagc: var(--act-allin); }
+.trainer-strip .pstrip__seat:has(.pstrip__tag--limp) .pstrip__chip { --tagc: var(--ink-2); }
+html:is([data-layout="squat"], [data-layout="land"]) .trainer-strip .pstrip__chip { box-shadow: inset 0 -3px 0 var(--tagc, transparent); }
+html:is([data-layout="tall"], [data-layout="wide"]) .trainer-strip .pstrip__caption { display: none; }
+
+/* every class but phone: fixed control-row height in both phases (no jump think → reveal), chevron off when narrow */
+html:not([data-layout="phone"]) .trainer-controls { gap: 8px; }
+
+/* ---- squat: Duo outer screen 382×580 (540–618), Split View, SE. Vertical stack, timer in the HUD, [cards | T] stage.
+   8 + 40 + 4 + 36 + 4 + 22 + 4 + stage + 4 + 20 + 4 + 56 + 4 + 114 + 4 + 52 + 12 → stage ≈ 188 at 580 (163 at 555) ---- */
+html[data-layout="squat"] .trainer-session { gap: 4px; padding: 8px var(--gutter) calc(12px + var(--safe-bottom)); }
+html[data-layout="squat"] .trainer-hud { height: 40px; }
+html[data-layout="squat"] .trainer-controls,
+html[data-layout="squat"] .trainer-controls--next { height: 52px; }
+html[data-layout="squat"] .trainer-controls--next .trainer-controls__main,
+html[data-layout="squat"] .trainer-next { min-height: 52px; }
+html[data-layout="squat"] .trainer-controls--next .trainer-controls__main,
+html[data-layout="squat"] .trainer-next { padding-inline: 12px; }
+
+/* ---- land: Duo outer landscape 594×368 (340–466), phone landscape. "hud hud" / "q a"; the rail hides in sessions.
+   right: 20 + 4 + 52 + 6 + 114 + 6 + 48 = 250 ≤ 368 − 8 − 40 − 6 − 16 = 298; insets keep taps out of the 59 px corners ---- */
+html[data-layout="land"] .trainer-session {
+  /* answer column ≥ 320: with the slot's 8 px inline padding the sm strip gets its full 297 and a line sentence the
+     same 304 px measure it has on a 360 phone, so it stays within its 2 lines (EXPLAIN_SPEC §3.1) */
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 54%); grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "hud hud" "q a"; gap: 6px 12px;
+  padding: 8px max(var(--corner-clear), calc(var(--safe-right) + 12px)) calc(16px + var(--safe-bottom)) max(var(--corner-clear), calc(var(--safe-left) + 12px));
+}
+html[data-layout="land"] .trainer-hud { grid-area: hud; height: 40px; padding: 0 10px; }
+html[data-layout="land"] .trainer-q { grid-area: q; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; }
+html[data-layout="land"] .trainer-a { grid-area: a; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; min-width: 0; min-height: 0; }
+html[data-layout="land"] .trainer-situation { min-height: 40px; font-size: var(--fs-callout); line-height: 20px; }
+html[data-layout="land"] .trainer-situation > span { -webkit-line-clamp: 2; }
+html[data-layout="land"] .trainer-crumbs-slot:empty { display: none; }
+html[data-layout="land"] .trainer-stage__map { width: min(100cqh - 25px, 100cqw - 112px); }
+html[data-layout="land"] .trainer-choice { min-height: 52px; }
+html[data-layout="land"] .trainer-answer { padding-inline: 8px; }
+html[data-layout="land"] .trainer-controls,
+html[data-layout="land"] .trainer-controls--next { height: 48px; }
+html[data-layout="land"] .trainer-controls--next .trainer-controls__main,
+html[data-layout="land"] .trainer-next { min-height: 48px; padding-inline: 10px; }
+html[data-layout="land"] .trainer-controls--next .trainer-next .ui-btn__icon { display: none; }
+
+/* ---- tall: Duo inner portrait 669×867 (825–951). Top block (HUD · [Q | G]) hugs the top, bottom block (choices ·
+   md slot · controls · R) hugs the bottom; the seam between them takes the slack (≥ 24). R hides below 860 core. ---- */
+html[data-layout="tall"] .trainer-session {
+  /* G = --tall-grid (0.35 core, 280–340), but never more than the core leaves after the fixed rows:
+     8 + 44 + (G + 90) + seam 24 + bottom 298 + gaps 32 + pad 12 = G + 508 (+ 40 when R shows, core ≥ 860) */
+  --g: min(var(--tall-grid), calc(var(--core-h) - 508px - var(--safe-bottom)));
+  display: grid; grid-template-columns: minmax(0, 1fr) var(--g);
+  --ctx-h: calc(var(--g) + 28px + 46px + 16px);   /* G + shares 28 + S 46 + gaps — a definite row, so Q never measures small */
+  grid-template-rows: auto var(--ctx-h) minmax(var(--seam-min), 1fr) auto auto;
+  grid-template-areas: "hud hud" "q ctx" "seam seam" "a a" "rib rib"; gap: 8px 16px;
+  padding: 8px var(--gutter) calc(12px + var(--safe-bottom));
+}
+html[data-layout="tall"] .trainer-hud { grid-area: hud; padding: 0 8px 0 2px; }
+html[data-layout="tall"] .trainer-q { grid-area: q; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
+html[data-layout="tall"] .trainer-ctx { grid-area: ctx; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+html[data-layout="tall"] .trainer-ctx__grid { width: var(--g); }
+html[data-layout="tall"] .trainer-a { grid-area: a; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+html[data-layout="tall"] .trainer-rib { grid-area: rib; height: 40px; min-width: 0; display: flex; align-items: center; }
+/* the query sees the core's content box (padding 8 + 12 + safe-bottom): 839 here = a core under 860 px */
+@container core (max-height: 839px) { html[data-layout] .trainer-rib { display: none; } }
+html[data-layout="tall"] .trainer-choose__prompt { min-height: 28px; display: flex; align-items: center; justify-content: center; }
+html[data-layout="tall"] .trainer-choice { min-height: 60px; }
+html[data-layout="tall"] .trainer-controls,
+html[data-layout="tall"] .trainer-controls--next { height: 56px; }
+
+/* ---- wide: Duo inner landscape 951×585 (543–669). Two panels split exactly at the crease (50cqw ± 24):
+   left = HUD · Q · choices · controls; right = md slot · S · [G | R column] ---- */
+html[data-layout="wide"] .trainer-session {
+  display: grid; grid-template-columns: var(--pane-l) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "hud ctx" "q ctx" "a ctx"; column-gap: var(--pane-gap); row-gap: 8px;
+  padding: 8px var(--gutter) calc(16px + var(--safe-bottom));   /* 16: room for the bottom buttons' shadow */
+}
+html[data-layout="wide"] .trainer-hud { grid-area: hud; padding: 0 8px 0 2px; }
+html[data-layout="wide"] .trainer-q { grid-area: q; display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; }
+html[data-layout="wide"] .trainer-a { grid-area: a; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+html[data-layout="wide"] .trainer-ctx { grid-area: ctx; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
+html[data-layout="wide"] .trainer-ctx__row { flex: 1; min-height: 0; display: flex; gap: 10px; container: ctxrow / size; }
+html[data-layout="wide"] .trainer-ctx__grid { flex: none; width: min(100cqh, 100cqw - 66px); }
+html[data-layout="wide"] .trainer-ctx__rib { flex: none; width: 56px; }
+html[data-layout="wide"] .trainer-situation { min-height: 44px; }
+/* the crumbs scroller normally bleeds 8 px past its column for the chips' glow; in wide that 8 px would sit on the crease */
+html[data-layout="wide"] .trainer-crumbs { margin-right: 0; padding-right: 0; }
+html[data-layout="wide"] .trainer-situation > span { -webkit-line-clamp: 2; }
+html[data-layout="wide"] .trainer-choose__prompt { min-height: 28px; display: flex; align-items: center; justify-content: center; }
+html[data-layout="wide"] .trainer-controls,
+html[data-layout="wide"] .trainer-controls--next { height: 52px; }
 
 /* ================================================================ reduced motion (§8): transforms → short crossfades, no wash fade */
 @media (prefers-reduced-motion: reduce) {
@@ -275,7 +555,7 @@
   .trainer-choice.glass-solid, .trainer-choice--chosen.trainer-choice--wrong { animation: none; }
   .trainer-answer__flip, .trainer-answer__cap, .trainer-hud, .trainer-flag, .trainer-next, .trainer-timer__num--wait { animation: trainer-fade-in 150ms ease; }
   .trainer-next::before { transition: none; }
-  .trainer-controls { transition: none; }
+  .trainer-revealmap { animation: trainer-fade-in 150ms ease; }
 }
 
 /* Contrast on the reveal washes: lift tertiary text one step */

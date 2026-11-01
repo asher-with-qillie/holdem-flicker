@@ -88,6 +88,68 @@
   .home-spot .ui-chip { padding-inline: 10px; }
 }
 
+/* ---- size classes (Duo spec §4.6). Wrappers: hero = head + today, stats = tiles + level; plus weak, activity, last.
+   phone/squat: every wrapper is display: contents → one column, pixel-identical to before.
+   land/tall/wide: a grid. Only contiguous DOM siblings are grouped, so the DOM (and every local state) never moves. ---- */
+.home__group, .home__area { display: contents; }
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .home {
+  display: grid; align-content: start; align-items: start; overflow-anchor: auto;
+}
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) :is(.home__area, .home__group--stats) {
+  display: flex; flex-direction: column; gap: 16px; min-width: 0;
+}
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .home__area:empty { display: none; }
+.home__area--head { grid-area: head; }
+.home__area--today { grid-area: today; }
+.home__group--stats { grid-area: stats; }
+.home__area--weak { grid-area: weak; }
+.home__area--activity { grid-area: activity; }
+.home__area--last { grid-area: last; }
+.home__area--prog { grid-area: prog; }
+/* 12주 지도는 칸이 폭을 따라 커집니다. 넓은 칼럼에서 지도 하나가 화면을 다 먹지 않도록 칸 상한 28 */
+html:is([data-layout="land"], [data-layout="tall"], [data-layout="wide"]) .home-activity .ui-heat {
+  grid-template-columns: 24px repeat(var(--weeks, 12), minmax(16px, 28px)); justify-content: center;
+}
+
+/* land 594×368 (+ rail): 머리는 한 줄 전체, 오늘 패널(CTA)은 왼쪽 칼럼에 sticky — 어디까지 스크롤해도 CTA 가 보입니다. */
+html[data-layout="land"] .home {
+  grid-template-columns: minmax(200px, 0.9fr) minmax(0, 1fr); column-gap: 16px; row-gap: 12px;
+  grid-template-areas: "head head" "today stats" "today weak" "today prog" "today activity" "today last";
+  padding-top: 8px; padding-right: max(var(--gutter), var(--corner-clear));
+}
+html[data-layout="land"] .home__area--today { position: sticky; top: 8px; z-index: 1; }
+html[data-layout="land"] .home__group--stats { gap: 12px; }
+html[data-layout="land"] .home__eyebrow { min-height: 32px; }
+html[data-layout="land"] .home__top { align-items: center; }
+html[data-layout="land"] .home__head { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: 14px; }
+html[data-layout="land"] .home__eyebrow { grid-column: 1 / -1; }
+html[data-layout="land"] .home__sub { margin: 0; }
+html[data-layout="land"] .home-today { gap: 12px; }
+html[data-layout="land"] .home-today__row { gap: 12px; }
+html[data-layout="land"] .home__tiles { gap: 6px; }
+html[data-layout="land"] .home__tiles .ui-stat { padding: 10px 8px; }
+html[data-layout="land"] .home__tiles .ui-stat__label { gap: 4px; letter-spacing: -0.02em; }
+/* land 왼쪽 칼럼(~190)에서는 CTA 의 "· 11장 · 약 2분"을 빼고 라벨을 온전히 둡니다(장수는 패널 위에 이미 있음). */
+html[data-layout="land"] .home__area--today .ui-btn__trailing { display: none; }
+/* land 오른쪽 칼럼(~215)에서 12주 지도가 패널 밖으로 나가지 않게: 칸은 폭을 따라 줄고(최소 0) 간격은 3 */
+html[data-layout="land"] .home-activity .ui-heat { grid-template-columns: 22px repeat(var(--weeks, 12), minmax(0, 28px)); gap: 3px; }
+
+/* tall 669×867: 오늘 + 타일·레벨 | 최근 12주, 그 아래 약한 곳 · 지난 세션 | 상황별로 외운 정도. */
+html[data-layout="tall"] .home {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px;
+  grid-template-areas: "head head" "today activity" "stats activity" "weak prog" "last prog";
+}
+
+/* wide 951×585 (+ rail): crease 를 사이에 두고 두 패널. 왼쪽 = 머리 + 오늘 · 약한 곳 · 지난 세션, 오른쪽 = 타일·레벨 · 12주 · 상황별로 외운 정도. */
+html[data-layout="wide"] .home {
+  grid-template-columns: var(--pane-l) minmax(0, 1fr); column-gap: var(--pane-gap); row-gap: 16px;
+  grid-template-areas: "hero stats" "hero activity" "weak activity" "weak prog" "last prog";
+}
+html[data-layout="wide"] .home__group--hero { grid-area: hero; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+html[data-layout="wide"] .home__eyebrow { min-height: 32px; }
+html[data-layout="wide"] .home__title { font-size: var(--fs-title-1); line-height: var(--lh-title-1); }
+html[data-layout="wide"] .home-activity .ui-heat { grid-template-columns: 24px repeat(var(--weeks, 12), minmax(16px, 24px)); }
+
 /* ---- reduced motion (§8): the ring is passed animate={false}; these are the screen's own transitions ---- */
 @media (prefers-reduced-motion: reduce) {
   .home-level__fill, .home-link, .home-last { transition: none; }

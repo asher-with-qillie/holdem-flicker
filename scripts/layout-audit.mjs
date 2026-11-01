@@ -1,12 +1,18 @@
-// 박스모델·여백 감사. 각 화면 상태를 폰 3종 너비(360/390/430)에서 열고 DOM 을 훑어
-// 다음을 모읍니다: 가로 넘침, 글자 잘림, 고정 높이 박스 넘침, gap 위에 또 얹힌 margin,
-// 부모 패딩을 벗어난 자식, 44px 미만 터치 타깃(::before/::after hit-slop 포함), 좌우 거터,
+// 박스모델·여백 감사. 각 화면 상태를 폰 3종 너비(360/390/430)와 iPhone Duo 의 모든 자세·툴바 상태
+// (docs/REDESIGN_SPEC.md §11)에서 열고 DOM 을 훑어 다음을 모읍니다: 가로 넘침, 글자 잘림, 고정 높이 박스 넘침,
+// gap 위에 또 얹힌 margin, 부모 패딩을 벗어난 자식, 44px 미만 터치 타깃(::before/::after hit-slop 포함), 좌우 거터,
 // 스크롤 끝에서 탭바에 가리는 내용.
 //
-//   npm run preview  (다른 셸에서)
-//   node scripts/layout-audit.mjs http://localhost:4173/holdem-flicker/ work/audit
+//   npm run build && npx vite preview --port 4450 --strictPort  (다른 셸에서)
+//   node scripts/layout-audit.mjs http://localhost:4450/holdem-flicker/ work/audit [seed.json] [--only=…] [--jobs=3] [--skip=…] [--no-gate]
 //
-// 남는 항목이 전부 근거가 있는지 한 번씩 확인하세요. 지금 남겨 둔 것들:
+//   --only=a,b   크기 이름(360, 382x580, 951x669-l84 …) 또는 묶음(phone, safari, duo, squat, land, tall, wide)만 돕니다.
+//                toolbar · fold · reveal 패스도 이름 또는 크기로 거릅니다(예: --only=duo,toolbar).
+//   --skip=flow,toolbar,fold,reveal   해당 패스를 건너뜁니다.
+//   --jobs=N     동시에 여는 브라우저 컨텍스트 수(기본 3). 타이머를 재는 검사가 있어 4 이상은 권하지 않습니다.
+//   --no-gate    실패가 있어도 exit 0.
+//
+// 남는 항목이 전부 근거가 있는지 한 번씩 확인하세요. 지금 남겨 둔 것들(정보용 kind — exit code 에는 영향 없음):
 //   - .rgrid__cell 22px  : 13×13 레인지 그리드. 폰 너비에서 44px 을 줄 방법이 없습니다.
 //   - .atlas__cell        : 자리별 보기의 타일. 스트립은 52px 정사각(360px 기준), 삼각형 칸은 52×44 — 한 줄에 라벨 열 +
 //                          5칸을 328px 안에 넣어야 해서 삼각형 칸 높이를 44 아래로 내릴 수는 없지만, 폭이 더 좁아지면
@@ -18,16 +24,47 @@
 //   - .ui-sheet--held     : 꾹 누르는 동안 뜨는 시트는 일부러 잘라 내고 아래를 페이드로 흐립니다.
 //   - .app__main (시트 열림): 시트가 열리면 뒤 화면 스크롤을 잠급니다.
 //
-// 리빌 슬롯 검사(docs/EXPLAIN_SPEC.md §7.2-15): 360×640 · 390×844 에서 §3.6 의 13칸과 emWidth 상위 30개 문장을
-// 실제 훈련 세션으로 띄웁니다('지난 세션 → 틀린 것만 다시' 경로에 그 카드 키들을 심어 둡니다). 카드마다 정답을 골라
-// 리빌을 열고 줄 문장 ≤ 2줄 · 슬롯 높이 120/114 그대로 · 스트립 폭 297px · 가로 스크롤 없음을 확인합니다.
+// Duo 게이트 검사(실패하면 exit 1 — docs/REDESIGN_SPEC.md §11.7):
+//   class         html[data-layout|data-bar|data-short] 가 §11.2 표와 같은지 (svh 기준)
+//   stage-fit     스크롤 없는 화면(.app__main--fixed · .vb__core · .quiz-round · .charts--stage)이 넘치지 않는지,
+//                 문서(scrollingElement)가 절대 스크롤하지 않는지
+//   control-hidden 선택 버튼 · 다음 · ✕ · 퀴즈 답이 화면 안에 있고 다른 것에 덮이지 않았는지
+//   toolbar-step  Safari 툴바가 접히거나 펴질 때(뷰포트 높이 svh ↔ lvh) 버튼 · 시트 위 가장자리 · 탭 바가 물리적으로
+//                 그대로인지(data-bar=bottom: y, data-bar=top: innerHeight − y), slack ≥ 38 이면 지난 카드 줄(R)이 보이는지,
+//                 접힌 상태에서도 stage-fit · control-hidden 이 0 인지
+//   fan-min       카드 폭 ≥ 30 이거나 fan 이 숨었는지, 카드가 옆 요소와 겹치지 않는지
+//   masked        think 동안 세션 · 퀴즈의 차트(G/T)가 가림 상태인지(.rgrid--masked, 칠 층 opacity 0). 폰 think 에는 지도 없음
+//   seam          tall 세션의 위 블록과 아래 블록 사이 ≥ 24
+//   crease        wide 에서 글자 · 탭 대상이 가운데 접힘선 ±20 에 걸리지 않는지(시트 포함)
+//   corner        land 에서 모든 탭 대상이 반경 59 둥근 사각형 안에 있는지
+//   band-84       좌/우 inset 84 스트레스에서 inset 띠 안에 대화형 요소가 없는지
+//   rail-overlap  land/wide 의 레일 아래에 콘텐츠가 없는지
+//   grid-visible  차트 탭에서 land/tall/wide 는 13행, squat(svh ≥ 580)은 11행 이상이 바 위로 보이는지
+//   cell-nonmodal 차트 셀 상세가 열린 채 다른 셀을 누르면 내용만 바뀌는지
+//   fold          접기/펼치기 연속(382×580 → 466×498 → 669×867 → 951×585 → 951×620 → 382×580 → 385×571) 동안
+//                 클래스 전환, 세션 카드 · 열린 시트(같은 DOM 노드) · 본문 scrollTop · 고른 셀 보존, think 중 폭 점프면
+//                 일시정지되고 타이머가 만료되지 않는지
+//   reveal-slot   리빌 슬롯 높이 · 띠 폭 · 줄 문장 ≤ 2줄 (아래)
+//
+// Chromium 은 svh 와 dvh 를 구분하지 못합니다. 툴바가 접힌 상태(뷰포트 = lvh)는 `--vh-core` 를 svh 로 덮어쓰고
+// viewport.ts 의 svh 측정 probe 높이도 같은 값으로 고정해 흉내 냅니다. safe-area 는 `--safe-*` 토큰을 덮어써서 줍니다.
+//
+// 리빌 슬롯 검사(docs/EXPLAIN_SPEC.md §7.2-15): 360×640 · 390×844 와 Duo 네 자세에서 §3.6 의 13칸과 emWidth 상위 30개
+// 문장을 실제 훈련 세션으로 띄웁니다('지난 세션 → 틀린 것만 다시' 경로에 그 카드 키들을 심어 둡니다). 카드마다 정답을
+// 골라 리빌을 열고 줄 문장 ≤ 2줄 · 슬롯 높이(120/114, tall·wide 132) 그대로 · 띠 폭(sm 297, md 323) · 가로 스크롤 없음을
+// 확인합니다.
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const { chromium } = require(`${execSync('npm root -g').toString().trim()}/playwright`);
 
-const [url = 'http://localhost:4450/holdem-flicker/', outDir = 'work/audit', seedPath] = process.argv.slice(2);
+const ARGV = process.argv.slice(2);
+const FLAGS = Object.fromEntries(ARGV.filter((a) => a.startsWith('--')).map((a) => { const [k, v = '1'] = a.slice(2).split('='); return [k, v]; }));
+const [url = 'http://localhost:4450/holdem-flicker/', outDir = 'work/audit', seedPath] = ARGV.filter((a) => !a.startsWith('--'));
+const ONLY = FLAGS.only ? new Set(FLAGS.only.split(',').map((s) => s.trim()).filter(Boolean)) : null;
+const SKIP = new Set((FLAGS.skip ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+const JOBS = Math.max(1, Number(FLAGS.jobs) || 3);
 mkdirSync(outDir, { recursive: true });
 
 /** 선택: 코치 탭을 채우기 위한 저장소 씨앗 JSON ({ stats, srs }). work/seed-coach.ts 가 만듭니다. */
@@ -37,11 +74,112 @@ if (seedPath) {
   SEED = [JSON.stringify(s.stats), JSON.stringify(s.srs)];
 }
 
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+const Z = { t: 0, b: 0, l: 0, r: 0 };
+
+/** src/state/viewport.ts 의 classify 와 같은 식(§11.2). 기대값 표를 손으로 적은 것과 서로 맞는지 시작할 때 확인합니다. */
+const classify = (w, h) => (w < 560 ? (h < 640 ? 'squat' : 'phone') : h < 480 || (h < 760 && w < 820) ? 'land' : h < 760 ? 'wide' : 'tall');
+const barOf = (l) => (l === 'tall' || l === 'wide' ? 'top' : 'bottom');
+const shortOf = (h) => (h <= 700 ? '700' : h <= 740 ? '740' : '');
+
+// 기존 폰 3종: 예전 감사와 결과를 견줄 수 있게 이름 · DPR · safe-area(0)를 그대로 둡니다.
 const SIZES = [
-  { w: 360, h: 780, name: '360' },
-  { w: 390, h: 844, name: '390' },
-  { w: 430, h: 932, name: '430' },
+  { w: 360, h: 780, name: '360', dpr: 2, safe: Z, state: 'device', group: 'phone', expect: { layout: 'phone', short: '' } },
+  { w: 390, h: 844, name: '390', dpr: 2, safe: Z, state: 'device', group: 'phone', expect: { layout: 'phone', short: '' } },
+  { w: 430, h: 932, name: '430', dpr: 2, safe: Z, state: 'device', group: 'phone', expect: { layout: 'phone', short: '' } },
 ];
+
+/**
+ * Safari 툴바 상태별 뷰포트(§11.2 표 · Duo spec §1.3 · §2.6 · §8 D1). h = innerHeight(frame), svh = 가장 나쁜 툴바 상태의
+ * 높이(접힌 상태에서만 h 보다 작음). state: expanded(툴바 펼침) · collapsed(스크롤로 접힘) · shared(Shared with You 막대) ·
+ * standalone(홈 화면 앱, 툴바 없음) · split(Split View 한 칸) · transition(접는 중) · stress(84 inset).
+ */
+const sz = (w, h, o = {}) => {
+  const safe = { ...Z, ...(o.safe ?? {}) };
+  const sfx = o.sfx ?? '';
+  const H = Math.min(o.svh ?? h, h);
+  return {
+    w, h, svh: o.svh ?? 0, name: `${w}x${h}${sfx}`, dpr: o.dpr ?? 3, safe, state: o.state ?? 'expanded', group: o.group ?? 'duo', note: o.note ?? '',
+    expect: { layout: o.layout, short: shortOf(H) },
+  };
+};
+const SAFARI_SIZES = [
+  sz(390, 664, { layout: 'phone', group: 'safari', note: 'iPhone 13 Safari, 툴바 펼침' }),
+  sz(390, 750, { svh: 664, state: 'collapsed', layout: 'phone', group: 'safari', note: 'iPhone 13 Safari, 툴바 접힘' }),
+  sz(430, 739, { layout: 'phone', group: 'safari', note: 'Pro Max Safari' }),
+];
+const DUO_SIZES = [
+  // 바깥 화면 세로
+  sz(382, 580, { layout: 'squat', note: '바깥 세로 Safari (Bottom 설정, 펼침)' }),
+  sz(382, 618, { svh: 580, state: 'collapsed', layout: 'squat', note: '바깥 세로 Safari, 툴바 접힘' }),
+  sz(382, 618, { svh: 580, state: 'collapsed', safe: { b: 34 }, sfx: '-b34', layout: 'squat', note: '바깥 세로 접힘 + 홈 인디케이터' }),
+  sz(382, 540, { state: 'shared', layout: 'squat', note: '바깥 세로, Shared with You 막대' }),
+  sz(382, 678, { state: 'standalone', safe: { b: 34 }, sfx: '-b34', layout: 'phone', note: '바깥 세로 standalone' }),
+  // 바깥 화면 가로
+  sz(594, 368, { layout: 'land', note: '바깥 가로 Safari, 펼침' }),
+  sz(594, 406, { svh: 368, state: 'collapsed', layout: 'land', note: '바깥 가로 Safari, 접힘' }),
+  sz(594, 406, { svh: 368, state: 'collapsed', safe: { b: 21 }, sfx: '-b21', layout: 'land', note: '바깥 가로 접힘 + 홈 인디케이터' }),
+  sz(594, 466, { state: 'standalone', safe: { b: 21 }, sfx: '-b21', layout: 'land', note: '바깥 가로 standalone (B21)' }),
+  sz(594, 356, { layout: 'land', note: '바깥 가로, Top 설정 하한' }),
+  sz(678, 340, { layout: 'land', note: '시뮬레이터 이상치' }),
+  // 안쪽 화면 세로
+  sz(669, 825, { layout: 'tall', note: '안쪽 세로, 탭 여러 개' }),
+  sz(669, 867, { layout: 'tall', note: '안쪽 세로, 탭 1개 펼침' }),
+  sz(669, 902, { svh: 867, state: 'collapsed', layout: 'tall', note: '안쪽 세로, 접힘' }),
+  sz(669, 951, { state: 'standalone', safe: { t: 24, b: 34 }, sfx: '-t24b34', layout: 'tall', note: '안쪽 세로 standalone' }),
+  // 안쪽 화면 가로
+  sz(951, 543, { layout: 'wide', note: '안쪽 가로, 탭 여러 개' }),
+  sz(951, 585, { layout: 'wide', note: '안쪽 가로, 펼침' }),
+  sz(951, 620, { svh: 585, state: 'collapsed', layout: 'wide', note: '안쪽 가로, 접힘' }),
+  sz(951, 669, { state: 'standalone', safe: { b: 34 }, sfx: '-b34', layout: 'wide', note: '안쪽 가로 standalone' }),
+  // Split View · 과도 상태 · 갱신 안 된 standalone
+  sz(385, 571, { state: 'split', layout: 'squat', note: 'Split View 한 칸' }),
+  sz(385, 609, { svh: 571, state: 'split', layout: 'squat', note: 'Split View 한 칸, 접힘' }),
+  sz(867, 587, { state: 'standalone', safe: { b: 34 }, sfx: '-b34', layout: 'wide', note: '펼친 뒤 갱신 안 된 standalone' }),
+  sz(466, 498, { state: 'transition', layout: 'squat', note: '접는 중 과도 상태' }),
+  // 84 inset 스트레스
+  sz(466, 678, { state: 'stress', safe: { r: 84 }, sfx: '-r84', layout: 'phone', note: '바깥 standalone 대안, 오른쪽 inset 84' }),
+  sz(951, 669, { state: 'stress', safe: { b: 34, r: 84 }, sfx: '-r84', layout: 'wide', note: '안쪽 가로 standalone, 오른쪽 inset 84' }),
+  sz(951, 669, { state: 'stress', safe: { b: 34, l: 84 }, sfx: '-l84', layout: 'wide', note: '안쪽 가로 standalone, 왼쪽 inset 84' }),
+];
+const ALL_SIZES = [...SIZES, ...SAFARI_SIZES, ...DUO_SIZES];
+for (const s of ALL_SIZES) {
+  const H = Math.min(s.svh || s.h, s.h);
+  s.expect.bar = barOf(s.expect.layout);
+  if (classify(s.w, H) !== s.expect.layout) throw new Error(`size table: ${s.name} expects ${s.expect.layout} but classify() says ${classify(s.w, H)}`);
+}
+const wanted = (s) => !ONLY || ONLY.has(s.name) || ONLY.has(s.group) || ONLY.has(s.expect.layout) || ONLY.has(`${s.w}x${s.h}`);
+
+/** 다음 페이지 로드부터 safe-area 와 (접힌 상태면) svh 를 흉내 냅니다. 실행 중에는 window.__auditEmu(cfg) 로 바꿉니다. */
+function emuInit(cfg0) {
+  let cfg = cfg0;
+  const css = (c) => {
+    let s = `:root:root{--safe-top:${c.t}px!important;--safe-bottom:${c.b}px!important;--safe-left:${c.l}px!important;--safe-right:${c.r}px!important}`;
+    // 툴바가 접힌 상태: frame(dvh) = 뷰포트, core = svh. viewport.ts 의 svh probe(인라인 height:100svh)도 같은 값으로 고정합니다.
+    if (c.svh) s += `:root:root{--vh-core:${c.svh}px!important}html>div[aria-hidden="true"][style*="100svh"]{height:${c.svh}px!important}`;
+    return s;
+  };
+  const add = () => {
+    if (document.getElementById('audit-emu')) return;
+    const st = document.createElement('style');
+    st.id = 'audit-emu';
+    st.textContent = css(cfg);
+    (document.head || document.documentElement).appendChild(st);
+  };
+  window.__auditEmu = (c) => { cfg = c; add(); document.getElementById('audit-emu').textContent = css(c); };
+  if (document.documentElement) add(); else document.addEventListener('readystatechange', add, { once: true });
+}
+const emuCfg = (size, svh = size.svh) => ({ ...size.safe, svh: svh || 0 });
+
+async function newCtx(browser, size) {
+  const ctx = await browser.newContext({
+    viewport: { width: size.w, height: size.h },
+    deviceScaleFactor: size.dpr, isMobile: true, hasTouch: true, locale: 'ko-KR', userAgent: UA,
+  });
+  await ctx.addInitScript(emuInit, emuCfg(size));
+  return ctx;
+}
+const classOf = (page) => page.evaluate(() => { const d = document.documentElement.dataset; return { layout: d.layout ?? '', bar: d.bar ?? '', short: d.short ?? '' }; });
 
 const PROBE = () => {
   const out = [];
@@ -191,10 +329,13 @@ const PROBE = () => {
         const pr3 = p3.getBoundingClientRect();
         const cl = pr3.left + p3.clientLeft, ct = pr3.top + p3.clientTop;
         const cut = [];
-        if (clipY && box.t - ct + p3.scrollTop < -0.5) cut.push(`top ${(ct - p3.scrollTop - box.t).toFixed(0)}`);
-        if (clipY && box.b - ct + p3.scrollTop > p3.scrollHeight + 0.5) cut.push(`bottom ${(box.b - ct + p3.scrollTop - p3.scrollHeight).toFixed(0)}`);
-        if (clipX && box.l - cl + p3.scrollLeft < -0.5) cut.push(`left ${(cl - p3.scrollLeft - box.l).toFixed(0)}`);
-        if (clipX && box.rt - cl + p3.scrollLeft > p3.scrollWidth + 0.5) cut.push(`right ${(box.rt - cl + p3.scrollLeft - p3.scrollWidth).toFixed(0)}`);
+        // 잘리는 가장자리가 화면 가장자리와 같으면(예: 화면을 꽉 채운 .app) 잘린 그림자는 어차피 화면 밖이라 보이지 않습니다.
+        const vw0 = document.documentElement.clientWidth, vh0 = innerHeight;
+        const edgeT = ct <= 0.5, edgeL = cl <= 0.5, edgeB = ct + p3.clientHeight >= vh0 - 0.5, edgeR = cl + p3.clientWidth >= vw0 - 0.5;
+        if (clipY && !edgeT && box.t - ct + p3.scrollTop < -0.5) cut.push(`top ${(ct - p3.scrollTop - box.t).toFixed(0)}`);
+        if (clipY && !edgeB && box.b - ct + p3.scrollTop > p3.scrollHeight + 0.5) cut.push(`bottom ${(box.b - ct + p3.scrollTop - p3.scrollHeight).toFixed(0)}`);
+        if (clipX && !edgeL && box.l - cl + p3.scrollLeft < -0.5) cut.push(`left ${(cl - p3.scrollLeft - box.l).toFixed(0)}`);
+        if (clipX && !edgeR && box.rt - cl + p3.scrollLeft > p3.scrollWidth + 0.5) cut.push(`right ${(box.rt - cl + p3.scrollLeft - p3.scrollWidth).toFixed(0)}`);
         if (cut.length) push('glow-clip', el, `shadow cut ${cut.join(', ')} by ${p3.className || p3.tagName.toLowerCase()}`);
         break;
       }
@@ -264,27 +405,341 @@ const PROBE = () => {
   return { out, gutters, bottomCut };
 };
 
+/**
+ * Duo 게이트 검사(머리 주석 참조). o 에 켜진 검사만 돕니다. 검사할 대상이 화면에 없으면 missing 에 이름을 넣습니다 —
+ * 조용히 건너뛰면 검사가 도는 척만 합니다.
+ */
+const DUO_PROBE = (o) => {
+  const out = [];
+  const missing = [];
+  const metrics = {};
+  const vw = document.documentElement.clientWidth;
+  const vh = window.innerHeight;
+  const pathOf = (el) => {
+    const bits = [];
+    for (let n = el; n && n.nodeType === 1 && bits.length < 4; n = n.parentElement) {
+      bits.unshift(n.tagName.toLowerCase() + (n.className && typeof n.className === 'string' ? '.' + n.className.trim().split(/\s+/).slice(0, 2).join('.') : ''));
+    }
+    return bits.join(' > ');
+  };
+  const push = (kind, el, detail) => out.push({ kind, path: el ? pathOf(el) : 'html', detail, text: el ? (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40) : '' });
+  const shown = (el) => {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    // 1–2px 상자(스크린리더 전용 글자를 clip 으로 숨기는 패턴)는 보이는 것으로 치지 않습니다.
+    if (r.width < 2.5 || r.height < 2.5) return false;
+    if (getComputedStyle(el).visibility === 'hidden') return false;
+    if (el.matches('.ui-sr, .sr-only, .trainer-sr')) return false;
+    for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+      const c = getComputedStyle(n);
+      if (c.display === 'none' || Number(c.opacity) < 0.05) return false;
+      if (c.clip && c.clip !== 'auto') return false;
+    }
+    if (el.closest('[aria-hidden="true"], [hidden], [inert]')) return false;
+    return true;
+  };
+  const inView = (r) => r.right > 0.5 && r.left < vw - 0.5 && r.bottom > 0.5 && r.top < vh - 0.5;
+  const overlap = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+  const TAP = 'button, a[href], [role="button"], input, select, summary, [tabindex]:not([tabindex="-1"])';
+  /** 보이는 부분만: 스크롤러 · overflow 로 잘린 조상의 상자와 겹친 부분(가로 스크롤 칩 줄 밖으로 밀린 칩은 0). */
+  const visCache = new WeakMap();
+  const visRect = (el) => {
+    if (visCache.has(el)) return visCache.get(el);
+    const r = el.getBoundingClientRect();
+    let { left, top, right, bottom } = r;
+    for (let n = el.parentElement; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+      const c = getComputedStyle(n);
+      const cx = c.overflowX !== 'visible', cy = c.overflowY !== 'visible';
+      if (cx || cy) {
+        const b = n.getBoundingClientRect();
+        if (cx) { left = Math.max(left, b.left + (parseFloat(c.borderLeftWidth) || 0)); right = Math.min(right, b.right - (parseFloat(c.borderRightWidth) || 0)); }
+        if (cy) { top = Math.max(top, b.top + (parseFloat(c.borderTopWidth) || 0)); bottom = Math.min(bottom, b.bottom - (parseFloat(c.borderBottomWidth) || 0)); }
+      }
+      if (c.position === 'fixed') break;
+    }
+    const v = { left, top, right: Math.max(left, right), bottom: Math.max(top, bottom), width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+    visCache.set(el, v);
+    return v;
+  };
+  const tappables = () => [...document.querySelectorAll(TAP)].filter((el) => { if (el.disabled || !shown(el)) return false; const v = visRect(el); return v.width > 0.5 && v.height > 0.5 && inView(v); });
+  /** 글자 상자: 요소 상자가 아니라 실제 글자 줄의 사각형(블록 p 가 넓어도 글자가 짧으면 짧게). */
+  const textRects = () => {
+    const res = [];
+    const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      if (!n.textContent.trim()) continue;
+      const el = n.parentElement;
+      if (!el || !shown(el)) continue;
+      range.selectNodeContents(n);
+      for (const r of range.getClientRects()) if (r.width > 0.5 && r.height > 0.5 && inView(r)) res.push({ el, r });
+    }
+    return res;
+  };
+  const r0 = (n) => Math.round(n);
+
+  // 문서는 절대 스크롤하지 않습니다(.app 은 fixed inset 0, 스크롤은 안쪽 스크롤러에서만).
+  if (o.docScroll) {
+    const se = document.scrollingElement;
+    if (se.scrollHeight > vh + 1) push('stage-fit', null, `document scrolls: scrollHeight ${se.scrollHeight} > innerHeight ${vh}`);
+  }
+
+  if (o.stageFit) {
+    const boxes = [...document.querySelectorAll('.app__main--fixed, .vb__core, .quiz-round, .charts--stage')].filter(shown);
+    if (!boxes.length) missing.push('stage-fit');
+    for (const b of boxes) if (b.scrollHeight > b.clientHeight + 1) push('stage-fit', b, `scrollHeight ${b.scrollHeight} > clientHeight ${b.clientHeight} (+${b.scrollHeight - b.clientHeight})`);
+  }
+
+  if (o.controls) {
+    let found = 0;
+    for (const sel of o.controls) {
+      for (const el of document.querySelectorAll(sel)) {
+        if (!shown(el)) continue;
+        found++;
+        const r = el.getBoundingClientRect();
+        if (r.top < -0.5 || r.bottom > vh + 0.5 || r.left < -0.5 || r.right > vw + 0.5) {
+          push('control-hidden', el, `outside the viewport: [${r0(r.left)},${r0(r.top)} – ${r0(r.right)},${r0(r.bottom)}] vs ${vw}×${vh}`);
+          continue;
+        }
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (hit && hit !== el && !el.contains(hit) && !hit.contains(el)) push('control-hidden', el, `covered at its centre by ${pathOf(hit)}`);
+      }
+    }
+    if (!found) missing.push('controls');
+  }
+
+  if (o.fan) {
+    const fans = [...document.querySelectorAll('.trainer-fan, .quiz-hand')];
+    if (!fans.length) missing.push('fan-min');
+    for (const fan of fans) {
+      if (!shown(fan)) continue; // 숨겨진 fan(배율 < .5)은 통과
+      const cards = [...fan.querySelectorAll('.pc')].filter(shown);
+      if (!cards.length) continue;
+      const rs = cards.map((c) => c.getBoundingClientRect());
+      const w = Math.min(...rs.map((r) => r.width));
+      metrics.cardW = Math.round(w * 10) / 10;
+      if (w < 30) push('fan-min', fan, `card ${w.toFixed(1)}px wide (< 30) and the fan is still shown`);
+      const u = { left: Math.min(...rs.map((r) => r.left)), right: Math.max(...rs.map((r) => r.right)), top: Math.min(...rs.map((r) => r.top)), bottom: Math.max(...rs.map((r) => r.bottom)) };
+      const scope = fan.closest('.vb__core, .quiz-round, .trainer-session') ?? document.body;
+      for (const sib of scope.querySelectorAll('.trainer-handlabel, .quiz-handlabel, .stagechart, .trainer-choices, .quiz-answers, .trainer-answer, .quiz-feedback, .trainer-situation, .quiz-situation, .trainer-strip, .trainer-hud, .quiz-hud, .trainer-controls')) {
+        if (sib.contains(fan) || fan.contains(sib) || !shown(sib)) continue;
+        const a = overlap(u, sib.getBoundingClientRect());
+        if (a > 2) push('fan-min', sib, `cards overlap ${pathOf(sib).split(' > ').pop()} by ${Math.round(a)}px²`);
+      }
+    }
+  }
+
+  if (o.masked) {
+    const scope = document.querySelector('.vb__core') ?? document.querySelector('.app__main');
+    // 무대가 낮아 T 를 숨긴 경우(스펙: stage ≤ 95 → T 숨김)도 있으니, 보이는지가 아니라 DOM 에 있는지로 대상을 셉니다.
+    // 숨겨진 지도도 가림 상태여야 합니다(크기가 바뀌어 다시 보일 때 답이 비치면 안 됨).
+    const grids = scope ? [...scope.querySelectorAll('.rgrid')] : [];
+    if (o.expectMap && !grids.length) missing.push('masked');
+    if (!o.expectMap && scope && [...scope.querySelectorAll('.stagechart')].some(shown)) push('masked', scope.querySelector('.stagechart'), 'phone think must stay as before: no chart map while thinking');
+    for (const g of grids) {
+      if (!g.classList.contains('rgrid--masked')) { push('masked', g, 'chart shows action colours during think (.rgrid--masked missing)'); continue; }
+      const painted = [...g.querySelectorAll('.rgrid__cell')].filter((c) => (shown(g) && Number(getComputedStyle(c, '::before').opacity) > 0.01) || c.style.getPropertyValue('--paint'));
+      if (painted.length) push('masked', g, `${painted.length} cell(s) carry paint while masked`);
+    }
+  }
+
+  if (o.seam) {
+    const q = document.querySelector('.trainer-q, .quiz-zq'), ctx = document.querySelector('.trainer-ctx, .quiz-ctx'), a = document.querySelector('.trainer-a, .quiz-za');
+    if (!q || !a) missing.push('seam');
+    else {
+      const upper = Math.max(q.getBoundingClientRect().bottom, ctx && shown(ctx) ? ctx.getBoundingClientRect().bottom : -Infinity);
+      const seam = a.getBoundingClientRect().top - upper;
+      metrics.seam = Math.round(seam);
+      if (seam < 23.5) push('seam', a, `seam ${seam.toFixed(1)}px < 24 between the top block and the answer block`);
+    }
+  }
+
+  if (o.crease) {
+    const x0 = vw / 2 - 20, x1 = vw / 2 + 20;
+    const band = { left: x0, right: x1, top: 0, bottom: vh };
+    const seen = new Set();
+    // 글자도 보이는 부분만 봅니다 — 가로 스크롤러 밖으로 밀려 잘린 글자는 접힘선 위에 그려지지 않습니다.
+    const clipTo = (r, el) => { const v = visRect(el); return { left: Math.max(r.left, v.left), right: Math.min(r.right, v.right), top: Math.max(r.top, v.top), bottom: Math.min(r.bottom, v.bottom) }; };
+    for (const { el, r: r1 } of textRects()) {
+      const r = clipTo(r1, el);
+      if (seen.has(el) || r.right - r.left < 0.5 || overlap(r, band) <= 0.5) continue;
+      seen.add(el);
+      push('crease', el, `text [${r0(r.left)}–${r0(r.right)}] crosses the crease band [${r0(x0)}–${r0(x1)}]`);
+    }
+    for (const el of tappables()) {
+      const r = visRect(el);
+      if (seen.has(el) || overlap(r, band) <= 0.5) continue;
+      seen.add(el);
+      push('crease', el, `tap target [${r0(r.left)}–${r0(r.right)}] crosses the crease band [${r0(x0)}–${r0(x1)}]`);
+    }
+  }
+
+  if (o.corner) {
+    const R = o.corner;
+    const inside = (x, y) => {
+      const cx = x < R ? R : x > vw - R ? vw - R : null;
+      const cy = y < R ? R : y > vh - R ? vh - R : null;
+      if (cx === null || cy === null) return true;
+      return Math.hypot(x - cx, y - cy) <= R + 0.5;
+    };
+    for (const el of tappables()) {
+      const r = visRect(el), b = el.getBoundingClientRect();
+      // 스크롤러에 반쯤 잘린 대상(스크롤 도중)은 건너뜁니다 — 스크롤하는 글이 모서리 밑으로 지나가는 건 정상이고, 끝까지 밀면 제자리에 옵니다.
+      if (Math.abs(r.top - b.top) > 0.5 || Math.abs(r.bottom - b.bottom) > 0.5 || Math.abs(r.left - b.left) > 0.5 || Math.abs(r.right - b.right) > 0.5) continue;
+      const bad = [[r.left, r.top], [r.right, r.top], [r.left, r.bottom], [r.right, r.bottom]].filter(([x, y]) => !inside(x, y));
+      if (bad.length) push('corner', el, `tap target [${r0(r.left)},${r0(r.top)} – ${r0(r.right)},${r0(r.bottom)}] reaches into a ${R}px screen corner`);
+    }
+  }
+
+  if (o.band) {
+    const b = o.band.side === 'l' ? { left: 0, right: o.band.w, top: 0, bottom: vh } : { left: vw - o.band.w, right: vw, top: 0, bottom: vh };
+    for (const el of tappables()) {
+      const r = visRect(el);
+      if (overlap(r, b) > 0.5) push('band-84', el, `interactive [${r0(r.left)}–${r0(r.right)}] inside the ${o.band.side === 'l' ? 'left' : 'right'} ${o.band.w}px inset band`);
+    }
+  }
+
+  if (o.rail) {
+    const rail = document.querySelector('.ui-tabbar');
+    const rr = rail && shown(rail) ? rail.getBoundingClientRect() : null;
+    if (rr && inView(rr) && (rail.classList.contains('ui-tabbar--rail') || rail.getAttribute('aria-orientation') === 'vertical')) {
+      metrics.rail = [r0(rr.left), r0(rr.top), r0(rr.right), r0(rr.bottom)];
+      const skip = (el) => rail.contains(el) || el.closest('.ui-sheet, .ui-sheet__backdrop, .app__push, [class^="cm-"]');
+      const seen = new Set();
+      for (const { el, r } of textRects()) {
+        if (seen.has(el) || skip(el) || overlap(r, rr) <= 0.5) continue;
+        seen.add(el);
+        push('rail-overlap', el, `text under the rail [${r0(rr.left)}–${r0(rr.right)}]`);
+      }
+      for (const el of tappables()) {
+        if (seen.has(el) || skip(el) || overlap(el.getBoundingClientRect(), rr) <= 0.5) continue;
+        seen.add(el);
+        push('rail-overlap', el, `tap target under the rail [${r0(rr.left)}–${r0(rr.right)}]`);
+      }
+    }
+  }
+
+  if (o.gridVisible !== undefined) {
+    // 상황을 바꾸면 격자가 페이드인하므로 opacity 가 아니라 배치(상자 · display)로 찾습니다.
+    const laidOut = (g) => { const r = g.getBoundingClientRect(); if (r.width < 3 || r.height < 3) return false; for (let n = g; n && n.nodeType === 1; n = n.parentElement) if (getComputedStyle(n).display === 'none') return false; return true; };
+    const grid = [...document.querySelectorAll('.charts .rgrid')].find((g) => laidOut(g) && !g.closest('.ui-sheet'));
+    if (!grid) missing.push('grid-visible');
+    else {
+      const bar = document.querySelector('.ui-tabbar');
+      const br = bar && shown(bar) ? bar.getBoundingClientRect() : null;
+      const floor = br && br.top < vh - 1 && br.width > vw * 0.4 ? br.top : vh;
+      const rows = [...grid.querySelectorAll('.rgrid__row')];
+      const vis = rows.filter((row) => { const r = row.getBoundingClientRect(); return r.top >= -0.5 && r.bottom <= floor + 0.5; }).length;
+      metrics.gridRows = vis;
+      metrics.gridPx = Math.round(grid.getBoundingClientRect().width);
+      const cell = grid.querySelector('.rgrid__cell');
+      if (cell) metrics.cellFont = parseFloat(getComputedStyle(cell).fontSize);
+      if (o.gridVisible && vis < o.gridVisible) push('grid-visible', grid, `${vis} of 13 rows visible above ${floor === vh ? 'the screen bottom' : 'the tab bar'} (want ≥ ${o.gridVisible})`);
+    }
+  }
+
+  return { out, missing, metrics };
+};
+
 const browser = await chromium.launch();
-/** 지금 화면을 훑어 report 에 넣고 스크린샷을 남깁니다. */
-async function grabOn(page, size, name) {
-  await page.waitForTimeout(250);
-  const r = await page.evaluate(PROBE);
-  report.push({ screen: name, size: size.name, ...r });
-  await page.screenshot({ path: `${outDir}/${size.name}-${name}.png`, fullPage: false });
-}
 const report = [];
 /** 검사가 '보러 간 화면에 도착하지 못한' 경우. 조용히 건너뛰면 검사가 도는 척만 합니다. */
 const missed = [];
+/** 그 크기 클래스에는 원래 없는 화면(예: tall/wide 의 차트 시트 — 차트가 세션 안에 있음). missed 와 따로 셉니다. */
+const na = [];
+/** 게이트 검사 결과(머리 주석의 kind). 하나라도 있으면 exit 1. */
+const gate = [];
+const metricsLog = [];
+const wait = (page, ms) => page.waitForTimeout(ms);
 
-for (const size of SIZES) {
-  const ctx = await browser.newContext({
-    viewport: { width: size.w, height: size.h },
-    deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'ko-KR',
-    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-  });
+const isStageLayout = (l) => l === 'land' || l === 'tall' || l === 'wide';
+const SESSION_SCREENS = new Set(['train-think', 'train-reveal', 'train-limp']);
+const CONTROLS = {
+  'train-think': ['.trainer-choice', '.trainer-hud__btn'],
+  'train-limp': ['.trainer-choice', '.trainer-hud__btn'],
+  'train-reveal': ['.trainer-choice', '.trainer-next', '.trainer-controls button', '.trainer-hud__btn'],
+  'quiz-run': ['.quiz-answers button', '.quiz-hud__close'],
+  'quiz-answered': ['.quiz-answers button', '.quiz-next', '.quiz-hud__close', '.quiz-feedback button'],
+};
+/** 화면 이름과 크기로 어떤 Duo 검사를 켤지 정합니다. */
+function duoOpts(size, screen, extra = {}) {
+  const L = size.expect.layout;
+  const base = screen;
+  const o = { docScroll: true };
+  const stage = SESSION_SCREENS.has(base) || base === 'quiz-run' || base === 'quiz-answered' || (base === 'charts' && isStageLayout(L));
+  if (stage) o.stageFit = true;
+  if (CONTROLS[base]) o.controls = CONTROLS[base];
+  if (SESSION_SCREENS.has(base) || base === 'quiz-run' || base === 'quiz-answered') o.fan = true;
+  if (base === 'train-think' || base === 'train-limp' || base === 'quiz-run') { o.masked = true; o.expectMap = L !== 'phone'; }
+  if (L === 'tall' && (base === 'train-think' || base === 'train-reveal')) o.seam = true;
+  if (L === 'wide') o.crease = true;
+  if (L === 'land') o.corner = 59;
+  if (size.safe.l >= 84) o.band = { side: 'l', w: size.safe.l };
+  if (size.safe.r >= 84) o.band = { side: 'r', w: size.safe.r };
+  if (L === 'land' || L === 'wide') o.rail = true;
+  if (base === 'charts') o.gridVisible = isStageLayout(L) ? 13 : L === 'squat' && Math.min(size.svh || size.h, size.h) >= 580 ? 11 : 0;
+  return { ...o, ...extra };
+}
+const GATE_KINDS = new Set(['class', 'stage-fit', 'control-hidden', 'toolbar-step', 'fan-min', 'masked', 'seam', 'crease', 'corner', 'band-84', 'rail-overlap', 'grid-visible', 'cell-nonmodal', 'fold', 'reveal-slot']);
+const fail = (size, screen, kind, detail, path = '', text = '') => {
+  gate.push({ kind, path, detail, text, where: `${size.name}/${screen}` });
+};
+
+/** 지금 화면을 훑어 report 에 넣고 스크린샷을 남깁니다. duo: 켤 Duo 검사(없으면 화면 이름으로 정함). */
+async function grabOn(page, size, name, duo) {
+  await wait(page, 250);
+  const r = await page.evaluate(PROBE);
+  const opts = duo === false ? null : duo ?? duoOpts(size, name);
+  let d = { out: [], missing: [], metrics: {} };
+  if (opts) d = await page.evaluate(DUO_PROBE, opts);
+  for (const m of d.missing) missed.push(`${size.name}/${name}: ${m} 검사 대상이 화면에 없습니다`);
+  for (const f of d.out) gate.push({ ...f, where: `${size.name}/${name}` });
+  if (Object.keys(d.metrics).length) metricsLog.push(`${size.name}/${name}: ${JSON.stringify(d.metrics)}`);
+  report.push({ screen: name, size: size.name, ...r, out: [...r.out, ...d.out] });
+  await page.screenshot({ path: `${outDir}/${size.name}-${name}.png`, fullPage: false });
+}
+async function checkClass(page, size, where, expect = size.expect) {
+  const c = await classOf(page);
+  if (c.layout !== expect.layout || c.bar !== expect.bar || c.short !== expect.short) {
+    fail(size, where, 'class', `html data-layout/bar/short = ${c.layout}/${c.bar}/${c.short || '—'}, want ${expect.layout}/${expect.bar}/${expect.short || '—'}`);
+  }
+  return c;
+}
+async function skipCoach(page, onFirst) {
+  for (let i = 0; i < 5; i++) {
+    const skip = page.getByRole('button', { name: /건너뛰기|시작할게요/ });
+    if (!(await skip.count())) break;
+    if (i === 0 && onFirst) await onFirst();
+    await skip.first().tap();
+    await wait(page, 350);
+  }
+}
+async function endSession(page) {
+  await page.locator('.trainer-hud__btn').first().tap();
+  await wait(page, 450);
+  const endBtn = page.locator('.ui-sheet button, .trainer-confirm button', { hasText: /끝|종료|그만|요약/ });
+  if (await endBtn.count()) { await endBtn.first().tap(); await wait(page, 800); }
+}
+
+/** 작은 동시 실행 풀. 컨텍스트마다 브라우저 탭 하나라 서로 독립입니다. */
+async function pool(tasks, n) {
+  const queue = [...tasks];
+  const run = async () => { for (let t = queue.shift(); t; t = queue.shift()) await t(); };
+  await Promise.all(Array.from({ length: Math.min(n, tasks.length) }, run));
+}
+const safely = (label, fn) => async () => {
+  const t0 = Date.now();
+  try { await fn(); } catch (e) { missed.push(`${label}: 예외로 중단 — ${String(e.message || e).split('\n')[0]}`); }
+  console.log(`  · ${label} (${((Date.now() - t0) / 1000).toFixed(0)}s)`);
+};
+
+// ---- 화면 흐름: 모든 크기에서 같은 화면을 엽니다 ----------------------------------------------------------------
+async function flowAt(size) {
+  const L = size.expect.layout;
+  const ctx = await newCtx(browser, size);
   const page = await ctx.newPage();
-  const tap = async (re) => { await page.getByRole('button', { name: re }).first().tap(); await page.waitForTimeout(450); };
-  const grab = (name) => grabOn(page, size, name);
+  const tap = async (re) => { await page.getByRole('button', { name: re }).first().tap(); await wait(page, 450); };
+  const grab = (name, duo) => grabOn(page, size, name, duo);
 
   // 코치 탭은 실수가 쌓여야 화면이 채워집니다. 감사용 씨앗이 있으면 심고, 없으면 빈 화면을 봅니다.
   if (SEED) {
@@ -296,29 +751,24 @@ for (const size of SIZES) {
 
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(600);
+  await wait(page, 600);
+  await checkClass(page, size, 'home');
 
   await grab('home');
   const gear = page.locator('.home__gear, button[aria-label*="설정"]').first();
   if (await gear.count()) {
     await gear.tap();
-    await page.waitForTimeout(500);
+    await wait(page, 500);
     await grab('settings');
     await page.locator('.app__push-back').first().tap();
-    await page.waitForTimeout(600);
+    await wait(page, 600);
   }
 
   await tap(/^훈련$/);
   await grab('train-setup');
   await tap(/시작/);
-  await page.waitForTimeout(700);
-  for (let i = 0; i < 5; i++) {
-    const skip = page.getByRole('button', { name: /건너뛰기|시작할게요/ });
-    if (!(await skip.count())) break;
-    if (i === 0) await grab('train-coach');
-    await skip.first().tap();
-    await page.waitForTimeout(350);
-  }
+  await wait(page, 700);
+  await skipCoach(page, () => grab('train-coach', false));
   await grab('train-think');
   // hold sheet
   {
@@ -327,30 +777,45 @@ for (const size of SIZES) {
       const cdp = await ctx.newCDPSession(page);
       const x = box.x + box.width / 2, y = box.y + box.height / 2;
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-      await page.waitForTimeout(500);
+      await wait(page, 500);
       await grab('train-hold');
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-      await page.waitForTimeout(400);
+      await wait(page, 400);
+    } else {
+      missed.push(`${size.name}/train-hold: 카드(.trainer-fan)가 안 보여 누르고 있기를 못 했습니다`);
     }
   }
   await page.locator('.trainer-choice').first().tap();
-  await page.waitForTimeout(600);
+  await wait(page, 600);
   await grab('train-reveal');
   await page.locator('.trainer-controls__main').first().tap();
-  await page.waitForTimeout(600);
+  await wait(page, 600);
   await grab('train-explain-sheet');
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(500);
-  await page.locator('.trainer-chartbtn').first().tap();
-  await page.waitForTimeout(700);
-  await grab('train-chart-sheet');
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(500);
+  await wait(page, 500);
+  // 차트 시트: phone 은 컨트롤 줄의 차트 버튼, squat/land 는 무대의 지도(T), tall/wide 는 차트가 세션 안(G)이라 시트가 없습니다.
+  if (L === 'tall' || L === 'wide') {
+    na.push(`${size.name}/train-chart-sheet: ${L} 은 차트(G)가 세션 안에 있어 차트 시트가 없습니다`);
+  } else {
+    const opener = page.locator(L === 'phone' ? '.trainer-chartbtn' : '.stagechart--button').first();
+    if (L !== 'phone' && (await opener.count()) && !(await opener.isVisible())) {
+      // 무대가 95 이하면 T 를 숨깁니다(스펙 §4.1) — 그 크기에는 차트를 여는 길이 없습니다.
+      na.push(`${size.name}/train-chart-sheet: 무대가 낮아 지도(T)가 숨겨져 차트 시트를 열 곳이 없습니다`);
+    } else if (!(await opener.count())) {
+      missed.push(`${size.name}/train-chart-sheet: ${L === 'phone' ? '차트 버튼' : '무대의 지도 버튼(.stagechart--button)'}이 없습니다`);
+    } else {
+      await opener.tap();
+      await wait(page, 700);
+      await grab('train-chart-sheet');
+      await page.keyboard.press('Escape');
+      await wait(page, 500);
+    }
+  }
   await page.locator('.trainer-hud__btn').first().tap();
-  await page.waitForTimeout(450);
+  await wait(page, 450);
   await grab('train-end-confirm');
   const endBtn = page.locator('.ui-sheet button, .trainer-confirm button', { hasText: /끝|종료|그만|요약/ });
-  if (await endBtn.count()) { await endBtn.first().tap(); await page.waitForTimeout(800); }
+  if (await endBtn.count()) { await endBtn.first().tap(); await wait(page, 800); }
   await grab('train-summary');
 
   // 림프 대응 덱을 한 번 더 돌립니다. 이 덱의 선택 버튼 이름이 앱에서 제일 길어서
@@ -362,70 +827,82 @@ for (const size of SIZES) {
     // 새로고침이 확실합니다. 이걸 안 하면 아래 조건이 조용히 건너뛰어져서 검사가 도는 척만
     // 합니다 — 실제로 한 번 그랬고, 그래서 missed 로 소리내게 해 뒀습니다.
     await page.reload({ waitUntil: 'networkidle' });
-    await page.waitForTimeout(500);
+    await wait(page, 500);
     await tap(/^훈련$/);
-    await page.waitForTimeout(500);
+    await wait(page, 500);
     const deck = page.locator('.trainer-setup').getByText(/림프/);
     if (!(await deck.count())) {
       missed.push(`${size.name}/train-limp: 훈련 설정에서 림프 덱을 못 찾았습니다`);
     } else {
       await deck.first().tap();
-      await page.waitForTimeout(300);
+      await wait(page, 300);
       await tap(/시작/);
-      await page.waitForTimeout(700);
-      for (let i = 0; i < 5; i++) {
-        const skip = page.getByRole('button', { name: /건너뛰기|시작할게요/ });
-        if (!(await skip.count())) break;
-        await skip.first().tap();
-        await page.waitForTimeout(350);
-      }
+      await wait(page, 700);
+      await skipCoach(page);
       if (!(await page.locator('.trainer-choice').count())) {
         missed.push(`${size.name}/train-limp: 세션이 시작되지 않아 선택 버튼이 없습니다`);
       }
       await grab('train-limp');
-      await page.locator('.trainer-hud__btn').first().tap();
-      await page.waitForTimeout(450);
-      const stop = page.locator('.ui-sheet button, .trainer-confirm button', { hasText: /끝|종료|그만|요약/ });
-      if (await stop.count()) { await stop.first().tap(); await page.waitForTimeout(800); }
+      await endSession(page);
     }
   }
 
   await tap(/^퀴즈$/);
   await grab('quiz');
   const qStart = page.getByRole('button', { name: /시작|출제|풀기/ });
-  if (await qStart.count()) { await qStart.first().tap(); await page.waitForTimeout(700); await grab('quiz-run'); }
+  if (await qStart.count()) {
+    await qStart.first().tap();
+    await wait(page, 700);
+    await grab('quiz-run');
+    // 오답을 골라 피드백(다음 · 해설 포함)을 엽니다 — 정답이면 1.5초 뒤 넘어가 버립니다.
+    const group = page.locator('.quiz-answers').first();
+    if (await group.count()) {
+      const answer = (await group.getAttribute('data-answer')) ?? '';
+      const partial = ((await group.getAttribute('data-partial')) ?? '').split(',').filter(Boolean);
+      const btns = page.locator('.quiz-answers button');
+      const acts = await btns.evaluateAll((els) => els.map((el) => el.getAttribute('data-action') ?? el.textContent));
+      let idx = acts.findIndex((a) => a && a !== answer && !partial.includes(a));
+      if (idx < 0) idx = 0;
+      await btns.nth(idx).tap();
+      await wait(page, 400);
+      await grab('quiz-answered');
+    } else {
+      missed.push(`${size.name}/quiz-answered: 퀴즈 답 버튼이 없습니다`);
+    }
+  } else {
+    missed.push(`${size.name}/quiz-run: 퀴즈 시작 버튼이 없습니다`);
+  }
 
   // 퀴즈 진행 중이면 탭바가 숨습니다 — 새로 고침해서 홈으로 돌아갑니다.
-  if (!(await page.locator('.ui-tabbar').isVisible().catch(() => false))) {
-    await page.goto(url, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(600);
-  }
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await wait(page, 600);
 
   await tap(/^코치$/);
   await grab('coach');
   {
     const axis = page.locator('.coach-axis__btn');
-    if (await axis.count()) { await axis.first().tap(); await page.waitForTimeout(600); await grab('coach-evidence'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); }
+    if (await axis.count()) { await axis.first().tap(); await wait(page, 600); await grab('coach-evidence'); await page.keyboard.press('Escape'); await wait(page, 400); }
     const ask = page.getByRole('button', { name: /질문 복사/ });
-    if (await ask.count()) { await ask.first().tap(); await page.waitForTimeout(600); await grab('coach-ask'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); }
+    if (await ask.count()) { await ask.first().tap(); await wait(page, 600); await grab('coach-ask'); await page.keyboard.press('Escape'); await wait(page, 400); }
     const key = page.getByRole('button', { name: /API 키/ });
-    if (await key.count()) { await key.first().tap(); await page.waitForTimeout(600); await grab('coach-key'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); }
+    if (await key.count()) { await key.first().tap(); await wait(page, 600); await grab('coach-key'); await page.keyboard.press('Escape'); await wait(page, 400); }
   }
 
   await tap(/^차트$/);
   await grab('charts');
-  const cell = page.locator('.rgrid__cell[aria-label]');
-  if (await cell.count()) { await cell.nth(40).tap(); await page.waitForTimeout(600); await grab('charts-cell'); }
+  const cell = page.locator('.charts .rgrid__cell[aria-label]');
+  if (await cell.count()) { await cell.nth(40).tap(); await wait(page, 600); await grab('charts-cell'); }
+  else missed.push(`${size.name}/charts-cell: 차트 격자 셀이 없습니다`);
 
-  // 자리별 보기(HandAtlas): 셀 시트의 「이 패, 다른 자리에서는? ›」 → 아틀라스 한 장(셀 시트는 닫힘) → UTG 타일 → 비교 블록.
+  // 자리별 보기(HandAtlas): 셀 시트·셀 카드의 「이 패, 다른 자리에서는 ›」 → 아틀라스 한 장 → UTG 타일 → 비교 블록.
   // 셀 시트가 닫히지 않았거나 아틀라스가 안 열리면 조용히 넘어가지 않고 missed 로 소리냅니다.
   {
     const across = page.getByRole('button', { name: /다른 자리에서는/ });
     if (!(await across.count())) {
-      missed.push(`${size.name}/atlas: 셀 시트에 「이 패, 다른 자리에서는?」 링크가 없습니다`);
+      missed.push(`${size.name}/atlas: 셀 시트(카드)에 「이 패, 다른 자리에서는?」 링크가 없습니다`);
     } else {
       await across.first().tap();
-      await page.waitForTimeout(800);
+      await wait(page, 800);
       const sheets = await page.locator('.ui-sheet').count();
       if (!(await page.locator('.atlas').count())) missed.push(`${size.name}/atlas: 아틀라스가 열리지 않았습니다`);
       else if (sheets !== 1) missed.push(`${size.name}/atlas: 시트가 ${sheets}장 떠 있습니다 (한 장이어야 합니다)`);
@@ -433,7 +910,7 @@ for (const size of SIZES) {
       // 들어온 칸이 UTG 면 이미 선택돼 있습니다(다시 누르면 해제) — 그때는 그대로 비교 블록을 봅니다.
       const utg = page.locator('.atlas__cell[aria-label^="UTG ·"]').first();
       if (await utg.count()) {
-        if (!(await page.locator('.atlas__cell--sel[aria-label^="UTG ·"]').count())) { await utg.tap(); await page.waitForTimeout(500); }
+        if (!(await page.locator('.atlas__cell--sel[aria-label^="UTG ·"]').count())) { await utg.tap(); await wait(page, 500); }
         if (!(await page.locator('.atlas__detail').count())) missed.push(`${size.name}/atlas-detail: UTG 타일을 눌렀는데 비교 블록이 없습니다`);
         await page.locator('.atlas__detail').first().scrollIntoViewIfNeeded().catch(() => {});
         await grab('atlas-detail');
@@ -441,10 +918,314 @@ for (const size of SIZES) {
         missed.push(`${size.name}/atlas-detail: UTG 타일이 없습니다`);
       }
       await page.keyboard.press('Escape');
-      await page.waitForTimeout(400);
+      await wait(page, 400);
     }
   }
 
+  // 셀 상세는 non-modal: 열린 채 다른 셀을 누르면 내용만 바뀌고 닫히지 않습니다. 그다음 「자세히」 상태를 봅니다.
+  {
+    const titleOf = () => page.evaluate(() => {
+      const t = [...document.querySelectorAll('.ui-sheet--in .ui-sheet__title, .cellcard__title')].find((e) => e.getBoundingClientRect().height > 0);
+      return t ? t.textContent.trim() : null;
+    });
+    const cellA = page.locator('.charts .rgrid__cell[aria-label]').nth(15);
+    const cellB = page.locator('.charts .rgrid__cell[aria-label]').nth(29);
+    if (await cellA.count()) {
+      await cellA.tap();
+      await wait(page, 600);
+      const t1 = await titleOf();
+      const hB = await cellB.getAttribute('aria-label');
+      await cellB.tap();
+      await wait(page, 600);
+      const t2 = await titleOf();
+      if (t1 === null) missed.push(`${size.name}/charts-cell-2: 셀을 눌렀는데 셀 상세(시트 또는 카드)가 없습니다`);
+      else if (t2 === null) fail(size, 'charts-cell-2', 'cell-nonmodal', `the cell detail closed when another cell (${hB}) was tapped`);
+      else if (t2 === t1 || !t2.includes(hB)) fail(size, 'charts-cell-2', 'cell-nonmodal', `tapping ${hB} with the detail open did not swap its content ("${t1}" → "${t2}")`);
+      await grab('charts-cell-2');
+      const more = page.getByRole('button', { name: /^(자세히|더 보기)/ });
+      if (await more.count()) {
+        await more.first().tap();
+        await wait(page, 700);
+        await grab('charts-cell-more');
+        // non-modal 자세히 상태에서도 격자는 살아 있어야 합니다.
+        const cellC = page.locator('.charts .rgrid__cell[aria-label]').nth(17);
+        const hC = await cellC.getAttribute('aria-label');
+        await cellC.tap({ timeout: 3000 }).catch(() => {});
+        await wait(page, 600);
+        const t3 = await titleOf();
+        if (t3 === null || !t3.includes(hC)) fail(size, 'charts-cell-more', 'cell-nonmodal', `with 자세히 open, tapping ${hC} did not swap the detail (title "${t3}")`);
+      } else {
+        missed.push(`${size.name}/charts-cell-more: 셀 상세에 「자세히」 버튼이 없습니다`);
+      }
+    }
+  }
+
+  await ctx.close();
+}
+
+// ---- 툴바 접힘/펼침: 같은 세션 안에서 뷰포트 높이를 svh ↔ lvh 로 바꿉니다 ---------------------------------------
+const TOOLBAR_PAIRS = [
+  { w: 390, svh: 664, lvh: 750, layout: 'phone', name: 'tb390' },
+  { w: 382, svh: 580, lvh: 618, layout: 'squat', name: 'tb382' },
+  { w: 594, svh: 368, lvh: 406, layout: 'land', name: 'tb594' },
+  { w: 385, svh: 571, lvh: 609, layout: 'squat', name: 'tb385' },
+  { w: 669, svh: 867, lvh: 902, layout: 'tall', name: 'tb669' },
+  { w: 951, svh: 585, lvh: 620, layout: 'wide', name: 'tb951' },
+].map((p) => ({ ...p, bar: barOf(p.layout) }));
+
+const MEASURE = (sels) => {
+  const vh = window.innerHeight;
+  const res = { vh };
+  for (const [key, sel] of Object.entries(sels)) {
+    const el = [...document.querySelectorAll(sel)].find((e) => {
+      const r = e.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) return false;
+      for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const c = getComputedStyle(n); if (c.display === 'none' || c.visibility === 'hidden') return false; }
+      return true;
+    });
+    if (el) { const r = el.getBoundingClientRect(); res[key] = { top: r.top, bottom: r.bottom, h: r.height, rail: el.classList.contains('ui-tabbar--rail') || el.getAttribute('aria-orientation') === 'vertical' }; }
+  }
+  return res;
+};
+
+async function toolbarAt(p) {
+  const size = { ...sz(p.w, p.svh, { layout: p.layout, group: 'toolbar' }), name: `${p.name}-${p.w}x${p.svh}-${p.lvh}` };
+  size.expect.bar = p.bar;
+  const ctx = await newCtx(browser, size);
+  const page = await ctx.newPage();
+  const tap = async (re) => { await page.getByRole('button', { name: re }).first().tap(); await wait(page, 450); };
+  const expanded = async () => { await page.evaluate((c) => window.__auditEmu(c), { ...Z, svh: 0 }); await page.setViewportSize({ width: p.w, height: p.svh }); await wait(page, 500); };
+  const collapsed = async () => { await page.evaluate((c) => window.__auditEmu(c), { ...Z, svh: p.svh }); await page.setViewportSize({ width: p.w, height: p.lvh }); await wait(page, 500); };
+  const collapsedSize = { ...size, h: p.lvh, svh: p.svh };
+  /** a → b 사이에 물리적으로 움직였는지. bottom bar: 화면 위 가장자리가 고정 → y. top bar: 아래 가장자리가 고정 → innerHeight − y. */
+  const compare = (where, a, b, keys, mode = p.bar) => {
+    for (const k of keys) {
+      if (!a[k]) continue;
+      if (!b[k]) { fail(size, where, 'toolbar-step', `${k} disappeared when the toolbar ${where.endsWith('collapse') ? 'collapsed' : 'expanded'}`); continue; }
+      const da = mode === 'bottom-edge' ? a.vh - a[k].bottom : mode === 'top' ? a.vh - a[k].top : a[k].top;
+      const db = mode === 'bottom-edge' ? b.vh - b[k].bottom : mode === 'top' ? b.vh - b[k].top : b[k].top;
+      if (Math.abs(da - db) > 1) fail(size, where, 'toolbar-step', `${k} moved ${(db - da).toFixed(1)}px on screen (${mode === 'top' ? 'distance from the bottom' : mode === 'bottom-edge' ? 'gap to the viewport bottom' : 'y'}: ${da.toFixed(1)} → ${db.toFixed(1)})`);
+    }
+  };
+  /** 시트가 transform 으로 들어오는 중이면 잰 값이 흔들립니다 — 두 번 연달아 같게 나올 때까지(최대 ~1.5초) 기다렸다가 씁니다. */
+  const measureStable = async (sels) => {
+    let prev = await page.evaluate(MEASURE, sels);
+    for (let i = 0; i < 12; i++) {
+      await page.waitForTimeout(120);
+      const cur = await page.evaluate(MEASURE, sels);
+      if (JSON.stringify(cur) === JSON.stringify(prev)) return cur;
+      prev = cur;
+    }
+    return prev;
+  };
+  /** 한 화면에서 펼침 → 접힘 → 펼침. 접힌 상태에서 stage-fit · control-hidden 도 봅니다. */
+  const step = async (screen, sels, keys, opts = {}) => {
+    const a = await measureStable(sels);
+    await collapsed();
+    const b = await measureStable(sels);
+    compare(`${screen}-collapse`, a, b, keys, opts.mode);
+    if (opts.size) for (const k of opts.size) if (a[k] && b[k] && Math.abs(a[k].h - b[k].h) > 1) fail(size, `${screen}-collapse`, 'toolbar-step', `${k} changed height ${a[k].h.toFixed(1)} → ${b[k].h.toFixed(1)} (should keep its size; the slack goes elsewhere)`);
+    if (opts.slack) {
+      const s = await page.evaluate(() => {
+        const sl = document.querySelector('.vb__slack');
+        const rib = document.querySelector('.vb__slack .vb__ribbon, .vb__slack .ribbon');
+        const ok = (e) => { if (!e) return false; const r = e.getBoundingClientRect(); return r.height > 4 && getComputedStyle(e).display !== 'none' && getComputedStyle(e).visibility !== 'hidden'; };
+        return { slack: sl ? sl.getBoundingClientRect().height : null, rib: ok(rib) };
+      });
+      if (s.slack === null) missed.push(`${size.name}/${screen}-collapse: .vb__slack 가 없습니다`);
+      else if (s.slack >= 37.5 && !s.rib) fail(size, `${screen}-collapse`, 'toolbar-step', `slack band is ${s.slack.toFixed(0)}px but the last-cards ribbon (R) is not shown`);
+    }
+    await grabOn(page, collapsedSize, `tb-${screen}-collapsed`, opts.duo ?? duoOpts(collapsedSize, screen));
+    await expanded();
+    const c = await measureStable(sels);
+    compare(`${screen}-expand`, b, c, keys, opts.mode);
+  };
+
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
+  await wait(page, 500);
+  await checkClass(page, size, 'home');
+  // 탭 페이지: 캡슐은 뷰포트 바닥을 따라가고(Safari 막대처럼), 레일은 core 기준이라 물리적으로 그대로입니다.
+  {
+    const m = await page.evaluate(MEASURE, { tabbar: '.ui-tabbar' });
+    if (!m.tabbar) missed.push(`${size.name}/home: 탭 바가 없습니다`);
+    else await step('home', { tabbar: '.ui-tabbar' }, ['tabbar'], { mode: m.tabbar.rail ? p.bar : 'bottom-edge' });
+  }
+  // 훈련 세션 think → 카드 2장째 reveal(지난 카드 줄에 1장) → 해설 시트
+  await tap(/^훈련$/);
+  await tap(/시작/);
+  await wait(page, 600);
+  await skipCoach(page);
+  const sessSels = { choice0: '.trainer-choice', close: '.trainer-hud__btn', fan: '.trainer-fan', controls: '.trainer-controls' };
+  if (!(await page.locator('.trainer-choice').count())) missed.push(`${size.name}/think: 세션이 시작되지 않았습니다`);
+  else {
+    // 일시정지하지 않고 잽니다 — 일시정지 화면은 배치가 달라서(탭 바가 나옴) 실제 think 화면을 재지 못합니다.
+    // 한 단계가 ~1.5 s 라 think 8 s 안에 끝납니다.
+    await step('train-think', sessSels, ['choice0', 'close', 'controls']);
+    await page.locator('.trainer-choice').first().tap();
+    await wait(page, 500);
+    await page.locator('.trainer-next').first().tap().catch(() => {});
+    await wait(page, 600);
+    await page.locator('.trainer-choice').first().tap();
+    await wait(page, 600);
+    const revSels = { ...sessSels, next: '.trainer-next', answer: '.trainer-answer' };
+    if (!(await page.locator('.trainer-next').count())) missed.push(`${size.name}/reveal: 다음 버튼이 없습니다`);
+    // 해설을 열었다 닫아 자동 넘김을 끕니다(재는 동안 카드가 넘어가지 않게).
+    await page.locator('.trainer-controls__main').first().tap();
+    await wait(page, 600);
+    const sheetSels = { sheet: '.ui-sheet--in' };
+    if (!(await page.locator('.ui-sheet--in').count())) missed.push(`${size.name}/explain-sheet: 해설 시트가 열리지 않았습니다`);
+    else await step('train-explain-sheet', sheetSels, ['sheet'], { duo: { docScroll: true } });
+    await page.keyboard.press('Escape');
+    await wait(page, 500);
+    await step('train-reveal', revSels, ['choice0', 'close', 'controls', 'next', 'answer'], { slack: p.bar === 'bottom' && p.lvh - p.svh >= 38 });
+    await endSession(page);
+  }
+  // 퀴즈 라운드
+  await tap(/^퀴즈$/);
+  const qStart = page.getByRole('button', { name: /시작|출제|풀기/ });
+  if (await qStart.count()) {
+    await qStart.first().tap();
+    await wait(page, 700);
+    await step('quiz-run', { ans0: '.quiz-answers button', close: '.quiz-hud__close' }, ['ans0', 'close']);
+  } else missed.push(`${size.name}/quiz-run: 퀴즈 시작 버튼이 없습니다`);
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await wait(page, 500);
+  // 차트: 격자 크기는 그대로(늘어난 높이는 dock · 페이지가 가져감)
+  await tap(/^차트$/);
+  await step('charts', { grid: '.charts .rgrid' }, [], { size: ['grid'] });
+  await ctx.close();
+}
+
+// ---- 접기/펼치기 연속 ---------------------------------------------------------------------------------------
+const FOLD_STEPS = [
+  { w: 382, h: 580, layout: 'squat' },
+  { w: 466, h: 498, layout: 'squat' },
+  { w: 669, h: 867, layout: 'tall' },
+  { w: 951, h: 585, layout: 'wide' },
+  { w: 951, h: 620, svh: 585, layout: 'wide' },
+  { w: 382, h: 580, layout: 'squat' },
+  { w: 385, h: 571, layout: 'squat' },
+].map((s) => sz(s.w, s.h, { svh: s.svh, layout: s.layout, group: 'fold' }));
+for (const s of FOLD_STEPS) s.expect.bar = barOf(s.expect.layout);
+
+async function foldRun() {
+  const first = { ...FOLD_STEPS[0], name: 'fold' };
+  const ctx = await newCtx(browser, first);
+  const page = await ctx.newPage();
+  const tap = async (re) => { await page.getByRole('button', { name: re }).first().tap(); await wait(page, 450); };
+  const goTo = async (s) => {
+    await page.evaluate((c) => window.__auditEmu(c), emuCfg(s));
+    await page.setViewportSize({ width: s.w, height: s.h });
+    await wait(page, 550);
+  };
+  const state = () => page.evaluate(() => ({
+    count: document.querySelector('.trainer-hud__count')?.textContent?.trim() ?? null,
+    hand: document.querySelector('.trainer-handlabel__name')?.textContent?.trim() ?? null,
+    think: !!document.querySelector('.trainer-session--think'),
+    paused: !!document.querySelector('.trainer-session--paused'),
+    neutral: !!document.querySelector('.trainer-session--neutral'),
+    sheet: !!document.querySelector('.ui-sheet[data-audit-node="1"]'),
+    sheetIn: !!document.querySelector('.ui-sheet--in[data-audit-node="1"]'),
+    sheetScroll: (() => { const b = document.querySelector('.ui-sheet[data-audit-node="1"] .ui-sheet__body'); return b ? { top: b.scrollTop, max: b.scrollHeight - b.clientHeight } : null; })(),
+    hScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+  }));
+  const label = (i, s) => `${i}-${s.w}x${s.h}`;
+
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
+  await wait(page, 500);
+  await checkClass(page, first, 'fold-home');
+
+  // 1) think 중에 접고 펼치기: 첫 폭 점프에서 일시정지, 카드 그대로, 타이머 만료 없음
+  await tap(/^훈련$/);
+  await tap(/시작/);
+  await wait(page, 600);
+  await skipCoach(page);
+  const s0 = await state();
+  if (!s0.think) missed.push('fold/think: think 상태로 시작하지 못했습니다');
+  for (let i = 1; i < FOLD_STEPS.length; i++) {
+    const s = { ...FOLD_STEPS[i], name: 'fold' };
+    await goTo(s);
+    await checkClass(page, s, `think ${label(i, s)}`);
+    const st = await state();
+    if (st.count !== s0.count || st.hand !== s0.hand) fail(s, `think ${label(i, s)}`, 'fold', `session card changed: ${s0.count} ${s0.hand} → ${st.count} ${st.hand}`);
+    if (!st.paused) fail(s, `think ${label(i, s)}`, 'fold', 'not paused after a width jump during think (should pause until tapped)');
+    if (st.hScroll) fail(s, `think ${label(i, s)}`, 'fold', 'horizontal scroll after the resize');
+    await grabOn(page, s, `fold-think-${label(i, s)}`, duoOpts(s, 'train-think', { controls: undefined }));
+  }
+  await wait(page, 9000); // think 8 s 보다 길게: 일시정지라면 만료되지 않아야 합니다
+  {
+    const st = await state();
+    const s = { ...FOLD_STEPS.at(-1), name: 'fold' };
+    if (!st.think || st.neutral) fail(s, 'think after 9 s', 'fold', `think timer expired while paused (think=${st.think}, neutral=${st.neutral})`);
+    if (st.count !== s0.count) fail(s, 'think after 9 s', 'fold', `card moved on while paused: ${s0.count} → ${st.count}`);
+  }
+
+  // 2) reveal + 해설 시트를 연 채로: 같은 시트 노드 유지, 본문 scrollTop 유지, 카드 그대로
+  await goTo({ ...FOLD_STEPS[0], name: 'fold' });
+  await page.getByRole('button', { name: /^계속$/ }).first().tap().catch(() => {});
+  await wait(page, 300);
+  await page.locator('.trainer-choice').first().tap();
+  await wait(page, 600);
+  await page.locator('.trainer-controls__main').first().tap();
+  await wait(page, 700);
+  const tagged = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('.ui-sheet--in')].pop();
+    if (!el) return false;
+    el.setAttribute('data-audit-node', '1');
+    const b = el.querySelector('.ui-sheet__body');
+    if (b) b.scrollTop = 120;
+    return true;
+  });
+  if (!tagged) missed.push('fold/sheet: 해설 시트가 열리지 않았습니다');
+  else {
+    const r0 = await state();
+    for (let i = 1; i < FOLD_STEPS.length; i++) {
+      const s = { ...FOLD_STEPS[i], name: 'fold' };
+      const prev = await state();
+      await goTo(s);
+      await checkClass(page, s, `sheet ${label(i, s)}`);
+      const st = await state();
+      if (!st.sheet) fail(s, `sheet ${label(i, s)}`, 'fold', 'the open 해설 sheet was remounted or closed by the resize');
+      else if (!st.sheetIn) fail(s, `sheet ${label(i, s)}`, 'fold', 'the 해설 sheet is no longer open after the resize');
+      if (st.count !== r0.count) fail(s, `sheet ${label(i, s)}`, 'fold', `session card changed: ${r0.count} → ${st.count}`);
+      // 본문이 한 칸 ↔ 두 칸으로 바뀌면 같은 픽셀 scrollTop 은 의미가 없습니다(브라우저 scroll anchoring 이 읽던 곳을 맞춤).
+      // 잡는 것은 '맨 위로 되돌아감'(다시 마운트 · 리셋)뿐입니다.
+      if (prev.sheetScroll && st.sheetScroll) {
+        if (prev.sheetScroll.top > 2 && st.sheetScroll.top < 1 && st.sheetScroll.max > 2) fail(s, `sheet ${label(i, s)}`, 'fold', `sheet body scrollTop ${prev.sheetScroll.top.toFixed(0)} → ${st.sheetScroll.top.toFixed(0)} (max ${st.sheetScroll.max.toFixed(0)})`);
+      }
+      if (st.hScroll) fail(s, `sheet ${label(i, s)}`, 'fold', 'horizontal scroll after the resize');
+      await grabOn(page, s, `fold-sheet-${label(i, s)}`, { docScroll: true });
+    }
+    await page.keyboard.press('Escape');
+    await wait(page, 400);
+  }
+  await endSession(page).catch(() => {});
+
+  // 3) 차트에서 셀을 고른 채로: 고른 셀과 상세 유지, 스크롤 위치 범위 안
+  await goTo({ ...FOLD_STEPS[0], name: 'fold' });
+  await tap(/^차트$/);
+  const ak = page.locator('.charts .rgrid__cell[aria-label="AKs"]').first();
+  if (!(await ak.count())) missed.push('fold/charts: AKs 셀이 없습니다');
+  else {
+    await ak.tap();
+    await wait(page, 600);
+    for (let i = 1; i < FOLD_STEPS.length; i++) {
+      const s = { ...FOLD_STEPS[i], name: 'fold' };
+      await goTo(s);
+      await checkClass(page, s, `charts ${label(i, s)}`);
+      const st = await page.evaluate(() => ({
+        picked: !!document.querySelector('.charts .rgrid__cell[aria-label="AKs"][aria-current="true"]'),
+        detail: [...document.querySelectorAll('.ui-sheet--in, .cellcard, .charts__dock')].some((e) => e.getBoundingClientRect().height > 0 && /AKs/.test(e.textContent)),
+        main: (() => { const m = document.querySelector('.app__main'); return m ? { top: m.scrollTop, max: m.scrollHeight - m.clientHeight } : null; })(),
+      }));
+      if (!st.picked) fail(s, `charts ${label(i, s)}`, 'fold', 'the picked cell (AKs) lost its selection');
+      if (!st.detail) fail(s, `charts ${label(i, s)}`, 'fold', 'the AKs cell detail (sheet / card / dock) is gone after the resize');
+      if (st.main && st.main.top > st.main.max + 1) fail(s, `charts ${label(i, s)}`, 'fold', `.app__main scrollTop ${st.main.top} beyond its range ${st.main.max}`);
+      await grabOn(page, s, `fold-charts-${label(i, s)}`, duoOpts(s, 'charts', { gridVisible: undefined }));
+    }
+  }
   await ctx.close();
 }
 
@@ -470,15 +1251,18 @@ const LONGEST = readFileSync(new URL('../tests/__golden__/line-sentences.tsv', i
   .slice(0, 30)
   .map(([key, lineId]) => `${key}|${firstHandOf(lineId)}`);
 const REVEAL_KEYS = [...new Set([...WORKED, ...LONGEST])];
-const REVEAL_SIZES = [{ w: 360, h: 640, name: '360x640', slot: 114 }, { w: 390, h: 844, name: '390x844', slot: 120 }];
-const revealFails = [];
+const REVEAL_SIZES = [
+  { ...sz(360, 640, { layout: 'phone', group: 'reveal', dpr: 2 }), slot: 114, strip: 297 },
+  { ...sz(390, 844, { layout: 'phone', group: 'reveal', dpr: 2 }), slot: 120, strip: 297 },
+  { ...sz(382, 580, { layout: 'squat', group: 'reveal' }), slot: 114, strip: 297 },
+  { ...sz(594, 368, { layout: 'land', group: 'reveal' }), slot: 114, strip: 297 },
+  { ...sz(669, 867, { layout: 'tall', group: 'reveal' }), slot: 132, strip: 323 },
+  { ...sz(951, 585, { layout: 'wide', group: 'reveal' }), slot: 132, strip: 323 },
+];
+for (const s of REVEAL_SIZES) { s.expect.bar = barOf(s.expect.layout); s.name = `reveal-${s.w}x${s.h}`; }
 let revealChecked = 0;
-for (const size of REVEAL_SIZES) {
-  const ctx = await browser.newContext({
-    viewport: { width: size.w, height: size.h },
-    deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'ko-KR',
-    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-  });
+async function revealAt(size) {
+  const ctx = await newCtx(browser, size);
   // 어제 세션 하나와, 그 세션의 '헷갈린 카드' = 검사할 키들. 홈의 '지난 세션 → 틀린 것만 다시'가 이 순서 그대로 세션을 엽니다.
   await ctx.addInitScript((keys) => {
     if (sessionStorage.getItem('audit-seeded')) return;
@@ -500,79 +1284,88 @@ for (const size of REVEAL_SIZES) {
   const page = await ctx.newPage();
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(400);
+  await wait(page, 400);
+  await checkClass(page, size, 'home');
   const last = page.locator('.home-last');
   if (!(await last.count())) {
-    missed.push(`${size.name}/reveal: 홈에 '지난 세션' 줄이 없습니다(심은 기록을 못 읽었습니다)`);
+    missed.push(`${size.name}: 홈에 '지난 세션' 줄이 없습니다(심은 기록을 못 읽었습니다)`);
     await ctx.close();
-    continue;
+    return;
   }
   await last.first().tap();
-  await page.waitForTimeout(600);
+  await wait(page, 600);
   const retry = page.getByRole('button', { name: /틀린 것만 다시/ });
   if (!(await retry.count())) {
-    missed.push(`${size.name}/reveal: 지난 세션 시트에 '틀린 것만 다시'가 없습니다`);
+    missed.push(`${size.name}: 지난 세션 시트에 '틀린 것만 다시'가 없습니다`);
     await ctx.close();
-    continue;
+    return;
   }
   await retry.first().tap();
-  await page.waitForTimeout(800);
-  for (let i = 0; i < 5; i++) {
-    const skip = page.getByRole('button', { name: /건너뛰기|시작할게요/ });
-    if (!(await skip.count())) break;
-    await skip.first().tap();
-    await page.waitForTimeout(300);
-  }
+  await wait(page, 800);
+  await skipCoach(page);
   for (let k = 0; k < REVEAL_KEYS.length; k++) {
     const key = REVEAL_KEYS[k];
     const want = key.split('|')[1];
     const choices = page.locator('.trainer-choices');
     if (!(await choices.count())) {
-      missed.push(`${size.name}/reveal ${key}: 선택 버튼이 없습니다(세션이 ${k}장에서 끝났습니다)`);
+      missed.push(`${size.name} ${key}: 선택 버튼이 없습니다(세션이 ${k}장에서 끝났습니다)`);
       break;
     }
     const hand = (await page.locator('.trainer-handlabel__name').first().innerText().catch(() => '')).trim();
-    if (hand !== want) missed.push(`${size.name}/reveal ${key}: 화면의 패가 ${hand || '없음'}입니다`);
+    if (hand !== want) missed.push(`${size.name} ${key}: 화면의 패가 ${hand || '없음'}입니다`);
     const answer = await choices.first().getAttribute('data-answer');
     await page.locator(`.trainer-choice[data-action="${answer}"]`).first().tap();
-    await page.waitForTimeout(650);
+    await wait(page, 650);
     const m = await page.evaluate(() => {
       const r = (sel) => document.querySelector(sel)?.getBoundingClientRect() ?? null;
       const reason = document.querySelector('.trainer-answer__reason');
+      const lh = reason ? parseFloat(getComputedStyle(reason).lineHeight) || 18 : 18;
       return {
         slot: r('.trainer-answer')?.height ?? null,
         strip: r('.trainer-answer__strip')?.width ?? null,
         reasonH: reason ? reason.scrollHeight : null,
+        lh,
         text: reason ? reason.textContent : '',
         hScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       };
     });
     revealChecked++;
-    const where = `${size.name} ${key}`;
-    if (m.slot === null) missed.push(`${where}: 리빌 슬롯이 없습니다`);
+    const where = `${key}`;
+    if (m.slot === null) missed.push(`${size.name} ${where}: 리빌 슬롯이 없습니다`);
     else {
-      if (Math.abs(m.slot - size.slot) > 0.5) revealFails.push(`${where}: 슬롯 높이 ${m.slot.toFixed(1)} ≠ ${size.slot}`);
-      if (m.reasonH === null || m.reasonH > 2 * 18 + 1) revealFails.push(`${where}: 줄 문장이 2줄을 넘습니다(scrollHeight ${m.reasonH}) "${m.text}"`);
-      if (m.strip === null || Math.abs(m.strip - 297) > 0.5) revealFails.push(`${where}: 스트립 폭 ${m.strip?.toFixed(1)} ≠ 297`);
-      if (m.hScroll) revealFails.push(`${where}: 가로 스크롤이 생겼습니다`);
+      if (Math.abs(m.slot - size.slot) > 0.5) fail(size, where, 'reveal-slot', `슬롯 높이 ${m.slot.toFixed(1)} ≠ ${size.slot}`);
+      if (m.reasonH === null || m.reasonH > 2 * m.lh + 1) fail(size, where, 'reveal-slot', `줄 문장이 2줄을 넘습니다(scrollHeight ${m.reasonH}, line ${m.lh}) "${m.text}"`);
+      if (m.strip === null || Math.abs(m.strip - size.strip) > 0.5) fail(size, where, 'reveal-slot', `스트립 폭 ${m.strip?.toFixed(1)} ≠ ${size.strip}`);
+      if (m.hScroll) fail(size, where, 'reveal-slot', '가로 스크롤이 생겼습니다');
     }
-    if (k < WORKED.length) await grabOn(page, size, `reveal-${String(k + 1).padStart(2, '0')}`);
+    if (k < WORKED.length) await grabOn(page, size, `reveal-${String(k + 1).padStart(2, '0')}`, duoOpts(size, 'train-reveal'));
     const next = page.locator('.trainer-next');
     if (!(await next.count())) {
-      missed.push(`${where}: 리빌에 다음 버튼이 없습니다`);
+      missed.push(`${size.name} ${where}: 리빌에 다음 버튼이 없습니다`);
       break;
     }
     await next.first().tap();
-    await page.waitForTimeout(450);
+    await wait(page, 450);
   }
   await ctx.close();
 }
 
-writeFileSync(`${outDir}/report.json`, JSON.stringify(report, null, 2));
+// ---- 실행 ---------------------------------------------------------------------------------------------------
+const tasks = [];
+if (!SKIP.has('flow')) for (const s of ALL_SIZES.filter(wanted)) tasks.push(safely(`flow ${s.name} (${s.expect.layout}${s.note ? ` · ${s.note}` : ''})`, () => flowAt(s)));
+const passWanted = (name, layout, extra) => !ONLY || ONLY.has(name) || ONLY.has(layout) || ONLY.has('duo') && layout !== 'phone' || (extra && ONLY.has(extra));
+if (!SKIP.has('toolbar')) for (const p of TOOLBAR_PAIRS.filter((p) => passWanted('toolbar', p.layout, `${p.w}x${p.svh}`))) tasks.push(safely(`toolbar ${p.w}×${p.svh}↔${p.lvh} (${p.layout}, bar ${p.bar})`, () => toolbarAt(p)));
+if (!SKIP.has('fold') && (!ONLY || ONLY.has('fold') || ONLY.has('duo'))) tasks.push(safely('fold sequence', foldRun));
+if (!SKIP.has('reveal')) for (const s of REVEAL_SIZES.filter((s) => passWanted('reveal', s.expect.layout, `${s.w}x${s.h}`))) tasks.push(safely(`${s.name} (${s.expect.layout})`, () => revealAt(s)));
+console.log(`layout-audit: ${tasks.length} passes, ${JOBS} at a time → ${outDir}`);
+await pool(tasks, JOBS);
+
+writeFileSync(`${outDir}/report.json`, JSON.stringify({ report, gate, missed, na, metrics: metricsLog }, null, 2));
 
 // ---- 요약 출력
 const byKind = new Map();
 for (const r of report) for (const p of r.out) {
+  if (GATE_KINDS.has(p.kind)) continue; // 게이트 검사는 아래에서 따로
   const k = `${p.kind}|${p.path}|${p.detail.replace(/\d+/g, '#')}`;
   if (!byKind.has(k)) byKind.set(k, { ...p, where: new Set() });
   byKind.get(k).where.add(`${r.size}/${r.screen}`);
@@ -583,14 +1376,38 @@ if (missed.length) {
   console.log('\n=== 못 본 화면 (검사가 헛돌았습니다) ===\n');
   for (const m of missed) console.log(`  ! ${m}`);
 }
+if (na.length) {
+  console.log(`\n=== 클래스상 없는 화면 (${na.length}) ===`);
+  for (const m of na) console.log(`  - ${m}`);
+}
 console.log(`\n=== ${rows.length} distinct issues across ${report.length} screen×size probes ===\n`);
 for (const r of rows) {
   console.log(`[${r.kind}] ${r.path}`);
   console.log(`   ${r.detail}  ·  "${r.text}"`);
   console.log(`   @ ${[...r.where].slice(0, 6).join(', ')}${r.where.size > 6 ? ` +${r.where.size - 6}` : ''}`);
 }
-console.log(`\n=== 리빌 슬롯 (§7.2-15): ${revealChecked}장 확인, ${revealFails.length}건 ===`);
-for (const f of revealFails) console.log(`  ✕ ${f}`);
+// 게이트: kind 별로 묶어서
+const gateBy = new Map();
+for (const g of gate) {
+  const k = `${g.kind}|${g.path}|${g.detail.replace(/-?\d+(\.\d+)?/g, '#')}`;
+  if (!gateBy.has(k)) gateBy.set(k, { ...g, where: new Set() });
+  gateBy.get(k).where.add(g.where);
+}
+const gateKinds = [...GATE_KINDS];
+const gateRows = [...gateBy.values()].sort((a, b) => gateKinds.indexOf(a.kind) - gateKinds.indexOf(b.kind));
+console.log(`\n=== Duo 게이트: ${gate.length}건 (${gateRows.length} distinct) ===`);
+for (const k of gateKinds) {
+  const n = gate.filter((g) => g.kind === k).length;
+  console.log(`  ${n ? '✕' : '✓'} ${k.padEnd(15)} ${n}`);
+}
+for (const r of gateRows) {
+  console.log(`[${r.kind}] ${r.path}`);
+  console.log(`   ${r.detail}${r.text ? `  ·  "${r.text}"` : ''}`);
+  console.log(`   @ ${[...r.where].slice(0, 6).join(', ')}${r.where.size > 6 ? ` +${r.where.size - 6}` : ''}`);
+}
+console.log(`\n=== 리빌 슬롯 (§7.2-15): ${revealChecked}장 확인, ${gate.filter((g) => g.kind === 'reveal-slot').length}건 ===`);
+console.log('\n=== metrics (card width · seam · grid rows/px/font · rail) ===');
+for (const m of metricsLog) console.log(`  ${m}`);
 console.log('\n=== gutters (left offset → count) ===');
 for (const r of report) {
   const g = Object.entries(r.gutters).sort((a, b) => b[1] - a[1]);
@@ -599,3 +1416,6 @@ for (const r of report) {
 console.log('\n=== bottom cut by tab bar ===');
 for (const r of report) if (r.bottomCut && r.bottomCut.cut > 0) console.log(`${r.size}/${r.screen}: ${r.bottomCut.cut.toFixed(0)}px cut  "${r.bottomCut.text}"  [${r.bottomCut.scroller}]`);
 await browser.close();
+const failed = gate.length > 0 || missed.length > 0;
+console.log(`\n${failed ? 'FAIL' : 'OK'} — gate ${gate.length}, missed ${missed.length}, n/a ${na.length}, probes ${report.length}`);
+if (failed && !FLAGS['no-gate']) process.exit(1);
