@@ -21,8 +21,9 @@
    even where backdrop blur is unavailable */
 .trainer-go.glass-strong { background: linear-gradient(180deg, rgba(31, 38, 52, 0.95) 0%, rgba(18, 22, 31, 0.97) 100%); }
 .trainer-go > .trainer-setup__start { margin-top: 4px; }
-/* the estimate rides inside 시작 only on phone / squat (below); elsewhere it is the dock's headline */
-.trainer-go__est { display: none; }
+/* the estimate rides inside 시작 only on phone / squat (below); elsewhere it is the dock's headline — the whole trailing
+   slot goes, or its empty box (plus the button's 8 px gap) pushes '▶ 시작' off centre */
+.trainer-go .ui-btn__trailing { display: none; }
 .trainer-preview__counts { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); }
 .trainer-preview__counts i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
 .trainer-lastrow {
@@ -460,7 +461,7 @@ html:is([data-layout="phone"], [data-layout="squat"]) .trainer--idle { scroll-pa
 }
 html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go { position: sticky; bottom: 0; z-index: 2; }
 html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go__head { display: none; }   /* the estimate is in 시작; a block reason is the amber line */
-html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go__est { display: inline; }
+html:is([data-layout="phone"], [data-layout="squat"]) .trainer-go .ui-btn__trailing { display: inline; }
 /* phone / squat: the speed caption rides on the 속도 label row — one line less, so at 580 the 세션 크기 row clears the
    pinned dock */
 html:is([data-layout="phone"], [data-layout="squat"]) .trainer-setup__group--speed {

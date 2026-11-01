@@ -1625,8 +1625,9 @@ places stay masked, so retrieval practice is preserved.
 - **Panels carry a ✕** (land / wide full sheets cover everything but a 10 px margin; there is no grabber or backdrop
   to dismiss them).
 - **Phone keeps the short-stage behaviour it had**: the stage ≤ 88 rule (hide the fan, enlarge the label) applies to
-  the Duo classes only; on phone FitBox alone decides. When it hides the current card's fan (the correct reveal of a
-  deep chain step on a ≤ 650 px phone costs the stage 18 px), the label takes the stage instead of an empty band.
+  the Duo classes only; on phone FitBox alone decides down to the smallest fan's .5 step. Below that (stage < 69: the
+  reveal of a deep chain step on a ≤ 650 px phone) the label takes the stage instead of an empty band. The rule keys on
+  the stage's own height — keyed on the fan's hidden state it collapsed the area and latched the fan hidden.
 - **Timers survive a fold**: the think / reveal countdown is carried per card key when its element moves between the
   phone row and the HUD, so a fold or rotation never grants a fresh full countdown. A new card or ◀ starts fresh.
 - **Paused (land)**: the rail starts below the session HUD (56) with 48 px items, so the HUD ✕ keeps its whole target.
@@ -1649,10 +1650,24 @@ places stay masked, so retrieval practice is preserved.
   - The 헷갈려요 flag is one store shared live by the chart's sheet and inline card (no second rating), cleared when
     the chart tab unmounts; the atlas's per-cell memory is cleared when the atlas opens. Neither outlives its screen.
   - Any sheet up hides the last-cards ribbons (slack band and tall core) — they printed through the glass footers.
-  - The tall hold sheet rises to 42 % of the core (it cannot scroll), so the 자리 block is not cut to a bare heading.
+  - The tall hold sheet rises to just under the session's chart (it cannot scroll), so the 자리 block is not cut to a
+    bare heading and the chart is never sliced.
   - Settings two-column: 훈련 and 데이터 both span the fourth row, so neither column opens a hole.
   - Paused land rail keeps 44 px buttons (4 px gaps); the land slack band keeps the ribbon 32 px from the 59 px
     corners; land panels raise the ✕ to 6 px over a 48 px title row; label–value pairs ("정답 70%") never wrap apart.
+- **Round 4**:
+  - Setup on a short outer screen (scroller ≤ 495: 540 / 553 / 571): the dock drops its counts row (the estimate is in
+    시작) and the header its subtitle, so the 세션 크기 row clears the pinned dock.
+  - Settings two-column: the fourth row is a flexible track (훈련's surplus only goes there); with 고급 open, 기기
+    starts beside the lower part of 고급 — no column opens a hole, open or closed.
+  - land weak-spot rows (home, coach): the meta runs under the name, and the home chip reads "훈련", so neither the
+    situation nor the percentage is cut.
+  - Atlas anchor: the inline comparison is a logical anchor (found again after it remounts); scrolls within 300 ms of a
+    size-class change are not recorded; a touch or wheel ends the post-flip hold at once.
+  - The 헷갈려요 store is a per-visit set shared by the chart sheet, the inline card and the atlas.
+  - Known and accepted: in a two-column summary, reading / focus order is result → card rows → CTAs while the CTAs are
+    drawn above the rows (DOM order keeps the phone order); the tall chart's 자세히 sheet can cover a picked cell in
+    the bottom two rows; the picker's grid is ~23 px cells at the L/R 84 stress insets.
 
 ### 11.8 Open risks / real-device checks
 
