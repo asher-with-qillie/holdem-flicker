@@ -166,7 +166,9 @@ export function spotReason(s: Scenario): SpotReason {
       if (ip) {
         lines.push(`${josa(h, '은/는')} ${v}보다 포지션이 있어서, 콜해도 에퀴티를 잘 실현해요.`);
         const before = share({ kind: 'rfi', hero: h }, 'raise');
-        lines.push(`그래서 오픈한 패의 ${pct(D!)}를 지키는데, 콜(${pct(C / before)})이 4벳(${pct(F / before)})보다 많아요.`);
+        const [c, f] = [Math.round((C / before) * 100), Math.round((F / before) * 100)];
+        // 합계는 반올림한 두 부분의 합으로 — 따로 반올림하면 '46%(올인 24% · 콜 23%)'처럼 더해지지 않아요.
+        lines.push(`그래서 오픈한 패의 ${c + f}%를 지키는데, 콜(${c}%)이 4벳(${f}%)보다 많아요.`);
         ids = ['vs3bet-position', 'threebet-shape', 'offsuit-3bet-pot'];
       } else {
         lines.push(`${josa(h, '은/는')} ${v}보다 포지션이 없어서, 콜하면 플랍 이후 내내 불리해요.`);
@@ -185,7 +187,7 @@ export function spotReason(s: Scenario): SpotReason {
           diff =
             fOop > fIp
               ? null
-              : `책은 포지션이 없을 때 4벳을 늘린다고 해요(HJ는 CO의 3벳에 약 22%, BB의 3벳에 약 10%). 이 차트는 지키는 폭을 줄이지만 4벳을 늘리지는 않아요(오픈한 패의 ${pct(fOop)}, BB 상대는 ${pct(fIp)}).`;
+              : `책은 포지션이 없을 때 4벳을 늘린다고 해요(HJ가 오픈한 패 중 CO의 3벳에는 약 22%, BB의 3벳에는 약 10%를 4벳). 이 차트는 지키는 폭을 줄이지만 4벳을 늘리지는 않아요(오픈한 패의 ${pct(fOop)}, BB 상대는 ${pct(fIp)}).`;
         }
       }
       break;
@@ -194,7 +196,8 @@ export function spotReason(s: Scenario): SpotReason {
       const spr = sprAfterCall(s);
       lines.push(`4벳 팟은 이미 팟이 커서, 콜하면 남은 스택이 팟의 두 배도 안 돼요(SPR 약 ${spr ? spr.toFixed(1) : '1.7'}).`);
       const before = share({ kind: 'vs_open', hero: h, villain: v }, 'threebet');
-      lines.push(`그래서 3벳한 패 중 ${pct(D!)}만 계속 가요(올인 ${pct(A / before)} · 콜 ${pct(C / before)}).`);
+      const [a, c] = [Math.round((A / before) * 100), Math.round((C / before) * 100)];
+      lines.push(`그래서 3벳한 패 중 ${a + c}%만 계속 가요(올인 ${a}% · 콜 ${c}%).`);
       ids = ['vs-4bet', 'fourbet-polar'];
       if (primaryHands(s, 'allin').some((x) => /^A[2-5]s$/.test(x)) || fullMix(getChartCells(s)['A5s'])?.some((m) => m.action === 'allin')) ids.push('fivebet-bluff');
       const ip = heroInPosition(h, v!);

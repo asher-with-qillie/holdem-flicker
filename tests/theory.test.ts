@@ -57,6 +57,18 @@ describe('자리 이유(spot.ts) — 차트에 대해 단정하는 말', () => {
     }
   });
 
+  it('합계와 괄호 속 두 부분이 더해서 맞아요 (따로 반올림하지 않아요)', () => {
+    let n = 0;
+    for (const { id, s } of CHARTS) {
+      const t = spotReason(s).lines.join(' ');
+      const m = t.match(/(\d+)%만 계속 가요\(올인 (\d+)% · 콜 (\d+)%\)/) ?? t.match(/(\d+)%를 지키는데, 콜\((\d+)%\)이 4벳\((\d+)%\)/);
+      if (!m) continue;
+      n++;
+      expect(Number(m[2]) + Number(m[3]), `${id}: ${m[0]}`).toBe(Number(m[1]));
+    }
+    expect(n).toBeGreaterThan(15);
+  });
+
   it('"콜은 거의 하지 않고" — SB의 오픈 대응과 콜드 4벳은 콜이 2% 미만이에요', () => {
     for (const { id, s } of CHARTS) {
       if (!spotReason(s).lines.join(' ').includes('콜은 거의 하지 않고')) continue;
