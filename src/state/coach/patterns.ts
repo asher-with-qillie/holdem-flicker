@@ -194,7 +194,7 @@ export const PATTERN_RULES: PatternRule[] = [
      */
     match: (m) => m.answer === 'threebet' && m.chosen === 'call',
     advice: [
-      '콜하면 주도권이 상대에게 넘어가요.',
+      '콜하면 상대가 접을 기회가 없어요.',
       '3벳은 센 패와 접을 패로 갑니다.',
       '이 패, 애매해서 콜한 건 아닌가요?',
     ],
@@ -219,7 +219,7 @@ export const PATTERN_RULES: PatternRule[] = [
     koName: '3벳을 맞으면 거의 다 접습니다',
     minSample: 6,
     /**
-     * vs_3bet 차트는 폴라라이즈드입니다 — 4벳 칸이 AA·KK·QQ·AK 와 A5s·A4s 이고 AQs·JJ·TT 는 그보다 아래인 콜 칸입니다.
+     * vs_3bet 차트의 4벳은 양극화돼 있습니다(책 5장 2절 '4-bet은 블로커가 좋은 핸드를 섞은 양극화 범위') — 4벳 칸이 AA·KK·QQ·AK 와 A5s·A4s 이고 AQs·JJ·TT 는 그보다 아래인 콜 칸입니다.
      * 그래서 '센 순서로 줄 세워 맨 위가 4벳'이라는 선형 모델을 가르치면 차트와 어긋납니다.
      */
     match: (m) => m.kind === 'vs_3bet' && m.chosen === 'fold' && m.answer !== 'fold',
@@ -240,7 +240,7 @@ export const PATTERN_RULES: PatternRule[] = [
      */
     match: (m) => m.kind === 'vs_4bet' && m.answer === 'fold' && m.chosen !== 'fold',
     advice: [
-      '4벳은 블러프가 훨씬 적습니다.',
+      '앞자리 4벳은 아주 강합니다.',
       '3벳하기 전에 끝을 정해 두세요.',
       '이 패, 3벳할 때 이미 정해 뒀나요?',
     ],
