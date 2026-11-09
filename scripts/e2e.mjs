@@ -498,8 +498,13 @@ async function pass(P) {
       check(ringed === 1, `charts: ⑥ should ring exactly the current seat (got ${ringed})`);
       check((await across.locator('button').count()) === 0, 'charts: ⑥ tiles must not be nested buttons');
     }
-    // 지운 섹션(왜? · 예시 본문 · 플랍에서는 · 결론 머리글)이 돌아오지 않았는지.
-    check(!/왜\?|플랍에서는|플랍 이후|결론/.test(sheetText), 'charts: a removed section (왜?/플랍에서는/플랍 이후/결론) is back in the sheet');
+    // 지운 섹션(왜? · 플랍에서는 · 플랍 이후 · 결론 머리글)이 돌아오지 않았는지 — 머리글만 봅니다.
+    // 본문의 '플랍 이후'는 v4 자리 이유(THEORY_SPEC §4)가 씁니다("그중 3명은 플랍 이후 UTG보다 나중에 행동해요").
+    {
+      const heads = (await sheet.locator('.ui-explain__h').allInnerTexts().catch(() => [])).map((t) => t.trim());
+      check(!heads.some((t) => /^(왜\?|플랍에서는|플랍 이후|결론)/.test(t)), `charts: a removed section heading is back in the sheet (${heads.join(' | ')})`);
+      check(heads.includes('왜 이렇게 칠까'), `charts: the v4 「왜 이렇게 칠까」 section is missing (${heads.join(' | ')})`);
+    }
     // ⑦ 자세히는 내용이 있을 때만, 그리고 접힌 채로 시작합니다.
     check((await sheet.locator('.ui-explain__more-btn[aria-expanded="true"]').count()) === 0 && (await sheet.locator('.ui-explain__more-body').count()) === 0, 'charts: 자세히 disclosure must start collapsed');
     // 섹션 간격은 .ui-explain 의 flex gap 하나로만 잡힙니다 — 자식에 margin 이 또 붙으면 간격이 두 번 들어갑니다.
