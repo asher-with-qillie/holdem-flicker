@@ -194,7 +194,7 @@ export const HAND_REASONS: Record<string, HandReasonEntry> = {
   'vs_4bet|IP|bw_s|fold': { text: '수티드 브로드웨이는 4벳 범위의 더 높은 킥커에 지배당하기 쉬워서, 포지션이 있어도 폴드해요.', principles: ['domination', 'vs-4bet'], bookDiff: '' },
   'vs_4bet|IP|conn_s|fold': { text: '수티드 커넥터는 나중에 큰 보상을 노리는 투기적인 패라, 스택이 얕은 4벳 팟에서는 가치가 떨어져 폴드해요.', principles: ['vs-4bet', 'realization'], bookDiff: '' },
   'vs_4bet|IP|kq_s|fold': { text: '{hand|은/는} 높은 카드가 한 장뿐이라 4벳 범위의 AK·KQ에 지배당하기 쉬워서, 포지션이 있어도 폴드해요.', principles: ['domination', 'hand-strength'], bookDiff: '' },
-  'vs_4bet|IP|pair_big|agg': { text: '큰 포켓페어는 4벳 범위의 AK와 블러프를 이기는 페어라, 올인으로 블러프를 폴드시키거나 AK의 콜을 받아요.', principles: ['hand-strength', 'realization'], bookDiff: '' },
+  'vs_4bet|IP|pair_big|agg': { text: '큰 포켓페어는 4벳 범위의 AK와 블러프를 이기는 페어라, 올인하면 블러프는 폴드하고 콜하는 AK를 상대로도 유리해요.', principles: ['hand-strength', 'realization'], bookDiff: '' },
   'vs_4bet|IP|pair_big|call': { text: '{hand|은/는} 4벳 범위의 AA·KK에는 밀리지만, 포지션이 있어 콜해도 에퀴티를 잘 실현해요.', principles: ['vs-4bet', 'realization'], bookDiff: '' },
   'vs_4bet|IP|pair_big|mix:allin+call': { text: '{hand|은/는} 4벳 범위의 AK와 블러프엔 유리하지만 AA·KK에는 밀려서, 올인과 콜의 가치가 비슷해요.', principles: ['mixing', 'hand-strength'], bookDiff: '' },
   'vs_4bet|IP|pair_mid|call': { text: '{hand|은/는} 중간 포켓페어 중 높은 쪽이라 4벳 범위의 AK와 블러프에 유리해서, 포지션을 살려 콜해요.', principles: ['hand-strength', 'realization'], bookDiff: '' },
