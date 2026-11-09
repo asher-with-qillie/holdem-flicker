@@ -202,7 +202,18 @@ describe('sheet: 레버 데이터 판단 (§7.2-12)', () => {
       if (s.kind === 'vs_open' && s.hero === 'BB') expect(lever?.id).toBe('bbPrice');
       if (s.kind === 'vs_limp') expect(lever?.id ?? null).toBe(s.hero === 'BB' ? 'bbFree' : null);
     }
-    expect(seatLever({ kind: 'rfi', hero: 'BTN' })?.text).toBe('BTN은 뒤에 블라인드 둘만 남아 46%를 오픈해요.');
+    // BTN 오픈은 책의 약 43%(5장 2절)와 차트 46%를 같이 밝힙니다(감사 19).
+    expect(seatLever({ kind: 'rfi', hero: 'BTN' })?.text).toBe('BTN은 블라인드만 남아 책의 약 43%보다 넓은 46%를 오픈해요.');
+    // SB 오픈은 뒤에 한 명뿐이라서 넓은 게 아닙니다 — SB 46.2% 는 BTN 46.3% 보다 넓지 않고, 포지션이 없어서예요(감사 7).
+    expect(seatLever({ kind: 'rfi', hero: 'SB' })?.text).toBe('SB는 BB만 남아도 포지션이 없어 BTN만큼인 46%를 오픈해요.');
+    expect(Math.round(rangeShare(getChartCells({ kind: 'rfi', hero: 'SB' }), 'raise') * 100)).toBe(Math.round(rangeShare(getChartCells({ kind: 'rfi', hero: 'BTN' }), 'raise') * 100));
+    // SB 는 콜을 0.7~1.5% 섞어서 '대부분'(감사 0).
+    expect(seatLever({ kind: 'vs_open', hero: 'SB', villain: 'UTG' })?.text).toBe('SB는 콜을 거의 안 하고, 대부분 3벳 아니면 폴드해요.');
+    // HJ · CO · BTN 의 오픈 대응: 포지션만 말하면 콜의 이유처럼 읽혀서, 책이 드는 스퀴즈 위험을 같이(감사 18).
+    for (const s of SCENARIOS.filter((x) => x.kind === 'vs_open' && ['HJ', 'CO', 'BTN'].includes(x.hero))) {
+      expect(seatLever(s)).toEqual({ id: 'behind', text: `${s.hero === 'BTN' ? 'BTN은' : `${s.hero}는`} 포지션이 있어도 콜하면 뒤에서 스퀴즈를 받기 쉬워요.` });
+      expect(heroIsIP(s), scenarioKey(s)).toBe(true);
+    }
     expect(seatLever({ kind: 'vs_open', hero: 'BB', villain: 'SB' })?.text).toBe('BB는 이미 1bb를 냈으니 2bb만 더 내면 돼요.');
   });
 });
@@ -328,25 +339,39 @@ describe('sheet: 자리 문장의 이름 규칙 (§4.2-⑥, 리뷰)', () => {
     expect(across({ kind: 'vs_limp', hero: 'HJ' }, '72o')).toBe('72o는 림프에 어느 자리에서도 레이즈하지 않아요.');
     // 세 액션 자리(CO 폴드 50 · 4벳 25 · 콜 25, BTN·BB 4벳 50 · 콜 25 · 폴드 25)는 '절반만'으로 줄이지 않습니다 —
     // 나눔까지 부르면 46em 을 넘어서 '절반은'으로 줄였고, 나머지가 폴드뿐인 SB 만 '절반만 4벳'이에요.
-    expect(across({ kind: 'cold_4bet', hero: 'CO' }, 'AKo')).toBe('AKo는 앞에서 3벳이 나오면 CO에서 절반은 폴드, BTN·BB에서 절반은 4벳, SB에서 절반만 4벳이에요.');
+    // 콜드 상황의 앞머리는 '오픈과 3벳 뒤에'(책 5장 3절 — 앞의 오픈까지). 짧아진 만큼 46em 안에서 나눔('폴드 반·4벳·콜')까지 부릅니다.
+    expect(across({ kind: 'cold_4bet', hero: 'CO' }, 'AKo')).toBe('AKo는 오픈과 3벳 뒤에 CO에서 폴드 반·4벳·콜, BTN·BB에서 4벳 반·콜·폴드, SB에서 절반만 4벳이에요.');
   });
 
-  it('부분 정답 문장: 계속 · rest 반반은 "이 칸은 …", 두 계속 액션 반반만 "반반이라 더 공격적인 …"', () => {
+  it('부분 정답 문장: 두 액션의 가치가 비슷하다는 것(책 2장 무차별)을 먼저, 채점은 그다음 — "더 공격적인"은 두 계속 액션의 반반에만', () => {
+    const actionLabelOf = (a: string, s: Scenario) => (a === 'raise' ? (s.kind === 'vs_limp' ? '레이즈' : '오픈') : ({ call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크' } as Record<string, string>)[a]);
     let restTie = 0;
     let contTie = 0;
-    for (const { e } of EXPLAINED) {
+    for (const { e, s } of EXPLAINED) {
       const p = e.mix?.partial;
       if (!p) continue;
-      if (p.startsWith('이 칸은')) restTie++;
-      else if (p.startsWith('반반이라')) {
+      const chips = e.mix!.chips;
+      const [a1, a2] = [chips[0].action, chips[1].action];
+      const rest = s.kind === 'vs_limp' && s.hero === 'BB' ? 'check' : 'fold';
+      // 한쪽을 '정답'이라 부르기 전에, 두 액션이 가치가 거의 같아 둘 다 쓴다는 말이 먼저 옵니다.
+      expect(p, p).toMatch(/^\S+[과와] \S+[은는] 가치가 비슷해요\. 채점은 (더 공격적인 )?\S+[이가] 정답이에요\.$/);
+      expect(p.startsWith(`${actionLabelOf(a1, s)}`), p).toBe(true);
+      expect(p.length, p).toBeLessThanOrEqual(40);
+      expect(p, p).not.toMatch(/반반이라|이 칸은/);
+      if (a2 === rest) {
+        restTie++;
+        // 계속 · rest 반반: '반반'(계속하는 두 액션 사이에만)도 '더 공격적인'(콜을 공격적이라 부르게 됨)도 쓰지 않습니다.
+        expect(p, p).not.toMatch(/반반|공격적/);
+      } else {
         contTie++;
-        expect(p).not.toMatch(/(폴드|체크)도 부분 정답/);
+        expect(p, p).toContain('더 공격적인');
+        expect(a1).not.toBe(rest);
       }
     }
     expect(restTie).toBeGreaterThan(100);
     expect(contTie).toBeGreaterThan(50);
-    expect(explainStep(stepFor({ kind: 'rfi', hero: 'UTG' }, 'KJo')).mix!.partial).toBe('이 칸은 오픈을 정답으로 쳐요. 폴드도 부분 정답이에요.');
-    expect(explainStep(stepFor({ kind: 'cold_4bet', hero: 'CO' }, 'QQ')).mix!.partial).toBe('반반이라 더 공격적인 4벳을 정답으로 쳐요. 콜도 부분 정답이에요.');
+    expect(explainStep(stepFor({ kind: 'rfi', hero: 'UTG' }, 'KJo')).mix!.partial).toBe('오픈과 폴드는 가치가 비슷해요. 채점은 오픈이 정답이에요.');
+    expect(explainStep(stepFor({ kind: 'cold_4bet', hero: 'CO' }, 'QQ')).mix!.partial).toBe('4벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 4벳이 정답이에요.');
   });
 });
 

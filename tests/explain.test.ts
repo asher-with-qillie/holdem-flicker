@@ -123,7 +123,7 @@ const ALL_SPOTS: Scenario[] = allScenarios()
 
 /** 예시 한 줄의 세 모양(§4.2-⑦). 어느 칸에 붙는지는 결정이 정합니다(THEORY_SPEC §6.4). */
 const EXAMPLE_SHAPES = [
-  /^내 (?:10|[2-9TJQKA])[♠♦](?:10|[2-9TJQKA])[♠♦] → 플랍에서 셋이 될 확률 12%예요\.$/,
+  /^내 (?:10|[2-9TJQKA])[♠♦](?:10|[2-9TJQKA])[♠♦] → 플랍에서 셋이 될 확률은 약 12%예요\.$/,
   /^내 (?:10|[2-9TJQKA])[♠♦](?:10|[2-9TJQKA])[♠♦] vs 상대 (?:\S+) → (?:10|[AKQJ])[을를] 맞춰도 킥커에서 밀려요\.$/,
   /^내 A[♠♦][2-5][♠♦] → A를 쥐고 있어 상대 AA·AK 조합이 줄어요\.$/,
 ];
@@ -145,10 +145,11 @@ describe('explanations', () => {
       { action: 'raise', pct: 50 },
       { action: 'fold', pct: 50 },
     ]);
-    // 2순위가 폴드(나머지 액션)인 반반은 '반반'이라 부르지 않습니다(§2.2 — 반반은 계속하는 두 액션 사이에만).
-    expect(ato.partial).toBe('이 칸은 오픈을 정답으로 쳐요. 폴드도 부분 정답이에요.');
-    // 계속하는 두 액션의 반반(3벳 50 / 콜 50)은 그대로 '반반이라 더 공격적인 …'.
-    expect(mixBlock(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'BTN' }, '54s'))!.partial).toBe('반반이라 더 공격적인 3벳을 정답으로 쳐요. 콜도 부분 정답이에요.');
+    // 두 액션의 가치가 비슷하다는 것(책 2장 4절 무차별)을 먼저 말하고, '정답'은 채점이라고 밝힙니다(감사 10).
+    // 2순위가 폴드(나머지 액션)인 반반에는 '더 공격적인'을 붙이지 않습니다(§2.2 — 오픈 · 폴드 사이의 말이 아닙니다).
+    expect(ato.partial).toBe('오픈과 폴드는 가치가 비슷해요. 채점은 오픈이 정답이에요.');
+    // 계속하는 두 액션의 반반(3벳 50 / 콜 50)은 채점 규칙대로 '더 공격적인 …'.
+    expect(mixBlock(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'BTN' }, '54s'))!.partial).toBe('3벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 3벳이 정답이에요.');
     expect(mixBlock(stepFor({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'QQ'))!.partial).toBeNull();
   });
 
@@ -233,7 +234,7 @@ describe('oneExample', () => {
     expect(exampleShape('KQo')!.text).toContain('K♠Q♦');
     expect(exampleShape('55')!.text).toContain('5♠5♦');
     // 중간·작은 페어는 셋 확률 줄(책은 작은 페어를 셋이 될 확률과 보드 커버리지로 설명합니다, THEORY_SPEC §1-2) — 콜하는 88 에는 붙어요.
-    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BTN', villain: 'HJ' }, '88'))).toMatch(/셋이 될 확률 12%/);
+    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BTN', villain: 'HJ' }, '88'))).toMatch(/셋이 될 확률은 약 12%/);
   });
 
   it('exampleShape 는 §4.2-⑦ 의 세 모양 중 하나이거나 null 이다', () => {
@@ -291,7 +292,7 @@ describe('oneExample', () => {
     // 섞기 칸: 오픈 50 · 폴드 50 인 KJo(UTG)는 반반 동점 규칙으로 1순위가 오픈이지만 접는 절반이 있어 지배 예시가 붙습니다.
     expect(oneExample(stepFor({ kind: 'rfi', hero: 'UTG' }, 'KJo'))).toBe('내 K♠J♦ vs 상대 A♠K♦ → K를 맞춰도 킥커에서 밀려요.');
     // 셋 확률: 콜하는 22 에는 붙고, 폴드하는 44(UTG vs BTN 3벳) · 3벳하는 99(SB vs CO)에는 붙지 않습니다.
-    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'CO' }, '22'))).toBe('내 2♠2♦ → 플랍에서 셋이 될 확률 12%예요.');
+    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'CO' }, '22'))).toBe('내 2♠2♦ → 플랍에서 셋이 될 확률은 약 12%예요.');
     expect(oneExample(stepFor({ kind: 'vs_3bet', hero: 'UTG', villain: 'BTN' }, '44'))).toBeNull();
     expect(oneExample(stepFor({ kind: 'vs_open', hero: 'SB', villain: 'CO' }, '99'))).toBeNull();
     expect(shown.domination).toBeGreaterThan(1000);
@@ -362,9 +363,9 @@ describe('oneExample', () => {
     expect(seen).toBeGreaterThan(0);
   });
 
-  it('equity numbers: 셋이 될 확률 12% 만 남는다', () => {
+  it('equity numbers: 셋이 될 확률 약 12% 만 남는다', () => {
     const text = ALL_SPOTS.flatMap((s) => ALL_HANDS.map((h) => explainStep(stepFor(s, h)).more.example ?? '')).join('\n');
-    expect(text).toContain('셋이 될 확률 12%');
+    expect(text).toContain('셋이 될 확률은 약 12%');
     expect(text).not.toMatch(/승률/);
     expect([...text.matchAll(/\d+%/g)].every((m) => m[0] === '12%')).toBe(true);
   });

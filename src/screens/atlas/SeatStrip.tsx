@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { actionLabel } from '../../components/ActionBadge';
 import { cellBackground } from '../../components/RangeGrid';
-import type { AtlasCell } from '../../poker/atlas';
+import { isRare, type AtlasCell } from '../../poker/atlas';
 import '../../styles/atlas.css';
 import type { Scenario, ScenarioKind } from '../../poker/types';
 
@@ -18,7 +18,7 @@ export interface TileMarks {
 
 /**
  * 타일 하나. 배경은 RangeGrid 와 같은 좌→우 분할(`cellBackground`), 라벨은 1순위 액션 + 비중(100% 미만일 때만).
- * 미도달 칸은 '—' 로 흐리게. BB 의 림프 대응 체크는 --act-check 바탕에 '체크' 글자 — 회색 폴드처럼 보이면 안 됩니다.
+ * 미도달 칸(드문 칸 포함 — 문제로는 안 나옵니다)은 '—' 로 흐리게. BB 의 림프 대응 체크는 --act-check 바탕에 '체크' 글자 — 회색 폴드처럼 보이면 안 됩니다.
  *
  * `compact` — 해설 시트 ⑥(§4.2)의 작은 타일(높이 30, 폭 52–60). 버튼 안에 들어가므로 누를 수 없는 span 으로 그리고,
  * 라벨은 큰 타일과 같습니다: 1순위 액션, 100% 미만이면 아래 줄에 비중(`오픈` / `50%`). 비중어만 홀로 두면
@@ -44,7 +44,8 @@ export function AtlasTile({ cell, kind, marks, onSelect, compact }: { cell: Atla
     .join(' ');
   const background = reachable && primary !== 'check' ? cellBackground(mixList) : undefined;
   const where = scenario.villain ? `${scenario.hero} vs ${scenario.villain}` : scenario.hero;
-  const name = `${where} · ${reachable ? `${label}${pct !== null ? ` ${pct}%` : ''}` : '이 패로는 안 오는 상황'}`;
+  // 앞 단계 액션을 섞어 드물게 오는 칸(문제로는 안 나옴)을 '안 오는 상황'이라고 읽지 않습니다(atlas.isRare).
+  const name = `${where} · ${reachable ? `${label}${pct !== null ? ` ${pct}%` : ''}` : isRare(cell) ? '이 패로는 드물게만 오는 상황' : '이 패로는 안 오는 상황'}`;
   if (compact) {
     return (
       <span className={cls} style={background ? { background } : undefined} aria-label={name}>

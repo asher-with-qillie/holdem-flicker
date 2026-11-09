@@ -31,6 +31,16 @@ export const CORE_SEATS: readonly Pos[] = ['UTG', 'HJ', 'CO', 'BTN'];
 
 export type WeightClass = 'always' | 'most' | 'half' | 'some';
 
+/**
+ * 이 칸까지 오려면 앞 차트에서 해야 하는 액션. weight = 그 액션의 비중.
+ * weight 가 0 이면 이 패로는 절대 안 오는 칸, 0보다 크면 1순위가 아니라 문제로는 안 나오지만 그 비중만큼은 오는 칸(드문 칸)입니다.
+ */
+export interface Gate {
+  kind: ScenarioKind;
+  needed: Action;
+  weight: number;
+}
+
 export interface AtlasCell {
   /** cold_4bet 은 extras 없이 둡니다 — 차트는 hero 만 봅니다. */
   scenario: Scenario;
@@ -42,7 +52,7 @@ export interface AtlasCell {
   primary: Action;
   weightClass: WeightClass;
   reachable: boolean;
-  gate?: { kind: ScenarioKind; needed: Action };
+  gate?: Gate;
   note?: string;
   /** vs_limp 차트는 솔버 출력이 아니라 사람이 쓴 것이라 'human'. */
   evidence: 'solver' | 'human';
@@ -124,6 +134,9 @@ const isBlind = (p?: Pos) => p === 'SB' || p === 'BB';
 const isEarly = (p?: Pos) => p === 'UTG' || p === 'HJ';
 const EPS = 1e-6;
 const pctInt = (x: number) => Math.round(x * 100);
+/** 한 문장의 한글 음절 수 한도(tests/atlas.test.ts style lint 와 같은 30). */
+const SENTENCE_MAX_HANGUL = 30;
+const hangulLen = (t: string) => (t.match(/[가-힣]/g) ?? []).length;
 const aggression = (a: Action) => AGGRESSION_ORDER.indexOf(a);
 
 /* ------------------------------------------------------------------ */
@@ -150,28 +163,29 @@ function isTieMix(cell: AtlasCell): boolean {
 }
 
 const prim = (s: Scenario, hand: HandName): Action => primaryAction(getChartCells(s)[hand]);
+const weightIn = (s: Scenario, hand: HandName, a: Action): number => fullMix(getChartCells(s)[hand]).find((m) => m.action === a)?.weight ?? 0;
 
 /**
- * buildSteps 의 게이트를 그대로 복제합니다(답 = primary). 앱이 가르치는 답은 primary 이므로,
- * buildSteps 가 rfi 를 세션에서 뺐을 때 쓰는 "비중 > 0" 게이트는 쓰지 않습니다.
+ * buildSteps 의 게이트를 그대로 복제합니다(ok = 앞 단계마다 1순위가 그 액션). 앱이 가르치는 답은 primary 이므로,
+ * buildSteps 가 rfi 를 세션에서 뺐을 때 쓰는 "비중 > 0" 게이트는 쓰지 않습니다 — 트레이너 · 퀴즈 · 다이제스트는 ok 만 봅니다.
+ *
+ * 다만 1순위가 아니어도 그 액션을 섞는 패(UTG 오픈에 콜 75 · 3벳 25 인 TT)는 3벳한 25%만큼은 4벳을 받습니다. 그런 칸에
+ * '3벳하지 않으니 4벳을 받을 일이 없어요'라고 하면 거짓이라(감사: 121칸), gate 에 앞 단계 액션의 비중(weight)을 담습니다.
+ * 앞 단계 중 비중이 0인 게이트가 하나라도 있으면 그 게이트(절대 안 옴), 아니면 1순위가 아닌 첫 게이트(드물게 옴)를 돌려줍니다.
  */
-export function isReachable(s: Scenario, hand: HandName): { ok: boolean; gate?: AtlasCell['gate'] } {
-  switch (s.kind) {
-    case 'vs_3bet':
-    case 'vs_5bet': {
-      if (prim({ kind: 'rfi', hero: s.hero }, hand) !== 'raise') return { ok: false, gate: { kind: 'rfi', needed: 'raise' } };
-      if (s.kind === 'vs_5bet' && prim({ kind: 'vs_3bet', hero: s.hero, villain: s.villain }, hand) !== 'fourbet') {
-        return { ok: false, gate: { kind: 'vs_3bet', needed: 'fourbet' } };
-      }
-      return { ok: true };
-    }
-    case 'vs_4bet':
-      if (prim({ kind: 'vs_open', hero: s.hero, villain: s.villain }, hand) !== 'threebet') return { ok: false, gate: { kind: 'vs_open', needed: 'threebet' } };
-      return { ok: true };
-    default:
-      return { ok: true };
-  }
+export function isReachable(s: Scenario, hand: HandName): { ok: boolean; gate?: Gate } {
+  const path: Array<{ kind: ScenarioKind; needed: Action; at: Scenario }> = [];
+  if (s.kind === 'vs_3bet' || s.kind === 'vs_5bet') path.push({ kind: 'rfi', needed: 'raise', at: { kind: 'rfi', hero: s.hero } });
+  if (s.kind === 'vs_5bet') path.push({ kind: 'vs_3bet', needed: 'fourbet', at: { kind: 'vs_3bet', hero: s.hero, villain: s.villain } });
+  if (s.kind === 'vs_4bet') path.push({ kind: 'vs_open', needed: 'threebet', at: { kind: 'vs_open', hero: s.hero, villain: s.villain } });
+  const failing: Gate[] = path.filter((g) => prim(g.at, hand) !== g.needed).map((g) => ({ kind: g.kind, needed: g.needed, weight: weightIn(g.at, hand, g.needed) }));
+  if (!failing.length) return { ok: true };
+  const never = failing.find((g) => g.weight <= EPS);
+  return { ok: false, gate: never ? { ...never, weight: 0 } : failing[0] };
 }
+
+/** 문제로는 안 나오지만(1순위가 아님) 앞 단계 액션을 섞는 만큼은 오는 칸. */
+export const isRare = (c: AtlasCell): boolean => !c.reachable && !!c.gate && c.gate.weight > EPS;
 
 function makeCell(scenario: Scenario, hand: HandName): AtlasCell {
   const cells = getChartCells(scenario);
@@ -330,11 +344,28 @@ export function entrySeat(hand: HandName): Pos | 'SB' | null {
  * 레버는 사실만 말하지 않고 결과까지 말합니다(THEORY_SPEC §2 — 감사에서 결과 없는 레버 2,249줄).
  * 결과 절은 차트로 확인한 것만 씁니다: 블라인드 3벳에는 모든 오프너가 더 넓게 지키고(49~59% 대 41~52%),
  * 오픈에 맞서는 비중은 오프너가 뒷자리일수록 늘고, SB 오픈(46.2%)은 BTN(46.3%)보다 넓지 않습니다.
- * tests/atlas.test.ts 가 이 셋을 모든 칸에서 다시 셉니다.
+ * BB 는 어느 오프너에게나 다른 자리보다 넓게 콜하고(UTG 상대 25.8% 대 BTN 9.6%), SB 의 콜은 2% 아래이며(0.7~1.5%),
+ * 블라인드는 같은 오프너에게 블라인드가 아닌 자리보다 넓게 3벳합니다(UTG 상대 6~8% 대 5.1%).
+ * tests/atlas.test.ts 가 이것들을 모든 칸에서 다시 셉니다.
+ *
+ * 블라인드 3벳의 이유는 3벳 범위의 폭입니다. 예전 문장('블러프도 섞여 있어' · '밸류 위주라')은 차트와 책 둘 다와 맞지 않았습니다 —
+ * 차트에서는 HJ · CO · BTN 의 3벳에도 A5s · A4s 블러프가 있고, 책은 BTN 3벳을 양극화, SB 3벳을 선형으로 봅니다(5장 4절).
  */
 export const POSITION_IP = '포지션이 있어 플랍 이후 내내 유리해요.';
 export const POSITION_OOP = '포지션이 없어 플랍 이후 내내 불리해요.';
 export const SB_OPEN = 'SB는 뒤에 BB 한 명뿐이지만 포지션이 없어, BTN보다 넓게 오픈하지는 않아요.';
+/** SB 의 오픈 대응(책 5장 5절: BB 의 스퀴즈 · 두 명을 상대로 포지션 없음 · 레이크). 차트는 콜을 0.7~1.5% 섞어서 '대부분'. */
+export const SB_RAISE_OR_FOLD = ['SB는 콜하면 BB에게 스퀴즈당하기 쉽고, 플랍 이후 포지션도 없어요.', '그래서 콜은 드물고, 대부분 3벳 아니면 폴드예요.'] as const;
+/**
+ * BB 의 오픈 대응 꼬리. 가격은 책 5장 5절(이미 낸 1bb 덕분에 더 낼 돈이 작음 — 앞 문장)이고, 스퀴즈는 책이 콜을 줄이는
+ * 이유로 드는 것(5장 5절의 SB · BTN, 8장의 'CO가 콜하면 뒤에 BN이 남아 스퀴즈')을 BB 에 맞춘 것입니다 — BB 는 뒤에 아무도 없어
+ * 그 위험이 없습니다. '마지막 차례라 제일 넓게'는 책 1장 1절이 짚는 오해('마지막에 행동하는 BB가 가장 유리하다')로 읽혀서
+ * 바꿨습니다 — BB 는 플랍 이후 포지션이 없습니다.
+ */
+export const BB_PRICE_TAIL = ['뒤에 아무도 없어 스퀴즈를 받지 않아요.', '그래서 포지션이 없어도 가장 넓게 콜해요.'] as const;
+export const BB_PRICE_TAIL_SB = 'SB 상대로는 포지션도 있어요.';
+/** 3벳한 쪽(v)이 블라인드냐에 따라. 블라인드는 같은 오프너에게 더 넓게 3벳합니다(차트, 테스트가 셉니다). */
+export const blind3betText = (v: Pos): string => (isBlind(v) ? `${v} 3벳은 범위가 넓어 더 넓게 지켜요.` : `${v} 3벳은 범위가 좁아 더 좁게 지켜요.`);
 /** 뒤에 남은 사람이 많을수록 생기는 일(책 4장 「뒤에 남은 사람」). '…기 쉬워요' 앞에 붙습니다. */
 const BEHIND_RISK: Partial<Record<ScenarioKind, string>> = {
   rfi: '3벳을 받',
@@ -356,17 +387,15 @@ export function seatLevers(s: Scenario): Lever[] {
   }
   if (kind === 'vs_open' && hero === 'BB') {
     const price = priceFacts(s)!;
-    const tail = v === 'SB' ? 'SB 상대로는 포지션도 있어요.' : '마지막 차례라 제일 넓게 콜해요.';
+    const tail = v === 'SB' ? BB_PRICE_TAIL_SB : BB_PRICE_TAIL.join(' ');
     out.push({ id: 'bbPrice', text: `BB는 이미 1bb를 냈으니 ${price.toCall}만 더 내면 돼요. ${tail}`, nums: [], constant: false });
   }
   if (kind === 'vs_open' && hero === 'SB') {
-    out.push({ id: 'sbRaiseOrFold', text: 'SB는 콜하면 BB에게 스퀴즈당하기 쉽고 포지션도 없어요. 그래서 3벳 아니면 폴드예요.', nums: [], constant: true });
+    out.push({ id: 'sbRaiseOrFold', text: SB_RAISE_OR_FOLD.join(' '), nums: [], constant: true });
   }
   if (kind === 'vs_limp' && hero === 'BB') out.push({ id: 'bbFree', text: 'BB는 이미 1bb를 냈으니 체크하면 공짜로 플랍을 봐요.', nums: [], constant: true });
-  // 3벳 레인지의 성격은 vs_3bet 에서만 — vs_5bet 해설은 올인 레인지를 말하지 3벳 레인지를 말하지 않습니다.
-  if (kind === 'vs_3bet' && v) {
-    out.push({ id: 'blind3bet', text: isBlind(v) ? `${v} 3벳엔 블러프도 섞여 있어 더 넓게 지켜요.` : `${v} 3벳은 밸류 위주라 더 좁게 지켜요.`, nums: [], constant: true });
-  }
+  // 3벳 레인지의 폭은 vs_3bet 에서만 — vs_5bet 해설은 올인 레인지를 말하지 3벳 레인지를 말하지 않습니다.
+  if (kind === 'vs_3bet' && v) out.push({ id: 'blind3bet', text: blind3betText(v), nums: [], constant: true });
   if ((kind === 'vs_open' || kind === 'vs_4bet') && v) {
     const p = openPct(v);
     out.push({ id: 'openWidth', text: `${josa(v, '은/는')} ${p}%를 오픈해요.`, nums: [p], constant: false });
@@ -571,39 +600,85 @@ interface Digest {
   named: { action: Action; cells: AtlasCell[] } | null;
 }
 
-/** D(sec): reachable 칸의 primary 별 개수, 혼합 개수. 텍스트와 함께 claims 를 만듭니다. */
+/**
+ * 섞인 칸 하나의 명사형 라벨(다이제스트용, THEORY_SPEC §5 — 캡슐과 같은 비중어):
+ *  - 주로(1순위 > 50%): 섞는 쪽을 비중과 함께 '올인 25% 섞음'(섞는 액션이 둘 이상이면 비중 없이 '콜·폴드 섞음')
+ *  - 계속하는 두 액션의 동점: '3벳·콜 반반'
+ *  - 세 액션 칸: '절반은 4벳, 절반은 콜·폴드'
+ *  - 그 밖의 절반(나머지가 폴드·체크): '절반만 콜'
+ * 1순위가 폴드·체크인 절반 칸은 세 액션 칸뿐입니다(폴드 50 · 콜 50 은 동점이라 콜이 1순위).
+ */
+function mixLabel(c: AtlasCell): { text: string; nums: number[] } {
+  const kind = c.scenario.kind;
+  const act = actWord(c.primary, kind);
+  const others = c.mixList.slice(1).filter((m) => m.weight > EPS);
+  switch (c.weightClass) {
+    case 'always':
+      return { text: act, nums: [] };
+    case 'most':
+      if (others.length === 1) return { text: `${actWord(others[0].action, kind)} ${pctInt(others[0].weight)}% 섞음`, nums: [pctInt(others[0].weight)] };
+      return { text: `${others.map((m) => actWord(m.action, kind)).join('·')} 섞음`, nums: [] };
+    case 'half': {
+      if (isTieMix(c)) return { text: `${act}·${actWord(c.mixList[1].action, kind)} 반반`, nums: [] };
+      const sp = splitOf(c.mixList);
+      if (sp) return { text: splitPhrase(sp, kind, 'noun'), nums: [] };
+      return { text: `절반만 ${act}`, nums: [] };
+    }
+    case 'some':
+      return { text: `${pctInt(c.mixList[0].weight)}%만 ${act}`, nums: [pctInt(c.mixList[0].weight)] };
+  }
+}
+
+/** 칸이 하나뿐일 때의 라벨: '폴드' · '주로 폴드' · '절반만 콜' · '3벳·콜 반반' · '절반은 4벳, 절반은 콜·폴드'. */
+function soloLabel(c: AtlasCell): { text: string; nums: number[] } {
+  if (c.weightClass === 'most') return { text: `주로 ${actWord(c.primary, c.scenario.kind)}`, nums: [] };
+  return mixLabel(c);
+}
+
+/**
+ * D(sec): reachable 칸의 primary 별 개수, 혼합 개수. 텍스트와 함께 claims 를 만듭니다.
+ * '전부'는 모든 칸이 그 액션 100%일 때만 씁니다 — '15곳 전부 폴드 · 그중 6곳은 올인도 섞음'은 앞뒤가 어긋났습니다(감사).
+ * 섞인 칸은 무엇을 섞는지까지 말하고('그중 6곳은 올인 25% 섞음'), 칸이 하나면 '폴드 1곳'(여러 액션일 때의 '콜 3곳 · 폴드 12곳'과 같은 꼴 — 섹션 아래 '올인까지 가면: …'에 그대로 붙습니다).
+ * 이 패로 오는 칸이 없으면 '이 패로는 안 오는 상황', 그래도 앞 단계 액션을 섞어 드물게 오는 칸이 있으면 '드물게만 오는 상황'.
+ */
 function digest(sec: AtlasSection): Digest {
   const live = sec.cells.filter((c) => c.reachable);
   const claims = live.map(claimOf);
-  if (!live.length) return { text: '이 패로는 안 오는 상황', claims, nums: [], uniform: null, named: null };
+  if (!live.length) return { text: sec.cells.some(isRare) ? '이 패로는 드물게만 오는 상황' : '이 패로는 안 오는 상황', claims, nums: [], uniform: null, named: null };
   const kind = sec.kind;
   const groups = new Map<Action, AtlasCell[]>();
   for (const c of live) groups.set(c.primary, [...(groups.get(c.primary) ?? []), c]);
-  const halfN = live.filter((c) => c.weightClass === 'half').length;
-  const mixed = live.filter((c) => c.weightClass !== 'always');
 
   if (groups.size === 1) {
     const act = live[0].primary;
+    const mixed = live.filter((c) => c.weightClass !== 'always');
+    if (live.length === 1) {
+      const l = soloLabel(live[0]);
+      // 세 액션 칸의 라벨('절반은 4벳, 절반은 콜·폴드')은 뒤에 '1곳'을 붙이면 끝 액션에 걸려 읽혀서 머리를 따로 둡니다.
+      const text = l.text.includes(',') ? `${actWord(act, kind)} 1곳 · ${l.text}` : `${l.text} 1곳`;
+      return { text, claims, nums: [1, ...l.nums], uniform: act, named: null };
+    }
+    if (!mixed.length) return { text: `${live.length}곳 전부 ${actWord(act, kind)}`, claims, nums: [live.length], uniform: act, named: null };
+    // 섞인 칸을 라벨별로 묶어(많은 쪽부터) 이름을 댑니다 — 세 묶음까지, 30자(한글) 안일 때만. 넘치면 섞는 액션만.
+    // (JJ 의 4벳 대응은 '절반만 콜' 5 · '올인 25% 섞음' 5 · '폴드 25% 섞음' 4 — 섞는 액션만 말하면 절반 칸이 가려집니다.)
+    const byLabel = new Map<string, { cells: AtlasCell[]; nums: number[] }>();
+    for (const c of mixed) {
+      const l = mixLabel(c);
+      const g = byLabel.get(l.text) ?? { cells: [], nums: l.nums };
+      g.cells.push(c);
+      byLabel.set(l.text, g);
+    }
+    const labels = [...byLabel.entries()].sort((x, y) => y[1].cells.length - x[1].cells.length);
     const nums = [live.length];
-    let text = `${live.length}곳 전부 ${actWord(act, kind)}`;
-    // 세 액션 칸(4벳 50 / 콜 25 / 폴드 25)은 '절반만'으로 줄이지 않습니다 — 나머지 절반이 폴드만이 아닙니다(THEORY_SPEC §5).
-    const splits = live.filter((c) => c.weightClass === 'half' && splitOf(c.mixList));
-    if (halfN && splits.length === halfN) {
-      const alts = [...new Set(splits.flatMap((c) => c.mixList.slice(1).filter((m) => m.weight > EPS).map((m) => m.action)))].sort((x, y) => aggression(y) - aggression(x));
-      text += ` · 그중 ${halfN}곳은 절반이 ${alts.map((x) => actWord(x, kind)).join('·')}`;
-      nums.push(halfN);
-    } else if (halfN) {
-      text += ` · 그중 ${halfN}곳은 절반만`;
-      nums.push(halfN);
-    } else if (mixed.length) {
-      // 반반은 아니지만 2순위를 섞는 칸(폴드 75 / 올인 25 같은 것). 가장 흔한 2순위 액션으로 말합니다.
-      const alts = new Map<Action, number>();
-      for (const c of mixed) alts.set(c.mixList[1].action, (alts.get(c.mixList[1].action) ?? 0) + 1);
-      const alt = [...alts.entries()].sort((x, y) => y[1] - x[1])[0][0];
-      text += ` · 그중 ${mixed.length}곳은 ${actWord(alt, kind)}도 섞음`;
+    let tail = labels.map(([text, g]) => `${g.cells.length}곳은 ${text}`).join(' · ');
+    if (labels.length <= 3 && hangulLen(`${actWord(act, kind)} ${live.length}곳 · 그중 ${tail}`) <= SENTENCE_MAX_HANGUL) {
+      for (const [, g] of labels) nums.push(g.cells.length, ...g.nums);
+    } else {
+      const alts = [...new Set(mixed.flatMap((c) => c.mixList.slice(1).filter((m) => m.weight > EPS).map((m) => m.action)))].sort((x, y) => aggression(y) - aggression(x));
+      tail = `${mixed.length}곳은 ${alts.map((x) => actWord(x, kind)).join('·')}도 섞음`;
       nums.push(mixed.length);
     }
-    return { text, claims, nums, uniform: act, named: null };
+    return { text: `${actWord(act, kind)} ${live.length}곳 · 그중 ${tail}`, claims, nums, uniform: act, named: null };
   }
 
   // 여러 primary: 개수 내림차순, 폴드는 맨 뒤, 3개까지. vs_limp 의 BB 체크는 개수가 아니라 문장으로.
@@ -614,9 +689,16 @@ function digest(sec: AtlasSection): Digest {
   const parts: string[] = [];
   const nums: number[] = [];
   const raises = groups.get('raise') ?? [];
-  const btnOnlyHalf = kind === 'vs_limp' && raises.length === 1 && raises[0].scenario.hero === 'BTN' && raises[0].weightClass === 'half';
-  if (btnOnlyHalf) parts.push('BTN에서만 절반 레이즈');
-  else {
+  const btnOnlyHalf = kind === 'vs_limp' && raises.length === 1 && raises[0].scenario.hero === 'BTN' && raises[0].weightClass === 'half' && !splitOf(raises[0].mixList);
+  if (btnOnlyHalf) {
+    // 캡슐과 같은 비중어('절반만 레이즈')로. 다른 자리의 폴드는 개수로 붙입니다('BTN에서만 절반' — '만'이 어디에 걸리는지 흐렸습니다).
+    parts.push('BTN에서 절반만 레이즈');
+    const folds = groups.get('fold') ?? [];
+    if (folds.length) {
+      parts.push(`폴드 ${folds.length}곳`);
+      nums.push(folds.length);
+    }
+  } else {
     for (const [act, cells] of entries.slice(0, 3)) {
       parts.push(`${actWord(act, kind)} ${cells.length}곳`);
       nums.push(cells.length);
@@ -636,10 +718,47 @@ function digest(sec: AtlasSection): Digest {
 export function uniformLine(sec: AtlasSection): Line | null {
   const d = digest(sec);
   if (!d.uniform) return null;
-  // 섹션에 이 패로는 못 오는 칸이 있으면 '어느 자리에서나'가 그 칸까지 덮습니다(THEORY_SPEC §5) — 오는 칸의 수로 말합니다.
-  const n = d.claims.length;
-  if (n < sec.cells.length) return { text: `이 패가 오는 ${n}곳에서는 ${actWord(d.uniform, sec.kind)}해요.`, claims: d.claims, nums: [n], source: 'computed' };
-  return { text: `어느 자리에서나 ${actWord(d.uniform, sec.kind)}해요.`, claims: d.claims, nums: [], source: 'computed' };
+  const kind = sec.kind;
+  const act = actWord(d.uniform, kind);
+  const live = sec.cells.filter((c) => c.reachable);
+  const n = live.length;
+  const weak = live.filter((c) => c.weightClass === 'half' || c.weightClass === 'some');
+  if (!weak.length) {
+    // 섹션에 이 패로는 못 오는 칸이 있으면 '어느 자리에서나'가 그 칸까지 덮습니다(THEORY_SPEC §5) — 오는 칸의 수로 말합니다.
+    // 앞 단계 액션을 섞어 드물게 오는 칸이 있으면 '오는'이 그 칸을 빼먹으니 '보통 오는'.
+    if (n < sec.cells.length) return { text: `이 패가 ${sec.cells.some(isRare) ? '보통 ' : ''}오는 ${n}곳에서는 ${act}해요.`, claims: d.claims, nums: [n], source: 'computed' };
+    return { text: `어느 자리에서나 ${act}해요.`, claims: d.claims, nums: [], source: 'computed' };
+  }
+  // 1순위는 다 같아도 절반만 하는 칸이 있으면 '어느 자리에서나 3벳해요'가 그 칸을 덮습니다(A3s 는 15곳 중 6곳이 절반).
+  // 비중별로 칸 수를 댑니다: '9곳은 3벳하고, 5곳은 절반만 3벳하고, 1곳은 3벳과 콜을 반반 섞어요.' 세 마디를 넘으면 말하지 않습니다.
+  type Clause = { k: number; mid: string | null; end: string; nums: number[] };
+  const clauses: Clause[] = [];
+  const strong = live.filter((c) => !weak.includes(c));
+  if (strong.length) clauses.push({ k: strong.length, mid: `${act}하고`, end: `${act}해요`, nums: [] });
+  const byKey = new Map<string, Clause>();
+  const weakClause = (c: AtlasCell): { key: string; mid: string | null; end: string; nums: number[] } => {
+    const sp = splitOf(c.mixList);
+    if (sp) return { key: `split:${sp.join()}`, mid: null, end: splitPhrase(sp, kind, 'solo'), nums: [] };
+    const p = pctInt(c.mixList[0].weight);
+    if (c.weightClass === 'some') return { key: `some:${p}`, mid: `${p}%만 ${act}하고`, end: `${p}%만 ${act}해요`, nums: [p] };
+    if (isTieMix(c)) {
+      const pair = `${josa(act, '과/와')} ${josa(actWord(c.mixList[1].action, kind), '을/를')} 반반`;
+      return { key: `tie:${c.mixList[1].action}`, mid: `${pair} 섞고`, end: `${pair} 섞어요`, nums: [] };
+    }
+    return { key: 'only', mid: `절반만 ${act}하고`, end: `절반만 ${act}해요`, nums: [] };
+  };
+  for (const c of weak) {
+    const w = weakClause(c);
+    const cl = byKey.get(w.key) ?? { k: 0, mid: w.mid, end: w.end, nums: w.nums };
+    cl.k++;
+    byKey.set(w.key, cl);
+  }
+  const weakClauses = [...byKey.values()].sort((x, y) => (x.mid === null ? 1 : y.mid === null ? -1 : y.k - x.k));
+  if (weakClauses.filter((c) => c.mid === null).length > 1) return null;
+  clauses.push(...weakClauses);
+  if (clauses.length > 3) return null;
+  const text = clauses.map((c, i) => `${c.k}곳은 ${i === clauses.length - 1 ? c.end : c.mid}`).join(', ');
+  return { text: `${text}.`, claims: d.claims, nums: clauses.flatMap((c) => [c.k, ...c.nums]), source: 'computed' };
 }
 
 /** D. 섹션 한 줄 요약 (≤ 30자). */
@@ -751,12 +870,70 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
     }
   }
 
-  if (rfi.pattern === 'always' || rfi.pattern === 'never') {
-    const d = digest(atlas.sections.vs_open);
-    if (d.uniform) out.push({ text: `앞에서 오픈하면 어디서나 ${actWord(d.uniform, 'vs_open')}해요.`, claims: d.claims, nums: [], source: 'computed' });
-    else out.push({ text: `앞에서 오픈하면 ${josa(d.text, '이에요/예요')}.`, claims: d.claims, nums: d.nums, source: 'computed' });
-  }
+  if (rfi.pattern === 'always' || rfi.pattern === 'never') out.push(openResponseLine(atlas.sections.vs_open));
   return out;
+}
+
+const strongCell = (c: AtlasCell) => c.weightClass === 'always' || c.weightClass === 'most';
+
+/**
+ * rfiThesis 의 둘째 문장(오픈 대응). 감사: '앞에서 오픈하면 콜 2곳 · 폴드 13곳이에요'는 어느 칸인지 안 보였습니다.
+ *  - 모든 칸이 같은 1순위이고 센 칸(> 50%)이면 '어디서나 X해요'. 절반 칸이 끼면 비교 없는 결론(uniformLine)과 같은 문장
+ *    '앞에서 오픈하면 8곳은 3벳하고, 7곳은 3벳과 콜을 반반 섞어요.'(30자 안일 때), 넘치면 다이제스트로(비중까지 이름을 댑니다).
+ *    다이제스트에 '이에요'를 붙이면 '…콜 25% 섞음이에요'처럼 명사형 '섞음'에 서술격이 붙어 어색했습니다.
+ *  - 1순위가 두 가지이고 소수 쪽이 3곳 이하이며 한 자리(또는 한 오프너)에 모여 있으면 그 칸을 이름으로:
+ *    '앞에서 오픈하면 BB에서 BTN·SB 오픈에 콜하고, 다른 곳은 폴드해요.' 다른 곳은 전부 센 칸이어야 합니다.
+ *  - 그 밖은 다이제스트의 개수('콜 9곳 · 3벳 5곳 · 폴드 1곳') — 소수 칸 이름은 섹션 아래 줄이 댑니다.
+ */
+function openResponseLine(sec: AtlasSection): Line {
+  const d = digest(sec);
+  const live = sec.cells.filter((c) => c.reachable);
+  if (d.uniform && live.every(strongCell)) return { text: `앞에서 오픈하면 어디서나 ${actWord(d.uniform, 'vs_open')}해요.`, claims: d.claims, nums: [], source: 'computed' };
+  if (d.uniform) {
+    const u = uniformLine(sec);
+    const text = u ? `앞에서 오픈하면 ${u.text}` : '';
+    if (u && hangulLen(text) <= SENTENCE_MAX_HANGUL) return { text, claims: u.claims, nums: u.nums, source: 'computed' };
+  }
+  const groups = new Map<Action, AtlasCell[]>();
+  for (const c of live) groups.set(c.primary, [...(groups.get(c.primary) ?? []), c]);
+  if (groups.size === 2) {
+    const [minor, major] = [...groups.values()].sort((x, y) => x.length - y.length);
+    const w0 = minor[0].weightClass;
+    const plain = minor.every((c) => c.weightClass === w0 && !isTieMix(c) && !splitOf(c.mixList));
+    if (minor.length <= 3 && minor.length < major.length && major.every(strongCell) && plain && w0 !== 'some') {
+      const bySeat = (x: Pos, y: Pos) => POS_INDEX[x] - POS_INDEX[y];
+      const heroes = [...new Set(minor.map((c) => c.scenario.hero))].sort(bySeat);
+      const villains = [...new Set(minor.map((c) => c.scenario.villain!))].sort(bySeat);
+      const where = heroes.length === 1 ? `${heroes[0]}에서 ${villains.join('·')} 오픈에` : villains.length === 1 ? `${villains[0]} 오픈에 ${heroes.join('·')}에서` : null;
+      if (where) {
+        const word = w0 === 'most' ? '주로 ' : w0 === 'half' ? '절반만 ' : '';
+        const text = `앞에서 오픈하면 ${where} ${word}${actWord(minor[0].primary, 'vs_open')}하고, 다른 곳은 ${actWord(major[0].primary, 'vs_open')}해요.`;
+        return { text, claims: d.claims, nums: [], source: 'computed' };
+      }
+    }
+  }
+  // 자리(행)마다 답이 하나이고 전부 센 칸이면 자리로 묶어서: '앞에서 오픈하면 CO·BTN·BB에서 콜하고, HJ·SB에서 폴드해요.'
+  if (live.every(strongCell) && groups.size <= 3) {
+    const rows = new Map<Pos, Action>();
+    let uniformRows = true;
+    for (const c of live) {
+      const had = rows.get(c.scenario.hero);
+      if (had && had !== c.primary) uniformRows = false;
+      rows.set(c.scenario.hero, c.primary);
+    }
+    if (uniformRows) {
+      const byAct = new Map<Action, Pos[]>();
+      for (const [hero, a] of rows) byAct.set(a, [...(byAct.get(a) ?? []), hero]);
+      const parts = [...byAct.entries()]
+        .sort((x, y) => (x[0] === 'fold' ? 1 : y[0] === 'fold' ? -1 : aggression(y[0]) - aggression(x[0])))
+        .map(([a, seats]) => ({ seats: seats.sort((x, y) => POS_INDEX[x] - POS_INDEX[y]).join('·'), act: actWord(a, 'vs_open') }));
+      const text = `앞에서 오픈하면 ${parts.map((p, i) => `${p.seats}에서 ${p.act}${i === parts.length - 1 ? '해요' : '하고'}`).join(', ')}.`;
+      return { text, claims: d.claims, nums: [], source: 'computed' };
+    }
+  }
+  // 다이제스트가 명사형 '섞음'으로 끝나면 서술격('섞음이에요') 대신 동사로 맺습니다: '…3곳은 콜 25% 섞어요.'
+  const end = d.text.endsWith('섞음') ? `${d.text.slice(0, -1)}어요` : josa(d.text, '이에요/예요');
+  return { text: `앞에서 오픈하면 ${end}.`, claims: d.claims, nums: d.nums, source: 'computed' };
 }
 
 /**
@@ -895,12 +1072,99 @@ export function atlasQuizKeys(atlas: HandAtlas, opts?: { max?: number }): CardKe
     .map((x) => x.key);
 }
 
-/** G. 미도달 칸을 눌렀을 때의 한 줄. 화면 전용 문자열(Line 이 아닙니다 — 차트 주장을 담지 않습니다). */
+/**
+ * G. 미도달 칸을 눌렀을 때의 한 줄. 화면 전용 문자열(Line 이 아닙니다 — 이 칸의 차트 답은 말하지 않습니다).
+ * 앞 단계 액션의 비중이 0이면 '…하지 않으니 … 일이 없어요', 0보다 크면(1순위가 아니라 문제로는 안 나오는 드문 칸) 그 비중을 댑니다:
+ * 'UTG 오픈에 3벳은 25%만 하니, 4벳은 그때만 받아요.'
+ */
 export function gateText(cell: AtlasCell): string | null {
   const g = cell.gate;
   if (!g) return null;
   const { hero, villain } = cell.scenario;
+  if (g.weight > EPS) {
+    const p = pctInt(g.weight);
+    if (g.kind === 'rfi') return `${hero}에서 오픈은 ${p}%만 하니, 이 상황은 그때만 생겨요.`;
+    if (g.kind === 'vs_3bet') return `${hero}에서 ${villain} 3벳에 4벳은 ${p}%만 하니, 올인은 그때만 받아요.`;
+    return `${villain} 오픈에 3벳은 ${p}%만 하니, 4벳은 그때만 받아요.`;
+  }
   if (g.kind === 'rfi') return `${hero}에서 오픈하지 않으니 이 상황은 안 생겨요.`;
   if (g.kind === 'vs_3bet') return `${hero}에서 4벳하지 않으니 올인을 받을 일이 없어요.`;
   return `${villain} 오픈에 3벳하지 않으니 4벳을 받을 일이 없어요.`;
+}
+
+/** 범례의 게이트 말: [안 함, 비중 p 만 함, 둘 다]. */
+const GATE_WORDS: Partial<Record<ScenarioKind, { never: string; rare: (p: string) => string; both: (p: string) => string }>> = {
+  rfi: { never: '오픈하지 않는', rare: (p) => `오픈을 ${p}만 하는`, both: (p) => `오픈하지 않거나 ${p}만 하는` },
+  vs_open: { never: '그 오픈에 3벳하지 않는', rare: (p) => `그 오픈에 3벳을 ${p}만 하는`, both: (p) => `그 오픈에 3벳하지 않거나 ${p}만 하는` },
+  vs_3bet: { never: '4벳하지 않는', rare: (p) => `4벳을 ${p}만 하는`, both: (p) => `4벳하지 않거나 ${p}만 하는` },
+};
+
+/**
+ * 섹션 아래 범례 한 줄('—' 칸이 왜 '—'인지). 드문 칸(앞 단계 액션을 섞는 칸)이 있으면 '안 생기는 칸'이라고 하지 않고 비중을 댑니다:
+ * '— 표시: 그 오픈에 3벳하지 않거나 25%만 하는 자리라서 안 생기거나 드물게만 생기는 칸'. 미도달 칸이 없으면 null.
+ */
+export function gateLegend(sec: AtlasSection): string | null {
+  const byKind = new Map<ScenarioKind, AtlasCell[]>();
+  for (const c of sec.cells) if (!c.reachable && c.gate) byKind.set(c.gate.kind, [...(byKind.get(c.gate.kind) ?? []), c]);
+  if (!byKind.size) return null;
+  let anyNever = false;
+  let anyRare = false;
+  const reasons: string[] = [];
+  for (const [kind, cells] of byKind) {
+    const words = GATE_WORDS[kind];
+    if (!words) continue;
+    const rare = cells.filter(isRare);
+    const never = rare.length < cells.length;
+    const ps = [...new Set(rare.map((c) => pctInt(c.gate!.weight)))];
+    const p = ps.length === 1 ? `${ps[0]}%` : '일부';
+    anyNever ||= never;
+    anyRare ||= rare.length > 0;
+    reasons.push(`${!rare.length ? words.never : never ? words.both(p) : words.rare(p)} 자리`);
+  }
+  if (!reasons.length) return null;
+  const tail = anyNever && anyRare ? '안 생기거나 드물게만 생기는 칸' : anyRare ? '드물게만 생기는 칸' : '안 생기는 칸';
+  return `— 표시: ${reasons.join('거나 ')}라서 ${tail}`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 책과 다른 점(패 단위) — 올인 대응 · 콜드 4벳                              */
+/* ------------------------------------------------------------------ */
+
+/** 책 5장 3절: 5벳 올인을 받으면 TT 이상과 AK 가 콜하고, BTN 은 66 이상과 AK 까지. */
+const BOOK_5BET_CALL = new Set<HandName>(['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', 'AKo']);
+const BOOK_5BET_CALL_BTN = new Set<HandName>([...BOOK_5BET_CALL, '99', '88', '77', '66']);
+
+/**
+ * 자리별 보기의 올인 대응 · 콜드 4벳 섹션 아래 '책과 다른 점' 한 줄(THEORY_SPEC §7). 이 패의 도달 칸에서 차트가 책과 다를 때만:
+ *  - vs_5bet: 책이 콜하는 패(TT 이상 · AK, BTN 은 66 이상)인데 차트가 늘 콜하지는 않는 칸 —
+ *    '책은 올인에 TT 이상과 AK가 콜한다고 해요. 이 차트는 QQ를 4곳에서 폴드, 4곳에서 절반만 콜, 2곳에서 주로 콜해요.'
+ *  - cold_4bet: 책은 대부분 4벳 아니면 폴드(콜하면 내 패 정보가 새고 뒷사람이 싸게 들어와요) — 차트가 콜을 섞는 칸이 있을 때만
+ *    '책은 오픈과 3벳 사이에 끼면 대부분 4벳 아니면 폴드라고 해요. 이 차트는 4곳에서 JJ를 콜하기도 해요.'
+ * 그 밖의 섹션 · 다른 점이 없는 패는 null.
+ */
+export function bookDiffLine(atlas: HandAtlas, kind: ScenarioKind): string | null {
+  const { hand } = atlas;
+  const sec = atlas.sections[kind];
+  const live = sec.cells.filter((c) => c.reachable);
+  if (kind === 'vs_5bet') {
+    const bookCalls = (c: AtlasCell) => (c.scenario.hero === 'BTN' ? BOOK_5BET_CALL_BTN : BOOK_5BET_CALL).has(hand);
+    const differ = live.filter((c) => bookCalls(c) && !(c.primary === 'call' && c.weightClass === 'always'));
+    if (!differ.length) return null;
+    const btnOnly = differ.every((c) => c.scenario.hero === 'BTN') && !BOOK_5BET_CALL.has(hand);
+    const head = btnOnly ? '책은 BTN이 올인에 66 이상과 AK로 콜한다고 해요.' : '책은 올인에 TT 이상과 AK가 콜한다고 해요.';
+    const byLabel = new Map<string, number>();
+    for (const c of differ) {
+      const l = soloLabel(c).text;
+      byLabel.set(l, (byLabel.get(l) ?? 0) + 1);
+    }
+    const order = (l: string) => (l.endsWith('폴드') ? 0 : 1);
+    const parts = [...byLabel.entries()].sort((x, y) => order(x[0]) - order(y[0]) || y[1] - x[1]).map(([l, n]) => `${n}곳에서 ${l}`);
+    return `${head} 이 차트는 ${josa(hand, '을/를')} ${parts.join(', ')}해요.`;
+  }
+  if (kind === 'cold_4bet') {
+    const calls = live.filter((c) => c.mixList.some((m) => m.action === 'call' && m.weight > EPS));
+    if (!calls.length) return null;
+    return `책은 오픈과 3벳 사이에 끼면 대부분 4벳 아니면 폴드라고 해요. 이 차트는 ${calls.length}곳에서 ${josa(hand, '을/를')} 콜하기도 해요.`;
+  }
+  return null;
 }

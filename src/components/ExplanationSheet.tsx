@@ -261,8 +261,9 @@ export function ExplanationBody({ step, explanation, onAcross, variant = 'sheet'
             <WhyBlock why={e.why} scenario={step.scenario} />
 
             <section className="ui-explain__seat">
+              {/* 숫자 줄의 %는 전부 1,326조합 전체에서의 비율이에요 — '왜'의 '오픈한 패의 58%' 같은 내 범위 기준과 헷갈리지 않게 밝힙니다. */}
               <h3 className="ui-explain__h">
-                자리 <small>전체 패 기준</small>
+                자리 <small>전체 1,326조합 중 비율</small>
               </h3>
               <SeatNumbers seat={e.seat} />
             </section>

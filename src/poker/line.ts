@@ -56,7 +56,7 @@ export interface LineCell {
   word: WeightWord;
   /**
    * 세 액션이 섞인 칸(1순위 절반 · 나머지 둘이 반씩, 예: 콜 50 · 3벳 25 · 폴드 25)이면 그 액션들(비중 순서), 아니면 null.
-   * 이런 칸은 비중어 하나('절반만 콜' · '가끔 3벳이나 콜')로 줄이지 않고 나눔을 이름으로 댑니다(THEORY_SPEC §5):
+   * 이런 칸은 비중어 하나('절반만 콜' · '3벳이나 콜을 섞고')로 줄이지 않고 나눔을 이름으로 댑니다(THEORY_SPEC §5):
    * `KQo는 절반은 콜하고, 나머지를 3벳과 폴드로 나눠요` · 칸 나열 안에서는 `KQo는 절반은 콜, 절반은 3벳·폴드`.
    */
   split: Action[] | null;
@@ -256,7 +256,8 @@ function subject(s: Scenario): string {
     case 'vs_5bet':
       return `${H} ${v} 올인에`;
     case 'cold_4bet':
-      return `${H} 앞에서 3벳이 나오면`;
+      // 콜드 상황 = 앞에서 오픈과 3벳이 둘 다 나온 자리(책 5장 3절). '앞에서 3벳이 나오면'은 그 앞의 오픈을 빼먹었습니다(감사). 원래 길이를 넘지 않게 '오픈과 3벳 뒤에'.
+      return `${H} 오픈과 3벳 뒤에`;
     case 'vs_limp':
       return `${H} 림프에`;
   }
@@ -506,23 +507,27 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
     // P0 · P0h: 계속 run 없음
     if (!cont.length) {
       const minor = cs.filter((c) => c.mixList.some((m) => m.action !== rest && m.weight > 0.001));
-      // 칸 하나가 3벳과 콜을 같이 섞으면 둘 다 말합니다('가끔 3벳이나 콜하고').
+      // 칸 하나가 3벳과 콜을 같이 섞으면 둘 다 말합니다('3벳이나 콜을 섞고').
       const acts = [...new Set(minor.flatMap((c) => c.mixList.filter((m) => m.action !== rest && m.weight > 0.001).map((m) => m.action)))].sort((x, y) => agg(y) - agg(x));
       if (minor.length && minor.length <= 3 && acts.length <= 2) {
         frame = 'P0h';
-        // 세 액션 칸(폴드 50 · 3벳 25 · 콜 25)은 '가끔 3벳이나 콜'로 줄이지 않고 나눔을 부릅니다 — 다른 칸은 말하지 않아도 rest 로 읽힙니다.
+        // 세 액션 칸(폴드 50 · 3벳 25 · 콜 25)은 '3벳이나 콜을 섞고'로 줄이지 않고 나눔을 부릅니다 — 다른 칸은 말하지 않아도 rest 로 읽힙니다.
         if (minor.length === 1 && minor[0].split) return { text: `${S} ${Q} ${josa(minor[0].hand, '은/는')} ${splitPhrase(minor[0].split, kind, 'solo')}.`, claims: [cellClaim(minor[0])] };
         if (minor.some((c) => c.split)) return null;
         const hs = minor.map((c) => c.hand);
         const minorClaim: LineClaim = { t: 'minor', hands: hs, actions: acts };
+        // 섞는 쪽은 비중으로 말합니다(감사: '가끔'은 앱의 비중어 밖이라 25%인지 50%인지 안 보였어요 — 'QJs만 가끔 3벳').
+        // 칸마다 섞는 비중의 합이 같으면 '3벳을 25% 섞고', 다르면 비중 없이 '3벳을 섞고'.
+        const minorW = minor.map((c) => c.mixList.filter((m) => m.action !== rest && m.weight > 0.001).reduce((t, m) => t + m.weight, 0));
+        const minorPct = minorW.every((w) => Math.abs(w - minorW[0]) < 0.01) ? `${Math.round(minorW[0] * 100)}% ` : '';
+        const actsWord = acts.length === 1 ? actWord(acts[0], kind) : `${josa(actWord(acts[0], kind), '이나/나')} ${actWord(acts[1], kind)}`;
         // 도달 칸이 전부 이 섞인 칸이면(5벳에 AKo 하나만 옴) '그 아래 칸은 폴드해요'가 도달 불가 칸만 가리킵니다(THEORY_SPEC §5 (a)).
-        // 줄 이름도 빼고 칸 이름으로: 'UTG는 SB 올인에 AKo를 주로 폴드하고, 가끔 콜해요.'
+        // 줄 이름도 빼고 칸 이름으로: 'UTG는 SB 올인에 AKo를 주로 폴드하고, 콜도 25% 섞어요.'
         if (minor.length === cs.length && minor.every((c) => c.word === '주로')) {
-          const vEnd = acts.length === 1 ? V(acts[0], '해요') : `${josa(actWord(acts[0], kind), '이나/나')} ${V(acts[1], '해요')}`;
-          return { text: `${topic ? O : S} ${josa(handList(hs, cs), '을/를')} 주로 ${V(rest, '하고')}, 가끔 ${vEnd}.`, claims: [minorClaim] };
+          return { text: `${topic ? O : S} ${josa(handList(hs, cs), '을/를')} 주로 ${V(rest, '하고')}, ${actsWord}도 ${minorPct}섞어요.`, claims: [minorClaim] };
         }
-        const v = acts.length === 1 ? V(acts[0], '하고') : `${josa(actWord(acts[0], kind), '이나/나')} ${V(acts[1], '하고')}`;
-        return firstFit(restTails(minor).map((t) => ({ text: `${S} ${O} ${handList(hs, cs)}만 가끔 ${v}, ${t.who} ${V(rest, '해요')}.`, claims: [minorClaim, ...t.claims] })));
+        // 'SB는 UTG 오픈에 수티드 Q 중 QJs만 3벳을 25% 섞고, 그 아래 칸은 폴드해요.'
+        return firstFit(restTails(minor).map((t) => ({ text: `${S} ${topic ? O : Q} ${handList(hs, cs)}만 ${josa(actsWord, '을/를')} ${minorPct}섞고, ${t.who} ${V(rest, '해요')}.`, claims: [minorClaim, ...t.claims] })));
       }
       frame = 'P0';
       if (holes.length) return nameAll(rest);

@@ -11,7 +11,9 @@ import { IconGrid } from '../../components/ui/icons';
 import {
   anchorCell,
   atlasQuizKeys,
+  bookDiffLine,
   compareAxis,
+  gateLegend,
   handAtlas,
   newcomersAt,
   rfiThesis,
@@ -46,8 +48,9 @@ import '../../styles/atlas.css';
 type OpenSeg = 'vs_open' | 'vs_4bet';
 type ThreeSeg = 'vs_3bet' | 'vs_5bet';
 
-// '반반'은 계속하는 두 액션 사이에만 씁니다(§2.2). 오픈 50 / 폴드 50 같은 칸까지 아우르는 말이라 '비중이 같으면'.
-const TIE_NOTE = '비중이 같으면 더 공격적인 쪽을 정답으로 쳐요.';
+// '반반'은 계속하는 두 액션 사이에만 씁니다(§2.2). 오픈 50 / 폴드 50 같은 칸까지 아우르는 말이라 '비중이 같은 칸'.
+// 책 2장 4절(무차별): 두 액션으로 나눠 쓰는 패는 두 액션의 가치가 같습니다 — '더 공격적인 쪽'은 앱의 채점 규칙일 뿐이라고 적습니다.
+const TIE_NOTE = '비중이 같은 칸은 두 액션의 가치가 거의 같아요. 채점만 더 공격적인 쪽을 정답으로 쳐요.';
 const NEWCOMER_MAX = 9;
 /** 섹션 row 문장으로 쓰는 레버(자리만 보는 것). 숫자 레버·상대 레버는 비교 블록이 맡습니다. */
 const ROW_LEVERS: LeverId[] = ['behind', 'bbPrice', 'sbRaiseOrFold', 'bbFree'];
@@ -61,8 +64,6 @@ const SECTION_LABEL: Record<ScenarioKind, string> = {
   cold_4bet: '콜드 4벳',
   vs_limp: '림프 대응',
 };
-/** 미도달 칸의 이유 — 범례 한 줄에 씁니다. */
-const GATE_REASON: Partial<Record<ScenarioKind, string>> = { rfi: '오픈하지 않는 자리', vs_open: '그 오픈에 3벳하지 않는 자리', vs_3bet: '4벳하지 않는 자리' };
 
 function cellOf(atlas: HandAtlas, s: Scenario | undefined): AtlasCell | undefined {
   if (!s) return undefined;
@@ -72,14 +73,6 @@ function cellOf(atlas: HandAtlas, s: Scenario | undefined): AtlasCell | undefine
 /** 동점 반반(콜·3벳 50/50 같은 것)이 하나라도 있으면 각주를 답니다 — 트레이너 채점 규칙과 같은 말. */
 function hasTie(sec: AtlasSection): boolean {
   return sec.cells.some((c) => c.reachable && c.mixList[1] !== undefined && Math.abs(c.mixList[0].weight - c.mixList[1].weight) < 0.01);
-}
-
-function gateLegend(sec: AtlasSection): string | null {
-  const kinds = new Set<ScenarioKind>();
-  for (const c of sec.cells) if (!c.reachable && c.gate) kinds.add(c.gate.kind);
-  if (!kinds.size) return null;
-  const reasons = [...kinds].map((k) => GATE_REASON[k]).filter((x): x is string => !!x);
-  return `— 표시: ${reasons.join('거나 ')}라서 안 생기는 칸`;
 }
 
 function Section({ title, tag, control, children }: { title: string; tag?: string; control?: ReactNode; children: ReactNode }) {
@@ -108,6 +101,17 @@ function Digest({ sec }: { sec: AtlasSection }) {
           <PlainText text={detail.text} />
         </>
       )}
+    </p>
+  );
+}
+
+/** 올인 대응 · 콜드 4벳 섹션의 '책과 다른 점' 한 줄(이 패의 칸에서 차트가 책과 다를 때만, atlas.bookDiffLine). */
+function BookDiff({ atlas, kind }: { atlas: HandAtlas; kind: ScenarioKind }) {
+  const text = bookDiffLine(atlas, kind);
+  if (!text) return null;
+  return (
+    <p className="atlas__bookdiff t-footnote ink-3">
+      <PlainText text={text} />
     </p>
   );
 }
@@ -653,6 +657,7 @@ function AtlasBody({
         >
           <SeatTriangle section={threeSec} marks={marks} onSelect={onTap} />
           <Digest sec={threeSec} />
+          <BookDiff atlas={atlas} kind={st.seg.three} />
           <p className="t-footnote ink-3">
             <PlainText text={`${st.seg.three === 'vs_3bet' ? '올인까지 가면' : '3벳을 받으면'}: ${sectionDigest(otherThree).text}`} />
           </p>
@@ -680,6 +685,7 @@ function AtlasBody({
           <Section title="콜드 4벳 · 앞에서 오픈과 3벳">
             <SeatStrip cells={cold.cells} kind="cold_4bet" marks={marks} onSelect={onTap} />
             <Digest sec={cold} />
+            <BookDiff atlas={atlas} kind="cold_4bet" />
             {detailFor('cold_4bet')}
           </Section>
         ) : (

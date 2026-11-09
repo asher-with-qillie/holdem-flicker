@@ -60,12 +60,14 @@ export const HAND_CLASS_KO: Record<HandClass, string> = {
   offsuit_ace: '오프수트 A',
   suited_broadway: '수티드 브로드웨이',
   offsuit_broadway: '오프수트 브로드웨이',
-  suited_king: '수티드 K',
-  suited_qj: '수티드 Q·J',
+  // 브로드웨이(KQs~KTs · QJs · QTs · JTs)는 suited_broadway 라, 이 둘은 그 아래 칸만 묶습니다 — '수티드 Q·J'는 QJs 로 읽혔습니다(감사).
+  suited_king: '수티드 K(K9s 이하)',
+  suited_qj: '수티드 Q·J(Q9s·J8s 이하)',
   suited_connector: '수티드 커넥터',
   suited_gapper: '수티드 갭퍼',
   offsuit_connector: '오프수트 커넥터',
-  junk: '약한 패',
+  // 위 어디에도 안 드는 패(K9o · Q8o · T6s · 72o …). K9o 처럼 BTN · SB 에서 늘 오픈하는 패도 있어서 '약한 패'라고 하지 않습니다(감사).
+  junk: '그 밖의 패',
 };
 
 export function classifyHand(name: string): HandClass {

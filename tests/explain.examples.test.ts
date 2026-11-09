@@ -19,6 +19,13 @@ import type { Action, Scenario, ScenarioKind } from '../src/poker/types';
  *  [§5d] 'KQo만 오픈하고, KJo는 절반만 오픈해요'의 자기모순 → '늘 오픈하는 건 KQo까지이고, …'.
  *  [§5g] 'X에서만 폴드해요'는 다른 자리가 무엇을 하는지까지.
  *  [§5h] 예시는 결정과 맞을 때만(THEORY_SPEC §6.4) — 지배 예시는 폴드·섞기 칸, 셋 확률은 콜·오픈·체크 칸.
+ *
+ * 감사(audit-static) 반영 뒤 다시 고정:
+ *  [무차별] 부분 정답 문장 — 두 액션의 가치가 비슷하다는 것(책 2장 4절)을 먼저, '정답'은 채점이라고(40자 안).
+ *  [레버]   SB 오픈은 'BB만 남아도 포지션이 없어 BTN만큼' · SB 오픈 대응은 '대부분' · HJ · CO · BTN 오픈 대응은 스퀴즈 위험.
+ *  [콜드]   콜드 상황의 앞머리 '오픈과 3벳 뒤에'(책 5장 3절 — 앞의 오픈까지).
+ *  [섞음]   P0h 의 '가끔' → 섞는 비중('3벳을 25% 섞고').
+ *  [셋]     셋이 될 확률은 '약 12%'(11.8% — 용어집과 같은 말).
  */
 
 /** §3.6 의 스트립 표기: · 유령, ┆ 도달 불가, _ 빈칸, ▌ 경계 막대, ( ) 링, a/b 섞인 칸(1·2순위). */
@@ -69,7 +76,7 @@ const CASES: Case[] = [
     mix: null,
     partial: null,
     numbers: 'UTG 18% · HJ 21% · CO 29% · BTN 46% · SB 46%',
-    lever: 'SB는 뒤에 BB 한 명만 남아 46%를 오픈해요.',
+    lever: 'SB는 BB만 남아도 포지션이 없어 BTN만큼인 46%를 오픈해요.', // [레버]
     tiles: 'UTG 폴드 · HJ 폴드 · CO 폴드 · BTN 폴드 · SB 폴드',
     across: '85o는 어느 자리에서도 오픈하지 않아요.',
     example: null,
@@ -86,7 +93,7 @@ const CASES: Case[] = [
     em: 33.6,
     sibling: '수티드 K는 K9s까지 오픈해요.',
     mix: '오픈 50% · 폴드 50%',
-    partial: '이 칸은 오픈을 정답으로 쳐요. 폴드도 부분 정답이에요.', // [부분]
+    partial: '오픈과 폴드는 가치가 비슷해요. 채점은 오픈이 정답이에요.', // [부분] [무차별]
     numbers: 'UTG 18% · HJ 21% · CO 29% · BTN 46% · SB 46%',
     lever: 'UTG는 뒤에 5명이 남아 18%만 오픈해요.',
     tiles: 'UTG 절반만 오픈 · HJ 오픈 · CO 오픈 · BTN 오픈 · SB 오픈',
@@ -132,7 +139,7 @@ const CASES: Case[] = [
     lever: 'BB는 이미 1bb를 냈으니 1.5bb만 더 내면 돼요.',
     tiles: 'BTN 콜 · SB 폴드 · BB 콜',
     across: '22는 CO 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.', // [§5g]
-    example: '내 2♠2♦ → 플랍에서 셋이 될 확률 12%예요.', // [§5h] 콜하는 작은 페어 — 셋 확률이 이 결정의 이유예요(THEORY_SPEC §1-2).
+    example: '내 2♠2♦ → 플랍에서 셋이 될 확률은 약 12%예요.', // [셋] [§5h] 콜하는 작은 페어 — 셋 확률이 이 결정의 이유예요(THEORY_SPEC §1-2).
     memo: false,
   },
   {
@@ -148,7 +155,7 @@ const CASES: Case[] = [
     mix: null,
     partial: null,
     numbers: 'HJ 오픈 21% → 내 콜 12% · 3벳 6%',
-    lever: 'BTN은 HJ보다 포지션이 있어요.',
+    lever: 'BTN은 포지션이 있어도 콜하면 뒤에서 스퀴즈를 받기 쉬워요.', // [레버]
     tiles: 'CO 주로 콜 · BTN 콜 · SB 폴드 · BB 주로 콜',
     across: '76s는 HJ 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.', // [§5g]
     example: null,
@@ -167,7 +174,7 @@ const CASES: Case[] = [
     mix: null,
     partial: null,
     numbers: 'UTG 오픈 18% → 내 3벳 8% · 콜 1%',
-    lever: 'SB는 콜을 거의 안 하고, 3벳 아니면 폴드해요.',
+    lever: 'SB는 콜을 거의 안 하고, 대부분 3벳 아니면 폴드해요.', // [레버]
     tiles: 'HJ 콜 · CO 콜 · BTN 콜 · SB 폴드 · BB 콜',
     across: 'KTs는 UTG 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.', // [§5g]
     example: '내 K♠10♠ vs 상대 A♦K♦ → K를 맞춰도 킥커에서 밀려요.', // 폴드 칸이라 지배 예시가 남습니다.
@@ -218,16 +225,16 @@ const CASES: Case[] = [
     title: 'CO 콜드 4벳 · QQ',
     capsule: '4벳·콜 반반',
     strip: '4 4 (4/C)▌F/C F F F F F F F F F',
-    sentence: 'CO는 앞에서 3벳이 나오면 포켓페어를 KK까지 4벳하고, QQ는 4벳과 콜을 반반 섞어요.',
+    sentence: 'CO는 오픈과 3벳 뒤에 포켓페어를 KK까지 4벳하고, QQ는 4벳과 콜을 반반 섞어요.', // [콜드]
     frame: 'P2m',
-    em: 38.3,
+    em: 36.3, // [콜드]
     sibling: null,
     mix: '4벳 50% · 콜 50%',
-    partial: '반반이라 더 공격적인 4벳을 정답으로 쳐요. 콜도 부분 정답이에요.',
+    partial: '4벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 4벳이 정답이에요.', // [무차별]
     numbers: '내 4벳 2% · 콜 1%',
     lever: null,
     tiles: 'CO 4벳·콜 반반 · BTN 4벳·콜 반반 · SB 4벳·콜 반반 · BB 4벳·콜 반반',
-    across: 'QQ는 앞에서 3벳이 나오면 어느 자리에서나 4벳과 콜을 반반 섞어요.',
+    across: 'QQ는 오픈과 3벳 뒤에 어느 자리에서나 4벳과 콜을 반반 섞어요.', // [콜드]
     example: null,
     memo: true,
   },
@@ -263,7 +270,7 @@ const CASES: Case[] = [
     // [이름] 'A4s까지'가 A7s·A6s(레이즈 50 · 폴드 50)를 덮었습니다 — '나머지 전부' 꼴.
     sibling: '수티드 A는 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.',
     mix: '레이즈 50% · 폴드 50%',
-    partial: '이 칸은 레이즈를 정답으로 쳐요. 폴드도 부분 정답이에요.', // [부분]
+    partial: '레이즈와 폴드는 가치가 비슷해요. 채점은 레이즈가 정답이에요.', // [부분] [무차별]
     numbers: '내 레이즈 17%',
     lever: null,
     tiles: 'HJ 폴드 · CO 폴드 · BTN 절반만 레이즈 · SB 폴드 · BB 체크',
@@ -283,7 +290,7 @@ const CASES: Case[] = [
     em: 39.8,
     sibling: null,
     mix: '3벳 50% · 콜 50%',
-    partial: '반반이라 더 공격적인 3벳을 정답으로 쳐요. 콜도 부분 정답이에요.',
+    partial: '3벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 3벳이 정답이에요.', // [무차별]
     numbers: 'BTN 오픈 46% → 내 콜 48% · 3벳 13%',
     lever: 'BB는 이미 1bb를 냈으니 1.5bb만 더 내면 돼요.',
     tiles: 'SB 폴드 · BB 3벳·콜 반반',
@@ -297,14 +304,14 @@ const CASES: Case[] = [
     title: 'SB 오픈 대응 · QJs',
     capsule: '주로 폴드',
     strip: '· · · (F/3) F F F F F F F F F',
-    sentence: 'SB는 UTG 오픈에 수티드 Q를 QJs만 가끔 3벳하고, 그 아래 칸은 폴드해요.', // [§5c]
+    sentence: 'SB는 UTG 오픈에 수티드 Q 중 QJs만 3벳을 25% 섞고, 그 아래 칸은 폴드해요.', // [§5c] [섞음]
     frame: 'P0h',
-    em: 32.9,
+    em: 34, // [섞음]
     sibling: '오프수트 Q는 전부 폴드해요.',
     mix: '폴드 75% · 3벳 25%',
     partial: null,
     numbers: 'UTG 오픈 18% → 내 3벳 8% · 콜 1%',
-    lever: 'SB는 콜을 거의 안 하고, 3벳 아니면 폴드해요.',
+    lever: 'SB는 콜을 거의 안 하고, 대부분 3벳 아니면 폴드해요.', // [레버]
     tiles: 'HJ 콜 · CO 콜 · BTN 콜 · SB 주로 폴드 · BB 주로 콜',
     across: 'QJs는 UTG 오픈에 SB에서는 주로 폴드하고, 다른 자리에서는 콜해요.', // [자리] [§5c]
     example: null,

@@ -60,7 +60,8 @@ const STRONG = 0.6 - 1e-9;
 
 const ACT_WORD: Record<Action, string> = { raise: '오픈', call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크' };
 const actOf = (a: Action, s: Scenario) => (a === 'raise' && s.kind === 'vs_limp' ? '레이즈' : ACT_WORD[a]);
-const WEIGHT_WORDS = ['주로', '절반만', '절반은', '반반', '가끔'];
+// P0h 의 섞는 쪽('3벳을 25% 섞고' · '콜도 25% 섞어요')도 비중을 말하는 마디입니다. 옛 '가끔'은 비중어 밖이라 없앴습니다(감사).
+const WEIGHT_WORDS = ['주로', '절반만', '절반은', '반반', '% 섞'];
 
 /**
  * 문장을 쉼표 마디로 나누고, 마디마다 그 안에서 **이름으로 부른** 칸을 찾습니다. 'X~Y'는 사이 칸까지 이름입니다.
@@ -73,7 +74,7 @@ function namedInClauses(text: string, cs: Cell[]): Array<{ clause: string; hands
     .split(', ')
     .map((clause) => {
       const hands: HandName[] = [];
-      for (const m of clause.matchAll(/([2-9TJQKA]{2}[so]?)(?:~([2-9TJQKA]{2}[so]?))?(?!까지|부터는)/g)) {
+      for (const m of clause.matchAll(/(?<!\d)([2-9TJQKA]{2}[so]?)(?:~([2-9TJQKA]{2}[so]?))?(?![\d%]|까지|부터는)/g)) {
         if (m[2]) {
           const i0 = order.indexOf(m[1]);
           const i1 = order.indexOf(m[2]);
@@ -99,7 +100,7 @@ function namedInClauses(text: string, cs: Cell[]): Array<{ clause: string; hands
  *  (b) 세 액션 칸은 split 으로만 — 그 마디에 '절반은 〈1순위〉', 다음 마디가 '나머지를 〈둘〉로 나눠요' 또는 '절반은 〈둘〉'.
  *  (c) '나머지는'은 비중어가 있는 마디 바로 뒤에 오지 않습니다.
  *  (d) 'X만 V하고' 뒤에 같은 V 의 비중어('절반만 V' · 'V과 …를 반반')가 오지 않습니다.
- *  (e) 이름으로 부른 칸은 그 마디에 제 비중어가 있습니다(주로 · 절반만 · 절반은 · 반반, rest 쪽 주로는 '가끔'도).
+ *  (e) 이름으로 부른 칸은 그 마디에 제 비중어가 있습니다(주로 · 절반만 · 절반은 · 반반, rest 쪽 주로는 섞는 쪽의 비중 '…를 25% 섞고'도).
  */
 function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[], holes: number[] = []): string[] {
   const rest = restAction(getChartDef(s));
@@ -164,7 +165,7 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
         const used = new Set(cs.filter((x) => c.hands.includes(x.hand)).flatMap((x) => x.mix.filter((m) => m.action !== rest && m.weight > 0.001).map((m) => m.action)));
         if (!same([...used], c.actions)) err.push(`minor: 액션 ${[...used]} ≠ ${c.actions}`);
         for (const h of c.hands) {
-          if (cs[idx(h)]?.split) err.push(`(b) ${h}: 세 액션 칸을 '가끔'으로 부름`);
+          if (cs[idx(h)]?.split) err.push(`(b) ${h}: 세 액션 칸을 섞는 쪽 하나로 부름`);
           named.set(h, 'word');
         }
         break;
@@ -193,7 +194,15 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
   // 비중어 claim 은 그 말이 문장에 있어야 합니다('콜을 섞어요'처럼 비중어 없이 뭉뚱그리지 않게).
   for (const c of claims) {
     if (c.t === 'weight' && c.word !== 'full' && !text.includes(c.word)) err.push(`weight ${c.hand}: '${c.word}'가 문장에 없음`);
-    if (c.t === 'minor' && !text.includes('가끔')) err.push("minor: '가끔'이 문장에 없음");
+    if (c.t === 'minor') {
+      // 섞는 쪽은 비중과 함께('3벳을 25% 섞고'). 칸마다 섞는 비중의 합이 같으면 그 %가 문장에 있어야 하고, 문장의 '% 섞'은 그 값뿐입니다.
+      const ws = c.hands.map((h) => cs[idx(h)]?.mix.filter((m) => m.action !== rest && m.weight > 0.001).reduce((t, m) => t + m.weight, 0) ?? 0);
+      const same = ws.every((w) => Math.abs(w - ws[0]) < 0.01);
+      if (!text.includes('섞')) err.push("minor: 섞는 쪽이 문장에 없음");
+      if (text.includes('가끔')) err.push("minor: 비중어 밖의 '가끔'");
+      if (same && !text.includes(`${Math.round(ws[0] * 100)}% 섞`)) err.push(`minor: 섞는 비중 ${Math.round(ws[0] * 100)}%가 문장에 없음`);
+      for (const m of text.matchAll(/(\d+)% 섞/g)) if (!same || Number(m[1]) !== Math.round(ws[0] * 100)) err.push(`minor: '${m[0]}'가 차트(${ws.map((w) => Math.round(w * 100))})와 다름`);
+    }
   }
   // 마디 단위 글자 검사(THEORY_SPEC §5).
   const clauses = namedInClauses(text, cs);
@@ -209,7 +218,7 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
         const noun = new RegExp(`^절반은 ${others.join('·')}`);
         if (!clause.includes(`절반은 ${a1}`) || !(solo.test(next) || noun.test(next))) err.push(`(b) ${h}: 세 액션 칸의 나눔이 문장에 없음 — ${clause} / ${next}`);
       } else if (x.word === '주로') {
-        if (!clause.includes('주로') && !(x.p === rest && clause.includes('가끔'))) err.push(`(e) ${h}: 주로 칸인데 마디에 '주로'가 없음 — ${clause}`);
+        if (!clause.includes('주로') && !(x.p === rest && clause.includes('% 섞'))) err.push(`(e) ${h}: 주로 칸인데 마디에 '주로'가 없음 — ${clause}`);
       } else if (x.word !== 'full' && !clause.includes(x.word)) err.push(`(e) ${h}: ${x.word} 칸인데 마디에 '${x.word}'가 없음 — ${clause}`);
     }
     // (c) 비중어 마디 바로 뒤의 '나머지는' — "그 칸의 나머지 절반"으로도 읽힙니다.
@@ -233,7 +242,8 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
   return err;
 }
 
-const HAND_RE = /[2-9TJQKA]{2}[so]?/g;
+// 숫자 비중('콜을 25% 섞고')의 '25'는 패 이름이 아닙니다 — 앞뒤가 숫자나 %인 두 글자는 빼요(패 이름 뒤에는 %가 오지 않아요).
+const HAND_RE = /(?<!\d)[2-9TJQKA]{2}[so]?(?![\d%])/g;
 
 /** 문장 속 패 이름의 집합(X~Y 범위는 양 끝과 사이 칸까지 펼칩니다). */
 function textHands(text: string, cs: Cell[]): Set<HandName> {
@@ -329,12 +339,13 @@ describe('line: 문장 존재 · 길이 (§7.2-2·3)', () => {
       const top = lineSentence(s, line, { topic: true });
       expect(emWidth(top!.text), top!.text).toBeLessThanOrEqual(42);
     }
-    // 폴백 실측(§9, THEORY_SPEC §5): 틀 문장의 noLabel 은 vs_open SB:BTN 커넥터와 콜드 4벳 AKo 세 줄(세 액션 칸의 나눔).
-    // 칸 나열 꼴은 noLabel 24 · noCtx 8 · noSubj 2 — 주로 칸에 '주로'를 붙이고(e) 세 액션 칸의 나눔을 부르느라(b) 길어졌습니다.
+    // 폴백 실측(§9, THEORY_SPEC §5): 틀 문장의 noLabel 은 vs_open SB:BTN 커넥터 한 줄. 콜드 4벳 AKo 세 줄은 주어를
+    // '앞에서 3벳이 나오면' → '오픈과 3벳 뒤에'로 줄이면서(앞의 오픈까지 말하고 더 짧아요) 줄 이름을 되찾았습니다(28 → 24).
+    // 칸 나열 꼴은 noLabel 23 · noCtx 8 · noSubj 2 — 주로 칸에 '주로'를 붙이고(e) 세 액션 칸의 나눔을 부르느라(b) 길어졌습니다.
     // noSubj 둘(vs_3bet UTG:CO · vs_open BTN:HJ 의 수티드 A)은 '〈자리〉에서'를 붙이면 42em 을 넘습니다.
-    expect(fallback).toEqual({ noLabel: 28, noCtx: 8, noSubj: 2 });
+    expect(fallback).toEqual({ noLabel: 24, noCtx: 8, noSubj: 2 });
     expect(ALL.filter((x) => x.sentence?.fallback === 'noSubj').map((x) => `${scenarioKey(x.s)} ${x.line.id}`)).toEqual(['vs_3bet:UTG:CO sA', 'vs_open:BTN:HJ sA']);
-    expect(ALL.filter((x) => x.sentence?.fallback === 'noLabel' && x.sentence.form === 'frame').map((x) => scenarioKey(x.s))).toEqual(['cold_4bet:CO', 'cold_4bet:BTN', 'vs_open:SB:BTN', 'cold_4bet:BB']);
+    expect(ALL.filter((x) => x.sentence?.fallback === 'noLabel' && x.sentence.form === 'frame').map((x) => scenarioKey(x.s))).toEqual(['vs_open:SB:BTN']);
     const forms: Record<string, number> = {};
     for (const x of ALL) if (x.sentence) forms[x.sentence.form] = (forms[x.sentence.form] ?? 0) + 1;
     expect(forms).toEqual({ frame: 992, except: 4, list: 93 });
@@ -413,7 +424,7 @@ describe('line: 주장 재계산 (§7.2-6)', () => {
     // '그 밖' 꼬리('콜을 섞어요') 대신 앞쪽 '주로' 칸을 '까지'에 넣는다
     expect(at('vs_open:BB:UTG', '76s')).toBe('BB는 UTG 오픈에 수티드 커넥터를 54s까지 콜하고, 43s는 절반만 콜해요.');
     expect(at('vs_open:BB:SB', 'QTs')).toBe('BB는 SB 오픈에 수티드 Q 중 QJs는 주로 3벳, QTs는 3벳·콜 반반, Q9s부터는 콜해요.');
-    // P0h: 폴드 50 · 3벳 25 · 콜 25 인 칸 — '가끔 3벳이나 콜'로 줄이지 않고 나눔을 부릅니다(THEORY_SPEC §5)
+    // P0h: 폴드 50 · 3벳 25 · 콜 25 인 칸 — '3벳이나 콜을 섞고'로 줄이지 않고 나눔을 부릅니다(THEORY_SPEC §5)
     expect(at('vs_open:HJ:UTG', 'KQo')).toBe('HJ는 UTG 오픈에 오프수트 K 중 KQo는 절반은 폴드하고, 나머지를 3벳과 콜로 나눠요.');
     // 섞인 칸이 사이에 낀 줄: '나머지 전부' 꼴
     expect(at('vs_limp:BTN', 'A7s')).toBe('BTN은 림프에 수티드 A를 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.');
@@ -433,8 +444,8 @@ describe('line: 줄 문장의 모호함 (THEORY_SPEC §5)', () => {
     // '그 아래 칸은'도 도달 불가 칸을 덮지 않게 — 그 아래 도달 칸이 전부 full 폴드면 이름으로, 하나도 없으면 그 절 없이.
     expect(at('vs_4bet:BTN:UTG', 'AKo')).toBe('BTN은 UTG 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, AQo는 폴드해요.');
     expect(at('vs_3bet:UTG:HJ', 'T9s')).toBe('UTG는 HJ 3벳에 수티드 커넥터 중 T9s는 절반만 콜하고, 98s~65s는 폴드해요.');
-    expect(at('vs_5bet:UTG:SB', 'AKo')).toBe('UTG는 SB 올인에 AKo를 주로 폴드하고, 가끔 콜해요.');
-    expect(at('vs_5bet:UTG:SB', 'AKo', true)).toBe('오프수트 A는 AKo를 주로 폴드하고, 가끔 콜해요.');
+    expect(at('vs_5bet:UTG:SB', 'AKo')).toBe('UTG는 SB 올인에 AKo를 주로 폴드하고, 콜도 25% 섞어요.');
+    expect(at('vs_5bet:UTG:SB', 'AKo', true)).toBe('오프수트 A는 AKo를 주로 폴드하고, 콜도 25% 섞어요.');
     // 전수: 도달 불가 칸이 있는 줄의 문장에는 '전부'도, 줄 이름 전체를 덮는 claim(all)도 없습니다(checkSentence 가 claims 로도 봅니다).
     let n = 0;
     for (const { s, line, sentence } of ALL) {
@@ -466,7 +477,8 @@ describe('line: 줄 문장의 모호함 (THEORY_SPEC §5)', () => {
   it('(b) 세 액션 칸은 나눔을 이름으로 — 비중어 하나로 줄이지 않습니다', () => {
     expect(at('vs_open:CO:UTG', 'KQo')).toBe('CO는 UTG 오픈에 오프수트 K 중 KQo는 절반은 콜하고, 나머지를 3벳과 폴드로 나눠요.');
     expect(at('vs_3bet:BTN:BB', 'A9o')).toBe('BTN은 BB 3벳에 AKo는 4벳, ATo까지는 콜, A9o는 절반은 폴드, 절반은 4벳·콜이에요.');
-    expect(at('cold_4bet:BTN', 'AKo')).toBe('BTN은 앞에서 3벳이 나오면 AKo는 절반은 4벳하고, 나머지를 콜과 폴드로 나눠요.');
+    // 콜드 상황의 주어는 앞의 오픈까지(책 5장 3절: 오픈과 3벳 사이에 끼어 있을 때).
+    expect(at('cold_4bet:BTN', 'AKo')).toBe('BTN은 오픈과 3벳 뒤에 오프수트 A 중 AKo는 절반은 4벳하고, 나머지를 콜과 폴드로 나눠요.');
     // 전수: 세 액션 칸이 있는 줄은 16개이고, 전부 split claim 으로 부릅니다.
     const lines = ALL.filter((x) => x.cells.some((c) => c.split));
     expect(lines.length).toBe(16);
@@ -481,10 +493,17 @@ describe('line: 줄 문장의 모호함 (THEORY_SPEC §5)', () => {
 
   it("(c) 비중어 바로 뒤에 '나머지는'이 오지 않습니다 — '그 아래 칸은' · '다른 칸은'", () => {
     expect(at('vs_open:BB:CO', '87o')).toBe('BB는 CO 오픈에 오프수트 8 중 87o는 절반만 콜하고, 그 아래 칸은 폴드해요.');
-    expect(at('vs_open:SB:UTG', 'QJs')).toBe('SB는 UTG 오픈에 수티드 Q를 QJs만 가끔 3벳하고, 그 아래 칸은 폴드해요.');
+    // 섞는 쪽은 비중으로(감사: '가끔'은 앱의 비중어 밖이었습니다). QJs 는 폴드 75 · 3벳 25.
+    expect(at('vs_open:SB:UTG', 'QJs')).toBe('SB는 UTG 오픈에 수티드 Q 중 QJs만 3벳을 25% 섞고, 그 아래 칸은 폴드해요.');
+    expect(at('vs_open:SB:UTG', 'QJs', true)).toBe('수티드 Q는 QJs만 3벳을 25% 섞고, 그 아래 칸은 폴드해요.');
     expect(at('vs_open:BB:UTG', 'A5s')).toBe('BB는 UTG 오픈에 AKs·AQs·A5s·A4s는 3벳, A3s·A2s는 3벳·콜 반반, 다른 칸은 콜해요.');
     for (const { s, line, sentence } of ALL) {
-      for (const t of [sentence?.text, lineSentence(s, line, { topic: true })?.text]) if (t) expect(t).not.toMatch(/(주로|절반만|절반은|반반|가끔)[^,.]*, 나머지는/);
+      for (const t of [sentence?.text, lineSentence(s, line, { topic: true })?.text]) {
+        if (!t) continue;
+        expect(t).not.toMatch(/(주로|절반만|절반은|반반|가끔|% 섞)[^,.]*, 나머지는/);
+        // '가끔'은 앱의 비중어(전부 · 주로 · 절반만 · 반반 · 절반은) 밖이라 쓰지 않습니다(감사: 25%를 '가끔'이라 불렀어요).
+        expect(t, `${scenarioKey(s)} ${line.id}`).not.toMatch(/가끔/);
+      }
     }
   });
 

@@ -108,19 +108,41 @@ function computeSeatNumbers(s: Scenario): SeatNumbers {
 
 /** SB 가 콜을 '거의 안 한다'고 말해도 되는 상한(콜 비중, 전체 패 기준). */
 const SB_CALL_RARE = 0.02;
+/** 책 5장 2절의 BTN 오픈 폭(약 43%). */
+const BOOK_BTN_OPEN = 43;
 
-/** 자리 사실 한 문장 — 위에서부터 처음 맞는 하나만(§4.2-⑤). 전부 데이터로 판단합니다. */
+/**
+ * 자리 사실 한 문장 — 위에서부터 처음 맞는 하나만(§4.2-⑤). 전부 데이터로 판단합니다.
+ * 지금은 시트에 그리지 않지만(자리 이유 theory/spot.ts 가 대신합니다) Explanation.seat.lever 로 남아 있어 참인 말만 둡니다:
+ *  - SB 오픈: 뒤에 한 명뿐이라서 넓은 게 아닙니다 — SB(46.2%)는 BTN(46.3%)보다 넓지 않고, 포지션이 없어서예요(atlas.SB_OPEN).
+ *  - BTN 오픈: 책은 약 43%(5장 2절) — 차트 폭과 함께 책의 숫자를 밝힙니다.
+ *  - SB 의 오픈 대응: 차트는 콜을 0.7~1.5% 섞어서 '대부분' 3벳 아니면 폴드.
+ *  - HJ · CO · BTN 의 오픈 대응: '포지션이 있어요'만 말하면 콜의 이유처럼 읽힙니다. 책은 뒤에 남은 사람의 스퀴즈 때문에
+ *    HJ · CO 는 콜 없이 3벳 아니면 폴드, BTN 도 넓게 여는 상대에게는 콜을 줄인다고 해요(5장 5절) — 그 위험을 함께 말합니다.
+ */
 export function seatLever(s: Scenario): { text: string; id: LeverId } | null {
   const { kind, hero } = s;
   const v = s.villain;
   if (kind === 'rfi') {
     const W = pct(rangeShare(getChartCells(s), 'raise'));
-    if (hero === 'SB') return { id: 'sbOpen', text: `SB는 뒤에 BB 한 명만 남아 ${W}%를 오픈해요.` };
-    if (hero === 'BTN') return { id: 'behind', text: `BTN은 뒤에 블라인드 둘만 남아 ${W}%를 오픈해요.` };
+    // 레버는 30자(공백 뺀 글자) 안 — tests/line.test.ts.
+    if (hero === 'SB') {
+      const btn = pct(rangeShare(getChartCells({ kind: 'rfi', hero: 'BTN' }), 'raise'));
+      if (W === btn) return { id: 'sbOpen', text: `SB는 BB만 남아도 포지션이 없어 BTN만큼인 ${W}%를 오픈해요.` };
+      if (W < btn) return { id: 'sbOpen', text: `SB는 포지션이 없어서 BTN보다 좁은 ${W}%를 오픈해요.` };
+      return { id: 'sbOpen', text: `SB는 뒤에 BB만 남아 ${W}%를 오픈해요.` };
+    }
+    if (hero === 'BTN') {
+      const cmp = W > BOOK_BTN_OPEN ? '보다 넓은' : W < BOOK_BTN_OPEN ? '보다 좁은' : '와 같은';
+      return { id: 'behind', text: `BTN은 블라인드만 남아 책의 약 ${BOOK_BTN_OPEN}%${cmp} ${W}%를 오픈해요.` };
+    }
     return { id: 'behind', text: `${josa(hero, '은/는')} 뒤에 ${seatsBehind(hero)}명이 남아 ${W}%만 오픈해요.` };
   }
   if (kind === 'vs_open' && hero === 'SB' && rangeShare(getChartCells(s), 'call') < SB_CALL_RARE) {
-    return { id: 'sbRaiseOrFold', text: 'SB는 콜을 거의 안 하고, 3벳 아니면 폴드해요.' };
+    return { id: 'sbRaiseOrFold', text: 'SB는 콜을 거의 안 하고, 대부분 3벳 아니면 폴드해요.' };
+  }
+  if (kind === 'vs_open' && v && (hero === 'HJ' || hero === 'CO' || hero === 'BTN')) {
+    return { id: 'behind', text: `${josa(hero, '은/는')} 포지션이 있어도 콜하면 뒤에서 스퀴즈를 받기 쉬워요.` };
   }
   if (kind === 'vs_open' && hero === 'BB') {
     const price = priceFacts(s);
@@ -171,7 +193,8 @@ function ctxOf(s: Scenario): string {
     case 'vs_5bet':
       return `${s.villain} 올인에`;
     case 'cold_4bet':
-      return '앞에서 3벳이 나오면';
+      // 콜드 상황은 앞에서 오픈과 3벳이 둘 다 나온 자리입니다(책 5장 3절) — 3벳만 말하면 그 앞의 오픈이 빠집니다.
+      return '오픈과 3벳 뒤에';
     default:
       return '림프에';
   }
@@ -335,6 +358,11 @@ export function acrossRow(s: Scenario, hand: HandName): { cells: AtlasCell[]; li
 /**
  * 섞는 비율 칩과 부분 정답 문장. 단색 칸이면 null. 부분 정답 문장은 2순위 비중이 PARTIAL_THRESHOLD 이상일 때만 —
  * 채점이 부분 정답을 주는 칸과 정확히 같습니다.
+ *
+ * 책 2장 4절(무차별): 한 패를 두 액션으로 나눠 쓰면 두 액션의 가치(EV)는 같습니다. 그래서 '정답'은 앱의 채점일 뿐,
+ * 한쪽이 더 낫다는 말이 아니라는 것을 먼저 말합니다: '3벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 3벳이 정답이에요.'
+ * (2순위를 고르면 부분 정답이라는 것은 채점 결과가 보여 줍니다 — 문장은 40자 안, tests/explain.test.ts.)
+ * '더 공격적인'은 두 계속 액션이 같은 비중일 때만(§2.2) — 콜/폴드 50-50 은 캡슐이 '절반만 콜'이고, 콜을 '공격적'이라 부르지 않습니다.
  */
 export function mixBlock(step: Step): { chips: Array<{ action: Action; pct: number }>; partial: string | null } | null {
   const list = step.mixList;
@@ -344,12 +372,11 @@ export function mixBlock(step: Step): { chips: Array<{ action: Action; pct: numb
   const [a1, a2] = list;
   let partial: string | null = null;
   if (a2.weight >= PARTIAL_THRESHOLD) {
-    const second = `${actWord(a2.action, kind)}도 부분 정답이에요.`;
+    const w1 = actWord(a1.action, kind);
+    const w2 = actWord(a2.action, kind);
     const tie = Math.abs(a1.weight - a2.weight) < 0.01;
-    // '반반'은 두 계속 액션이 같은 비중일 때만 씁니다(§2.2). 콜/폴드 50-50 은 캡슐이 '절반만 콜'이라 '반반이라 더 공격적인 콜'은
-    // 캡슐과 말이 어긋나고, 콜을 '공격적'이라 부르게 됩니다.
-    if (tie && a2.action === restAction(step.chart)) partial = `이 칸은 ${josa(actWord(a1.action, kind), '을/를')} 정답으로 쳐요. ${second}`;
-    else partial = tie ? `반반이라 더 공격적인 ${josa(actWord(a1.action, kind), '을/를')} 정답으로 쳐요. ${second}` : second;
+    const aggressive = tie && a2.action !== restAction(step.chart) ? '더 공격적인 ' : '';
+    partial = `${josa(w1, '과/와')} ${josa(w2, '은/는')} 가치가 비슷해요. 채점은 ${aggressive}${josa(w1, '이/가')} 정답이에요.`;
   }
   return { chips, partial };
 }
@@ -369,7 +396,7 @@ const MIXED = 0.6 - 1e-9;
 
 /**
  * 패 하나의 예시 모양(결정과 상관없이) — 카드 그림 검사에 씁니다. 해당하지 않으면 null.
- *  - 중간·작은 페어(set): `내 2♠2♦ → 플랍에서 셋이 될 확률 12%예요.` — 책은 작은 페어를 셋이 될 확률(약 12%)과
+ *  - 중간·작은 페어(set): `내 2♠2♦ → 플랍에서 셋이 될 확률은 약 12%예요.` — 책은 작은 페어를 셋이 될 확률(약 12%)과
  *    보드 커버리지로 설명합니다(THEORY_SPEC §1-2).
  *  - 킥커 대결(domination): `내 K♠10♠ vs 상대 A♦K♦ → K를 맞춰도 킥커에서 밀려요.` — 상대는 내 높은 카드에 더 큰 킥커(A)를 붙인 패,
  *    수티드니스는 내 패와 같게(수티드면 AKs, 오프수트면 AKo). 내 높은 카드가 A 면 AK.
@@ -380,7 +407,8 @@ export function exampleShape(hand: HandName): { kind: 'set' | 'domination' | 'bl
   const info = parseHandName(hand);
   const cls = classifyHand(hand);
   const ctx = exampleCtx(info);
-  if (cls === 'mid_pair' || cls === 'small_pair') return { kind: 'set', text: `내 ${ctx.me} → 플랍에서 셋이 될 확률 12%예요.` };
+  // 정확히는 11.8% — 용어집('셋')과 원리 카드처럼 '약 12%'.
+  if (cls === 'mid_pair' || cls === 'small_pair') return { kind: 'set', text: `내 ${ctx.me} → 플랍에서 셋이 될 확률은 약 12%예요.` };
   if (cls === 'wheel_ace') return { kind: 'blocker', text: `내 ${ctx.me} → A를 쥐고 있어 상대 AA·AK 조합이 줄어요.` };
   if (KICKER_CLASSES.has(cls) && dominatorOf(info)) {
     const opp = info.high === 'A' ? 'AK' : `A${info.high}`;
