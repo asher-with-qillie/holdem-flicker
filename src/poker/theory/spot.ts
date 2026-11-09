@@ -26,7 +26,6 @@ export interface SpotReason {
 }
 
 const share = (s: Scenario, a: Action) => (hasChart(s) ? rangeShare(getChartCells(s), a) : 0);
-const p1 = (x: number) => `${Math.round(x * 1000) / 10}%`.replace('.0%', '%');
 
 /** 플랍 이후 이 자리보다 나중에 행동하는 사람 수(블라인드는 플랍 이후 먼저 행동합니다). */
 const LATER: Record<Pos, number> = { UTG: 3, HJ: 2, CO: 1, BTN: 0, SB: 0, BB: 0 };
@@ -215,17 +214,18 @@ export function spotReason(s: Scenario): SpotReason {
       break;
     }
     case 'cold_4bet': {
-      lines.push(`${h} 앞에서 이미 오픈과 3벳이 나왔어요. 콜하면 내 패 정보가 새고, 뒤 사람들이 싸게 들어올 수 있어요.`);
-      lines.push(`그래서 콜은 거의 하지 않고 4벳(${p1(F)}) 아니면 폴드로 정리해요.`);
+      lines.push(`${h} 앞에서 이미 오픈과 3벳이 나왔어요. 콜하면 내 패 정보가 새고, 4벳이었다면 폴드했을 다른 사람들이 싸게 따라올 수 있어요.`);
+      lines.push(`그래서 콜은 거의 하지 않고 4벳(약 ${pct(F)}) 아니면 폴드로 정리해요.`);
       ids = ['cold-4bet', 'fourbet-polar', 'blockers'];
-      diff = `책은 콜드 4벳을 상대가 타이트하면 약 3%, 넓으면 약 6%로 둬요. 이 차트는 약 ${p1(F)}로 더 좁아요.`;
+      diff = `책은 콜드 4벳을 상대가 타이트하면 약 3%, 넓으면 약 6%로 둬요. 이 차트는 약 ${pct(F)}로 더 좁아요.`;
       break;
     }
     case 'vs_limp': {
       const W = share(s, 'raise');
       if (h === 'BB') {
         lines.push('BB는 림프에 체크하면 돈을 더 내지 않고 플랍을 봐요.');
-        lines.push(`그래서 폴드하는 패는 없고, 강한 패 ${pct(W)}만 레이즈해요.`);
+        // 차트: BB 는 강한 패에 A 블로커가 있는 A5s · A4s 를 더해 레이즈해요(tests/theory.test.ts 가 확인).
+        lines.push(`그래서 폴드하는 패는 없고, 강한 패에 A 블로커가 있는 A5s·A4s를 더한 ${pct(W)}만 레이즈해요.`);
         ids = ['free-check', 'vs-limper'];
       } else {
         const rfiW = share({ kind: 'rfi', hero: h }, 'raise');

@@ -712,3 +712,41 @@ describe('line: 경계 거리 꼬리표 (§7.2-10)', () => {
     expect(c.boundaryAfter).toBe(10); // 54s 뒤
   });
 });
+
+/* 교차 검토: 'JTs만 3벳해요'인데 같은 줄의 J9s 가 3벳을 25% 섞으면 '만'이 거짓이에요. */
+describe('line: "X만 V해요"의 V 는 같은 줄 다른 칸에 없어요', () => {
+  it('74개 차트의 모든 줄', () => {
+    const VERB: Record<string, string> = { '3벳': 'threebet', 콜: 'call', 오픈: 'raise', '4벳': 'fourbet', 올인: 'allin', 레이즈: 'raise' };
+    const bad: string[] = [];
+    let checked = 0;
+    for (const s of allScenarios()) {
+      if (!hasChart(s)) continue;
+      const seen = new Set<string>();
+      for (const h of ALL_HANDS) {
+        const line = lineOf(h);
+        if (seen.has(line.id)) continue;
+        seen.add(line.id);
+        const text = lineSentence(s, line)?.text;
+        if (!text) continue;
+        const cells = lineCells(s, line);
+        const order = line.slots.map((x) => x.hand);
+        for (const m of text.matchAll(/((?:[2-9TJQKA]{2}[so]?)(?:[·~][2-9TJQKA]{2}[so]?)*)만 (?:늘 )?(3벳|콜|오픈|4벳|올인|레이즈)(?:해요|하고)/g)) {
+          checked++;
+          // 'AKs~A8s·A5s·A4s' — 이름 목록 전체(범위는 줄 순서로 펼쳐요)
+          const named = new Set<string>();
+          for (const part of m[1].split('·')) {
+            const [a, b] = part.split('~');
+            if (!b) named.add(a);
+            else for (const x of order.slice(order.indexOf(a), order.indexOf(b) + 1)) if (x) named.add(x);
+          }
+          const act = VERB[m[2]];
+          // 같은 문장 뒤에서 그 칸을 이름으로 대면('…JTs만 늘 3벳하고, J9s는 … 3벳을 25% 섞어요') 괜찮아요.
+          const others = cells.filter((c) => !named.has(c.hand) && !text.includes(c.hand) && c.mixList.some((x) => x.action === act && x.weight > 0));
+          if (others.length) bad.push(`${scenarioKey(s)}: ${text} ← ${others.map((c) => c.hand).join(', ')}`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+    expect(checked).toBeGreaterThan(20);
+  });
+});

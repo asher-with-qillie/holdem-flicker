@@ -7,6 +7,7 @@
  *
  * 숫자(numbers)는 책의 공식을 앱 차트의 크기 가정(price.ts)으로 다시 계산한 값입니다.
  */
+import { josa } from '../ko';
 import type { Scenario } from '../types';
 import { bb, pct, priceOf, threebetRisk, threebetSize } from './price';
 
@@ -67,16 +68,20 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     numbers: (s) => {
       const n = SEATS_BEHIND[s.hero];
       if (s.kind !== 'rfi' || !n) return null;
-      return `뒤의 한 명이 7%씩만 3벳해도 ${s.hero}는 ${pct(threebetRisk(n))} 확률로 3벳을 받아요(책의 단순 모형 · 같은 가정에서 BTN은 13.5%).`;
+      // 6-max 에서는 UTG 도 약 30%라 스틸의 본전(약 38%)보다 낮아요. 그래서 이 숫자는 '방향'으로만 말해요 —
+      // 책의 예(9명 테이블 UTG 44%)처럼 문턱을 넘는다고 읽히면 틀려요(교차 검토).
+      const me = `${josa(s.hero, '은/는')} 약 ${pct(threebetRisk(n))}`;
+      const btn = s.hero === 'BTN' ? '' : `, BTN은 약 ${pct(threebetRisk(SEATS_BEHIND.BTN))}`;
+      return `뒤에 남은 사람이 저마다 7%씩 3벳하면 ${me}${btn} 확률로 3벳을 받아요(콜을 뺀 책의 단순 모형이라, 뒤에 사람이 많을수록 위험이 커진다는 방향만 보여 줘요).`;
     },
   },
   'steal-breakeven': {
     id: 'steal-breakeven',
     chip: '스틸의 본전',
     body:
-      '3벳을 받으면 늘 폴드하는 패라도, 2.5bb로 오픈해 블라인드 1.5bb를 노릴 때 3벳이 37.5%보다 적게 나오면 이득이에요. 블라인드 둘만 남은 BTN은 이 문턱보다 3벳을 훨씬 덜 받아서 넓게 오픈할 수 있어요.',
+      '3벳을 받으면 늘 폴드하는 패라도, 2.5bb로 오픈해 블라인드 1.5bb를 노릴 때 3벳이 약 38%보다 적게 나오면 이득이에요. 블라인드 둘만 남은 BTN은 이 문턱보다 3벳을 훨씬 덜 받아서 넓게 오픈할 수 있어요.',
     ref: '책 4장 「처음 들어오기」 3-bet을 당할 가능성(노트 4장 6절 변수 4)',
-    numbers: () => '(1 − f) × 1.5bb = f × 2.5bb → f = 37.5%예요.',
+    numbers: () => '블라인드가 3벳할 확률을 f라 하면 (1 − f) × 1.5bb = f × 2.5bb에서 본전인 f는 약 38%라, 3벳이 이보다 적으면 3벳에 폴드할 패로도 오픈이 이득이에요.',
   },
   'hand-strength': {
     id: 'hand-strength',
@@ -106,6 +111,8 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     body:
       'SB는 이미 0.5bb를 내 반값으로 들어갈 수 있지만, 플랍 이후에는 늘 포지션이 없어요. 그래서 레이즈는 3bb로 크게 해서 BB가 싸게 따라와 포지션으로 에퀴티를 챙기지 못하게 해요. 책의 균형 전략은 이 할인 때문에 SB에서만 림프를 섞어요(림프 약 38% · 레이즈 약 24%).',
     ref: '책 5장 「권장 베팅 크기」·「자리별 처음 레이즈」(노트 5장 1~2절)',
+    // BB 가 콜할 때의 필요 승률 = 콜 금액 ÷ 콜 뒤의 팟: 3bb 오픈이면 2 ÷ 6, 2.5bb 오픈이면 1.5 ÷ 5.
+    numbers: (s) => (s.kind === 'rfi' && s.hero === 'SB' ? '3bb로 오픈하면 BB는 2bb를 더 내고 콜해야 해서 BB의 필요 승률이 약 33%예요(2.5bb로 오픈하면 약 30%).' : null),
   },
   'bb-price': {
     id: 'bb-price',
@@ -135,7 +142,7 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     numbers: (s) => {
       const p = priceOf(s);
       if (!p || s.kind !== 'vs_open' || s.hero !== 'SB') return null;
-      return `콜 가격만 보면 ${bb(p.toCall)}를 더 내고 필요 승률 약 ${pct(p.need)}지만, BB가 아직 뒤에 남아 있어요.`;
+      return `콜 가격만 보면 ${bb(p.toCall)}를 더 내고 필요 승률은 약 ${pct(p.need)}지만, 뒤에 BB가 남아 있고 포지션도 없어 에퀴티를 다 실현하지 못하니 실제로는 이보다 높은 승률이 필요해요.`;
     },
   },
   'squeeze-risk': {
@@ -156,7 +163,7 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     id: 'tighter-after-raise',
     chip: '먼저 들어온 사람',
     body:
-      '누가 먼저 레이즈했다면 그 사람 패는 평균보다 강해요. 그래서 같은 자리라도 처음 들어갈 때보다 오픈을 상대할 때 더 좁게 치고, 상대가 앞자리일수록 그 범위가 강하니 더 좁아져요.',
+      '누가 먼저 레이즈했다면 그 사람 패는 평균보다 강하고, 림프한 사람의 패도 아무 패나는 아니에요. 그래서 같은 자리라도 처음 들어갈 때보다 더 좁게 치고, 앞자리에서 오픈한 상대일수록 범위가 강하니 더 좁아져요.',
     ref: '책 4장 「프리플랍 일반 원칙」 원칙 1(노트 4장 10절)',
   },
   'polar-linear': {
@@ -210,7 +217,7 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     id: 'fourbet-polar',
     chip: '4벳은 양 끝으로',
     body:
-      '4벳을 하면 상대가 올인(5벳)으로 받아칠 수 있어요. 그래서 4벳에는 올인에도 콜할 최강 패와, 블로커가 좋아 올인을 받으면 폴드해도 아깝지 않은 패만 넣고, 중간 패는 "4벳했다가 올인에 폴드하는" 상황을 피하려고 콜해요.',
+      '4벳을 하면 상대가 올인(5벳)으로 받아칠 수 있어요. 그래서 4벳에는 올인에도 콜할 최강 패와, 블로커가 좋아 올인을 받으면 폴드해도 아깝지 않은 패만 넣어요. 중간 패는 "4벳했다가 올인에 폴드하는" 상황을 피해 4벳하지 않고, 오픈했다가 3벳을 받았다면 콜로 플랍을 봐요.',
     ref: '책 5장 「자리별 처음 레이즈」 SB·BN(노트 5장 2절)',
   },
   'vs-4bet': {
@@ -248,7 +255,7 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     id: 'cold-4bet',
     chip: '콜드 4벳',
     body:
-      '오픈과 3벳 사이에 끼어 있으면 4벳 아니면 폴드가 기본이에요. 콜하면 내 패 정보가 새고, 4벳이었다면 폴드했을 뒤 사람들이 싸게 들어올 수 있어요. 책은 콜드 4벳을 상대가 타이트하면 약 3%, 넓으면 약 6%로 둬요.',
+      '오픈과 3벳 사이에 끼어 있으면 4벳 아니면 폴드가 기본이에요. 콜하면 내 패 정보가 새고, 4벳이었다면 폴드했을 다른 사람들(오픈한 사람 포함)이 싸게 플랍을 볼 수 있어요. 책은 콜드 4벳을 상대가 타이트하면 약 3%, 넓으면 약 6%로 둬요.',
     ref: '책 5장 「3-bet 상대하기: 일반 원칙」(노트 5장 3절)',
   },
   realization: {
@@ -285,14 +292,14 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     id: 'vs-limper',
     chip: '림퍼 상대',
     body:
-      '지금 캐시게임에서 SB 말고 림프하는 사람은 약한 경우가 많아요. 레이즈로 아이솔레이트해서 혼자 상대하되, 림퍼가 수동적이면 넓게, 공격적이면 강한 패 위주로 좁혀요. 누가 먼저 들어온 만큼 처음 들어갈 때보다는 좁게 쳐요.',
-    ref: '책 4장 「림프」·「프리플랍 일반 원칙」(노트 4장 7절, 10절)',
+      '지금 캐시게임에서 SB 말고 림프하는 사람은 약한 경우가 많아서, 레이즈로 아이솔레이트해 혼자 상대해요. 림퍼의 유형을 알면 폭을 바꿔요. 수동적이면 아주 넓게(뒤에 공격적인 사람이 있으면 평소 오픈 범위 정도로), 공격적이면 강한 패 위주로 좁혀요.',
+    ref: '책 4장 「림프」(노트 4장 7절)',
   },
   'free-check': {
     id: 'free-check',
     chip: '공짜 플랍',
     body:
-      'BB는 림프에 체크하면 돈을 더 내지 않고 플랍을 봐요. 공짜로 볼 수 있을 때 폴드하는 것은 늘 손해라서 약한 패도 체크하고, 레이즈는 강한 패로 해요.',
+      'BB는 림프에 체크하면 돈을 더 내지 않고 플랍을 봐요. 체크가 공짜일 때 폴드는 어떤 경우에도 체크보다 못한 \'엄격하게 지배되는 전략\'이라, 아무리 약한 패도 폴드하지 않고 체크해요.',
     ref: '책 10장 폴드·체크·콜·레이즈(노트 10장 4절)',
   },
   'blind-vs-blind': {

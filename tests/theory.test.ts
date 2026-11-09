@@ -57,6 +57,12 @@ describe('자리 이유(spot.ts) — 차트에 대해 단정하는 말', () => {
     }
   });
 
+  it('BB 림프 대응: "강한 패에 A 블로커가 있는 A5s·A4s를 더한" — 두 패를 늘 레이즈해요', () => {
+    const cells = getChartCells({ kind: 'vs_limp', hero: 'BB' });
+    for (const h of ['A5s', 'A4s']) expect(fullMix(cells[h])[0], h).toEqual({ action: 'raise', weight: 1 });
+    for (const h of ['A8s', 'A7s', 'A6s', 'A3s', 'A2s']) expect(fullMix(cells[h])[0].action, h).toBe('check');
+  });
+
   it('합계와 괄호 속 두 부분이 더해서 맞아요 (따로 반올림하지 않아요)', () => {
     let n = 0;
     for (const { id, s } of CHARTS) {

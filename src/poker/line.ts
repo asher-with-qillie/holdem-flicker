@@ -581,6 +581,18 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
           return { text: `${S} ${O} ${h} ${V(r.action, '하고')}, ${d}.`, claims: [upto, ...weightClaims(T)] };
         }
         if (checkTail) return { text: `${S} ${O} ${h} ${V(r.action, '하고')}, ${checkTail}.`, claims: [upto, ...checkClaims] };
+        // 'JTs만 3벳해요'인데 아래 칸(J9s 폴드 75% · 3벳 25%)이 같은 액션을 조금 섞으면 '만'이 거짓이 됩니다(교차 검토).
+        // 그 칸을 이름으로 대고, 머리는 '늘 …하는 건 X까지'로: 'SB는 BTN 오픈에 수티드 J 중 늘 3벳하는 건 JTs까지이고, J9s는 3벳을 25% 섞어요.'
+        // '까지'는 아래 칸이 그 액션을 전혀 안 한다고 단정하지 않아 그대로 둡니다. '만'(첫 칸 하나)일 때만 고칩니다.
+        const leak = first ? restCells.filter((c) => c.word === '주로' && c.mixList.some((m) => m.action === r.action && m.weight > 0.001)) : [];
+        if (leak.length === 1) {
+          const w = leak[0].mixList.find((m) => m.action === r.action)!.weight;
+          const built = {
+            text: `${S} ${Q} ${head.hand}만 늘 ${V(r.action, '하고')}, ${josa(leak[0].hand, '은/는')} 주로 ${actWord(rest, kind)}하되 ${josa(actWord(r.action, kind), '을/를')} ${Math.round(w * 100)}% 섞어요.`,
+            claims: [upto, ...weightClaims(leak)],
+          };
+          if (emWidth(built.text) <= LINE_MAX_EM) return built;
+        }
         return { text: `${S} ${O} ${h} ${V(r.action, '해요')}.`, claims: [upto] };
       }
       frame = 'P2h';

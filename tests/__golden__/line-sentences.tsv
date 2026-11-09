@@ -593,7 +593,7 @@ vs_3bet:BTN:BB	oT	P0	17.0	BTN은 BB 3벳에 T9o·T8o를 폴드해요.
 vs_3bet:BTN:BB	s9	P2m	34.0	BTN은 BB 3벳에 수티드 9 중 늘 콜하는 건 98s까지이고, 97s는 주로 콜해요.
 vs_3bet:BTN:BB	o9	P0	14.9	BTN은 BB 3벳에 98o를 폴드해요.
 vs_3bet:BTN:BB	s8	P2m	35.0	BTN은 BB 3벳에 수티드 8 중 늘 콜하는 건 87s까지이고, 86s는 절반만 콜해요.
-vs_3bet:BTN:BB	s7	P2	19.1	BTN은 BB 3벳에 수티드 7을 76s만 콜해요.
+vs_3bet:BTN:BB	s7	P2	38.1	BTN은 BB 3벳에 수티드 7 중 76s만 늘 콜하고, 75s는 주로 폴드하되 콜을 25% 섞어요.
 vs_3bet:BTN:BB	s6	P2	19.1	BTN은 BB 3벳에 수티드 6을 65s만 콜해요.
 vs_3bet:BTN:BB	s5	P2	19.1	BTN은 BB 3벳에 수티드 5를 54s만 콜해요.
 vs_5bet:BTN:BB	pair	P1	15.2	BTN은 BB 올인에 AA~QQ를 콜해요.
@@ -777,7 +777,7 @@ vs_open:SB:BTN	sK	P2	21.1	SB는 BTN 오픈에 수티드 K를 K9s까지 3벳해�
 vs_open:SB:BTN	oK	P2	22.1	SB는 BTN 오픈에 오프수트 K를 KJo까지 3벳해요.
 vs_open:SB:BTN	sQ	P2m	31.7	SB는 BTN 오픈에 수티드 Q를 QTs까지 3벳하고, Q9s는 절반만 3벳해요.
 vs_open:SB:BTN	oQ	P2h	35.2	SB는 BTN 오픈에 오프수트 Q 중 QJo는 절반만 3벳하고, 그 아래 칸은 폴드해요.
-vs_open:SB:BTN	sJ	P2	20.1	SB는 BTN 오픈에 수티드 J를 JTs만 3벳해요.
+vs_open:SB:BTN	sJ	P2	39.7	SB는 BTN 오픈에 수티드 J 중 JTs만 늘 3벳하고, J9s는 주로 폴드하되 3벳을 25% 섞어요.
 vs_open:SB:BTN	oJ	P0	20.7	SB는 BTN 오픈에 오프수트 J를 전부 폴드해요.
 vs_open:SB:BTN	conn	P3h-noL	38.6	SB는 BTN 오픈에 T9s·98s는 3벳과 콜을 반반 섞고, 87s는 주로, 76s는 절반만 콜해요.
 vs_open:SB:BTN	sT	P2h	36.8	SB는 BTN 오픈에 수티드 T 중 T9s는 3벳과 콜을 반반 섞고, 그 아래 칸은 폴드해요.
