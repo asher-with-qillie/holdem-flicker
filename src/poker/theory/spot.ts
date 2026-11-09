@@ -73,14 +73,17 @@ function byStrength(a: string, b: string): number {
   return 0;
 }
 
-/** 그 액션을 절반 이상 하는 패를 차트 순서로: 'AA·KK·AKs·QQ(주로)·AKo(절반)'. */
-function weightedList(s: Scenario, a: Action): string {
+/**
+ * 그 액션을 하는 패를 강한 순서로: 'AA·KK·AKs·QQ(주로)·AKo(절반)'. rare 이면 절반 미만도 '(가끔)'으로 넣어요 —
+ * "…만 콜해요"처럼 목록이 전부라고 말할 때 빠진 패가 있으면 그 패의 시트(줄 문장 '콜도 25% 섞어요')와 어긋나요.
+ */
+function weightedList(s: Scenario, a: Action, rare = false): string {
   const cells = getChartCells(s);
   return [...ALL_HANDS]
     .sort(byStrength)
     .map((h) => ({ h, w: fullMix(cells[h]).find((m) => m.action === a)?.weight ?? 0 }))
-    .filter((x) => x.w >= 0.5)
-    .map((x) => (x.w >= 0.999 ? x.h : x.w >= 0.6 ? `${x.h}(주로)` : `${x.h}(절반)`))
+    .filter((x) => x.w >= 0.5 || (rare && x.w > 0))
+    .map((x) => (x.w >= 0.999 ? x.h : x.w >= 0.6 ? `${x.h}(주로)` : x.w >= 0.5 ? `${x.h}(절반)` : `${x.h}(가끔)`))
     .join('·');
 }
 
@@ -147,7 +150,14 @@ export function spotReason(s: Scenario): SpotReason {
         lines.push(`${josa(h, '은/는')} 뒤에 아직 ${BEHIND[h]}명이 남아, 콜하면 스퀴즈를 맞기 쉬워요.`);
         lines.push(`${josa(v!, '이/가')} 먼저 오픈한 만큼 처음 들어갈 때보다 훨씬 좁게, 3벳 ${pct(T)} · 콜 ${pct(C)}만 써요.`);
         ids = ['squeeze-risk', 'tighter-after-raise', 'polar-linear'];
-        diff = `책의 균형 전략은 ${josa(h, '이/가')} 앞자리 오픈에 콜 없이 3벳 아니면 폴드로 대응하고, 3벳은 강한 패부터 차례로(선형) 해요(HJ는 최대 약 8%). 이 차트는 콜을 ${pct(C)} 섞어요.`;
+        // 노트 5장 5절: HJ 는 LJ(UTG) 오픈에 최대 약 8% 3벳, CO 는 LJ 상대로 HJ 보다 약 0.5%p 넓게, HJ 상대로는 HJ 가 더 넓게 열어서 더 넓게.
+        const width =
+          h === 'HJ'
+            ? '3벳은 강한 패부터 차례로(선형) 최대 약 8%까지 해요'
+            : v === 'UTG'
+              ? '3벳은 강한 패부터 차례로(선형) 하되, UTG 상대로는 HJ의 3벳(최대 약 8%)보다 조금만 넓게 해요'
+              : '3벳은 강한 패부터 차례로(선형) 하고, HJ가 UTG보다 넓게 오픈하는 만큼 UTG를 상대할 때보다 넓게 해요';
+        diff = `책의 균형 전략은 ${josa(h, '이/가')} 앞자리 오픈에 콜 없이 3벳 아니면 폴드로 대응하고, ${width}. 이 차트는 콜을 ${pct(C)} 섞어요.`;
       }
       break;
     }
@@ -198,7 +208,7 @@ export function spotReason(s: Scenario): SpotReason {
       lines.push('올인(5벳)에 콜하면 남은 스택을 전부 걸게 돼서, 상대 올인 범위를 상대로 높은 승률이 필요해요.');
       lines.push('그래서 그만큼 에퀴티가 있는 패만 콜하고, 블러프로 4벳한 패는 폴드해요.');
       ids = ['vs-5bet', 'fourbet-polar'];
-      diff = `책은 올인(5벳)에 일반적으로 TT 이상과 AK가 콜하고, BTN은 66 이상까지 콜한다고 해요. 이 차트는 그보다 좁게 ${weightedList(s, 'call')}만 콜해요.`;
+      diff = `책은 올인(5벳)에 일반적으로 TT 이상과 AK가 콜하고, BTN은 66 이상까지 콜한다고 해요. 이 차트는 그보다 좁게 ${weightedList(s, 'call', true)}만 콜해요.`;
       break;
     }
     case 'cold_4bet': {
