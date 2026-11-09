@@ -49,7 +49,7 @@ export function ApiKeySheet({ open, onClose }: { open: boolean; onClose(): void 
     >
       <div className="coach-key">
         <div className="coach-key__warn">
-          <p className="coach-key__warn-text">공용 PC에서는 넣지 마세요. 키가 이 브라우저에 그대로 저장됩니다.</p>
+          <p className="coach-key__warn-text">공용 PC에서는 넣지 마세요. 키가 이 브라우저에 그대로 저장돼요.</p>
           <CapsuleButton tone="danger" size="md" disabled={ai.key === undefined} onClick={clear}>
             키 지우기
           </CapsuleButton>
@@ -88,7 +88,7 @@ export function ApiKeySheet({ open, onClose }: { open: boolean; onClose(): void 
           />
         </div>
 
-        <p className="coach-key__note">요금은 내 키로 나갑니다. 한 번에 수십 원 정도이고 고른 모델에 따라 달라져요.</p>
+        <p className="coach-key__note">요금은 내 키로 나가요. 한 번에 수십 원 정도이고 고른 모델에 따라 달라져요.</p>
       </div>
     </Sheet>
   );

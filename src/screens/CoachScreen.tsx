@@ -198,7 +198,7 @@ export function CoachScreen(): JSX.Element {
                   {unlockedCount === 0 ? '아직 성향을 재는 중이에요' : tendency ? tendency.title : '아직 한쪽으로 치우치지 않았어요'}
                 </p>
                 <p className="coach-summary__note">
-                  {unlockedCount === 0 ? '표본이 모이면 어느 쪽으로 기우는지 말해 드려요' : '퀴즈·훈련에서 문제를 풀 때의 성향입니다'}
+                  {unlockedCount === 0 ? '표본이 모이면 어느 쪽으로 기우는지 말해 드려요' : '퀴즈·훈련에서 문제를 풀 때의 성향이에요'}
                 </p>
                 <p className="coach-summary__note tnum">{unlockedCount === 0 ? `실수 ${used}개를 모았어요` : `실수 ${used}개 기준`}</p>
               </GlassPanel>
