@@ -16,6 +16,7 @@
  *
  * 순수 함수입니다. 저장소도 시계도 읽지 않습니다 — 재료는 digest.ts 가 모아서 넘깁니다.
  */
+import { josa } from '../../poker/ko';
 import { ACTION_SHORT_KO, type ScenarioKind } from '../../poker/types';
 import type { AxisView, CoachDigest, CoachMistake, PatternHit } from './types';
 
@@ -73,7 +74,7 @@ JSON 배열 **하나만** 출력해라. 설명도, 코드 펜스도, 앞뒤 인�
 - 나쁜 예 title: "BTN RFI는 48% 레인지입니다"
 - 좋은 예 title: "뒷자리에서 너무 좁게 오픈해요"
 - 나쁜 예 steps: ["AJo는 UTG에서 폴드입니다"]
-- 좋은 예 steps: ["CO·BTN 뒤에는 두세 명뿐이에요", "뒤에 남은 사람이 적을수록 넓게 쳐요", "이 패를 UTG라고 생각하고 접은 건 아닌가요?"]
+- 좋은 예 steps: ["CO·BTN 뒤에는 두세 명뿐이에요", "그만큼 3벳을 덜 받아 넓게 오픈해요", "이 패를 UTG라고 생각하고 접은 건 아닌가요?"]
 
 ---`;
 
@@ -105,7 +106,7 @@ const OUTPUT_PLAIN = `
 - 나쁜 예: "BTN RFI는 48% 레인지입니다"
 - 좋은 예: "뒷자리에서 너무 좁게 오픈해요"
 - 나쁜 예: "AJo는 UTG에서 폴드입니다"
-- 좋은 예: "CO·BTN 뒤에는 두세 명뿐이에요. 뒤에 남은 사람이 적을수록 넓게 쳐요. 이 패를 UTG라고 생각하고 접은 건 아닌가요?"
+- 좋은 예: "CO·BTN 뒤에는 두세 명뿐이에요. 그만큼 3벳을 덜 받아 넓게 오픈해요. 이 패를 UTG라고 생각하고 접은 건 아닌가요?"
 
 ---`;
 
@@ -202,7 +203,8 @@ function axesSection(axes: AxisView[]): string {
     return `- ${a.koLabel} — ${where}. 실수 ${a.sample}개로 재 봤어요.`;
   });
   const headline = axes.find((a) => a.headline);
-  if (headline) lines.push(`- 가장 크게 기운 축은 '${headline.koLabel}'이에요. 이 사람 이야기의 중심으로 삼으세요.`);
+  // 조사는 축 이름의 끝소리로 고릅니다 — '타이트 ↔ 루즈'이에요(✗) / '타이트 ↔ 루즈'예요(○).
+  if (headline) lines.push(`- 가장 크게 기운 축은 '${headline.koLabel}'${josa(headline.koLabel, '이에요/예요').slice(headline.koLabel.length)}. 이 사람 이야기의 중심으로 삼으세요.`);
   else lines.push('- 한 축만 골라 단정할 만큼 기운 축은 없어요.');
   return `## 내 성향 (출제 편향을 보정한 값)\n${lines.join('\n')}`;
 }

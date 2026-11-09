@@ -74,7 +74,10 @@ function everyCoachString(): Array<[string, string]> {
     out.push([`${r.id} koName`, r.koName]);
     r.advice.forEach((a, i) => out.push([`${r.id} advice${i}`, a]));
   }
-  for (const a of computeAxes([], [])) a.poles.forEach((p, i) => out.push([`${a.id} pole${i}`, p]));
+  for (const a of computeAxes([], [])) {
+    out.push([`${a.id} koLabel`, a.koLabel]);
+    a.poles.forEach((p, i) => out.push([`${a.id} pole${i}`, p]));
+  }
   for (const id of AXES) ABOUT[id].forEach((l, i) => out.push([`ABOUT ${id}${i}`, l]));
   for (const b of BASICS) out.push([`BASICS title`, b.title], [`BASICS line`, b.line], [`BASICS cta`, b.cta]);
   out.push(['BASICS_HEADING', BASICS_HEADING], ['BASICS_NOTE', BASICS_NOTE]);
@@ -219,6 +222,12 @@ describe('코치 문구가 차트에 대해 하는 말', () => {
         expect(early, `${openers[i - 1]} vs ${openers[i]} (3벳 ${threebettor})`).toBeLessThanOrEqual(late + 1e-9);
         pairs += 1;
       }
+      // 이웃끼리는 같을 수 있어도(UTG·HJ) '일수록'이 빈말이 되지 않게, 맨 앞자리와 맨 뒷자리는 실제로 달라야 합니다.
+      if (openers.length >= 2) {
+        const first = share(scen('vs_3bet', openers[0], threebettor), 'fourbet');
+        const last = share(scen('vs_3bet', openers[openers.length - 1], threebettor), 'fourbet');
+        expect(first, `${openers[0]} vs ${openers[openers.length - 1]} (3벳 ${threebettor})`).toBeLessThan(last);
+      }
     }
     expect(pairs).toBeGreaterThan(5);
   });
@@ -239,9 +248,32 @@ describe('코치 문구가 차트에 대해 하는 말', () => {
     }
   });
 
-  it("'자리가 뒤일수록 들어갈 패가 늘어요' · '3벳을 덜 받아 넓게 오픈해요' — 오픈 폭 UTG < HJ < CO < BTN", () => {
+  it("'UTG에서 BTN으로 갈수록 오픈이 넓어져요' · '3벳을 덜 받아 넓게 오픈해요' — 오픈 폭 UTG < HJ < CO < BTN", () => {
     const widths = (['UTG', 'HJ', 'CO', 'BTN'] as Pos[]).map((p) => share(scen('rfi', p), 'raise'));
     for (let i = 1; i < widths.length; i += 1) expect(widths[i]).toBeGreaterThan(widths[i - 1]);
+    // entry 축은 SB 의 실수도 셉니다. SB 까지 덮는 '자리가 뒤일수록'은 쓰지 않습니다(SB 는 BTN 보다 넓지 않아요).
+    const steps = localCoach(digest({ axes: [axisView('entry', -0.8)] }))[0].steps;
+    expect(steps).toContain('UTG에서 BTN으로 갈수록 오픈이 넓어져요.');
+    expect(everyRuleCard().flatMap((c) => c.steps).filter((s) => /자리가 뒤일수록|뒤에 남은 사람이 적을수록/.test(s))).toEqual([]);
+  });
+
+  it("근거 시트의 aggression 설명 '틀린 두 답 중 더 공격적인 쪽' — 3벳이 정답인데 콜하면 공격 쪽(+1)으로 센다", () => {
+    expect(ABOUT.aggression.join(' ')).toContain('더 공격적인 쪽');
+    const ms: CoachMistake[] = Array.from({ length: 12 }, (_, i) => ({
+      hand: `K${'98765432'[i % 8]}s`,
+      handClass: 'suited_king',
+      kind: 'vs_open',
+      hero: 'BTN',
+      villain: (['UTG', 'HJ', 'CO'] as Pos[])[i % 3],
+      ip: true,
+      answer: 'threebet',
+      chosen: 'call',
+      daysAgo: 0,
+      src: 'quiz',
+      key: `vs_open:BTN:${(['UTG', 'HJ', 'CO'] as Pos[])[i % 3]}|K${'98765432'[i % 8]}s`,
+    }) as CoachMistake);
+    const aggression = computeAxes(ms, []).find((a) => a.id === 'aggression')!;
+    expect(aggression.t).toBe(1);
   });
 
   it("late_seat_tight '오프수트 브로드웨이와 낮은 수티드가 늘어요' — CO·BTN 이 UTG 보다 둘 다 많이 오픈한다", () => {

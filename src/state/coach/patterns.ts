@@ -344,12 +344,13 @@ export const PATTERN_RULES: PatternRule[] = [
     /**
      * 이 규칙은 SB 오픈도 잡습니다. 질문에 'BTN에서 열었어도'처럼 한 자리를 박으면 상대가 이미 BTN 이었던
      * 실수에는 말이 안 되므로, 상대 오픈의 폭으로 묻습니다(책 5장 5절: 상대 범위가 넓을수록 넓게 지켜요).
+     * '넓었어도 폴드했을까요?' 같은 반사실 질문도 같은 이유로 쓰지 않습니다 — 상대가 BTN·SB 면 오픈이 실제로 넓었습니다.
      */
     match: (m) => m.hero === 'BB' && m.kind === 'vs_open' && m.answer !== 'fold' && m.chosen === 'fold',
     advice: [
       'BB는 이미 낸 돈이 있어 싸게 봐요.',
       '상대가 어느 자리에서 오픈했는지 봐요.',
-      '상대 오픈이 넓었어도 폴드했을까요?',
+      '상대 오픈 폭까지 보고 폴드했나요?',
     ],
     drillFor: deckDrill('vs_open', fixed(['BB'])),
   },
@@ -365,7 +366,7 @@ export const PATTERN_RULES: PatternRule[] = [
     match: (m) => m.handClass === 'offsuit_ace' && m.answer === 'fold' && m.chosen !== 'fold',
     advice: [
       '높은 카드가 A 하나뿐인 패예요.',
-      'A를 맞혀도 킥커에서 지는 일이 많아요.',
+      'A를 맞춰도 킥커에서 지는 일이 많아요.',
       '상대도 A를 들었을 때 이기나요?',
     ],
     drillFor: quizDrill,

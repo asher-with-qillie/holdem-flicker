@@ -152,6 +152,18 @@ describe('buildPrompt', () => {
     expect(record).toContain('실수 8개');
   });
 
+  it("가장 크게 기운 축 이름 뒤 조사를 끝소리로 고른다 — '수동 ↔ 공격'이에요 · '타이트 ↔ 루즈'예요", () => {
+    expect(recordPart(buildPrompt(digest(42)))).toContain("가장 크게 기운 축은 '수동 ↔ 공격'이에요.");
+    const d = digest(42);
+    d.axes = [
+      axis({ id: 'aggression', koLabel: '수동 ↔ 공격', poles: ['콜·폴드 쪽으로 새요', '레이즈·3벳 쪽으로 새요'] }),
+      axis({ id: 'entry', koLabel: '타이트 ↔ 루즈', poles: ['들어갈 자리에서도 폴드해요', '폴드할 자리에 들어가요'], t: 0.5, z: 3, sample: 30, need: 0, unlocked: true, level: 'confident', pole: '폴드할 자리에 들어가요', headline: true }),
+    ];
+    const record = recordPart(buildPrompt(d));
+    expect(record).toContain("가장 크게 기운 축은 '타이트 ↔ 루즈'예요.");
+    expect(record).not.toContain('루즈\'이에요');
+  });
+
   it('사람이 읽는 표로 최근 실수를 적는다', () => {
     const record = recordPart(buildPrompt(digest(42)));
     expect(record).toContain('| 손패 | 상황 | 내 자리 | 정답 | 내 선택 | 언제 |');
