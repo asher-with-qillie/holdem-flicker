@@ -177,6 +177,12 @@ export function splitTerms(text: string): Piece[] {
 
 /* ---- components ---- */
 
+/**
+ * '18%만'처럼 % 뒤에 조사가 붙으면, keep-all 이어도 브라우저가 % 와 한글 사이에서 줄을 바꿀 수 있어요(% 는 글자가 아니라서).
+ * 보이지 않는 단어 잇기(U+2060)로 붙여 둡니다. '18%' 줄 끝 · '만 오픈해요' 다음 줄처럼 갈라지지 않게.
+ */
+const glue = (t: string) => t.replace(/%(?=[가-힣])/g, '%\u2060');
+
 export function PlainText({ text, className }: { text: string; className?: string }) {
   const scope = useContext(TermScopeCtx);
   const pieces = resolveTerms(text, scope);
@@ -198,10 +204,10 @@ export function PlainText({ text, className }: { text: string; className?: strin
           </button>
         ) : p.glossed ? (
           <span key={i} className="term-plain">
-            {p.text}
+            {glue(p.text)}
           </span>
         ) : (
-          <Fragment key={i}>{p.text}</Fragment>
+          <Fragment key={i}>{glue(p.text)}</Fragment>
         ),
       )}
       <TermPopoverHost />
