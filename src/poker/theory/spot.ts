@@ -156,7 +156,7 @@ export function spotReason(s: Scenario): SpotReason {
             : v === 'UTG'
               ? '3벳은 강한 패부터 차례로(선형) 하되, UTG 상대로는 HJ의 3벳(최대 약 8%)보다 조금만 넓게 해요'
               : '3벳은 강한 패부터 차례로(선형) 하고, HJ가 UTG보다 넓게 오픈하는 만큼 UTG를 상대할 때보다 넓게 해요';
-        diff = `책의 균형 전략은 ${josa(h, '이/가')} 앞자리 오픈에 콜 없이 3벳 아니면 폴드로 대응하고, ${width}. 이 차트는 콜을 ${pct(C)} 섞어요.`;
+        diff = `책의 균형 전략에서 ${josa(h, '은/는')} 앞자리 오픈에 콜 없이 3벳 아니면 폴드로 대응해요. ${width}. 이 차트는 콜을 ${pct(C)} 섞어요.`;
       }
       break;
     }
@@ -214,7 +214,9 @@ export function spotReason(s: Scenario): SpotReason {
       break;
     }
     case 'cold_4bet': {
-      lines.push(`${h} 앞에서 이미 오픈과 3벳이 나왔어요. 콜하면 내 패 정보가 새고, 4벳이었다면 폴드했을 다른 사람들이 싸게 따라올 수 있어요.`);
+      // BB 뒤에는 아무도 없어요 — 싸게 따라올 수 있는 건 오픈한 사람뿐이에요(교차 검토).
+      const followers = h === 'BB' ? '오픈한 사람이' : '다른 사람들이';
+      lines.push(`${h} 앞에서 이미 오픈과 3벳이 나왔어요. 콜하면 내 패 정보가 새고, 4벳이었다면 폴드했을 ${followers} 싸게 따라올 수 있어요.`);
       lines.push(`그래서 콜은 거의 하지 않고 4벳(약 ${pct(F)}) 아니면 폴드로 정리해요.`);
       ids = ['cold-4bet', 'fourbet-polar', 'blockers'];
       diff = `책은 콜드 4벳을 상대가 타이트하면 약 3%, 넓으면 약 6%로 둬요. 이 차트는 약 ${pct(F)}로 더 좁아요.`;
