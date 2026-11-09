@@ -1,7 +1,8 @@
 import { Fragment, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Explanation } from '../poker/explain';
 import type { Step } from '../poker/trainer';
-import type { Action, ScenarioKind } from '../poker/types';
+import type { Action, Scenario, ScenarioKind } from '../poker/types';
+import { PRINCIPLES, type PrincipleId } from '../poker/theory/principles';
 import { useSettings } from '../state/settings';
 import { actionLabel } from './ActionBadge';
 import { LineCapsule, LineStrip } from './LineStrip';
@@ -103,6 +104,73 @@ function SeatNumbers({ seat }: { seat: Explanation['seat'] }) {
 }
 
 /**
+ * 왜 이렇게 칠까 (docs/THEORY_SPEC.md §2.2 ②) — 자리 이유 · 숫자 · 이 패 이유 · 원리 칩 · 책과 다른 점.
+ * 칩을 누르면 그 원리 카드(본문 + 이 상황의 숫자 + 책 위치)가 칩 줄 아래에 펼쳐져요. 한 번에 한 장만.
+ */
+export function WhyBlock({ why, scenario }: { why: Explanation['why']; scenario: Scenario }) {
+  const [open, setOpen] = useState<PrincipleId | null>(null);
+  const card = open ? PRINCIPLES[open] : null;
+  const cardNums = card?.numbers?.(scenario) ?? null;
+  return (
+    <section className="ui-why" aria-label="왜 이렇게 칠까">
+      <h3 className="ui-explain__h">왜 이렇게 칠까</h3>
+      <p className="ui-why__spot">
+        <PlainText text={why.spot.text} />
+      </p>
+      {why.spot.numbers && (
+        <p className="ui-why__nums tnum">
+          <PlainText text={why.spot.numbers} />
+        </p>
+      )}
+      {why.hand && (
+        <p className="ui-why__hand">
+          <b className="ui-why__label">이 패</b>
+          <PlainText text={why.hand} />
+        </p>
+      )}
+      {why.principles.length > 0 && (
+        <div className="ui-why__chips" role="group" aria-label="책의 원리">
+          {why.principles.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className="ui-why__chip"
+              aria-expanded={open === id}
+              aria-controls="why-card"
+              onClick={() => setOpen((cur) => (cur === id ? null : id))}
+            >
+              <span className="ui-why__chip-k" aria-hidden="true">
+                책
+              </span>
+              {PRINCIPLES[id].chip}
+            </button>
+          ))}
+        </div>
+      )}
+      {card && (
+        <div id="why-card" className="ui-why__card" role="region" aria-label={card.chip}>
+          <p>
+            <PlainText text={card.body} />
+          </p>
+          {cardNums && (
+            <p className="ui-why__nums tnum">
+              <PlainText text={cardNums} />
+            </p>
+          )}
+          <p className="ui-why__ref">{card.ref}</p>
+        </div>
+      )}
+      {why.bookDiff.length > 0 && (
+        <p className="ui-why__diff">
+          <b className="ui-why__label">책과 다른 점</b>
+          <PlainText text={why.bookDiff.join(' ')} />
+        </p>
+      )}
+    </section>
+  );
+}
+
+/**
  * 해설 본문 (docs/EXPLAIN_SPEC.md §4.1). 위에서부터:
  *   ① 줄 블록 — 답 캡슐(md), `이 줄 · 오프수트 K`, 줄 스트립(md), 줄 문장(리빌과 글자까지 같음)
  *   ② 형제 줄 문장 ③ 섞는 비율 칩 + 부분 정답 문장
@@ -189,16 +257,13 @@ export function ExplanationBody({ step, explanation, onAcross, variant = 'sheet'
               </p>
             )}
 
+            <WhyBlock why={e.why} scenario={step.scenario} />
+
             <section className="ui-explain__seat">
               <h3 className="ui-explain__h">
                 자리 <small>전체 패 기준</small>
               </h3>
               <SeatNumbers seat={e.seat} />
-              {e.seat.lever && (
-                <p className="ui-explain__lever">
-                  <PlainText text={e.seat.lever} />
-                </p>
-              )}
             </section>
           </>,
         )}

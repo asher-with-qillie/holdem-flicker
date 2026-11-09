@@ -1,9 +1,9 @@
 import { writeFileSync } from 'node:fs';
-import { ALL_CHART_DEFS } from '../src/poker/data/index.ts';
-import { explainStep } from '../src/poker/explain.ts';
-import { stepFor } from '../src/poker/trainer.ts';
-import { isReachable, handAtlas, rfiThesis, sectionDigest, sectionDigestDetail } from '../src/poker/atlas.ts';
-import { ALL_HANDS } from '../src/poker/hands.ts';
+import { ALL_CHART_DEFS } from '../src/poker/data/index';
+import { explainStep } from '../src/poker/explain';
+import { stepFor } from '../src/poker/trainer';
+import { isReachable, handAtlas, rfiThesis, sectionDigest, sectionDigestDetail } from '../src/poker/atlas';
+import { ALL_HANDS } from '../src/poker/hands';
 const OUT = process.argv[2];
 const rows: string[] = ['chart\thand\tcapsule\tline\tsibling\tpartial\tnumbers\tlever\tacross\tmemo\texample\tdisclaimer'];
 const clean = (s: unknown) => (s == null ? '' : String(s).replace(/\t|\n/g, ' '));

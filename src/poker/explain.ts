@@ -8,7 +8,11 @@ import { heroInPosition } from './scenarios';
 import type { Step } from './trainer';
 import type { AtlasCell, Line } from './atlas';
 import { POS_INDEX, type Action, type Card, type ChartCells, type Pos, type Scenario, type ScenarioKind } from './types';
-import { DISCLAIMER } from '../screens/charts/disclaimer'; // 순수 문자열 표 — 차트 탭·자리별 보기와 같은 원문을 씁니다.
+import { DISCLAIMER } from '../screens/charts/disclaimer';
+import { spotReason } from './theory/spot';
+import { handReason } from './theory/handReason';
+import { cellDiff } from './theory/bookDiff';
+import type { PrincipleId } from './theory/principles'; // 순수 문자열 표 — 차트 탭·자리별 보기와 같은 원문을 씁니다.
 
 /*
  * 해설 조립기. docs/EXPLAIN_SPEC.md §6.2 · docs/PLAIN_KO_STYLE.md(v3).
@@ -110,6 +114,17 @@ export interface Explanation {
   more: { memo: string | null; example: string | null };
   /** vs_limp → DISCLAIMER.vs_limp */
   disclaimer: string | null;
+  /**
+   * 왜 이렇게 칠까 — 책(MPT)의 원리로 든 이유(docs/THEORY_SPEC.md §2.2 ②).
+   * spot: 이 상황의 이유 한두 문장과 숫자 한 줄. hand: 이 패 가족의 이유 한 문장(키에 문장이 없으면 null).
+   * principles: 원리 칩(자리 이유 → 이 패 이유 순, 중복 없이 최대 3개). bookDiff: 책과 다른 점(상황 → 이 패 → 이 칸).
+   */
+  why: {
+    spot: { text: string; numbers: string | null };
+    hand: string | null;
+    principles: PrincipleId[];
+    bookDiff: string[];
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -365,7 +380,20 @@ export function explainStep(step: Step, orientation: SuitOrientation = 'spade'):
     across: acrossRow(s, hand),
     more: orientation === 'diamond' ? mirrorSuits(more) : more,
     disclaimer: s.kind === 'vs_limp' ? DISCLAIMER.vs_limp : null,
+    why: whyOf(step),
   };
+}
+
+function whyOf(step: Step): Explanation['why'] {
+  const { scenario: s, hand } = step;
+  const spot = spotReason(s);
+  const hr = handReason(s, hand, step.mix);
+  const principles: PrincipleId[] = [];
+  for (const id of [...spot.principles.slice(0, 2), ...(hr?.principles ?? []), ...spot.principles.slice(2)]) {
+    if (!principles.includes(id) && principles.length < 3) principles.push(id);
+  }
+  const diffs = [spot.bookDiff, hr?.bookDiff ?? null, cellDiff(step.chart.id, hand)].filter((x): x is string => !!x);
+  return { spot: { text: spot.lines.join(' '), numbers: spot.numbers }, hand: hr?.text ?? null, principles, bookDiff: [...new Set(diffs)] };
 }
 
 export { fullMix };

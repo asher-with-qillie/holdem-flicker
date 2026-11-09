@@ -84,7 +84,11 @@ export function emWidth(text: string): number {
  * 부분 정답·예시·캡슐·atlas Line·gateText·상황 문구·용어 풀이·면책 문구에 전부 겁니다.
  * 문장 안 괄호는 필드마다 허용 여부가 달라 여기 넣지 않습니다(차트 메모는 괄호 풀이를 씁니다).
  */
-export const BANNED: RegExp[] = [
+/**
+ * 말투 금지 표현 — 학습자가 읽는 모든 문장(리빌 · 시트 · 원리 카드 · 메모 · 요약 · 용어집).
+ * 책에 없는 말('셋마이닝'), 책이 쓰지 않는 외래어('리니어', '폴라')도 여기서 막습니다(docs/THEORY_SPEC.md §8).
+ */
+export const BANNED_STYLE: RegExp[] = [
   // 명령형
   /하세요/,
   /쓰세요/,
@@ -135,7 +139,21 @@ export const BANNED: RegExp[] = [
   /근사치/,
   // 조사와 주어가 안 맞는 꼴('폴드도 반반') — 옛 readability 테스트에서 옮겼습니다.
   /폴드도 반반/,
-  // 숫자 · 이론
+  // 책에 없는 말 · 책이 쓰지 않는 외래어
+  /셋마이닝/,
+  /리니어/,
+  /폴라(?!이즈)/,
+  // 기호
+  /!/,
+  /👍|👎/,
+  /[\u{1F300}-\u{1FAFF}]/u,
+];
+
+/**
+ * 숫자 · 이론 금지 — 리빌 줄 문장처럼 짧게 남아야 하는 문장에만(v3 §2.6). 해설 시트의 '왜'(자리 이유 · 원리 카드),
+ * 메모, 요약은 책처럼 필요 승률 · 팟 · bb · SPR 을 씁니다(THEORY_SPEC §8).
+ */
+export const BANNED_NUMBERS: RegExp[] = [
   /필요 승률/,
   /팟 오즈/,
   /SPR/,
@@ -144,13 +162,12 @@ export const BANNED: RegExp[] = [
   /c-bet/,
   /체크-레이즈/,
   /\d+\.\d+%/,
-  // 기호
-  /!/,
-  /👍|👎/,
-  /[\u{1F300}-\u{1FAFF}]/u,
 ];
 
-/** 걸린 금지 표현들(없으면 빈 배열). 테스트 메시지용. */
-export function bannedHits(text: string): string[] {
-  return BANNED.filter((re) => re.test(text)).map((re) => re.source);
+/** 리빌 · 줄 문장용 전체 목록(말투 + 숫자). */
+export const BANNED: RegExp[] = [...BANNED_STYLE, ...BANNED_NUMBERS];
+
+/** 걸린 금지 표현들(없으면 빈 배열). 테스트 메시지용. style = 말투만(시트의 '왜' · 메모 · 요약 · 용어집). */
+export function bannedHits(text: string, scope: 'all' | 'style' = 'all'): string[] {
+  return (scope === 'style' ? BANNED_STYLE : BANNED).filter((re) => re.test(text)).map((re) => re.source);
 }

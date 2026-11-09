@@ -85,6 +85,37 @@
 .ui-explain__nums b { color: var(--ink); font-weight: 700; }
 .ui-explain .ui-explain__lever { font-size: var(--fs-callout); line-height: var(--lh-callout); }
 
+/* ② 왜 이렇게 칠까 (THEORY_SPEC §2.2) — 자리 이유 · 숫자 · 이 패 · 원리 칩 → 카드 · 책과 다른 점 */
+.ui-why { display: flex; flex-direction: column; gap: 8px; }
+.ui-explain .ui-why__spot { font-size: var(--fs-callout); line-height: var(--lh-callout); color: var(--ink); }
+.ui-explain .ui-why__nums { font-size: var(--fs-subhead); line-height: var(--lh-subhead); color: var(--ink-2); }
+.ui-explain .ui-why__hand { font-size: var(--fs-callout); line-height: var(--lh-callout); color: var(--ink); }
+.ui-why__label {
+  display: block; margin-bottom: 2px; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 700;
+  letter-spacing: 0.04em; color: color-mix(in srgb, var(--mint) 88%, var(--ink-2));
+}
+.ui-why__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* 칩은 44px 터치 높이: 보이는 알약은 32px, 위아래 6px 를 눌리는 영역으로 */
+.ui-why__chip {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; height: 32px; margin: 6px 0; padding: 0 12px 0 6px;
+  border: 0; border-radius: var(--r-capsule); color: var(--ink); font-size: var(--fs-footnote); font-weight: 600; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14); -webkit-tap-highlight-color: transparent;
+}
+.ui-why__chip::after { content: ''; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
+.ui-why__chip[aria-expanded='true'] { background: color-mix(in srgb, var(--mint) 22%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mint) 60%, transparent); }
+.ui-why__chip:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.ui-why__chip-k {
+  display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  font-size: 11px; font-weight: 800; color: #0b1a14; background: var(--mint);
+}
+.ui-why__card {
+  display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12); animation: term-pop-in 160ms var(--ease-out);
+}
+.ui-explain .ui-why__card p { font-size: var(--fs-subhead); line-height: 1.6; color: var(--ink-2); }
+.ui-explain .ui-why__card .ui-why__ref { font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--ink-3); }
+.ui-explain .ui-why__diff { font-size: var(--fs-subhead); line-height: var(--lh-subhead); color: var(--ink-2); }
+
 /* ⑥ 이 패, 다른 자리에서는 › — 블록 전체가 버튼(자리별 보기). 타일 한 줄 + 자리 문장 */
 .ui-explain__across {
   display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%; margin: 0; padding: 12px;
@@ -133,7 +164,7 @@ button.seatchips:focus-visible { outline: 2px solid var(--mint); outline-offset:
 .mixchips__chip i { width: 6px; height: 6px; border-radius: 50%; }
 
 @media (prefers-reduced-motion: reduce) {
-  .term-pop, .ui-explain__more-body { animation: none; }
+  .term-pop, .ui-explain__more-body, .ui-why__card { animation: none; }
   .ui-explain__more-btn svg { transition: none; }
 }
 .ui-explain__pair { white-space: nowrap; }
