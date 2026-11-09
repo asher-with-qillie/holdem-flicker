@@ -117,6 +117,13 @@ describe('자리 이유(spot.ts) — 차트에 대해 단정하는 말', () => {
   it('칸 단위 책과 다른 점은 그 칸의 실제 답을 말해요', () => {
     expect(fullMix(getChartCells({ kind: 'vs_open', hero: 'BB', villain: 'UTG' }).A9o)[0]).toEqual({ action: 'call', weight: 1 });
     expect(fullMix(getChartCells({ kind: 'vs_open', hero: 'BB', villain: 'UTG' }).K2s).find((m) => m.action === 'call')?.weight).toBe(0.5);
+    // 책 BN 범위는 A4o+ · K8o+ — 그 아래인 A3o · A2o · K7o 를 차트는 늘 오픈합니다
+    for (const h of ['A3o', 'A2o', 'K7o']) expect(fullMix(getChartCells({ kind: 'rfi', hero: 'BTN' })[h])[0], h).toEqual({ action: 'raise', weight: 1 });
+    // 칸 키는 실제 차트와 패여야 하고, 문장이 그 패를 이름으로 듭니다
+    for (const [k, t] of Object.entries(CELL_DIFFS)) {
+      const hand = k.split(':').pop()!;
+      expect(t, k).toContain(hand);
+    }
     for (const t of Object.values(CELL_DIFFS)) expect(bannedHits(t, 'style'), t).toEqual([]);
   });
 });
