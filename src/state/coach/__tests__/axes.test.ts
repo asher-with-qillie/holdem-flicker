@@ -283,7 +283,7 @@ describe('감도 — aggression', () => {
     expect(a.t).toBeLessThan(-0.4);
     expect(a.z).toBeLessThan(-2.2);
     expect(a.level).toBe('confident');
-    expect(a.pole).toBe('콜·폴드 쪽으로 샌다');
+    expect(a.pole).toBe('콜·폴드 쪽으로 새요');
   });
 
   it('공격 플레이어는 t 가 뚜렷한 양수이고 z 가 +2.2 위다', () => {
@@ -294,7 +294,7 @@ describe('감도 — aggression', () => {
     expect(a.t).toBeGreaterThan(0.4);
     expect(a.z).toBeGreaterThan(2.2);
     expect(a.level).toBe('confident');
-    expect(a.pole).toBe('레이즈·3벳 쪽으로 샌다');
+    expect(a.pole).toBe('레이즈·3벳 쪽으로 새요');
   });
 
   it('소극·공격 플레이어는 entry 를 움직이지 않는다 (축이 직교한다)', () => {
@@ -319,7 +319,7 @@ describe('감도 — entry', () => {
     expect(entry.t).toBeLessThan(-0.3);
     expect(entry.z).toBeLessThan(-2.2);
     expect(entry.level).toBe('confident');
-    expect(entry.pole).toBe('접어야 할 자리는 잘 접는다');
+    expect(entry.pole).toBe('들어갈 자리에서도 폴드해요');
 
     expect(Math.abs(aggression.t ?? 1)).toBeLessThan(0.25);
     expect(aggression.level).not.toBe('confident');
@@ -339,7 +339,7 @@ describe('감도 — entry', () => {
 
       expect(entry.unlocked).toBe(true);
       expect(entry.t).toBeGreaterThan(0);
-      expect(entry.pole).toBe('접어야 할 자리에 들어간다');
+      expect(entry.pole).toBe('폴드할 자리에 들어가요');
       expect(Math.abs(aggression.t ?? 1)).toBeLessThan(0.25);
 
       tSum += entry.t ?? 0;
@@ -465,7 +465,7 @@ describe('폴드 쪽으로 쏠린 출제 풀 — 이 설계 전체의 존재 이
     const { m, seen } = simulate(makeRng(7001), SKEWED, TIGHT, 900);
     const entry = axisOf(computeAxes(m, seen), 'entry');
     expect(entry.t).toBeLessThan(-0.3);
-    expect(entry.pole).toBe('접어야 할 자리는 잘 접는다');
+    expect(entry.pole).toBe('들어갈 자리에서도 폴드해요');
   });
 });
 

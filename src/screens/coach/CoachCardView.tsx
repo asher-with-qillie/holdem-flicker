@@ -59,7 +59,7 @@ export function CoachCardView({ card, rank, accent, primary }: CoachCardViewProp
       </header>
       <p className="coach-card__ev tnum">{card.evidence}</p>
       <hr className="coach-card__rule" />
-      <p className="coach-card__steps-label">이렇게 생각하세요</p>
+      <p className="coach-card__steps-label">이렇게 생각해 봐요</p>
       <ul className="coach-card__steps">
         {card.steps.map((s) => (
           <li key={s}>{s}</li>

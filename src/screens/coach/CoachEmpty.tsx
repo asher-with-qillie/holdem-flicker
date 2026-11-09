@@ -24,37 +24,49 @@ export const AXIS_GATE = 12;
 /** 집중 포인트를 세 장까지 여는 실수 수. 빈 화면의 목표치로도 씁니다. */
 export const FULL_GATE = 20;
 
-interface Basic {
+export interface Basic {
   title: string;
   line: string;
   cta: string;
   go(): void;
 }
 
-const BASICS: Basic[] = [
+/**
+ * 기본기 카드 3장. 책(Modern Poker Theory 노트)이 강조하는 원리를 원리 카드(src/poker/theory/principles.ts)에서
+ * 골라 코치 탭 말투로 줄였습니다(docs/THEORY_SPEC.md §2.6). 코치 문구라 필요 승률 · bb 금액 · '에퀴티'는 쓰지 않습니다
+ * (claims.test.ts 가 BANNED 와 코치 금지어로 확인).
+ */
+export const BASICS: readonly Basic[] = [
   {
-    // 책 5장 「자리별 처음 레이즈」: 오픈 폭의 한계는 3벳을 받았을 때 방어할 수 있느냐로 정해져요.
+    // 원리 카드 seats-behind — 책 5장 2절 · 4장 6절 변수 4. '3벳을 받아도 지킬 수 있는 패만'이라고 하면
+    // 패 단위로 읽혀 거짓이 됩니다(UTG 차트에도 3벳에 폴드하는 ATo · 작은 페어가 있어요). 책의 말은 범위 단위예요.
     title: '앞자리와 뒷자리는 다른 게임이에요',
-    line: 'UTG 뒤에는 다섯 명이 남아 3벳을 받을 위험이 커서, 받아도 버틸 수 있는 패만 열어요.',
+    line: 'UTG는 뒤에 다섯 명이 남아 누군가 3벳할 확률이 커요. 그래서 3벳을 받아도 지킬 수 있는 만큼만 오픈해요.',
     cta: '앞자리로 훈련',
     go: () => launch({ target: 'train', deck: 'rfi', positions: ['UTG', 'HJ'], autostart: true }),
   },
   {
-    // 책 5장 BB 방어: 이미 낸 1bb 덕분에 필요 승률이 낮지만, 포지션이 없어 에퀴티를 다 실현하지 못해요.
-    // SB 오픈에는 BB 가 포지션을 가지므로 '대개'로 둡니다.
-    title: 'BB는 싸게 보지만 대개 먼저 액션해요',
-    line: 'BB는 1.5bb만 더 내면 돼서 필요 승률이 낮지만, 포지션이 없어 에퀴티를 다 실현하지는 못해요.',
+    // 원리 카드 bb-price · realization — 책 5장 5절 BB 방어, 1장 1절(플랍부터는 SB·BB가 먼저 행동), 1장 10절
+    // (상대 베팅에 밀려 접거나…). 프리플랍에는 BB가 마지막이라 '플랍부터'를 붙이고, SB 오픈에는 BB 가 포지션을
+    // 가지므로 '대개'로 둡니다. 콜 금액(1.5bb)은 SB 오픈에는 2bb 라 숫자를 쓰지 않습니다.
+    title: 'BB는 싸게 보지만 플랍부터는 대개 먼저 액션해요',
+    line: '이미 낸 돈이 있어 콜이 싸지만, 포지션이 없으면 상대 베팅에 밀려 폴드하는 일이 많아요.',
     cta: 'BB 수비 훈련',
     go: () => launch({ target: 'train', deck: 'vs_open', positions: ['BB'], autostart: true }),
   },
   {
-    // 책 5장 6절: "같은 핸드도 상대의 범위와 포지션에 따라 정답이 달라진다" — A9o(폴드)와 K2s(콜)의 예.
+    // 원리 카드 bb-vs-opener · domination · realization — 책 5장 5절: "같은 핸드라도 상대의 범위와 포지션에 따라
+    // 정답이 달라진다". 책의 예(A9o 폴드)는 이 앱 차트와 달라(BB 가 UTG 에게 A9o 를 콜해요) 들지 않습니다.
     title: '같은 패도 자리에 따라 값이 달라요',
-    line: '수티드인지, 지배당하기 쉬운지, 상대가 어느 자리에서 열었는지에 따라 같은 패의 답이 바뀌어요.',
+    line: '상대가 어느 자리에서 오픈했는지, 내 패가 수티드인지, 지배당하기 쉬운지에 따라 같은 패도 답이 바뀌어요.',
     cta: '오픈 대응 훈련',
     go: () => launch({ target: 'train', deck: 'vs_open', autostart: true }),
   },
 ];
+
+/** 기본기 카드 묶음의 제목. 빈도 주장('초보가 제일 많이 틀리는')은 근거가 없어 책을 출처로 씁니다. */
+export const BASICS_HEADING = '책이 강조하는 세 가지';
+export const BASICS_NOTE = '내 기록이 아니라 책에서 가져온 이야기예요';
 
 export interface CoachEmptyProps {
   /** stats.total — 퀴즈를 푼 적이 있는가. 문구를 훈련 탭 용어로 쓸지 가르는 기준입니다. */
@@ -74,19 +86,30 @@ export interface CoachEmptyProps {
  *     머리말 각주가 이미 말하므로 여기서는 다음에 할 일만 적습니다.
  *   - 훈련만 한 경우: 노출 모드와 스와이프 평가로는 방향이 기록되지 않으니 '선택 버튼'을 집어 말합니다.
  *   - 퀴즈를 푼 적이 있는 경우: '선택 버튼'은 훈련 탭 용어라 뜻이 안 통합니다. 그냥 더 풀라고 합니다.
+ *
+ * 아무것도 안 한 경우의 목표치는 FULL_GATE — **실수** 수입니다(아래 링도 0 / FULL_GATE). '문제를 20개쯤
+ * 풀면'이라고 쓰면 링과 다른 것을 세게 되고, 20문제로는 축이 열리지도 않습니다.
  */
-export function CoachEmpty({ quizTotal, trials, mistakesStored, reducedMotion }: CoachEmptyProps): JSX.Element {
+export function coachEmptyCopy({ quizTotal, trials, mistakesStored }: Pick<CoachEmptyProps, 'quizTotal' | 'trials' | 'mistakesStored'>): {
+  title: string;
+  sub: string;
+} {
   const mixedOnly = mistakesStored > 0;
   const trainOnly = quizTotal === 0 && trials > 0;
 
   const title = mixedOnly ? '아직 성향이 안 보여요' : '아직 볼 게 없어요';
   const sub = mixedOnly
-    ? '답이 하나인 문제를 풀면 성향이 쌓입니다.'
+    ? '답이 하나인 문제를 풀면 성향이 쌓여요.'
     : trainOnly
-      ? '아직 틀린 게 없어요. 선택 버튼으로 답을 고르면 성향이 쌓입니다.'
+      ? '아직 틀린 게 없어요. 선택 버튼으로 답을 고르면 성향이 쌓여요.'
       : quizTotal > 0
-        ? '아직 틀린 게 없어요. 문제를 더 풀면 성향이 쌓입니다.'
-        : `문제를 ${FULL_GATE}개쯤 풀면 성향이 보입니다`;
+        ? '아직 틀린 게 없어요. 문제를 더 풀면 성향이 쌓여요.'
+        : `틀린 문제가 ${FULL_GATE}개쯤 쌓이면 성향이 보여요`;
+  return { title, sub };
+}
+
+export function CoachEmpty({ quizTotal, trials, mistakesStored, reducedMotion }: CoachEmptyProps): JSX.Element {
+  const { title, sub } = coachEmptyCopy({ quizTotal, trials, mistakesStored });
 
   return (
     <GlassPanel variant="strong" radius="lg" padding={20} className="coach-empty">
@@ -114,11 +137,11 @@ export function CoachEmpty({ quizTotal, trials, mistakesStored, reducedMotion }:
 /** 단계 0~1 내내 남아 있는 고정 카드 3장. */
 export function BasicsCards(): JSX.Element {
   return (
-    <section className="coach-section" aria-label="초보가 제일 많이 틀리는 곳">
+    <section className="coach-section" aria-label={BASICS_HEADING}>
       <header className="coach-sec">
-        <h2 className="t-title-3">초보가 제일 많이 틀리는 곳</h2>
+        <h2 className="t-title-3">{BASICS_HEADING}</h2>
       </header>
-      <p className="coach-basics__note">내 기록이 아니라 일반적인 이야기예요</p>
+      <p className="coach-basics__note">{BASICS_NOTE}</p>
       <div className="coach-stack">
         {BASICS.map((b) => (
           <GlassPanel key={b.title} as="section" className="glass-flat coach-basic" radius="lg" padding={16}>

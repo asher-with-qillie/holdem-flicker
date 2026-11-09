@@ -47,7 +47,11 @@ const BASELINE_FACTOR = 4;
 interface AxisMeta {
   id: AxisId;
   koLabel: string;
-  /** [음수 쪽, 양수 쪽]. SPEC §1 의 '양극' 문구 그대로. */
+  /**
+   * [음수 쪽, 양수 쪽]. 성향 트랙 양 끝과 근거 시트에 그대로 찍히고 AI 프롬프트에도 들어가므로
+   * 화면 말투(해요체)로 씁니다. 두 극 모두 '새는 쪽'(실수의 방향)이어야 합니다 — 한쪽이 옳은 플레이를
+   * 말하면('접어야 할 자리는 잘 접는다') 트랙이 실수와 칭찬을 견주는 것처럼 읽힙니다.
+   */
   poles: [string, string];
   /** 축별 표본 기준. 전역 실수 개수가 아니라 이 축이 실제로 쓴 표본으로 판정합니다. */
   minSample: number;
@@ -65,25 +69,25 @@ const META: AxisMeta[] = [
   {
     id: 'aggression',
     koLabel: '수동 ↔ 공격',
-    poles: ['콜·폴드 쪽으로 샌다', '레이즈·3벳 쪽으로 샌다'],
+    poles: ['콜·폴드 쪽으로 새요', '레이즈·3벳 쪽으로 새요'],
     minSample: 12,
   },
   {
     id: 'entry',
     koLabel: '타이트 ↔ 루즈',
-    poles: ['접어야 할 자리는 잘 접는다', '접어야 할 자리에 들어간다'],
+    poles: ['들어갈 자리에서도 폴드해요', '폴드할 자리에 들어가요'],
     minSample: 20,
   },
   {
     id: 'seat',
     koLabel: '뒷자리에서 좁다 ↔ 앞자리에서 넓다',
-    poles: ['뒷자리(CO·BTN)에서 좁다', '앞자리(UTG·HJ)에서 넓다'],
+    poles: ['뒷자리(CO·BTN)에서 좁아요', '앞자리(UTG·HJ)에서 넓어요'],
     minSample: 12,
   },
   {
     id: 'pressure',
     koLabel: '압박에 접는다 ↔ 압박에 못 접는다',
-    poles: ['3벳·4벳을 맞으면 너무 접는다', '3벳·4벳을 맞고도 못 접는다'],
+    poles: ['3벳·4벳에 폴드가 많아요', '3벳·4벳에 폴드가 적어요'],
     minSample: 12,
   },
 ];
