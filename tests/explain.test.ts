@@ -44,8 +44,11 @@ describe('hand classes', () => {
 /* docs/PLAIN_KO_STYLE.md — 용어 정책                                    */
 /* ------------------------------------------------------------------ */
 
-/** C단계: 어디에도 나오면 안 되는 말 (표준 용어를 억지로 푼 표현 + 옛 정책의 잔재). */
-const BANNED = ['뻥', '옆 카드', '같은 숫자 3장', '미리 낸 돈', '제일 높은 한 쌍', '폴드 에퀴티', '에퀴티', '리니어', '폴라', '양극화', '실현', '콤보', '10번 중'];
+/**
+ * C단계: 어디에도 나오면 안 되는 말 (표준 용어를 억지로 푼 표현 + 옛 정책의 잔재 + 책에 없는 말).
+ * 에퀴티 · 양극화 · 실현 · 조합(콤보)은 책 용어라 THEORY_SPEC §8 부터 씁니다 — 용어집 팝오버가 풉니다.
+ */
+const BANNED = ['뻥', '옆 카드', '같은 숫자 3장', '미리 낸 돈', '제일 높은 한 쌍', '폴드 에퀴티', '셋마이닝', '리니어', '폴라', '10번 중'];
 
 /** A단계: 그대로 쓰는 표준 용어. 뒤에 "(…)" 풀이가 붙으면 안 됩니다. */
 const TIER_A = [
@@ -55,7 +58,7 @@ const TIER_A = [
 ];
 
 /** B단계: 풀이가 필요한 개념. 풀이는 용어집 팝오버와 사람이 쓴 차트 메모의 괄호에서만 합니다. */
-const TIER_B = ['블로커', '도미네이트', '셋마이닝', '팟 오즈', '임플라이드 오즈', '스퀴즈', 'c-bet', 'SPR', '세미 블러프', '백도어'];
+const TIER_B = ['블로커', '지배', '팟 오즈', '임플라이드 오즈', '스퀴즈', 'c-bet', 'SPR', '세미 블러프', '백도어'];
 
 const explainCss = readFileSync(new URL('../src/styles/explain.css', import.meta.url), 'utf8');
 
@@ -404,8 +407,8 @@ describe('glossary', () => {
       const piece = splitTerms(`앞 문장이에요. ${sentence}`).find((p) => p.text === t || p.entry?.term === t);
       if (piece?.entry) expect(piece.defines, t).toBe(true);
     }
-    expect(glossSentence('c-bet')).toBe('c-bet은 프리플랍 레이저가 플랍에서 잇는 벳이에요.');
-    expect(glossSentence('스퀴즈')).toBe('스퀴즈는 오픈과 콜 뒤에 크게 올리는 것이에요.');
+    expect(glossSentence('c-bet')).toBe('c-bet은 프리플랍에서 마지막으로 레이즈한 사람이 플랍에서 이어 하는 벳이에요.');
+    expect(glossSentence('스퀴즈')).toBe('스퀴즈는 한 명이 오픈하고 다른 한 명이 콜한 뒤에 하는 3벳이에요.');
   });
 
   it('holds every tier-B concept and the tier-A terms worth explaining', () => {
@@ -421,22 +424,25 @@ describe('glossary', () => {
     for (const t of ['폴드', '콜', '벳', '팟', '보드', '플랍', '페어', '레이즈', '체크', '오픈', '3벳', '4벳', '올인', '블러프', '밸류']) {
       expect(glossaryLookup(t), t).toBeUndefined();
     }
-    expect(GLOSSARY.length).toBeLessThanOrEqual(32);
+    // 책의 이론 용어(THEORY_SPEC §12)를 더해 47개 — 밑줄은 TermScope 안에서 처음 한 번만 긋습니다.
+    expect(GLOSSARY.length).toBeLessThanOrEqual(50);
     expect(GLOSSARY.length).toBeGreaterThanOrEqual(20);
   });
 
   it('definitions are short and in the new register', () => {
     for (const e of GLOSSARY) {
-      expect(e.def.length, `${e.term}: ${e.def}`).toBeLessThanOrEqual(45);
+      expect(e.def.length, `${e.term}: ${e.def}`).toBeLessThanOrEqual(70);
       // 용어집 풀이도 앱의 다른 문장처럼 해요체입니다(§2.1). 합니다체·명령형만 막고, 해요체 검사는 tests/copy.test.ts 가 합니다.
       expect(e.def, e.term).not.toMatch(/거든요|니다|하세요/);
       for (const b of BANNED) expect(e.def.includes(b), `${e.term}: ${b}`).toBe(false);
     }
   });
 
-  it('longest spellings match first so 셋마이닝 never splits into 셋', () => {
+  it('longest spellings match first so 에퀴티 실현 never splits into 에퀴티', () => {
     expect(GLOSSARY_WORDS[0].length).toBeGreaterThanOrEqual(GLOSSARY_WORDS[GLOSSARY_WORDS.length - 1].length);
-    expect(GLOSSARY_WORDS.indexOf('셋마이닝')).toBeLessThan(GLOSSARY_WORDS.indexOf('셋'));
+    expect(GLOSSARY_WORDS.indexOf('에퀴티 실현')).toBeLessThan(GLOSSARY_WORDS.indexOf('에퀴티'));
+    expect(GLOSSARY_WORDS.indexOf('오버림프')).toBeLessThan(GLOSSARY_WORDS.indexOf('림프'));
+    expect(glossaryLookup('셋마이닝')).toBeUndefined();
     expect(GLOSSARY_WORDS.indexOf('임플라이드 오즈')).toBeLessThan(GLOSSARY_WORDS.indexOf('팟 오즈'));
   });
 

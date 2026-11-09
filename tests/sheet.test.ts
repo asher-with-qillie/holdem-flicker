@@ -99,8 +99,9 @@ describe('sheet: 말투 (§7.2-5)', () => {
     for (const t of Object.values(DISCLAIMER)) for (const x of sentences(t)) if (!/요[.?]$/.test(x)) bad.push(`DISCLAIMER: ${x}`);
     for (const [term] of GLOSS) expect(glossSentence(term)!).toMatch(/(예요|이에요)\.$/);
     expect(bad.slice(0, 20)).toEqual([]);
-    expect(glossSentence('블로커')).toBe('블로커는 내가 그 카드를 들어 상대 조합이 줄어드는 효과예요.');
-    expect(glossSentence('셋마이닝')).toBe('셋마이닝은 셋을 노리고 콜하는 것이에요.');
+    expect(glossSentence('블로커')).toBe('블로커는 내가 쥔 카드 때문에 상대 조합이 줄어드는 효과예요.');
+    expect(glossSentence('지배')).toBe('지배는 같은 카드를 쥔 상대보다 킥커가 낮아, 그 카드를 맞춰도 지는 상태예요.');
+    expect(glossSentence('셋마이닝')).toBeNull();
   });
 
   it('상황 문구 (§5.4)', () => {

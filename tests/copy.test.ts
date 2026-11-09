@@ -36,7 +36,9 @@ const SPOTS: Scenario[] = allScenarios();
 
 describe('copy: 용어집 팝오버 (§2.1 해요체)', () => {
   it('풀이 전부 BANNED 에 걸리지 않는다', () => {
-    const bad = GLOSSARY.flatMap((g) => (banned(g.def).length ? [`${g.term}: ${g.def} ← ${banned(g.def).join(', ')}`] : []));
+    // 용어집은 필요 승률 · 팟 오즈 · SPR 같은 숫자 용어 자체를 풀이하는 곳이라 말투 금지어(BANNED_STYLE)만 봅니다.
+    const styleHits = (t: string) => bannedHits(t, 'style');
+    const bad = GLOSSARY.flatMap((g) => (styleHits(g.def).length ? [`${g.term}: ${g.def} ← ${styleHits(g.def).join(', ')}`] : []));
     expect(bad).toEqual([]);
   });
 
