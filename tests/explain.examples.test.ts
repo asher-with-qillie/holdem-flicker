@@ -13,6 +13,12 @@ import type { Action, Scenario, ScenarioKind } from '../src/poker/types';
  *  [이름]   §3.4 이름 규칙 — 비중 0.5 이하인 칸은 비중어와 함께 이름을 대고, '전부'는 전부 full 일 때만.
  *  [자리]   §4.2-⑥ — '나머지는' → '나머지 자리에서는' + 다수의 비중어, 섞인 자리는 S-c 에서 따로 라벨, 림프 S-0.
  *  [부분]   §4.2-③ — 계속 · rest 반반은 '이 칸은 〈a1〉을 정답으로 쳐요.' ('반반이라 더 공격적인'은 두 계속 액션일 때만).
+ *
+ * 줄 문장의 모호함 고치기(docs/THEORY_SPEC.md §5) 뒤 다시 고정:
+ *  [§5c] 비중어 바로 뒤의 '나머지는' → '그 아래 칸은'(줄 문장) · '다른 자리에서는'(자리 문장).
+ *  [§5d] 'KQo만 오픈하고, KJo는 절반만 오픈해요'의 자기모순 → '늘 오픈하는 건 KQo까지이고, …'.
+ *  [§5g] 'X에서만 폴드해요'는 다른 자리가 무엇을 하는지까지.
+ *  [§5h] 예시는 결정과 맞을 때만(THEORY_SPEC §6.4) — 지배 예시는 폴드·섞기 칸, 셋 확률은 콜·오픈·체크 칸.
  */
 
 /** §3.6 의 스트립 표기: · 유령, ┆ 도달 불가, _ 빈칸, ▌ 경계 막대, ( ) 링, a/b 섞인 칸(1·2순위). */
@@ -75,9 +81,9 @@ const CASES: Case[] = [
     title: 'UTG 오픈 · KJo',
     capsule: '절반만 오픈',
     strip: '· · O (O/F)▌F F F F F F F F F',
-    sentence: 'UTG는 오프수트 K를 KQo만 오픈하고, KJo는 절반만 오픈해요.',
+    sentence: 'UTG는 오프수트 K 중 늘 오픈하는 건 KQo까지이고, KJo는 절반만 오픈해요.', // [§5d]
     frame: 'P2m',
-    em: 27.7,
+    em: 33.6,
     sibling: '수티드 K는 K9s까지 오픈해요.',
     mix: '오픈 50% · 폴드 50%',
     partial: '이 칸은 오픈을 정답으로 쳐요. 폴드도 부분 정답이에요.', // [부분]
@@ -125,8 +131,8 @@ const CASES: Case[] = [
     numbers: 'CO 오픈 29% → 내 콜 37% · 3벳 9%',
     lever: 'BB는 이미 1bb를 냈으니 1.5bb만 더 내면 돼요.',
     tiles: 'BTN 콜 · SB 폴드 · BB 콜',
-    across: '22는 CO 오픈에 SB에서만 폴드해요.',
-    example: '내 2♠2♦ → 플랍에서 셋이 될 확률 12%예요.',
+    across: '22는 CO 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.', // [§5g]
+    example: '내 2♠2♦ → 플랍에서 셋이 될 확률 12%예요.', // [§5h] 콜하는 작은 페어 — 셋 확률이 이 결정의 이유예요(THEORY_SPEC §1-2).
     memo: false,
   },
   {
@@ -144,7 +150,7 @@ const CASES: Case[] = [
     numbers: 'HJ 오픈 21% → 내 콜 12% · 3벳 6%',
     lever: 'BTN은 HJ보다 포지션이 있어요.',
     tiles: 'CO 주로 콜 · BTN 콜 · SB 폴드 · BB 주로 콜',
-    across: '76s는 HJ 오픈에 SB에서만 폴드해요.',
+    across: '76s는 HJ 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.', // [§5g]
     example: null,
     memo: false,
   },
@@ -154,17 +160,17 @@ const CASES: Case[] = [
     title: 'SB 오픈 대응 · KTs',
     capsule: '폴드',
     strip: '· · 3 3/F▌(F) F F F F F F F F',
-    sentence: 'SB는 UTG 오픈에 수티드 K를 KQs만 3벳하고, KJs는 절반만 3벳해요.',
+    sentence: 'SB는 UTG 오픈에 수티드 K 중 늘 3벳하는 건 KQs까지이고, KJs는 절반만 3벳해요.', // [§5d]
     frame: 'P2m',
-    em: 30.7,
-    sibling: '오프수트 K 중 KQo는 절반만 3벳하고, 나머지는 폴드해요.',
+    em: 36.6,
+    sibling: '오프수트 K 중 KQo는 절반만 3벳하고, 그 아래 칸은 폴드해요.', // [§5c]
     mix: null,
     partial: null,
     numbers: 'UTG 오픈 18% → 내 3벳 8% · 콜 1%',
     lever: 'SB는 콜을 거의 안 하고, 3벳 아니면 폴드해요.',
     tiles: 'HJ 콜 · CO 콜 · BTN 콜 · SB 폴드 · BB 콜',
-    across: 'KTs는 UTG 오픈에 SB에서만 폴드해요.',
-    example: '내 K♠10♠ vs 상대 A♦K♦ → K를 맞춰도 킥커에서 밀려요.',
+    across: 'KTs는 UTG 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.', // [§5g]
+    example: '내 K♠10♠ vs 상대 A♦K♦ → K를 맞춰도 킥커에서 밀려요.', // 폴드 칸이라 지배 예시가 남습니다.
     memo: false,
   },
   {
@@ -182,7 +188,7 @@ const CASES: Case[] = [
     numbers: 'UTG 4벳 2% → 내 올인 2% · 콜 1%',
     lever: 'HJ는 UTG보다 포지션이 있어요.',
     tiles: 'HJ 주로 콜 · CO 주로 콜 · BTN 주로 콜 · SB 올인·콜 반반 · BB 올인·콜 반반',
-    across: 'QQ는 UTG 4벳에 SB·BB에서는 올인과 콜을 반반 섞고, 나머지 자리에서는 주로 콜해요.', // [자리]
+    across: 'QQ는 UTG 4벳에 SB·BB에서는 올인과 콜을 반반 섞고, 다른 자리에서는 주로 콜해요.', // [자리] [§5c]
     example: null,
     memo: true,
   },
@@ -261,8 +267,8 @@ const CASES: Case[] = [
     numbers: '내 레이즈 17%',
     lever: null,
     tiles: 'HJ 폴드 · CO 폴드 · BTN 절반만 레이즈 · SB 폴드 · BB 체크',
-    across: 'ATo는 림프에 BTN에서 절반만 레이즈하고, 나머지 자리에서는 폴드나 체크예요.', // [자리]
-    example: '내 A♠10♦ vs 상대 A♦K♠ → A를 맞춰도 킥커에서 밀려요.',
+    across: 'ATo는 림프에 BTN에서 절반만 레이즈하고, 다른 자리에서는 폴드나 체크예요.', // [자리] [§5c]
+    example: '내 A♠10♦ vs 상대 A♦K♠ → A를 맞춰도 킥커에서 밀려요.', // [§5h] 섞기 칸(레이즈 50 · 폴드 50) — 접는 절반의 이유예요.
     memo: false,
   },
   {
@@ -291,16 +297,16 @@ const CASES: Case[] = [
     title: 'SB 오픈 대응 · QJs',
     capsule: '주로 폴드',
     strip: '· · · (F/3) F F F F F F F F F',
-    sentence: 'SB는 UTG 오픈에 수티드 Q를 QJs만 가끔 3벳하고, 나머지는 폴드해요.',
+    sentence: 'SB는 UTG 오픈에 수티드 Q를 QJs만 가끔 3벳하고, 그 아래 칸은 폴드해요.', // [§5c]
     frame: 'P0h',
-    em: 31.3,
+    em: 32.9,
     sibling: '오프수트 Q는 전부 폴드해요.',
     mix: '폴드 75% · 3벳 25%',
     partial: null,
     numbers: 'UTG 오픈 18% → 내 3벳 8% · 콜 1%',
     lever: 'SB는 콜을 거의 안 하고, 3벳 아니면 폴드해요.',
     tiles: 'HJ 콜 · CO 콜 · BTN 콜 · SB 주로 폴드 · BB 주로 콜',
-    across: 'QJs는 UTG 오픈에 SB에서는 주로 폴드하고, 나머지 자리에서는 콜해요.', // [자리]
+    across: 'QJs는 UTG 오픈에 SB에서는 주로 폴드하고, 다른 자리에서는 콜해요.', // [자리] [§5c]
     example: null,
     memo: true,
   },
@@ -334,7 +340,7 @@ describe('EXPLAIN_SPEC 의 실제 칸 13개 (§3.6 · §4.3)', () => {
 
   it('§3.6 같은 줄, 다른 칸: KTo 로 오답이면 한 칸 밖(경계 = KJo), KTs(SB vs UTG)도 한 칸 밖', () => {
     const kto = explainStep(stepFor({ kind: 'rfi', hero: 'UTG' }, 'KTo'));
-    expect(kto.line.sentence!.text).toBe('UTG는 오프수트 K를 KQo만 오픈하고, KJo는 절반만 오픈해요.');
+    expect(kto.line.sentence!.text).toBe('UTG는 오프수트 K 중 늘 오픈하는 건 KQo까지이고, KJo는 절반만 오픈해요.');
     expect(kto.nearMiss).toBe('한 칸 밖');
     expect(explainStep(stepFor({ kind: 'vs_open', hero: 'SB', villain: 'UTG' }, 'KTs')).nearMiss).toBe('한 칸 밖');
   });

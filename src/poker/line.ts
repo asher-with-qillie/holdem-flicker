@@ -2,7 +2,7 @@ import { isReachable } from './atlas';
 import { getChartCells, getChartDef } from './data';
 import { classifyHand } from './explain';
 import { gridHand, parseHandName } from './hands';
-import { actWord, emWidth, josa, verb } from './ko';
+import { actWord, emWidth, josa, splitOf, splitPhrase, verb } from './ko';
 import { AGGRESSION_ORDER, fullMix, restAction } from './range';
 import { RANKS, type Action, type HandName, type Rank, type Scenario, type ScenarioKind } from './types';
 
@@ -54,6 +54,12 @@ export interface LineCell {
   full: boolean;
   mixList: MixItem[];
   word: WeightWord;
+  /**
+   * 세 액션이 섞인 칸(1순위 절반 · 나머지 둘이 반씩, 예: 콜 50 · 3벳 25 · 폴드 25)이면 그 액션들(비중 순서), 아니면 null.
+   * 이런 칸은 비중어 하나('절반만 콜' · '가끔 3벳이나 콜')로 줄이지 않고 나눔을 이름으로 댑니다(THEORY_SPEC §5):
+   * `KQo는 절반은 콜하고, 나머지를 3벳과 폴드로 나눠요` · 칸 나열 안에서는 `KQo는 절반은 콜, 절반은 3벳·폴드`.
+   */
+  split: Action[] | null;
 }
 
 export interface LineRun {
@@ -76,7 +82,8 @@ export type LineClaim =
   | { t: 'toEnd'; from: HandName; action: Action; whole: boolean } // from부터 끝까지 a
   | { t: 'weight'; hand: HandName; action: Action; word: WeightWord } // 이름 + 비중어
   | { t: 'minor'; hands: HandName[]; actions: Action[] } // 모두 p = rest, 계속 비중 > 0 인 칸 = 정확히 hands, 그 액션들 = actions
-  | { t: 'rest'; except: HandName[]; action: Action; whole: boolean }; // except 밖의 칸 전부 a
+  | { t: 'rest'; except: HandName[]; action: Action; whole: boolean } // except 밖의 칸 전부 a
+  | { t: 'split'; hand: HandName; actions: Action[] }; // 세 액션 칸: 1순위 actions[0] 이 절반, 나머지 절반을 actions[1..] 로 나눔
 
 export type LineForm = 'frame' | 'except' | 'list';
 
@@ -87,12 +94,12 @@ export interface LineSentence {
   frame: LineFrame;
   claims: LineClaim[];
   /**
-   * 폭 폴백(§3.4): noLabel = 줄 이름을 뺌, noCtx = 줄 이름에 더해 주어를 'HJ:' 꼴 머리표로 줄임(상대 액션은 상황 줄이 말함).
-   * 'HJ는 AKs…는 3벳'처럼 '는'이 두 번 이어지는 이중 주제가 원어민에게 걸려서 머리표로 바꿨습니다. 상대를 남기는 꼴
-   * ('UTG 오픈에 AKs…')은 6건 중 5건이 42em 을 넘었습니다.
+   * 폭 폴백(§3.4): noLabel = 줄 이름을 뺌, noCtx = 줄 이름에 더해 주어의 상대 액션을 빼고 내 자리를 장소로
+   * ('HJ에서 AKs·AQs…는 3벳, …해요.' — 상대 액션은 리빌 바로 위 상황 줄이 말함), noSubj = 주어까지 뺌(상황 줄이 내 자리도 말함).
+   * 옛 'HJ:' 머리표는 문장이 아니라서 없앴습니다(THEORY_SPEC §5). 'HJ는 AKs…는 3벳'처럼 '는'이 두 번 이어지는 이중 주제도 쓰지 않습니다.
    * 옛 cut(둘째 절을 버림)은 섞인 칸의 이름을 버리게 되어 없앴습니다(§9).
    */
-  fallback: null | 'noLabel' | 'noCtx';
+  fallback: null | 'noLabel' | 'noCtx' | 'noSubj';
   /** 'list' = 틀 문장이 이름 규칙을 못 지켜서 쓴 칸 나열 꼴(`〈줄〉 중 X는 A, Y는 B, Z까지는 C해요`). */
   form: LineForm;
 }
@@ -201,7 +208,7 @@ export function lineCells(s: Scenario, line: LineDef): LineCell[] {
     const mixList = fullMix(cells[slot.hand]);
     const p = mixList[0]?.action ?? 'fold';
     const w = mixList[0]?.weight ?? 1;
-    out.push({ hand: slot.hand, slot: i, p, w, full: w >= 0.999, mixList, word: weightWord(mixList, rest) });
+    out.push({ hand: slot.hand, slot: i, p, w, full: w >= 0.999, mixList, word: weightWord(mixList, rest), split: splitOf(mixList) });
   });
   return out;
 }
@@ -255,9 +262,13 @@ function subject(s: Scenario): string {
   }
 }
 
-/** 패 목록: 줄 순서로 연속 3칸 이상이면 X~Y, 2칸은 X·Y, 묶음 사이는 ·. */
-function handList(hands: HandName[], order: HandName[]): string {
-  const idx = hands.map((h) => order.indexOf(h));
+/**
+ * 패 목록: 줄에서 이어진 3칸 이상이면 X~Y, 2칸은 X·Y, 묶음 사이는 ·.
+ * '이어진'은 스트립 slot 이 이어진 것입니다 — 도달 칸끼리만 이어져도 사이에 도달 불가 칸(점선)이 있으면 'T9s~54s'가
+ * 그 칸(98s·87s)까지 덮어 읽힙니다(THEORY_SPEC §5 (a)). 그럴 땐 'T9s·76s~54s'.
+ */
+function handList(hands: HandName[], cs: LineCell[]): string {
+  const idx = hands.map((h) => cs.find((c) => c.hand === h)!.slot);
   const groups: HandName[][] = [];
   let cur: HandName[] = [];
   idx.forEach((i, k) => {
@@ -278,14 +289,22 @@ function handList(hands: HandName[], order: HandName[]): string {
 function who(T: LineCell[], cs: LineCell[]): string {
   if (T.length === 1) return josa(T[0].hand, '은/는');
   const i0 = cs.indexOf(T[0]);
-  if (T.length >= 3 && T.every((c, k) => cs[i0 + k] === c)) return `${T[0].hand}부터 ${T[T.length - 1].hand}까지는`;
-  return josa(handList(T.map((c) => c.hand), cs.map((c) => c.hand)), '은/는');
+  // '부터 … 까지'도 사이에 도달 불가 칸이 끼면 그 칸까지 덮습니다 — slot 이 이어질 때만.
+  if (T.length >= 3 && T.every((c, k) => cs[i0 + k] === c && (k === 0 || c.slot === T[k - 1].slot + 1))) return `${T[0].hand}부터 ${T[T.length - 1].hand}까지는`;
+  return josa(handList(T.map((c) => c.hand), cs), '은/는');
 }
 
 type End = '해요' | '하고';
 
-/** 같은 캡슐 라벨(1순위 · 비중어 · 반반의 2순위)인가 — 섞인 칸을 한 묶음으로 부를 수 있는가. */
-const sameLabel = (a: LineCell, b: LineCell) => a.p === b.p && a.word === b.word && (a.word !== '반반' || a.mixList[1].action === b.mixList[1].action);
+/** 같은 캡슐 라벨(1순위 · 비중어 · 반반의 2순위 · 세 액션의 나눔)인가 — 섞인 칸을 한 묶음으로 부를 수 있는가. */
+const sameLabel = (a: LineCell, b: LineCell) =>
+  a.p === b.p && a.word === b.word && (a.word !== '반반' || a.mixList[1].action === b.mixList[1].action) && (a.split ?? []).join() === (b.split ?? []).join();
+
+/** 칸 하나의 claim: 세 액션 칸은 split, 그 밖은 이름 + 비중어(weight). */
+const cellClaim = (c: LineCell): LineClaim => (c.split ? { t: 'split', hand: c.hand, actions: c.split } : { t: 'weight', hand: c.hand, action: c.p, word: c.word });
+
+/** 명사 꼴 라벨: 세 액션 칸은 '절반은 콜, 절반은 3벳·폴드', 그 밖은 캡슐 라벨('3벳·콜 반반' · '절반만 콜'). */
+const nounLabel = (c: LineCell, rest: Action, kind: ScenarioKind): string => (c.split ? splitPhrase(c.split, kind, 'noun') : capsuleLabel(c.mixList, rest, kind));
 
 /** 연속된 같은 라벨끼리 묶습니다. */
 function labelGroups(T: LineCell[]): LineCell[][] {
@@ -304,21 +323,29 @@ function labelGroups(T: LineCell[]): LineCell[][] {
  *  - 같은 액션의 여러 비중어(반반 없음): `QQ는 주로, JJ는 절반만 콜해요` — 동사는 끝에 한 번만
  *  - 그 밖(mixed 일 때만): 앞 묶음은 캡슐 라벨 그대로, 끝 묶음만 동사 — `65s·54s는 3벳·콜 반반, 32s는 절반만 콜해요`
  */
-function describeGroups(T: LineCell[], a: Action, end: End, cs: LineCell[], kind: ScenarioKind, rest: Action, mixed: boolean): string | null {
+function describeGroups(T: LineCell[], a: Action, end: End, cs: LineCell[], kind: ScenarioKind, rest: Action, mixed: boolean, solo = false): string | null {
   const groups = labelGroups(T);
   const tieEnd = end === '해요' ? '섞어요' : '섞고';
-  const verbal = (g: LineCell[]) => {
+  const verbal = (g: LineCell[]): string | null => {
     const c = g[0];
+    if (c.split) {
+      // 세 액션 칸: 문장이 이 칸들 하나만 말하면(solo) 동사 꼴 `절반은 콜하고, 나머지를 3벳과 폴드로 나눠요`,
+      // 끝 항목이면 명사 꼴 `절반은 콜, 절반은 3벳·폴드예요`. 뒤에 다른 절을 '하고'로 이어 갈 수는 없습니다.
+      if (end !== '해요') return null;
+      return `${who(g, cs)} ${splitPhrase(c.split, kind, solo && groups.length === 1 ? 'solo' : 'nounEnd')}`;
+    }
     if (c.word === '반반') return `${who(g, cs)} ${josa(actWord(c.mixList[0].action, kind), '과/와')} ${josa(actWord(c.mixList[1].action, kind), '을/를')} 반반 ${tieEnd}`;
     return `${who(g, cs)} ${c.word} ${verb(c.p, kind, end)}`;
   };
   if (groups.length === 1) return verbal(T);
-  if (!T.some((c) => c.word === '반반') && T.every((c) => c.p === a)) return `${groups.map((g) => `${who(g, cs)} ${g[0].word}`).join(', ')} ${verb(a, kind, end)}`;
+  if (!T.some((c) => c.word === '반반' || c.split) && T.every((c) => c.p === a)) return `${groups.map((g) => `${who(g, cs)} ${g[0].word}`).join(', ')} ${verb(a, kind, end)}`;
   if (!mixed) return null;
+  const last = verbal(groups[groups.length - 1]);
+  if (last === null) return null;
   return `${groups
     .slice(0, -1)
-    .map((g) => `${who(g, cs)} ${capsuleLabel(g[0].mixList, rest, kind)}`)
-    .join(', ')}, ${verbal(groups[groups.length - 1])}`;
+    .map((g) => `${who(g, cs)} ${nounLabel(g[0], rest, kind)}`)
+    .join(', ')}, ${last}`;
 }
 
 /** 폭 폴백 (1): 줄 이름(〈O〉/〈Q〉)을 뺍니다 — 손패 이름이 줄을 정해 줍니다. */
@@ -335,7 +362,7 @@ interface Built {
  * 이름 규칙(§3.4)을 이 문장의 claims 로 확인합니다 — 생성기가 틀 문장을 쓸지 칸 나열 꼴로 갈지 고르는 데만 씁니다.
  * (테스트는 이 함수를 쓰지 않고 차트에서 따로 다시 계산합니다.)
  */
-function obeysNamingRule(cs: LineCell[], rest: Action, text: string, claims: LineClaim[]): boolean {
+function obeysNamingRule(cs: LineCell[], rest: Action, text: string, claims: LineClaim[], wholeOk: (c: LineClaim) => boolean): boolean {
   const at = (h: HandName) => cs.findIndex((x) => x.hand === h);
   const named = new Set<HandName>();
   const cover = new Map<HandName, Array<{ a: Action; whole: boolean }>>();
@@ -347,11 +374,21 @@ function obeysNamingRule(cs: LineCell[], rest: Action, text: string, claims: Lin
       const i0 = c.from ? at(c.from) : 0;
       for (let i = i0; i <= at(c.to); i++) add(i, c.action, false);
     } else if (c.t === 'toEnd') for (let i = at(c.from); i < cs.length; i++) add(i, c.action, c.whole);
-    else if (c.t === 'weight' || c.t === 'minor') (c.t === 'weight' ? [c.hand] : c.hands).forEach((h) => named.add(h));
-    else if (c.t === 'only') for (const h of c.hands) if (isStrong(cs[at(h)])) named.add(h);
+    // 세 액션 칸은 나눔(split)으로만 부릅니다 — 비중어 하나('절반만 콜')로 부르면 나머지 두 액션이 사라집니다.
+    else if (c.t === 'weight') {
+      if (cs[at(c.hand)].split) return false;
+      named.add(c.hand);
+    } else if (c.t === 'minor') {
+      if (c.hands.some((h) => cs[at(h)].split)) return false;
+      c.hands.forEach((h) => named.add(h));
+    } else if (c.t === 'split') named.add(c.hand);
+    // 비중어 없이 이름만 대는 칸(only)은 full 이어야 합니다 — '주로' 칸은 '주로'와 함께 부릅니다(THEORY_SPEC §5).
+    else if (c.t === 'only') for (const h of c.hands) if (cs[at(h)].full) named.add(h);
   }
   const whole = claims.some((c) => 'whole' in c && c.whole);
   if (text.includes('전부') !== whole) return false;
+  // '전부'는 도달할 수 없는 칸(점선)까지 덮지 않습니다(THEORY_SPEC §5).
+  if (!claims.every(wholeOk)) return false;
   return cs.every((x) => {
     if (named.has(x.hand)) return true;
     const cv = cover.get(x.hand);
@@ -373,25 +410,53 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
   const runs = lineRuns(cs);
   const cont = runs.filter((r) => r.action !== rest);
   const mono = isMonotone(cs);
+  const names = cs.map((c) => c.hand);
+  // 도달할 수 없는 줄 칸(점선)의 slot. 줄 이름 전체('포켓페어를 콜해요')나 '전부'로 덮으면 그 칸까지 덮어 읽힙니다(THEORY_SPEC §5).
+  const holes = line.slots.flatMap((x, i) => (x.inLine && x.hand && !cs.some((c) => c.slot === i) ? [i] : []));
+  const slotOf = (h: HandName) => cs.find((c) => c.hand === h)!.slot;
+  /** '전부'(whole)가 도달 불가 칸을 덮지 않는가: toEnd 는 그 칸부터 줄 끝까지, 나머지는 줄 전체. */
+  const wholeOk = (c: LineClaim): boolean => {
+    if (!('whole' in c) || !c.whole) return true;
+    if (c.t === 'toEnd') return !holes.some((i) => i > slotOf(c.from));
+    return !holes.length;
+  };
   // 틀(frame)은 줄의 모양입니다(§3.4 표). 틀 문장이 이름 규칙을 못 지켜 칸 나열 꼴로 써도 틀은 그대로입니다.
   let frame: LineFrame = 'P0';
   // 후보를 차례로 만들고, 이름 규칙을 지키면서 42em 안에 드는(줄 이름을 빼서라도) 첫 후보를 씁니다.
   // 틀 문장 → '나머지 전부' 꼴 → 칸 나열 꼴(줄 순서 · 액션별). 다 넘치면 제일 짧은 것.
   const cands: Array<Built & { form: LineForm }> = [];
   const push = (b: Built | null, form: LineForm) => {
-    if (b && obeysNamingRule(cs, rest, b.text, b.claims)) cands.push({ ...b, form });
+    if (b && obeysNamingRule(cs, rest, b.text, b.claims, wholeOk)) cands.push({ ...b, form });
   };
   push(legacy(), 'frame');
   push(allBut(), 'except');
-  push(listForm(cs, rest, kind, S, O, Q, 'strip'), 'list');
-  if (!mono) push(listForm(cs, rest, kind, S, O, Q, 'action'), 'list');
+  push(listForm(cs, rest, kind, S, O, Q, 'strip', holes), 'list');
+  if (!mono) push(listForm(cs, rest, kind, S, O, Q, 'action', holes), 'list');
   return cands.length ? { frame, cands } : null;
 
   /**
+   * 도달 칸이 줄의 일부뿐이고 전부 같은 액션(비중 ≥ 0.6)일 때: 줄 이름과 '전부' 대신 도달 칸의 이름을 댑니다(THEORY_SPEC §5).
+   * `CO는 SB 올인에 AA~QQ를 콜해요.` — '포켓페어를 전부 콜해요'는 JJ~22(이 자리에 못 오는 칸)까지 콜한다고 읽힙니다.
+   * '주로' 칸은 '주로'와 함께: `CO는 BTN 올인에 AA·KK를 콜하고, QQ는 주로 콜해요.`
+   */
+  function nameAll(a: Action): Built | null {
+    if (cs.some((c) => c.p !== a || !isStrong(c))) return null;
+    const head = topic ? O : S;
+    const obj = (g: LineCell[]) => josa(handList(g.map((c) => c.hand), cs), '을/를');
+    const full = cs.filter((c) => c.full);
+    const most = cs.filter((c) => !c.full);
+    if (!most.length) return { text: `${head} ${obj(cs)} ${V(a, '해요')}.`, claims: [{ t: 'only', hands: names, action: a }] };
+    const claims = cs.map(cellClaim);
+    if (!full.length) return { text: `${head} ${obj(most)} 주로 ${V(a, '해요')}.`, claims };
+    return { text: `${head} ${obj(full)} ${V(a, '하고')}, ${josa(handList(most.map((c) => c.hand), cs), '은/는')} 주로 ${V(a, '해요')}.`, claims };
+  }
+
+  /**
    * '나머지 전부' 꼴: 센 칸(비중 ≥ 0.6)이 전부 같은 계속 액션이면 그 액션을 줄 전체에 말하고 섞인 칸만 이름을 댑니다.
-   * `BTN은 림프에 수티드 A를 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.`
+   * `BTN은 림프에 수티드 A를 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.` 줄 이름 전체를 덮으므로 도달 불가 칸이 있으면 쓰지 않습니다.
    */
   function allBut(): Built | null {
+    if (holes.length) return null;
     const strong = cs.filter(isStrong);
     const weak = cs.filter((c) => !isStrong(c));
     if (!strong.length || !weak.length) return null;
@@ -403,18 +468,40 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
     if (d === null) return null;
     return {
       text: `${S} ${O} ${V(a, '하고')}, ${d}.`,
-      claims: [{ t: 'rest', except: weak.map((c) => c.hand), action: a, whole: false }, ...weak.map((c): LineClaim => ({ t: 'weight', hand: c.hand, action: c.p, word: c.word }))],
+      claims: [{ t: 'rest', except: weak.map((c) => c.hand), action: a, whole: false }, ...weak.map(cellClaim)],
     };
   }
 
   /* -------- 틀 문장(§3.4 표) -------- */
   function legacy(): Built | null {
     const restCells = cs.filter((c) => c.p === rest);
-    const names = cs.map((c) => c.hand);
-    const weightClaims = (T: LineCell[]): LineClaim[] => T.map((c) => ({ t: 'weight', hand: c.hand, action: c.p, word: c.word }));
+    const weightClaims = (T: LineCell[]): LineClaim[] => T.map(cellClaim);
 
     /** 섞인 칸들의 서술 〈T〉/〈T'〉(§3.4). 반반과 다른 비중어가 한 묶음에 섞이면 두 절로 못 씁니다(null → 다른 꼴). */
     const mixedDesc = (a: Action, T: LineCell[], end: End): string | null => describeGroups(T, a, end, cs, kind, rest, false);
+    /**
+     * 이름을 댄 칸 밖의 rest 칸을 부르는 말. 비중어 바로 뒤의 '나머지는'은 "그 칸의 나머지 절반"으로도 읽혀서
+     * (THEORY_SPEC §5) 칸이라고 못 박습니다: 이름 댄 칸이 전부 그 위에 있으면 '그 아래 칸은', 아니면 '다른 칸은'.
+     */
+    const otherCells = (named: LineCell[]) => {
+      const last = Math.max(...named.map((c) => cs.indexOf(c)));
+      return cs.every((c, i) => named.includes(c) || i > last) ? '그 아래 칸은' : '다른 칸은';
+    };
+    /**
+     * '…, 그 아래 칸은 폴드해요'의 꼴들(먼저 것부터). 그 아래에 도달 불가 칸(점선)이 끼어 있으면 '그 아래 칸은'이 그 칸까지
+     * 덮어 읽혀서(THEORY_SPEC §5 (a) — 'AKo는 올인과 콜을 반반 섞고, 그 아래 칸은 폴드해요'인데 AJo~A2o 는 못 옴),
+     * 그 아래 도달 칸이 전부 full rest 면 이름으로 부르는 꼴('AQo는 폴드해요')을 먼저 둡니다 — 42em 을 넘으면 '그 아래 칸은'.
+     */
+    const restTails = (named: LineCell[]): Array<{ who: string; claims: LineClaim[] }> => {
+      const generic = { who: otherCells(named), claims: [] as LineClaim[] };
+      const last = Math.max(...named.map((c) => cs.indexOf(c)));
+      const below = cs.slice(last + 1);
+      if (generic.who !== '그 아래 칸은' || !below.length || !holes.some((i) => i > cs[last].slot) || !below.every((c) => c.p === rest && c.full)) return [generic];
+      const upto: LineClaim = { t: 'upto', from: below[0].hand, to: below[below.length - 1].hand, action: rest };
+      return [{ who: josa(handList(below.map((c) => c.hand), cs), '은/는'), claims: [upto] }, generic];
+    };
+    /** 꼴 후보 중 42em 안에 드는 첫 문장(없으면 마지막 꼴). */
+    const firstFit = (bs: Built[]): Built => bs.find((b) => emWidth(b.text) <= LINE_MAX_EM) ?? bs[bs.length - 1];
 
     // P0 · P0h: 계속 run 없음
     if (!cont.length) {
@@ -423,11 +510,22 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
       const acts = [...new Set(minor.flatMap((c) => c.mixList.filter((m) => m.action !== rest && m.weight > 0.001).map((m) => m.action)))].sort((x, y) => agg(y) - agg(x));
       if (minor.length && minor.length <= 3 && acts.length <= 2) {
         frame = 'P0h';
+        // 세 액션 칸(폴드 50 · 3벳 25 · 콜 25)은 '가끔 3벳이나 콜'로 줄이지 않고 나눔을 부릅니다 — 다른 칸은 말하지 않아도 rest 로 읽힙니다.
+        if (minor.length === 1 && minor[0].split) return { text: `${S} ${Q} ${josa(minor[0].hand, '은/는')} ${splitPhrase(minor[0].split, kind, 'solo')}.`, claims: [cellClaim(minor[0])] };
+        if (minor.some((c) => c.split)) return null;
         const hs = minor.map((c) => c.hand);
+        const minorClaim: LineClaim = { t: 'minor', hands: hs, actions: acts };
+        // 도달 칸이 전부 이 섞인 칸이면(5벳에 AKo 하나만 옴) '그 아래 칸은 폴드해요'가 도달 불가 칸만 가리킵니다(THEORY_SPEC §5 (a)).
+        // 줄 이름도 빼고 칸 이름으로: 'UTG는 SB 올인에 AKo를 주로 폴드하고, 가끔 콜해요.'
+        if (minor.length === cs.length && minor.every((c) => c.word === '주로')) {
+          const vEnd = acts.length === 1 ? V(acts[0], '해요') : `${josa(actWord(acts[0], kind), '이나/나')} ${V(acts[1], '해요')}`;
+          return { text: `${topic ? O : S} ${josa(handList(hs, cs), '을/를')} 주로 ${V(rest, '하고')}, 가끔 ${vEnd}.`, claims: [minorClaim] };
+        }
         const v = acts.length === 1 ? V(acts[0], '하고') : `${josa(actWord(acts[0], kind), '이나/나')} ${V(acts[1], '하고')}`;
-        return { text: `${S} ${O} ${handList(hs, names)}만 가끔 ${v}, 나머지는 ${V(rest, '해요')}.`, claims: [{ t: 'minor', hands: hs, actions: acts }] };
+        return firstFit(restTails(minor).map((t) => ({ text: `${S} ${O} ${handList(hs, cs)}만 가끔 ${v}, ${t.who} ${V(rest, '해요')}.`, claims: [minorClaim, ...t.claims] })));
       }
       frame = 'P0';
+      if (holes.length) return nameAll(rest);
       return { text: `${S} ${O} 전부 ${V(rest, '해요')}.`, claims: [{ t: 'all', action: rest, whole: true }] };
     }
 
@@ -446,6 +544,8 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
       if (lf) {
         if (!restCells.length && !tail.length) {
           frame = 'P1';
+          // 도달 칸이 줄의 일부뿐이면 줄 이름 대신 칸 이름으로(THEORY_SPEC §5).
+          if (holes.length) return nameAll(r.action);
           // P1. '전부'는 줄 칸이 전부 full 일 때만. 섞인 칸(≤ 0.5)이 있으면 그 칸만 이름을 댑니다.
           if (r.cells.every((c) => c.full)) return { text: `${S} ${O} 전부 ${V(r.action, '해요')}.`, claims: [{ t: 'all', action: r.action, whole: true }] };
           const weak = r.cells.filter((c) => !isStrong(c));
@@ -463,25 +563,32 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
           }
         }
         // '까지'는 이름 없이 덮어도 되는 칸(full · 주로)에만 붙입니다. 첫 칸이면 '만'.
-        const h = head.hand === cs[0].hand ? `${head.hand}만` : `${head.hand}까지`;
+        const first = head.hand === cs[0].hand;
+        const h = first ? `${head.hand}만` : `${head.hand}까지`;
         const upto: LineClaim = { t: 'upto', from: null, to: head.hand, action: r.action };
         frame = tail.length ? 'P2m' : checkTail ? 'P2c' : 'P2';
         if (T.length) {
           const d = mixedDesc(r.action, T, '해요');
-          return d === null ? null : { text: `${S} ${O} ${h} ${V(r.action, '하고')}, ${d}.`, claims: [upto, ...weightClaims(T)] };
+          if (d === null) return null;
+          // 'KQo만 오픈하고, KJo는 절반만 오픈해요'는 '만'(KQo 하나)과 뒤 절(KJo도 오픈)이 어긋납니다(THEORY_SPEC §5).
+          // 꼬리는 늘 같은 액션이라, 머리가 첫 칸 하나뿐이면 '늘 오픈하는 건 KQo까지이고, …'로 씁니다.
+          if (first) return { text: `${S} ${Q} 늘 ${actWord(r.action, kind)}하는 건 ${head.hand}까지이고, ${d}.`, claims: [upto, ...weightClaims(T)] };
+          return { text: `${S} ${O} ${h} ${V(r.action, '하고')}, ${d}.`, claims: [upto, ...weightClaims(T)] };
         }
         if (checkTail) return { text: `${S} ${O} ${h} ${V(r.action, '하고')}, ${checkTail}.`, claims: [upto, ...checkClaims] };
         return { text: `${S} ${O} ${h} ${V(r.action, '해요')}.`, claims: [upto] };
       }
       frame = 'P2h';
+      // 세 액션 칸(들)뿐이면 그 나눔만 말합니다: `CO는 UTG 오픈에 오프수트 K 중 KQo는 절반은 콜하고, 나머지를 3벳과 폴드로 나눠요.`
+      // 그 아래 칸은 말하지 않아도 rest 로 읽힙니다('나머지는 폴드'를 덧붙이면 '나머지'가 두 번, 뜻 둘로 나옵니다).
+      if (tail.every((c) => c.split) && labelGroups(tail).length === 1) {
+        return { text: `${S} ${Q} ${describeGroups(tail, r.action, '해요', cs, kind, rest, false, true)}.`, claims: weightClaims(tail) };
+      }
       const d = mixedDesc(r.action, tail, '하고');
       if (d === null) return null;
-      const claims: LineClaim[] = weightClaims(tail);
-      if (restCells.length) claims.push({ t: 'rest', except: r.cells.map((c) => c.hand), action: rest, whole: false });
-      return {
-        text: restCells.length ? `${S} ${Q} ${d}, 나머지는 ${V(rest, '해요')}.` : `${S} ${Q} ${d.replace(/하고$/, '해요').replace(/섞고$/, '섞어요')}.`,
-        claims,
-      };
+      if (!restCells.length) return { text: `${S} ${Q} ${d.replace(/하고$/, '해요').replace(/섞고$/, '섞어요')}.`, claims: weightClaims(tail) };
+      const restClaim: LineClaim = { t: 'rest', except: r.cells.map((c) => c.hand), action: rest, whole: false };
+      return firstFit(restTails(r.cells).map((t) => ({ text: `${S} ${Q} ${d}, ${t.who} ${V(rest, '해요')}.`, claims: [...weightClaims(tail), ...(t.claims.length ? t.claims : [restClaim])] })));
     }
 
     if (mono) {
@@ -492,7 +599,8 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
       if (p1.lf && p2.lf) {
         const single1 = r1.cells.length === 1 && r1.cells[0].full;
         const h1 = single1 ? `${p1.lf.hand}만` : `${p1.lf.hand}까지`;
-        const toEnd = !restCells.length && !p2.tail.length && r2.cells.every((c) => c.full) && cs[cs.length - 1] === r2.cells[r2.cells.length - 1];
+        // '…부터는 전부'는 줄 끝까지 덮습니다 — 그 뒤에 도달 불가 칸이 있으면 '…까지'로.
+        const toEnd = !restCells.length && !p2.tail.length && r2.cells.every((c) => c.full) && cs[cs.length - 1] === r2.cells[r2.cells.length - 1] && !holes.some((i) => i > p2.ff!.slot);
         const h2 = toEnd ? `${p2.ff!.hand}부터는 전부` : `${p2.lf.hand}까지`;
         const claims: LineClaim[] = [
           { t: 'upto', from: fromOf(r1), to: p1.lf.hand, action: r1.action },
@@ -524,15 +632,18 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
     frame = 'P4';
     // P4: 단조롭지 않은 줄(수티드 A 휠 섬, BB 커넥터). 제일 공격적인 1순위 칸을 이름으로 부릅니다.
     const top = cs.reduce((m, c) => (agg(c.p) > agg(m) ? c.p : m), cs[0].p);
-    const topHands = cs.filter((c) => c.p === top).map((c) => c.hand);
-    const head = `${S} ${O} ${handList(topHands, names)}만 ${actWord(top, kind)}`;
+    const topCells = cs.filter((c) => c.p === top);
+    // '…만 3벳하고'처럼 비중어 없이 이름만 대는 칸은 full 이어야 합니다 — '주로' 칸이 끼면 칸 나열 꼴로(THEORY_SPEC §5).
+    if (topCells.some((c) => !c.full)) return null;
+    const topHands = topCells.map((c) => c.hand);
+    const head = `${S} ${O} ${handList(topHands, cs)}만 ${actWord(top, kind)}`;
     const onlyTop: LineClaim = { t: 'only', hands: topHands, action: top };
     const others = [...new Set(cs.filter((c) => c.p !== top && c.p !== rest).map((c) => c.p))];
     if (others.length !== 1) return { text: `${head}해요.`, claims: [onlyTop] };
     const c = others[0];
     if (!restCells.length) {
-      // '나머지는 전부'는 나머지 칸이 전부 full 일 때만.
-      const whole = cs.every((x) => x.p === top || x.full);
+      // '나머지는 전부'는 나머지 칸이 전부 full 이고 도달 불가 칸이 없을 때만.
+      const whole = cs.every((x) => x.p === top || x.full) && !holes.length;
       return { text: `${head}하고, 나머지는 ${whole ? '전부 ' : ''}${V(c, '해요')}.`, claims: [onlyTop, { t: 'rest', except: topHands, action: c, whole }] };
     }
     // '까지'는 이름 없이 덮어도 되는 칸(full · 주로)에 붙입니다 — 뒤따르는 '주로' 칸을 '까지'에 넣어야 그 칸이 '나머지(폴드)'로 읽히지 않습니다.
@@ -544,8 +655,10 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
       if (cs[i].p === c && isStrong(cs[i]) && (li < 0 || li === i - 1 || cs.slice(li + 1, i).every((x) => x.p === top))) li = i;
     }
     if (li >= 0) return { text: `${head}하고, ${cs[li].hand}까지 ${V(c, '해요')}.`, claims: [onlyTop, { t: 'upto', from: first === 0 ? null : cs[first].hand, to: cs[li].hand, action: c }] };
-    const cHands = cs.filter((x) => x.p === c).map((x) => x.hand);
-    return { text: `${head}하고, ${handList(cHands, names)}는 ${V(c, '해요')}.`, claims: [onlyTop, { t: 'only', hands: cHands, action: c }] };
+    const cCells = cs.filter((x) => x.p === c);
+    if (cCells.some((x) => !x.full)) return null;
+    const cHands = cCells.map((x) => x.hand);
+    return { text: `${head}하고, ${handList(cHands, cs)}는 ${V(c, '해요')}.`, claims: [onlyTop, { t: 'only', hands: cHands, action: c }] };
   }
 }
 
@@ -553,19 +666,24 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
 interface Item {
   cells: LineCell[];
   strong: boolean;
+  /** 액션별 나열에서 앞 항목에 바로 이어지는 센 칸들 — '…까지는'으로 부릅니다('AJs는 3벳·콜 반반, A9s까지는 콜'). */
+  range?: boolean;
 }
 
 /**
  * 칸 나열 꼴(§3.4 이름 규칙의 마지막 수단).
  *  - order 'strip'(단조 줄): 줄을 위에서부터 훑어 같은 1순위의 센 칸(full · 주로)이 이어지면 한 항목('A9o까지는 콜',
  *    'AKo는 3벳', 'KQo는 주로 3벳', '88부터는 전부 콜'), 같은 캡슐 라벨의 섞인 칸이 이어지면 한 항목('AQo·AJo는 4벳·콜 반반').
- *  - order 'action'(단조롭지 않은 줄): 공격적인 액션부터, 그 액션의 센 칸 전부를 한 항목('AKs·A5s·A4s는 4벳')으로 부르고
- *    섞인 칸은 라벨별로 따로 부릅니다.
+ *    앞 항목에 이어지지 않아 이름으로 부르는 묶음('A5s~A3s는 3벳')은 비중어가 같은 칸끼리만 — 주로인 칸은 '주로'와 함께
+ *    따로 부릅니다('A2s는 주로 3벳', THEORY_SPEC §5).
+ *  - order 'action'(단조롭지 않은 줄): 공격적인 액션부터, 그 액션의 센 칸을 full 묶음('AKs·A5s·A4s는 4벳')과 주로 묶음
+ *    ('A9s는 주로 콜')으로 부르고 섞인 칸은 라벨별로 따로 부릅니다. 마지막 액션의 센 칸이 남은 칸 전부면 '다른 칸은'.
  *  - 1순위가 rest(폴드)인 센 칸은 말하지 않습니다(나머지). 체크(BB 림프)는 '55부터는 체크'로 말합니다.
- * 항목이 하나면 한 절, 둘이면 두 절('…하고, …해요'), 셋 이상이면 명사 나열에 끝 항목만 동사.
+ *  - 세 액션 칸은 명사 꼴 '절반은 콜, 절반은 4벳·폴드'로 부릅니다(그 칸 하나뿐이면 '절반은 콜하고, 나머지를 …로 나눠요').
+ * 항목이 하나면 한 절, 둘이면 두 절('…하고, …해요'), 셋 이상이거나 세 액션 칸이 끼면 명사 나열에 끝 항목만 동사.
  * 첫 항목이 줄 첫 칸부터 센 칸이고 항목이 둘 이하면 틀 문장처럼 목적어 꼴('포켓페어를 JJ까지 3벳하고, …')로 씁니다.
  */
-function listForm(cs: LineCell[], rest: Action, kind: ScenarioKind, S: string, O: string, Q: string, order: 'strip' | 'action'): Built | null {
+function listForm(cs: LineCell[], rest: Action, kind: ScenarioKind, S: string, O: string, Q: string, order: 'strip' | 'action', holes: number[]): Built | null {
   const items: Item[] = [];
   const silent = (c: LineCell) => isStrong(c) && c.p === rest && rest !== 'check';
   if (order === 'strip') {
@@ -578,15 +696,38 @@ function listForm(cs: LineCell[], rest: Action, kind: ScenarioKind, S: string, O
       }
       let j = i + 1;
       while (j < cs.length && (strong ? cs[j].p === c.p && isStrong(cs[j]) : !isStrong(cs[j]) && sameLabel(c, cs[j]))) j++;
+      // 앞 항목에 바로 이어지지 않는 여러 칸은 이름으로 부릅니다 — 비중어가 바뀌는 데서 끊어, 뒤쪽은 앞 묶음에 이어지는 범위로.
+      const prev = items[items.length - 1];
+      const adjacent = prev ? i === cs.indexOf(prev.cells[prev.cells.length - 1]) + 1 : i === 0;
+      if (strong && !adjacent) {
+        const k = cs.slice(i, j).findIndex((x) => x.word !== c.word);
+        if (k > 0) j = i + k;
+      }
       items.push({ cells: cs.slice(i, j), strong });
       i = j;
     }
   } else {
     const acts = [...new Set(cs.map((c) => c.p))].sort((x, y) => agg(y) - agg(x));
+    /** 줄에서 이어진 칸들인가(사이에 다른 칸이 없음). */
+    const run = (G: LineCell[]) => G.every((c, k) => k === 0 || cs.indexOf(c) === cs.indexOf(G[k - 1]) + 1);
     for (const a of acts) {
       const strong = cs.filter((c) => c.p === a && isStrong(c) && !silent(c));
-      if (strong.length) items.push({ cells: strong, strong: true });
       const weak = cs.filter((c) => c.p === a && !isStrong(c));
+      // 마지막 액션의 센 칸이 남은 칸 전부면 한 항목('다른 칸은 콜해요'). 그 밖에는 이름으로 부르므로 full 과 주로를 따로.
+      const restLike = a === acts[acts.length - 1] && !weak.length && items.length > 0 && cs.every((c) => strong.includes(c) || !silent(c));
+      // 범위 꼴: 센 칸이 줄에서 이어져 있고 바로 앞 칸이 앞 항목(이어진 칸들)의 끝이면, 그 항목을 바로 앞으로 옮기고 '…까지는'으로 —
+      // 'AJs는 3벳·콜 반반, A9s까지는 콜'. 이름으로 부르면 주로 칸마다 '주로'를 붙여야 해서 길어집니다(42em).
+      const before = !restLike && strong.length > 1 && run(strong) ? cs[cs.indexOf(strong[0]) - 1] : undefined;
+      const host = before ? items.findIndex((it) => run(it.cells) && it.cells[it.cells.length - 1] === before) : -1;
+      if (host >= 0) {
+        items.push(...items.splice(host, 1));
+        items.push({ cells: strong, strong: true, range: true });
+      } else if (restLike || strong.every((c) => c.full) || strong.every((c) => !c.full)) {
+        if (strong.length) items.push({ cells: strong, strong: true });
+      } else {
+        items.push({ cells: strong.filter((c) => c.full), strong: true });
+        items.push({ cells: strong.filter((c) => !c.full), strong: true });
+      }
       for (const g of weak) {
         const prev = items[items.length - 1];
         if (prev && !prev.strong && sameLabel(prev.cells[0], g)) prev.cells.push(g);
@@ -595,12 +736,12 @@ function listForm(cs: LineCell[], rest: Action, kind: ScenarioKind, S: string, O
     }
   }
   if (!items.length) return null;
-  const names = cs.map((c) => c.hand);
   const at = (c: LineCell) => cs.indexOf(c);
   const V = (a: Action, end: End) => verb(a, kind, end);
   const claims: LineClaim[] = [];
+  const hasSplit = items.some((it) => it.cells.some((c) => c.split));
   /** 이름 묶음: 줄에서 이어진 3칸 이상은 X~Y, 떨어진 칸은 X·Y. */
-  const listWho = (G: LineCell[]) => josa(handList(G.map((c) => c.hand), names), '은/는');
+  const listWho = (G: LineCell[]) => josa(handList(G.map((c) => c.hand), cs), '은/는');
   /** 항목 하나의 주제어 · 명사 · 동사 꼴. objForm = 목적어 꼴의 둘째 절('88까지 콜해요' — '는' 없이). */
   const render = (k: number, objForm: boolean): { who: string; noun: string; verbal: (end: End) => string } => {
     const it = items[k];
@@ -609,7 +750,11 @@ function listForm(cs: LineCell[], rest: Action, kind: ScenarioKind, S: string, O
     const last = G[G.length - 1];
     const a = c0.p;
     if (!it.strong) {
-      for (const c of G) claims.push({ t: 'weight', hand: c.hand, action: c.p, word: c.word });
+      for (const c of G) claims.push(cellClaim(c));
+      if (c0.split) {
+        const sp = c0.split;
+        return { who: listWho(G), noun: splitPhrase(sp, kind, 'noun'), verbal: () => splitPhrase(sp, kind, items.length === 1 ? 'solo' : 'nounEnd') };
+      }
       const tie = c0.word === '반반';
       return {
         who: listWho(G),
@@ -625,22 +770,35 @@ function listForm(cs: LineCell[], rest: Action, kind: ScenarioKind, S: string, O
       claims.push({ t: 'weight', hand: c0.hand, action: a, word: c0.word });
       return { who: josa(c0.hand, '은/는'), noun: `${wordOf(c0)}${actWord(a, kind)}`, verbal: (end) => `${wordOf(c0)}${V(a, end)}` };
     }
+    /** 이름으로 부르는 '주로' 묶음: 'ATs·A8s는 주로 콜'. */
+    const mostly = () => {
+      for (const c of G) claims.push({ t: 'weight', hand: c.hand, action: a, word: c.word });
+      return { who: listWho(G), noun: `주로 ${actWord(a, kind)}`, verbal: (end: End) => `주로 ${V(a, end)}` };
+    };
+    if (it.range) {
+      claims.push({ t: 'upto', from: c0.hand, to: last.hand, action: a });
+      return { who: `${last.hand}까지는`, noun: actWord(a, kind), verbal: (end) => V(a, end) };
+    }
     if (order === 'action') {
-      // 이 액션의 칸 전부(섞인 칸은 따로 비중어로) — 'AKs·A5s·A4s는 4벳'. 마지막 항목이 남은 칸 전부면 '나머지는'.
+      // 이 액션의 칸 전부(섞인 칸은 따로 비중어로) — 'AKs·A5s·A4s는 4벳'. 마지막 항목이 남은 칸 전부면 '다른 칸은'
+      // (비중어 바로 뒤의 '나머지는'은 "그 칸의 나머지 절반"으로 읽힙니다, THEORY_SPEC §5).
       const named = new Set(items.slice(0, k).flatMap((x) => x.cells));
       if (k === items.length - 1 && k > 0 && cs.every((c) => named.has(c) || G.includes(c))) {
         claims.push({ t: 'rest', except: [...named].map((c) => c.hand), action: a, whole: false });
-        return { who: '나머지는', noun: actWord(a, kind), verbal: (end) => V(a, end) };
+        return { who: '다른 칸은', noun: actWord(a, kind), verbal: (end) => V(a, end) };
       }
+      if (G.every((x) => !x.full)) return mostly();
       claims.push({ t: 'only', hands: cs.filter((c) => c.p === a).map((c) => c.hand), action: a });
       return { who: listWho(G), noun: actWord(a, kind), verbal: (end) => V(a, end) };
     }
     const adjacent = k === 0 ? at(c0) === 0 : at(c0) === at(items[k - 1].cells[items[k - 1].cells.length - 1]) + 1;
     if (k > 0 && adjacent && last === cs[cs.length - 1]) {
-      const whole = G.every((x) => x.full);
+      // '…부터는 전부'는 줄 끝까지 덮습니다 — 그 뒤에 도달 불가 칸이 있으면 '전부'를 붙이지 않습니다.
+      const whole = G.every((x) => x.full) && !holes.some((i) => i > c0.slot);
       claims.push({ t: 'toEnd', from: c0.hand, action: a, whole });
       return { who: `${c0.hand}부터는${whole ? ' 전부' : ''}`, noun: actWord(a, kind), verbal: (end) => V(a, end) };
     }
+    if (!adjacent && G.every((x) => !x.full)) return mostly();
     claims.push({ t: 'upto', from: at(c0) === 0 ? null : c0.hand, to: last.hand, action: a });
     // 앞 항목에 바로 이어지면 '…까지는'(앞 항목 다음 칸부터), 떨어져 있으면 양 끝을 다 부릅니다.
     return { who: adjacent ? `${last.hand}까지${objForm ? '' : '는'}` : listWho(G), noun: actWord(a, kind), verbal: (end) => V(a, end) };
@@ -657,12 +815,17 @@ function listForm(cs: LineCell[], rest: Action, kind: ScenarioKind, S: string, O
     if (n === 1) text = `${S} ${O} ${head} ${V(a, '해요')}.`;
     else {
       const r = render(1, true);
-      text = `${S} ${O} ${head} ${V(a, '하고')}, ${r.who} ${r.verbal('해요')}.`;
+      // 'KQs만 3벳하고, KJs는 절반만 3벳해요'는 '만'과 뒤 절이 어긋납니다(THEORY_SPEC §5) — 둘째 항목이 같은 액션의
+      // 섞인 칸이면 '늘 3벳하는 건 KQs까지이고, …'로.
+      const clash = G.length === 1 && !items[1].strong && items[1].cells[0].p === a;
+      text = clash
+        ? `${S} ${Q} 늘 ${actWord(a, kind)}하는 건 ${G[0].hand}까지이고, ${r.who} ${r.verbal('해요')}.`
+        : `${S} ${O} ${head} ${V(a, '하고')}, ${r.who} ${r.verbal('해요')}.`;
     }
   } else {
     const rs = items.map((_, k) => render(k, false));
     if (n === 1) text = `${S} ${Q} ${rs[0].who} ${rs[0].verbal('해요')}.`;
-    else if (n === 2) text = `${S} ${Q} ${rs[0].who} ${rs[0].verbal('하고')}, ${rs[1].who} ${rs[1].verbal('해요')}.`;
+    else if (n === 2 && !hasSplit) text = `${S} ${Q} ${rs[0].who} ${rs[0].verbal('하고')}, ${rs[1].who} ${rs[1].verbal('해요')}.`;
     else text = `${S} ${Q} ${rs.slice(0, -1).map((r) => `${r.who} ${r.noun}`).join(', ')}, ${rs[n - 1].who} ${rs[n - 1].verbal('해요')}.`;
   }
   return { text, claims };
@@ -674,8 +837,9 @@ export const LINE_MAX_EM = 42;
 /**
  * (상황, 줄)의 문장(§3.4). 줄에 도달 칸이 없으면 null.
  * build() 의 후보(이름 규칙을 지키는 것만, 틀 문장 → 나머지 전부 꼴 → 칸 나열 꼴 순서)마다 원문, (1) 줄 이름(〈O〉/〈Q〉)을
- * 뺀 꼴 순서로 42em 안에 드는 첫 문장을 씁니다. 다 넘치면 (2) 주어를 'HJ:' 머리표로 줄입니다 —
- * 리빌 바로 위 상황 줄이 상대를 말하고, 내 자리는 머리표로 남습니다. 결정적입니다.
+ * 뺀 꼴 순서로 42em 안에 드는 첫 문장을 씁니다. 다 넘치면 (2) 주어에서 상대 액션을 빼고 내 자리를 장소로 —
+ * 'HJ에서 AKs·AQs…는 3벳, …해요.'(옛 'HJ:' 머리표 대신 문장으로, THEORY_SPEC §5) — 리빌 바로 위 상황 줄이 상대를 말합니다.
+ * 그래도 넘치면 (3) 주어를 뺍니다(상황 줄이 내 자리까지 말합니다). 결정적입니다.
  */
 export function lineSentence(s: Scenario, line: LineDef, opts?: { topic?: boolean }): LineSentence | null {
   const topic = !!opts?.topic;
@@ -689,12 +853,13 @@ export function lineSentence(s: Scenario, line: LineDef, opts?: { topic?: boolea
     const noLabel = dropLabel(text, line);
     if (fits(noLabel)) return out(c, noLabel, 'noLabel');
   }
-  const noCtx = (c: Built) => {
-    const t = dropLabel(c.text.replace(/^ /, ''), line);
-    return topic ? t : t.replace(`${subject(s)} `, `${s.hero}: `);
-  };
-  const pick = b.cands.find((c) => fits(noCtx(c))) ?? [...b.cands].sort((x, y) => emWidth(noCtx(x)) - emWidth(noCtx(y)))[0];
-  return out(pick, noCtx(pick), 'noCtx');
+  const bare = (c: Built) => dropLabel(c.text.replace(/^ /, ''), line);
+  const noCtx = (c: Built) => (topic ? bare(c) : bare(c).replace(`${subject(s)} `, `${s.hero}에서 `));
+  const noSubj = (c: Built) => (topic ? bare(c) : bare(c).replace(`${subject(s)} `, ''));
+  const ctx = b.cands.find((c) => fits(noCtx(c)));
+  if (ctx) return out(ctx, noCtx(ctx), 'noCtx');
+  const pick = b.cands.find((c) => fits(noSubj(c))) ?? [...b.cands].sort((x, y) => emWidth(noSubj(x)) - emWidth(noSubj(y)))[0];
+  return out(pick, noSubj(pick), 'noSubj');
 }
 
 /* ------------------------------------------------------------------ */

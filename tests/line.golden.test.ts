@@ -12,7 +12,7 @@ import { stepFor } from '../src/poker/trainer';
 /*
  * 골든 코퍼스 — docs/EXPLAIN_SPEC.md §7.3.
  * 74개 상황 × 25줄의 줄 문장 1,089개를 전부 다시 만들어 tests/__golden__/line-sentences.tsv 와 바이트 단위로 비교합니다.
- * 열: scenarioKey \t lineId \t frame(+except / +list 꼴, 폭 폴백이면 -noL / -noCtx) \t emWidth(소수 1자리) \t text
+ * 열: scenarioKey \t lineId \t frame(+except / +list 꼴, 폭 폴백이면 -noL / -noCtx / -noSubj) \t emWidth(소수 1자리) \t text
  *
  * 카피를 **의도적으로** 바꿀 때만 다시 씁니다:
  *   UPDATE_GOLDEN=1 npx vitest run tests/line.golden.test.ts
@@ -28,6 +28,17 @@ import { stepFor } from '../src/poker/trainer';
  *  - 이름 규칙(§3.4, 리뷰 3건): 비중 0.5 이하인 칸은 비중어와 함께 이름을 대고, '전부'는 전부 full 일 때만.
  *    104개 문장이 바뀌었습니다(P3 41 · P4 29 · P3h 24 · P1 5 · P2m 3 · P0h 2). 틀은 그대로이고, 틀 문장이 규칙을
  *    못 지키는 줄은 '나머지 전부' 꼴(+except 4)이나 칸 나열 꼴(+list 89)로 씁니다. 틀 분포 스냅숏은 바뀌지 않았습니다.
+ *  - 줄 문장의 모호함(docs/THEORY_SPEC.md §5): 286개 문장이 바뀌었습니다. 틀 분포는 그대로입니다.
+ *      (a) 도달 칸이 줄의 일부뿐인 줄의 '전부' · 줄 이름 전체 → 칸 이름('CO는 SB 올인에 AA~QQ를 콜해요.') 117
+ *      (c) 비중어 바로 뒤의 '나머지는' → '그 아래 칸은' · '다른 칸은' 104
+ *      (d) 'KQo만 오픈하고, KJo는 절반만 오픈해요' → '늘 오픈하는 건 KQo까지이고, …' 39
+ *      (b) 세 액션 칸 → '절반은 콜하고, 나머지를 3벳과 폴드로 나눠요' · '절반은 콜, 절반은 4벳·폴드' 16
+ *      (e) 이름으로 부른 주로 칸 → '주로'와 함께(또는 범위 '…까지는'로) 5
+ *      (f) 'HJ:' 머리표 → 'HJ에서 …' 문장(두 줄은 주어 없이) 6 — 그중 1개는 (c)와 겹칩니다.
+ *    리뷰에서 (a)를 더 좁혔습니다(같은 286줄 안에서 글자만 바뀜): 칸 이름 범위 'X~Y'는 slot 이 이어질 때만
+ *    ('BB는 SB 4벳에 T9s·76s~54s를 폴드해요.' — 98s·87s 는 못 옴), '그 아래 칸은'이 도달 불가 칸을 덮으면 그 아래 도달 칸이
+ *    전부 full 폴드일 때 이름으로('…AKo는 올인과 콜을 반반 섞고, AQo는 폴드해요.' 45줄), 그 아래 도달 칸이 없으면 그 절 없이
+ *    ('UTG는 SB 올인에 AKo를 주로 폴드하고, 가끔 콜해요.' 2줄).
  */
 
 const GOLDEN = new URL('./__golden__/line-sentences.tsv', import.meta.url);
@@ -43,7 +54,7 @@ function corpus(): { tsv: string; frames: Record<string, number> } {
       const r = lineSentence(s, line);
       if (!r) continue;
       frames[r.frame] = (frames[r.frame] ?? 0) + 1;
-      const frame = `${r.frame}${r.form === 'frame' ? '' : `+${r.form}`}${r.fallback === 'noLabel' ? '-noL' : r.fallback === 'noCtx' ? '-noCtx' : ''}`;
+      const frame = `${r.frame}${r.form === 'frame' ? '' : `+${r.form}`}${r.fallback === 'noLabel' ? '-noL' : r.fallback ? `-${r.fallback}` : ''}`;
       rows.push(`${scenarioKey(s)}\t${line.id}\t${frame}\t${emWidth(r.text).toFixed(1)}\t${r.text}`);
     }
   }

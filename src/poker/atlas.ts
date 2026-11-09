@@ -4,7 +4,7 @@ import { ALL_HANDS, parseHandName } from './hands';
 import { priceFacts } from './priceFacts';
 import { AGGRESSION_ORDER, fullMix, primaryAction, rangeShare } from './range';
 import { positionsAfter, positionsBefore, scenarioKey } from './scenarios';
-import { actWord, josa } from './ko';
+import { actWord, josa, splitOf, splitPhrase } from './ko';
 import { POS_INDEX, type Action, type ActionMix, type HandName, type Pos, type Scenario, type ScenarioKind } from './types';
 import type { CardKey } from '../state/srs'; // 타입만 — srs.ts 는 react 를 import 하므로 값은 가져오지 않습니다.
 
@@ -499,12 +499,16 @@ function weightPhrase(cell: AtlasCell): string {
       return `${act}해요`;
     case 'most':
       return `주로 ${act}해요`;
-    case 'half':
+    case 'half': {
       if (isTieMix(cell)) return `${josa(act, '과/와')} ${josa(actWord(cell.mixList[1].action, kind), '을/를')} 반반 섞어요`;
-      // 1순위가 폴드·체크인 반반(폴드 50 / 4벳 25 / 콜 25): "절반만 폴드합니다"는 폴드를 말리는 말로 읽힙니다.
-      // 나머지 절반이 뭘 하는지까지 말해야 배울 수 있는 문장이 됩니다.
+      // 세 액션 칸(콜 50 / 3벳 25 / 폴드 25, 폴드 50 / 4벳 25 / 콜 25)은 '절반만 콜'로 줄이지 않고 나눔을 부릅니다
+      // (THEORY_SPEC §5) — 줄 문장과 같은 말: '절반은 콜하고, 나머지를 3벳과 폴드로 나눠요'.
+      const sp = splitOf(cell.mixList);
+      if (sp) return splitPhrase(sp, kind, 'solo');
+      // 1순위가 폴드·체크인 반반: "절반만 폴드합니다"는 폴드를 말리는 말로 읽힙니다. 나머지 절반이 뭘 하는지까지 말합니다.
       if (cell.primary === 'fold' || cell.primary === 'check') return `절반은 ${act}, 절반은 ${josa(restWords(cell), '이에요/예요')}`;
       return `절반만 ${act}해요`;
+    }
     case 'some':
       return `${pctInt(cell.mixList[0].weight)}%만 ${act}해요`;
   }
@@ -560,7 +564,13 @@ function digest(sec: AtlasSection): Digest {
     const act = live[0].primary;
     const nums = [live.length];
     let text = `${live.length}곳 전부 ${actWord(act, kind)}`;
-    if (halfN) {
+    // 세 액션 칸(4벳 50 / 콜 25 / 폴드 25)은 '절반만'으로 줄이지 않습니다 — 나머지 절반이 폴드만이 아닙니다(THEORY_SPEC §5).
+    const splits = live.filter((c) => c.weightClass === 'half' && splitOf(c.mixList));
+    if (halfN && splits.length === halfN) {
+      const alts = [...new Set(splits.flatMap((c) => c.mixList.slice(1).filter((m) => m.weight > EPS).map((m) => m.action)))].sort((x, y) => aggression(y) - aggression(x));
+      text += ` · 그중 ${halfN}곳은 절반이 ${alts.map((x) => actWord(x, kind)).join('·')}`;
+      nums.push(halfN);
+    } else if (halfN) {
       text += ` · 그중 ${halfN}곳은 절반만`;
       nums.push(halfN);
     } else if (mixed.length) {
@@ -604,6 +614,9 @@ function digest(sec: AtlasSection): Digest {
 export function uniformLine(sec: AtlasSection): Line | null {
   const d = digest(sec);
   if (!d.uniform) return null;
+  // 섹션에 이 패로는 못 오는 칸이 있으면 '어느 자리에서나'가 그 칸까지 덮습니다(THEORY_SPEC §5) — 오는 칸의 수로 말합니다.
+  const n = d.claims.length;
+  if (n < sec.cells.length) return { text: `이 패가 오는 ${n}곳에서는 ${actWord(d.uniform, sec.kind)}해요.`, claims: d.claims, nums: [n], source: 'computed' };
   return { text: `어느 자리에서나 ${actWord(d.uniform, sec.kind)}해요.`, claims: d.claims, nums: [], source: 'computed' };
 }
 
@@ -654,7 +667,8 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
     case 'sbOnly': {
       // "SB에서만 절반만" 은 '만'이 겹칩니다. 두 절로 — 어디서 오픈하는지, 나머지는 폴드.
       const w = weightWord(sbCell);
-      out.push({ text: `${subject} SB에서 ${w.word ? `${w.word} ` : ''}오픈하고, 나머지는 폴드예요.`, claims: strip.cells.map(claimOf), nums: w.nums, source: 'computed' });
+      // '나머지는 폴드예요'는 비중어 바로 뒤라 "SB 의 나머지 절반"으로도 읽힙니다(THEORY_SPEC §5) — 자리라고 못 박습니다.
+      out.push({ text: `${subject} SB에서 ${w.word ? `${w.word} ` : ''}오픈하고, 다른 자리에서는 폴드해요.`, claims: strip.cells.map(claimOf), nums: w.nums, source: 'computed' });
       break;
     }
     case 'entry': {
@@ -707,7 +721,7 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
           else groups.push({ word: words[i].word, seats: [p] });
         });
         const parts = groups.map((g) => `${[...g.seats.slice(0, -1).map((p) => josa(p, '과/와')), g.seats[g.seats.length - 1]].join(' ')}에서 ${g.word}`);
-        out.push({ text: `${subject} ${parts.join(', ')} 오픈하고, 나머지는 폴드예요.${sbClause}`, claims: [...all.map((p) => claimOf(cell(p))), ...sbClaims], nums, source: 'computed' });
+        out.push({ text: `${subject} ${parts.join(', ')} 오픈하고, 다른 자리에서는 폴드해요.${sbClause}`, claims: [...all.map((p) => claimOf(cell(p))), ...sbClaims], nums, source: 'computed' });
       } else {
         out.push({ text: `${subject} ${seats.join('·')}에서만 오픈해요.${sbClause}`, claims: [...seats.map((p) => claimOf(cell(p))), ...sbClaims], nums, source: 'computed' });
       }
@@ -747,12 +761,23 @@ export function compareCells(a: AtlasCell, b: AtlasCell): Line[] {
     const altB = B.mixList[1];
     const wA = altA?.weight ?? 0;
     const wB = altB?.weight ?? 0;
-    const differ = Math.abs(wA - wB) >= 0.01 || altA?.action !== altB?.action;
+    // 세 액션 칸(콜 50 / 3벳 25 / 폴드 25)이 끼면 2순위가 같아도(BB 콜 75 / 3벳 25) 섞는 모양이 다릅니다 — 그 칸을 집어 말합니다.
+    const sig = (c: AtlasCell) => c.mixList.map((m) => `${m.action}${pctInt(m.weight)}`).join();
+    const splitX = sig(A) !== sig(B) ? [B, A].find((c) => splitOf(c.mixList)) : undefined;
+    const differ = Math.abs(wA - wB) >= 0.01 || altA?.action !== altB?.action || !!splitX;
     if (differ && (altA || altB)) {
-      const X = wB > wA || (wB === wA && B === a) ? B : A;
+      const X = splitX ?? (wB > wA || (wB === wA && B === a) ? B : A);
       const alt = X.mixList[1];
       const p = pctInt(alt.weight);
-      out.push({ text: `${where(X)} ${actWord(alt.action, kind)}도 ${p}% 섞어요.`, claims: [claimOf(X)], nums: [p], source: 'computed' });
+      // 세 액션 칸이면 2순위 하나만 말하면 3순위가 사라집니다 — 'CO에서는 3벳도 폴드도 25%씩 섞어요.'
+      const alt2 = X.mixList[2];
+      const both = splitOf(X.mixList) && alt2 && pctInt(alt2.weight) === p;
+      out.push({
+        text: both ? `${where(X)} ${actWord(alt.action, kind)}도 ${actWord(alt2.action, kind)}도 ${p}%씩 섞어요.` : `${where(X)} ${actWord(alt.action, kind)}도 ${p}% 섞어요.`,
+        claims: [claimOf(X)],
+        nums: [p],
+        source: 'computed',
+      });
     }
   }
 
