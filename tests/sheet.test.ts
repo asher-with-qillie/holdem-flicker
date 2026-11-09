@@ -126,8 +126,9 @@ describe('sheet: 차트 메모 정리본 (§6.4, §7.2-4·5)', () => {
    */
   const MEMO_CONTENT = new Set(['필요 승률', '팟 오즈', 'SPR']);
 
-  it('647개 전부 BANNED 에 걸리지 않는다', () => {
-    expect(NOTES.length).toBe(647);
+  // 647개를 하나씩 다시 쓰고, 이 패에만 해당하는 이유가 없거나 도달할 수 없는 칸의 41개는 지웠어요(THEORY_SPEC §9-2).
+  it('606개 전부 BANNED 에 걸리지 않는다', () => {
+    expect(NOTES.length).toBe(606);
     const bad: string[] = [];
     for (const { where, text } of NOTES) {
       const hits = bannedHits(text).filter((h) => !MEMO_CONTENT.has(h));
@@ -148,15 +149,13 @@ describe('sheet: 차트 메모 정리본 (§6.4, §7.2-4·5)', () => {
     expect(bad.slice(0, 20)).toEqual([]);
   });
 
-  it('§4.3 시트의 메모 7개가 정리본과 글자까지 같다', () => {
+  it('다시 쓴 메모 몇 개를 글자까지 고정 (THEORY_SPEC §9 — 이 패에만 해당하는 이유)', () => {
     const memo = (s: Scenario, hand: string) => explainStep(stepFor(s, hand)).more.memo;
-    expect(memo({ kind: 'rfi', hero: 'UTG' }, 'KJo')).toBe('KJo는 절반만 오픈해요. AK·KQ에 도미네이트(같은 카드를 맞춰도 킥커에서 지는 상태)당하기 쉬워요. 내 K♠J♦ vs 상대 A♠K♦ → K가 깔려도 킥커에서 져요.');
-    expect(memo({ kind: 'vs_3bet', hero: 'CO', villain: 'BTN' }, 'A5s')).toBe('4벳 블러프로 늘 써요. A4s도 같아요. 내 A가 상대의 AA·AK 조합을 줄여 줘요.');
-    expect(memo({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'QQ')).toBe('콜 75%, 올인 25%예요. 콜을 받으면 AA·KK에 크게 밀려요. 내 Q♠Q♦ vs 상대 A♦K♠ → 승률 57%.');
-    expect(memo({ kind: 'vs_5bet', hero: 'CO', villain: 'BTN' }, 'QQ')).toBe('4번 중 3번은 콜해요. 상대 AK·JJ가 섞여 승률 40%를 살짝 넘겨요. 예: 내 Q♠Q♦ vs 상대 A♠K♦ → 승률 57%.');
-    expect(memo({ kind: 'cold_4bet', hero: 'CO' }, 'QQ')).toBe('QQ는 절반은 4벳, 절반은 콜이에요. 4벳 뒤 올인을 받으면 KK·AA가 많아 폴드해요. 콜하면 뒤의 3명에게 스퀴즈(오픈과 콜 뒤에 크게 올리는 것)를 맞을 수 있어요.');
-    expect(memo({ kind: 'vs_limp', hero: 'BB' }, '55')).toBe('55는 체크예요. 다른 자리에서는 올리는 패인데, BB에서는 공짜로 플랍을 보고 셋이 되면 그때 키우는 게 나아요.');
-    expect(memo({ kind: 'vs_open', hero: 'SB', villain: 'UTG' }, 'QJs')).toBe('QJs는 25%만 3벳 블러프예요. JTs와 함께 조금씩 섞어 여러 보드에 대비해요.');
+    expect(memo({ kind: 'rfi', hero: 'UTG' }, 'KJo')).toBe('KJo는 절반만 오픈해요. KQo는 BTN·SB·BB의 3벳에 콜을 섞지만, KJo는 누가 3벳하든 폴드해서 오픈의 이득이 그만큼 얇아요.');
+    expect(memo({ kind: 'vs_3bet', hero: 'CO', villain: 'BTN' }, 'A5s')).toBe('4벳해요. A5s를 쥐면 BTN이 4벳에 계속하는 조합이 49개에서 약 41개로 줄어요. BTN이 올인하면 폴드해요.');
+    expect(memo({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'QQ')).toBe('주로 콜하고, 가끔 올인해요. 올인하면 UTG는 QQ가 이기는 AKo·A5s를 폴드하고 AA·KK와 AKs 절반으로만 콜해 승률이 약 23%예요. 콜하면 범위 전체에 약 41%예요.');
+    expect(memo({ kind: 'cold_4bet', hero: 'CO' }, 'QQ')).toBe('QQ는 4벳과 콜을 반반 섞어요. HJ의 3벳 범위 전체에는 승률이 약 55%지만, 그중 AA·KK 12조합에는 약 18%뿐이라 4벳과 콜의 가치가 비슷해요.');
+    expect(memo({ kind: 'vs_open', hero: 'SB', villain: 'UTG' }, 'QJs')).toBe('주로 폴드하고, 가끔 3벳해요. QJs는 UTG의 4벳 범위 중 QQ만 막아서, 4벳 조합이 42개에서 39개로만 줄어요. KJs라면 35개로 줄어요.');
   });
 });
 

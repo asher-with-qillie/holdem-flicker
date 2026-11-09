@@ -46,9 +46,9 @@ describe('hand classes', () => {
 
 /**
  * C단계: 어디에도 나오면 안 되는 말 (표준 용어를 억지로 푼 표현 + 옛 정책의 잔재 + 책에 없는 말).
- * 에퀴티 · 양극화 · 실현 · 조합(콤보)은 책 용어라 THEORY_SPEC §8 부터 씁니다 — 용어집 팝오버가 풉니다.
+ * 에퀴티 · 폴드 에퀴티 · 양극화 · 실현 · 조합(콤보)은 책 용어라 THEORY_SPEC §8 부터 씁니다 — 용어집 팝오버가 풉니다.
  */
-const BANNED = ['뻥', '옆 카드', '같은 숫자 3장', '미리 낸 돈', '제일 높은 한 쌍', '폴드 에퀴티', '셋마이닝', '리니어', '폴라', '10번 중'];
+const BANNED = ['뻥', '옆 카드', '같은 숫자 3장', '미리 낸 돈', '제일 높은 한 쌍', '셋마이닝', '리니어', '폴라', '10번 중'];
 
 /** A단계: 그대로 쓰는 표준 용어. 뒤에 "(…)" 풀이가 붙으면 안 됩니다. */
 const TIER_A = [
@@ -208,9 +208,11 @@ describe('line sentence in every kind', () => {
         expect(text, `${sc.kind} ${sc.hero} ${hand}`).not.toMatch(/[가-힣A-Za-z]\(/);
       }
     }
-    // 메모의 괄호 풀이는 그대로 둡니다(A2s 메모가 블로커를 풉니다).
-    const a2 = explainStep(stepFor({ kind: 'rfi', hero: 'UTG' }, 'A2s'));
-    expect(a2.more.memo).toMatch(/블로커\(/);
+    // 다시 쓴 메모(THEORY_SPEC §9)도 괄호 풀이 대신 용어집 팝오버에 맡깁니다.
+    for (const sc of ALL_SPOTS) for (const hand of ALL_HANDS) {
+      const memo = explainStep(stepFor(sc, hand)).more.memo ?? '';
+      for (const t of TIER_B) expect(glossHits(memo, t), `${sc.kind} ${sc.hero} ${hand} memo: ${t}`).toBe(0);
+    }
   });
 
   it('차트 메모가 이미 푼 용어는 다시 풀지 않는다 (한 시트에 풀이 1회)', () => {
