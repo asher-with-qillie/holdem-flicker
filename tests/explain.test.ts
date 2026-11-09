@@ -5,7 +5,7 @@ import { parseHandName, ALL_HANDS, dealCardsFor } from '../src/poker/hands';
 import { GLOSSARY, glossaryLookup, GLOSSARY_WORDS } from '../src/poker/glossary';
 import { emWidth } from '../src/poker/ko';
 import { fullMix } from '../src/poker/range';
-import { mixBlock, oneExample } from '../src/poker/sheet';
+import { exampleShape, mixBlock, oneExample } from '../src/poker/sheet';
 import { allScenarios } from '../src/poker/scenarios';
 import { splitTerms } from '../src/components/Term';
 import { readFileSync } from 'node:fs';
@@ -118,7 +118,7 @@ const ALL_SPOTS: Scenario[] = allScenarios()
   .filter(hasChart)
   .map((s) => (s.kind === 'cold_4bet' ? { ...s, extras: { opener: 'UTG', threeBettor: 'HJ' } } : s.kind === 'vs_limp' ? { ...s, extras: { limper: 'UTG' } } : s));
 
-/** 예시 한 줄의 세 모양(§4.2-⑦). */
+/** 예시 한 줄의 세 모양(§4.2-⑦). 어느 칸에 붙는지는 결정이 정합니다(THEORY_SPEC §6.4). */
 const EXAMPLE_SHAPES = [
   /^내 (?:10|[2-9TJQKA])[♠♦](?:10|[2-9TJQKA])[♠♦] → 플랍에서 셋이 될 확률 12%예요\.$/,
   /^내 (?:10|[2-9TJQKA])[♠♦](?:10|[2-9TJQKA])[♠♦] vs 상대 (?:\S+) → (?:10|[AKQJ])[을를] 맞춰도 킥커에서 밀려요\.$/,
@@ -226,42 +226,80 @@ describe('line sentence in every kind', () => {
 
 describe('oneExample', () => {
   it('example cards come from the hand (hero cards are shown)', () => {
-    expect(oneExample(stepFor({ kind: 'rfi', hero: 'BTN' }, 'A5s'))).toContain('A♠5♠');
-    expect(oneExample(stepFor({ kind: 'rfi', hero: 'SB' }, 'KQo'))).toContain('K♠Q♦');
-    expect(oneExample(stepFor({ kind: 'rfi', hero: 'UTG' }, '55'))).toContain('5♠5♦');
+    expect(exampleShape('A5s')!.text).toContain('A♠5♠');
+    expect(exampleShape('KQo')!.text).toContain('K♠Q♦');
+    expect(exampleShape('55')!.text).toContain('5♠5♦');
+    // 중간·작은 페어는 셋 확률 줄(책은 작은 페어를 셋이 될 확률과 보드 커버리지로 설명합니다, THEORY_SPEC §1-2) — 콜하는 88 에는 붙어요.
     expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BTN', villain: 'HJ' }, '88'))).toMatch(/셋이 될 확률 12%/);
   });
 
-  it('oneExample 은 §4.2-⑦ 의 세 모양 중 하나이거나 null 이고, 메모가 있으면 예시는 없다', () => {
+  it('exampleShape 는 §4.2-⑦ 의 세 모양 중 하나이거나 null 이다', () => {
     let shown = 0;
     for (const hand of ALL_HANDS) {
-      const step = stepFor({ kind: 'rfi', hero: 'BTN' }, hand);
-      const x = oneExample(step);
+      const x = exampleShape(hand)?.text ?? null;
       if (x) {
         shown++;
         expect(EXAMPLE_SHAPES.some((re) => re.test(x)), x).toBe(true);
         expect(x.length, x).toBeLessThanOrEqual(40);
       }
       const cls = classifyHand(hand);
-      if (cls === 'mid_pair' || cls === 'small_pair' || cls === 'wheel_ace') expect(x, hand).not.toBeNull();
+      if (cls === 'wheel_ace') expect(exampleShape(hand)?.kind, hand).toBe('blocker');
+      if (cls === 'mid_pair' || cls === 'small_pair') expect(exampleShape(hand)?.kind, hand).toBe('set');
       if (cls === 'premium_pair' || cls === 'big_pair' || cls === 'suited_connector' || cls === 'junk' || cls === 'ak') expect(x, hand).toBeNull();
     }
     expect(shown).toBeGreaterThan(40);
+    expect(exampleShape('A9o')!.text).toBe('내 A♠9♦ vs 상대 A♦K♠ → A를 맞춰도 킥커에서 밀려요.');
+    expect(exampleShape('QTs')!.text).toBe('내 Q♠10♠ vs 상대 A♦Q♦ → Q를 맞춰도 킥커에서 밀려요.');
+  });
+
+  it('예시는 결정과 맞을 때만(THEORY_SPEC §6.4): 지배 예시는 폴드·섞기 칸, 블로커 예시는 3벳·4벳·올인 칸, 셋 확률은 콜·오픈·체크 칸, 메모가 있으면 없음', () => {
+    const shown = { set: 0, domination: 0, blocker: 0 };
+    let mixedFold = 0;
     for (const s of ALL_SPOTS) {
-      for (const hand of ['A5s', 'KQo', '55', 'Q9s', 'T9s']) {
-        const e = explainStep(stepFor(s, hand));
+      for (const hand of ALL_HANDS) {
+        const step = stepFor(s, hand);
+        const e = explainStep(step);
+        const x = oneExample(step);
         if (e.more.memo) expect(e.more.example).toBeNull();
-        else expect(e.more.example).toBe(oneExample(stepFor(s, hand)));
+        else expect(e.more.example).toBe(x);
+        if (!x) continue;
+        const shape = exampleShape(hand)!;
+        expect(x).toBe(shape.text);
+        const p = step.mixList[0].action;
+        const mixed = step.mixList[0].weight < 0.6;
+        const has = (a: string) => step.mixList.some((m) => m.action === a && m.weight > 0.001);
+        const where = `${s.kind} ${s.hero} ${hand}: ${x}`;
+        // 지배: 1순위가 폴드이거나, 섞인 칸(1순위 < 60%)에 폴드가 섞임 — '절반만 오픈'하는 KJo 의 접는 절반.
+        if (shape.kind === 'domination') {
+          expect(p === 'fold' || (mixed && has('fold')), where).toBe(true);
+          if (p !== 'fold') mixedFold++;
+        } else if (shape.kind === 'blocker') expect(['threebet', 'fourbet', 'allin'], where).toContain(p);
+        else expect(['call', 'raise', 'check'].includes(p) || (mixed && (has('call') || has('raise'))), where).toBe(true);
+        if (!e.more.memo) shown[shape.kind]++;
       }
     }
-    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'CO' }, '22'))).toBe('내 2♠2♦ → 플랍에서 셋이 될 확률 12%예요.');
+    // 오픈하는 AQs · 체크하는 BB · 콜하는 A9o 에는 '킥커에서 밀려요'가 붙지 않습니다(감사: 결정과 무관한 예시 2,450줄).
+    expect(oneExample(stepFor({ kind: 'rfi', hero: 'UTG' }, 'AQs'))).toBeNull();
+    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'UTG' }, 'A9o'))).toBeNull();
+    expect(oneExample(stepFor({ kind: 'vs_4bet', hero: 'BTN', villain: 'UTG' }, 'A3s'))).toBeNull();
     expect(oneExample(stepFor({ kind: 'rfi', hero: 'UTG' }, 'A9o'))).toBe('내 A♠9♦ vs 상대 A♦K♠ → A를 맞춰도 킥커에서 밀려요.');
-    expect(oneExample(stepFor({ kind: 'rfi', hero: 'UTG' }, 'QTs'))).toBe('내 Q♠10♠ vs 상대 A♦Q♦ → Q를 맞춰도 킥커에서 밀려요.');
+    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'SB', villain: 'UTG' }, 'KTs'))).toBe('내 K♠10♠ vs 상대 A♦K♦ → K를 맞춰도 킥커에서 밀려요.');
+    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'HJ', villain: 'UTG' }, 'A4s'))).toBe('내 A♠4♠ → A를 쥐고 있어 상대 AA·AK 조합이 줄어요.');
+    // 섞기 칸: 오픈 50 · 폴드 50 인 KJo(UTG)는 반반 동점 규칙으로 1순위가 오픈이지만 접는 절반이 있어 지배 예시가 붙습니다.
+    expect(oneExample(stepFor({ kind: 'rfi', hero: 'UTG' }, 'KJo'))).toBe('내 K♠J♦ vs 상대 A♠K♦ → K를 맞춰도 킥커에서 밀려요.');
+    // 셋 확률: 콜하는 22 에는 붙고, 폴드하는 44(UTG vs BTN 3벳) · 3벳하는 99(SB vs CO)에는 붙지 않습니다.
+    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'CO' }, '22'))).toBe('내 2♠2♦ → 플랍에서 셋이 될 확률 12%예요.');
+    expect(oneExample(stepFor({ kind: 'vs_3bet', hero: 'UTG', villain: 'BTN' }, '44'))).toBeNull();
+    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'SB', villain: 'CO' }, '99'))).toBeNull();
+    expect(shown.domination).toBeGreaterThan(1000);
+    expect(shown.blocker).toBeGreaterThan(40);
+    expect(shown.set).toBeGreaterThan(100);
+    expect(mixedFold).toBeGreaterThan(50);
   });
 
   it('an offsuit opponent hand never renders with two cards of the same suit, and no card appears twice', () => {
     for (const hand of ALL_HANDS) {
-      const line = oneExample(stepFor({ kind: 'rfi', hero: 'BTN' }, hand));
+      const line = exampleShape(hand)?.text;
       if (!line) continue;
       for (const m of line.matchAll(/((?:10|[2-9TJQKA]))([♠♦])((?:10|[2-9TJQKA]))([♠♦])/g)) {
         if (m[1] === m[3]) expect(m[2] === m[4], line).toBe(false);
@@ -299,21 +337,23 @@ describe('oneExample', () => {
     expect(dominatedBy(parseHandName('AQo'))).toBe('KQo');
     // 예시 줄의 상대는 페어가 아니고, 내 높은 카드를 같이 들고 더 큰 킥커를 붙인 패입니다.
     for (const hand of ALL_HANDS) {
-      const line = oneExample(stepFor({ kind: 'rfi', hero: 'BTN' }, hand));
+      const line = exampleShape(hand)?.text;
       if (!line || !line.includes(' vs ')) continue;
       expect(line, hand).not.toMatch(/상대 ([2-9TJQKA]|10)[♠♦]\1[♠♦]/);
       expect(line.includes(`→ ${hand[0] === 'T' ? '10' : hand[0]}`), line).toBe(true);
     }
   });
 
-  it('wheel ace 이고 메모가 없으면 예시는 블로커 줄', () => {
+  it('wheel ace 이고 메모가 없고 3벳·4벳·올인하는 칸이면 예시는 블로커 줄', () => {
     let seen = 0;
     for (const s of ALL_SPOTS) {
       for (const hand of ['A5s', 'A4s', 'A3s', 'A2s']) {
-        const e = explainStep(stepFor(s, hand));
+        const step = stepFor(s, hand);
+        const e = explainStep(step);
         if (e.more.memo) continue;
-        seen++;
-        expect(e.more.example, `${s.kind} ${s.hero} ${hand}`).toBe(`내 A♠${hand[1]}♠ → A를 쥐고 있어 상대 AA·AK 조합이 줄어요.`);
+        const bluff = ['threebet', 'fourbet', 'allin'].includes(step.mixList[0].action);
+        if (bluff) seen++;
+        expect(e.more.example, `${s.kind} ${s.hero} ${hand}`).toBe(bluff ? `내 A♠${hand[1]}♠ → A를 쥐고 있어 상대 AA·AK 조합이 줄어요.` : null);
       }
     }
     expect(seen).toBeGreaterThan(0);
@@ -501,8 +541,8 @@ describe('suit orientation', () => {
     expect(noMemo(s, 'KTs')).toBe(true);
     const kt = explainStep(stepFor(s, 'KTs'), 'diamond').more.example!;
     expect(kt).toBe('내 K♦10♦ vs 상대 A♠K♠ → K를 맞춰도 킥커에서 밀려요.');
-    const p22 = explainStep(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'CO' }, '22'), 'diamond').more.example!;
-    expect(p22).toContain('2♦2♠');
+    const a4 = explainStep(stepFor({ kind: 'vs_open', hero: 'HJ', villain: 'UTG' }, 'A4s'), 'diamond').more.example!;
+    expect(a4).toBe('내 A♦4♦ → A를 쥐고 있어 상대 AA·AK 조합이 줄어요.');
   });
 
   it('뒤집기는 ♠↔♦ 맞바꾸기 하나뿐이다 — 그 밖의 글자는 한 자도 바뀌지 않고, 줄 문장 · 자리 문장은 그대로다', () => {

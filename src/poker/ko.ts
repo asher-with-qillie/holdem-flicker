@@ -8,7 +8,7 @@ import { ACTION_SHORT_KO, type Action, type ScenarioKind } from './types';
  * 조사는 손으로 고르지 않습니다 — 여기 josa()를 부릅니다.
  */
 
-export type Josa = '이/가' | '은/는' | '을/를' | '과/와' | '이에요/예요' | '이나/나';
+export type Josa = '이/가' | '은/는' | '을/를' | '과/와' | '이에요/예요' | '이나/나' | '으로/로';
 
 /**
  * 라틴 문자를 소리 내어 읽었을 때 받침이 있는가. 엘·엠·엔·알만 받침이 있습니다.
@@ -45,11 +45,27 @@ const PAIRS: Record<Josa, [string, string]> = {
   '과/와': ['과', '와'],
   '이에요/예요': ['이에요', '예요'],
   '이나/나': ['이나', '나'],
+  '으로/로': ['으로', '로'],
 };
 
-/** word + 조사. `josa('BTN', '은/는')` → 'BTN은', `josa('46%', '이에요/예요')` → '46%예요'. */
+/**
+ * 마지막으로 소리 내어 읽는 음절의 받침이 ㄹ 인가. '으로/로'는 ㄹ 받침 뒤에서 받침이 없을 때처럼 '로'를 씁니다
+ * (콜로 · 폴드로 · 3벳으로 · 올인으로). 라틴 문자 L(엘)·R(알), 숫자 1(일)·7(칠)·8(팔)이 ㄹ 로 끝납니다.
+ */
+function endsInRieul(word: string): boolean {
+  const w = word.trimEnd();
+  const last = w[w.length - 1];
+  if (!last) return false;
+  const code = last.charCodeAt(0);
+  if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 === 8;
+  if (/[0-9]/.test(last)) return last === '1' || last === '7' || last === '8';
+  return /[LRlr]/.test(last);
+}
+
+/** word + 조사. `josa('BTN', '은/는')` → 'BTN은', `josa('46%', '이에요/예요')` → '46%예요', `josa('콜', '으로/로')` → '콜로'. */
 export function josa(word: string, j: Josa): string {
   const [withFinal, without] = PAIRS[j];
+  if (j === '으로/로' && endsInRieul(word)) return `${word}${without}`;
   return `${word}${hasFinal(word) ? withFinal : without}`;
 }
 
@@ -62,6 +78,27 @@ export function actWord(a: Action, kind: ScenarioKind): string {
 /** 문장 동사 = 버튼 단어 + 해요/하고. `verb('fold', 'rfi', '해요')` → '폴드해요'. */
 export function verb(a: Action, kind: ScenarioKind, end: '해요' | '하고'): string {
   return `${actWord(a, kind)}${end}`;
+}
+
+/** 세 액션 칸(1순위가 절반이고 나머지 절반을 둘 이상이 나눔)이면 그 액션들, 아니면 null. */
+export function splitOf(mixList: Array<{ action: Action; weight: number }>): Action[] | null {
+  const nz = mixList.filter((m) => m.weight > 0.001);
+  return nz.length >= 3 && Math.abs(nz[0].weight - 0.5) < 0.01 ? nz.map((m) => m.action) : null;
+}
+
+/**
+ * 세 액션 칸의 서술(THEORY_SPEC §5). 'solo'는 문장 끝 동사 꼴 — `절반은 콜하고, 나머지를 3벳과 폴드로 나눠요` —
+ * 이고, 칸 나열 안에서는 명사 꼴 `절반은 콜, 절반은 3벳·폴드`(끝 항목이면 `…폴드예요`)를 씁니다.
+ * '나머지를 … 나눠요'는 주제어(그 칸)의 나머지 절반이라 다른 칸으로 읽히지 않습니다.
+ */
+export function splitPhrase(actions: Action[], kind: ScenarioKind, form: 'solo' | 'noun' | 'nounEnd'): string {
+  const [a1, ...others] = actions.map((a) => actWord(a, kind));
+  if (form === 'solo') {
+    const head = others.slice(0, -1).join('·');
+    return `절반은 ${a1}하고, 나머지를 ${josa(head, '과/와')} ${josa(others[others.length - 1], '으로/로')} 나눠요`;
+  }
+  const tail = others.join('·');
+  return `절반은 ${a1}, 절반은 ${form === 'nounEnd' ? josa(tail, '이에요/예요') : tail}`;
 }
 
 /**

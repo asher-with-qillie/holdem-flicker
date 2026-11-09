@@ -26,46 +26,82 @@ const LINES: LineDef[] = (() => {
 })();
 const agg = (a: Action) => AGGRESSION_ORDER.indexOf(a);
 
-/** 독립 재계산: 줄의 도달 칸(스트립 순서)과 각 칸의 1순위·비중·비중어. */
+/** 독립 재계산: 줄의 도달 칸(스트립 순서)과 각 칸의 1순위·비중·비중어. split = 세 액션 칸(1순위 절반 + 나머지 둘)의 액션들. */
 interface Cell {
   hand: HandName;
+  slot: number;
   p: Action;
   w: number;
   full: boolean;
   mix: Array<{ action: Action; weight: number }>;
   word: WeightWord;
+  split: Action[] | null;
 }
 function cellsOf(s: Scenario, line: LineDef): Cell[] {
   const cells = getChartCells(s);
   const rest = restAction(getChartDef(s));
-  return line.slots
-    .filter((x) => x.inLine && x.hand && isReachable(s, x.hand).ok)
-    .map((x) => {
-      const mix = fullMix(cells[x.hand!]);
-      const p = mix[0].action;
-      const w = mix[0].weight;
-      const s2 = mix[1];
-      const word: WeightWord =
-        w >= 0.999 ? 'full' : w >= 0.6 ? '주로' : s2 && Math.abs(s2.weight - w) < 0.01 && s2.action !== rest ? '반반' : p === rest ? '절반은' : '절반만';
-      return { hand: x.hand!, p, w, full: w >= 0.999, mix, word };
-    });
+  return line.slots.flatMap((x, slot) => {
+    if (!x.inLine || !x.hand || !isReachable(s, x.hand).ok) return [];
+    const mix = fullMix(cells[x.hand]);
+    const p = mix[0].action;
+    const w = mix[0].weight;
+    const s2 = mix[1];
+    const word: WeightWord =
+      w >= 0.999 ? 'full' : w >= 0.6 ? '주로' : s2 && Math.abs(s2.weight - w) < 0.01 && s2.action !== rest ? '반반' : p === rest ? '절반은' : '절반만';
+    const nz = mix.filter((m) => m.weight > 0.001);
+    return [{ hand: x.hand, slot, p, w, full: w >= 0.999, mix, word, split: nz.length >= 3 ? nz.map((m) => m.action) : null }];
+  });
 }
+/** 줄 칸 중 도달할 수 없는 칸(스트립의 점선)의 slot. */
+const holesOf = (s: Scenario, line: LineDef): number[] => line.slots.flatMap((x, i) => (x.inLine && x.hand && !isReachable(s, x.hand).ok ? [i] : []));
 
 /** 이름 없이 덮어도 되는 비중의 하한('주로'). */
 const STRONG = 0.6 - 1e-9;
+
+const ACT_WORD: Record<Action, string> = { raise: '오픈', call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크' };
+const actOf = (a: Action, s: Scenario) => (a === 'raise' && s.kind === 'vs_limp' ? '레이즈' : ACT_WORD[a]);
+const WEIGHT_WORDS = ['주로', '절반만', '절반은', '반반', '가끔'];
+
+/**
+ * 문장을 쉼표 마디로 나누고, 마디마다 그 안에서 **이름으로 부른** 칸을 찾습니다. 'X~Y'는 사이 칸까지 이름입니다.
+ * 범위의 끝('X까지' · 'X까지는' · 'X부터는')은 이름이 아니라 경계입니다 — 그 칸은 범위가 덮습니다.
+ */
+function namedInClauses(text: string, cs: Cell[]): Array<{ clause: string; hands: HandName[] }> {
+  const order = cs.map((x) => x.hand);
+  return text
+    .replace(/\.$/, '')
+    .split(', ')
+    .map((clause) => {
+      const hands: HandName[] = [];
+      for (const m of clause.matchAll(/([2-9TJQKA]{2}[so]?)(?:~([2-9TJQKA]{2}[so]?))?(?!까지|부터는)/g)) {
+        if (m[2]) {
+          const i0 = order.indexOf(m[1]);
+          const i1 = order.indexOf(m[2]);
+          for (let i = i0; i <= i1; i++) hands.push(order[i]);
+        } else hands.push(m[1]);
+      }
+      return { clause, hands };
+    });
+}
 
 /**
  * 문장 하나의 claims 를 차트에서 다시 계산해 대조합니다. 틀린 점을 전부 돌려줍니다(없으면 빈 배열).
  *
  * claim 마다의 사실에 더해 **이름 규칙**(docs/EXPLAIN_SPEC.md §3.4)을 칸마다 봅니다:
  *  - 비중어와 함께 이름을 댄 칸(weight · minor)은 그 비중어가 맞으면 됩니다.
- *  - 이름만 댄 칸(only)은 비중이 0.6 이상이어야 합니다.
+ *  - 이름만 댄 칸(only)은 full 이어야 합니다 — '주로' 칸은 '주로'와 함께 부릅니다(THEORY_SPEC §5).
  *  - 범위로 덮은 칸(all · upto · toEnd · rest)은 그 범위가 말하는 액션이 1순위이고 비중이 0.6 이상이어야 하고,
  *    '전부'(whole)면 full 이어야 합니다.
  *  - 문장이 아무 말도 하지 않는 칸은 나머지(rest)로 읽히므로 1순위가 rest 이고 비중이 0.6 이상이어야 합니다.
  *  - 문장에 '전부'가 있으면 whole claim 이 있고, 없으면 없습니다.
+ * 그리고 줄 문장의 모호함(THEORY_SPEC §5)을 글자로 봅니다:
+ *  (a) '전부'(whole)는 도달할 수 없는 칸을 덮지 않고, 도달 불가 칸이 있는 줄은 줄 이름 전체로 덮지 않습니다(all 없음).
+ *  (b) 세 액션 칸은 split 으로만 — 그 마디에 '절반은 〈1순위〉', 다음 마디가 '나머지를 〈둘〉로 나눠요' 또는 '절반은 〈둘〉'.
+ *  (c) '나머지는'은 비중어가 있는 마디 바로 뒤에 오지 않습니다.
+ *  (d) 'X만 V하고' 뒤에 같은 V 의 비중어('절반만 V' · 'V과 …를 반반')가 오지 않습니다.
+ *  (e) 이름으로 부른 칸은 그 마디에 제 비중어가 있습니다(주로 · 절반만 · 절반은 · 반반, rest 쪽 주로는 '가끔'도).
  */
-function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[]): string[] {
+function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[], holes: number[] = []): string[] {
   const rest = restAction(getChartDef(s));
   const err: string[] = [];
   const idx = (h: HandName) => cs.findIndex((x) => x.hand === h);
@@ -76,6 +112,7 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
   for (const c of claims) {
     switch (c.t) {
       case 'all':
+        if (holes.length) err.push('(a) 도달 불가 칸이 있는 줄을 줄 이름 전체로 덮음');
         cs.forEach((_, i) => add(i, c.action, c.whole, 'all'));
         break;
       case 'upto': {
@@ -93,10 +130,14 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
       case 'toEnd': {
         const i0 = idx(c.from);
         if (i0 < 0) err.push(`toEnd ${c.from}: 칸 없음`);
-        else for (let i = i0; i < cs.length; i++) add(i, c.action, c.whole, `toEnd ${c.from}`);
+        else {
+          for (let i = i0; i < cs.length; i++) add(i, c.action, c.whole, `toEnd ${c.from}`);
+          if (c.whole && holes.some((h) => h > cs[i0].slot)) err.push(`(a) '${c.from}부터는 전부'가 도달 불가 칸까지 덮음`);
+        }
         break;
       }
       case 'rest':
+        if (c.whole && holes.length) err.push("(a) '나머지는 전부'가 도달 불가 칸까지 덮음");
         cs.forEach((x, i) => !c.except.includes(x.hand) && add(i, c.action, c.whole, 'rest'));
         break;
       case 'only':
@@ -106,6 +147,13 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
       case 'weight': {
         const x = cs[idx(c.hand)];
         if (!x || x.p !== c.action || x.word !== c.word) err.push(`weight ${c.hand}: ${x?.p} ${x?.word}`);
+        if (x?.split) err.push(`(b) ${c.hand}: 세 액션 칸(${x.split})을 비중어 하나로 부름`);
+        named.set(c.hand, 'word');
+        break;
+      }
+      case 'split': {
+        const x = cs[idx(c.hand)];
+        if (!x || x.split?.join() !== c.actions.join() || Math.abs(x.w - 0.5) > 0.01) err.push(`split ${c.hand}: ${x?.split} ${x?.w}`);
         named.set(c.hand, 'word');
         break;
       }
@@ -115,7 +163,10 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
         if (!same(cs.filter(has).map((x) => x.hand), c.hands)) err.push('minor: 칸');
         const used = new Set(cs.filter((x) => c.hands.includes(x.hand)).flatMap((x) => x.mix.filter((m) => m.action !== rest && m.weight > 0.001).map((m) => m.action)));
         if (!same([...used], c.actions)) err.push(`minor: 액션 ${[...used]} ≠ ${c.actions}`);
-        for (const h of c.hands) named.set(h, 'word');
+        for (const h of c.hands) {
+          if (cs[idx(h)]?.split) err.push(`(b) ${h}: 세 액션 칸을 '가끔'으로 부름`);
+          named.set(h, 'word');
+        }
         break;
       }
     }
@@ -123,7 +174,7 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
   for (const x of cs) {
     const n = named.get(x.hand);
     if (n) {
-      if (n === 'bare' && x.w < STRONG) err.push(`${x.hand}: ${x.word} 칸인데 비중어 없이 이름만`);
+      if (n === 'bare' && !x.full) err.push(`(e) ${x.hand}: ${x.word} 칸인데 비중어 없이 이름만`);
       continue;
     }
     const cv = cover.get(x.hand);
@@ -143,6 +194,41 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
   for (const c of claims) {
     if (c.t === 'weight' && c.word !== 'full' && !text.includes(c.word)) err.push(`weight ${c.hand}: '${c.word}'가 문장에 없음`);
     if (c.t === 'minor' && !text.includes('가끔')) err.push("minor: '가끔'이 문장에 없음");
+  }
+  // 마디 단위 글자 검사(THEORY_SPEC §5).
+  const clauses = namedInClauses(text, cs);
+  clauses.forEach(({ clause, hands }, i) => {
+    for (const h of hands) {
+      const x = cs[idx(h)];
+      if (!x) continue;
+      if (x.split) {
+        // (b) 'KQo는 절반은 콜하고, 나머지를 3벳과 폴드로 나눠요' · 'AJo는 절반은 콜, 절반은 4벳·폴드(예요)'
+        const [a1, ...others] = x.split.map((a) => actOf(a, s));
+        const next = clauses[i + 1]?.clause ?? '';
+        const solo = new RegExp(`^나머지를 ${others.slice(0, -1).join('·')}[과와] ${others[others.length - 1]}(으로|로) 나눠요`);
+        const noun = new RegExp(`^절반은 ${others.join('·')}`);
+        if (!clause.includes(`절반은 ${a1}`) || !(solo.test(next) || noun.test(next))) err.push(`(b) ${h}: 세 액션 칸의 나눔이 문장에 없음 — ${clause} / ${next}`);
+      } else if (x.word === '주로') {
+        if (!clause.includes('주로') && !(x.p === rest && clause.includes('가끔'))) err.push(`(e) ${h}: 주로 칸인데 마디에 '주로'가 없음 — ${clause}`);
+      } else if (x.word !== 'full' && !clause.includes(x.word)) err.push(`(e) ${h}: ${x.word} 칸인데 마디에 '${x.word}'가 없음 — ${clause}`);
+    }
+    // (c) 비중어 마디 바로 뒤의 '나머지는' — "그 칸의 나머지 절반"으로도 읽힙니다.
+    if (clause.startsWith('나머지는') && i > 0 && WEIGHT_WORDS.some((w) => clauses[i - 1].clause.includes(w))) err.push(`(c) 비중어 뒤 '나머지는' — ${clauses[i - 1].clause}, ${clause}`);
+    // '나머지를'은 세 액션 칸의 나눔('절반은 콜하고, 나머지를 …로 나눠요')에만 씁니다.
+    if (clause.startsWith('나머지를') && !/절반은 \S+하고$/.test(clauses[i - 1]?.clause ?? '')) err.push(`'나머지를'이 세 액션 칸 나눔 밖에 있음 — ${clause}`);
+  });
+  // (d) 'X만 V하고, Y는 절반만 V' — '만'과 뒤 절이 서로 어긋납니다.
+  for (const m of text.matchAll(/만 (오픈|레이즈|콜|3벳|4벳|올인)하고, (.*)$/g)) {
+    const [, act, tail] = m;
+    if (new RegExp(`(주로|절반만|절반은) ${act}|${act}[과와] \\S+[을를] 반반|\\S+[과와] ${act}[을를] 반반|${act}·\\S+ 반반|\\S+·${act} 반반`).test(tail)) err.push(`(d) '만 ${act}' 뒤에 같은 액션의 비중어 — ${text}`);
+  }
+  // (f) 콜론 머리표는 문장이 아닙니다.
+  if (text.includes(':')) err.push(`(f) 콜론 머리표 — ${text}`);
+  // (a) 'X~Y' · 'X부터 Y까지'는 스트립에서 사이 칸까지 덮습니다 — 사이에 도달 불가 칸(점선)이 끼면 안 됩니다('T9s~54s'인데 98s·87s 는 못 옴).
+  for (const m of text.matchAll(/([2-9TJQKA]{2}[so]?)(?:~| ?부터 )([2-9TJQKA]{2}[so]?)/g)) {
+    const a = cs[idx(m[1])];
+    const b = cs[idx(m[2])];
+    if (a && b && holes.some((h) => h > a.slot && h < b.slot)) err.push(`(a) '${m[0]}'가 도달 불가 칸까지 덮음`);
   }
   return err;
 }
@@ -168,7 +254,8 @@ function claimHands(claims: LineClaim[], cs: Cell[]): { all: Set<HandName>; ment
   const mentioned = new Set<HandName>();
   const order = cs.map((x) => x.hand);
   for (const c of claims) {
-    const hs: HandName[] = c.t === 'upto' ? [c.to] : c.t === 'only' || c.t === 'minor' ? c.hands : c.t === 'toEnd' || c.t === 'weight' ? [c.t === 'toEnd' ? c.from : c.hand] : c.t === 'rest' ? c.except : [];
+    const hs: HandName[] =
+      c.t === 'upto' ? [c.to] : c.t === 'only' || c.t === 'minor' ? c.hands : c.t === 'toEnd' ? [c.from] : c.t === 'weight' || c.t === 'split' ? [c.hand] : c.t === 'rest' ? c.except : [];
     for (const h of hs) {
       all.add(h);
       mentioned.add(h);
@@ -223,11 +310,18 @@ describe('line: 문장 존재 · 길이 (§7.2-2·3)', () => {
     const texts = ALL.flatMap((x) => (x.sentence ? [x.sentence.text] : []));
     expect(SCENARIOS.length).toBe(74);
     expect(texts.length).toBe(1089);
-    expect(new Set(texts).size).toBe(1089);
+    // 서로 다릅니다 — 단, 도달 칸이 줄의 일부뿐이라 칸 이름으로 말하는 두 줄의 도달 칸이 똑같으면 같은 문장이 맞습니다
+    // (THEORY_SPEC §5 (a)): vs_4bet SB:CO 의 커넥터 줄과 수티드 T 줄은 둘 다 T9s 하나만 와서 'SB는 CO 4벳에 T9s를 폴드해요.'
+    const byText = new Map<string, string[]>();
+    for (const x of ALL) if (x.sentence) byText.set(x.sentence.text, [...(byText.get(x.sentence.text) ?? []), `${scenarioKey(x.s)}|${x.cells.map((c) => c.hand).join()}`]);
+    const dup = [...byText.entries()].filter(([, ks]) => ks.length > 1);
+    for (const [t, ks] of dup) expect(new Set(ks).size, `${t}: ${ks}`).toBe(1);
+    expect(dup.map(([t]) => t)).toEqual(['SB는 CO 4벳에 T9s를 폴드해요.']);
+    expect(byText.size).toBe(1088);
   });
 
   it('줄 문장 · 형제 줄 ≤ 42em, 자리 문장 ≤ 46em, 레버 ≤ 30자, 숫자 줄 ≤ 34em · 폴백 실측', () => {
-    const fallback = { noLabel: 0, noCtx: 0 };
+    const fallback = { noLabel: 0, noCtx: 0, noSubj: 0 };
     for (const { s, line, sentence } of ALL) {
       if (!sentence) continue;
       expect(emWidth(sentence.text), sentence.text).toBeLessThanOrEqual(42);
@@ -235,16 +329,22 @@ describe('line: 문장 존재 · 길이 (§7.2-2·3)', () => {
       const top = lineSentence(s, line, { topic: true });
       expect(emWidth(top!.text), top!.text).toBeLessThanOrEqual(42);
     }
-    // 폴백 실측(§9): 틀 문장의 noLabel 은 여전히 vs_open SB:BTN 커넥터 하나. 칸 나열 꼴은 noLabel 21 · noCtx 6.
-    expect(fallback).toEqual({ noLabel: 22, noCtx: 6 });
-    expect(ALL.filter((x) => x.sentence?.fallback === 'noLabel' && x.sentence.form === 'frame').map((x) => x.s)).toEqual([{ kind: 'vs_open', hero: 'SB', villain: 'BTN' }]);
+    // 폴백 실측(§9, THEORY_SPEC §5): 틀 문장의 noLabel 은 vs_open SB:BTN 커넥터와 콜드 4벳 AKo 세 줄(세 액션 칸의 나눔).
+    // 칸 나열 꼴은 noLabel 24 · noCtx 8 · noSubj 2 — 주로 칸에 '주로'를 붙이고(e) 세 액션 칸의 나눔을 부르느라(b) 길어졌습니다.
+    // noSubj 둘(vs_3bet UTG:CO · vs_open BTN:HJ 의 수티드 A)은 '〈자리〉에서'를 붙이면 42em 을 넘습니다.
+    expect(fallback).toEqual({ noLabel: 28, noCtx: 8, noSubj: 2 });
+    expect(ALL.filter((x) => x.sentence?.fallback === 'noSubj').map((x) => `${scenarioKey(x.s)} ${x.line.id}`)).toEqual(['vs_3bet:UTG:CO sA', 'vs_open:BTN:HJ sA']);
+    expect(ALL.filter((x) => x.sentence?.fallback === 'noLabel' && x.sentence.form === 'frame').map((x) => scenarioKey(x.s))).toEqual(['cold_4bet:CO', 'cold_4bet:BTN', 'vs_open:SB:BTN', 'cold_4bet:BB']);
     const forms: Record<string, number> = {};
     for (const x of ALL) if (x.sentence) forms[x.sentence.form] = (forms[x.sentence.form] ?? 0) + 1;
-    expect(forms).toEqual({ frame: 996, except: 4, list: 89 });
-    // noCtx 는 칸 나열 꼴에서만, 그리고 내 자리는 남습니다.
-    for (const x of ALL.filter((y) => y.sentence?.fallback === 'noCtx')) {
+    expect(forms).toEqual({ frame: 992, except: 4, list: 93 });
+    // noCtx · noSubj 는 칸 나열 꼴에서만. noCtx 는 '〈내 자리〉에서 …'로 시작하는 문장이고(옛 'HJ:' 머리표 없음),
+    // noSubj 는 그래도 넘치는 줄에서 주어를 뺀 문장입니다 — 리빌 바로 위 상황 줄이 내 자리와 상대를 말합니다.
+    for (const x of ALL.filter((y) => y.sentence?.fallback === 'noCtx' || y.sentence?.fallback === 'noSubj')) {
       expect(x.sentence!.form).toBe('list');
-      expect(x.sentence!.text.startsWith(`${x.s.hero}`)).toBe(true);
+      expect(x.sentence!.text).not.toMatch(/:/);
+      if (x.sentence!.fallback === 'noCtx') expect(x.sentence!.text.startsWith(`${x.s.hero}에서 `), x.sentence!.text).toBe(true);
+      else expect(x.sentence!.text, x.sentence!.text).toMatch(/^[2-9TJQKA]{2}[so]?/);
     }
     for (const s of SCENARIOS) {
       const n = seatNumbers(s).text;
@@ -271,7 +371,7 @@ describe('line: 주장 재계산 (§7.2-6)', () => {
       n++;
       const where = `${scenarioKey(s)} ${line.id} [${sentence.frame}] ${sentence.text}`;
       expect(sentence.claims.length, where).toBeGreaterThan(0);
-      expect(checkSentence(s, cells, sentence.text, sentence.claims), where).toEqual([]);
+      expect(checkSentence(s, cells, sentence.text, sentence.claims, holesOf(s, line)), where).toEqual([]);
       const inText = textHands(sentence.text, cells);
       const { all, mentioned } = claimHands(sentence.claims, cells);
       for (const h of inText) expect(all.has(h), `${where}: 문장의 ${h} 가 claims 에 없음`).toBe(true);
@@ -284,7 +384,7 @@ describe('line: 주장 재계산 (§7.2-6)', () => {
     for (const { s, line, cells } of ALL) {
       const top = lineSentence(s, line, { topic: true });
       if (!top) continue;
-      expect(checkSentence(s, cells, top.text, top.claims), `${scenarioKey(s)} ${line.id} ${top.text}`).toEqual([]);
+      expect(checkSentence(s, cells, top.text, top.claims, holesOf(s, line)), `${scenarioKey(s)} ${line.id} ${top.text}`).toEqual([]);
     }
   });
 
@@ -313,10 +413,103 @@ describe('line: 주장 재계산 (§7.2-6)', () => {
     // '그 밖' 꼬리('콜을 섞어요') 대신 앞쪽 '주로' 칸을 '까지'에 넣는다
     expect(at('vs_open:BB:UTG', '76s')).toBe('BB는 UTG 오픈에 수티드 커넥터를 54s까지 콜하고, 43s는 절반만 콜해요.');
     expect(at('vs_open:BB:SB', 'QTs')).toBe('BB는 SB 오픈에 수티드 Q 중 QJs는 주로 3벳, QTs는 3벳·콜 반반, Q9s부터는 콜해요.');
-    // P0h: 3벳과 콜을 같이 섞는 칸
-    expect(at('vs_open:HJ:UTG', 'KQo')).toBe('HJ는 UTG 오픈에 오프수트 K를 KQo만 가끔 3벳이나 콜하고, 나머지는 폴드해요.');
+    // P0h: 폴드 50 · 3벳 25 · 콜 25 인 칸 — '가끔 3벳이나 콜'로 줄이지 않고 나눔을 부릅니다(THEORY_SPEC §5)
+    expect(at('vs_open:HJ:UTG', 'KQo')).toBe('HJ는 UTG 오픈에 오프수트 K 중 KQo는 절반은 폴드하고, 나머지를 3벳과 콜로 나눠요.');
     // 섞인 칸이 사이에 낀 줄: '나머지 전부' 꼴
     expect(at('vs_limp:BTN', 'A7s')).toBe('BTN은 림프에 수티드 A를 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.');
+  });
+});
+
+describe('line: 줄 문장의 모호함 (THEORY_SPEC §5)', () => {
+  const at = (key: string, hand: string, topic = false) => lineSentence(SCENARIOS.find((x) => scenarioKey(x) === key)!, lineOf(hand), { topic })!.text;
+
+  it("(a) 도달 칸이 줄의 일부뿐이면 '전부'나 줄 이름 대신 칸 이름으로", () => {
+    expect(at('vs_5bet:CO:SB', 'AA')).toBe('CO는 SB 올인에 AA~QQ를 콜해요.');
+    expect(at('vs_5bet:UTG:HJ', 'AKo')).toBe('UTG는 HJ 올인에 AKo를 폴드해요.');
+    expect(at('vs_3bet:BTN:BB', '76s')).toBe('BTN은 BB 3벳에 T9s~54s를 콜해요.');
+    expect(at('vs_3bet:UTG:HJ', 'KQo', true)).toBe('오프수트 K는 KQo·KJo를 폴드해요.');
+    // 칸 이름 범위도 slot 으로: 98s·87s 가 못 오는 줄은 'T9s~54s'가 아니라 'T9s·76s~54s'.
+    expect(at('vs_4bet:BB:SB', 'T9s')).toBe('BB는 SB 4벳에 T9s·76s~54s를 폴드해요.');
+    // '그 아래 칸은'도 도달 불가 칸을 덮지 않게 — 그 아래 도달 칸이 전부 full 폴드면 이름으로, 하나도 없으면 그 절 없이.
+    expect(at('vs_4bet:BTN:UTG', 'AKo')).toBe('BTN은 UTG 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, AQo는 폴드해요.');
+    expect(at('vs_3bet:UTG:HJ', 'T9s')).toBe('UTG는 HJ 3벳에 수티드 커넥터 중 T9s는 절반만 콜하고, 98s~65s는 폴드해요.');
+    expect(at('vs_5bet:UTG:SB', 'AKo')).toBe('UTG는 SB 올인에 AKo를 주로 폴드하고, 가끔 콜해요.');
+    expect(at('vs_5bet:UTG:SB', 'AKo', true)).toBe('오프수트 A는 AKo를 주로 폴드하고, 가끔 콜해요.');
+    // 전수: 도달 불가 칸이 있는 줄의 문장에는 '전부'도, 줄 이름 전체를 덮는 claim(all)도 없습니다(checkSentence 가 claims 로도 봅니다).
+    let n = 0;
+    for (const { s, line, sentence } of ALL) {
+      if (!sentence || !holesOf(s, line).length) continue;
+      n++;
+      expect(sentence.text, `${scenarioKey(s)} ${line.id}`).not.toMatch(/전부/);
+      expect(sentence.claims.some((c) => c.t === 'all')).toBe(false);
+    }
+    expect(n).toBeGreaterThan(100);
+    // 전수: '그 아래 칸은'이 가리키는 도달 칸이 있고, 그 사이에 도달 불가 칸이 끼면 이름으로 못 부르는 칸('주로 폴드')이 있을 때뿐입니다.
+    const rest = (s: Scenario) => restAction(getChartDef(s));
+    let below = 0;
+    for (const { s, line, cells } of ALL) {
+      for (const t of [lineSentence(s, line)?.text, lineSentence(s, line, { topic: true })?.text]) {
+        if (!t?.includes('그 아래 칸은')) continue;
+        const named = textHands(t.split('그 아래 칸은')[0], cells);
+        const last = Math.max(...cells.flatMap((c, i) => (named.has(c.hand) ? [i] : [])));
+        const under = cells.slice(last + 1);
+        expect(under.length, t).toBeGreaterThan(0);
+        if (holesOf(s, line).some((h) => h > cells[last].slot)) {
+          below++;
+          expect(under.some((c) => c.p !== rest(s) || !c.full), `${scenarioKey(s)} ${t}`).toBe(true);
+        }
+      }
+    }
+    expect(below).toBe(10);
+  });
+
+  it('(b) 세 액션 칸은 나눔을 이름으로 — 비중어 하나로 줄이지 않습니다', () => {
+    expect(at('vs_open:CO:UTG', 'KQo')).toBe('CO는 UTG 오픈에 오프수트 K 중 KQo는 절반은 콜하고, 나머지를 3벳과 폴드로 나눠요.');
+    expect(at('vs_3bet:BTN:BB', 'A9o')).toBe('BTN은 BB 3벳에 AKo는 4벳, ATo까지는 콜, A9o는 절반은 폴드, 절반은 4벳·콜이에요.');
+    expect(at('cold_4bet:BTN', 'AKo')).toBe('BTN은 앞에서 3벳이 나오면 AKo는 절반은 4벳하고, 나머지를 콜과 폴드로 나눠요.');
+    // 전수: 세 액션 칸이 있는 줄은 16개이고, 전부 split claim 으로 부릅니다.
+    const lines = ALL.filter((x) => x.cells.some((c) => c.split));
+    expect(lines.length).toBe(16);
+    for (const x of lines) {
+      for (const c of x.cells.filter((y) => y.split)) {
+        expect(c.w, `${scenarioKey(x.s)} ${c.hand}`).toBeCloseTo(0.5);
+        expect(x.sentence!.claims.some((k) => k.t === 'split' && k.hand === c.hand), `${scenarioKey(x.s)} ${x.sentence!.text}`).toBe(true);
+        expect(x.sentence!.text).not.toMatch(new RegExp(`${c.hand}(는|은) (절반만|가끔)`));
+      }
+    }
+  });
+
+  it("(c) 비중어 바로 뒤에 '나머지는'이 오지 않습니다 — '그 아래 칸은' · '다른 칸은'", () => {
+    expect(at('vs_open:BB:CO', '87o')).toBe('BB는 CO 오픈에 오프수트 8 중 87o는 절반만 콜하고, 그 아래 칸은 폴드해요.');
+    expect(at('vs_open:SB:UTG', 'QJs')).toBe('SB는 UTG 오픈에 수티드 Q를 QJs만 가끔 3벳하고, 그 아래 칸은 폴드해요.');
+    expect(at('vs_open:BB:UTG', 'A5s')).toBe('BB는 UTG 오픈에 AKs·AQs·A5s·A4s는 3벳, A3s·A2s는 3벳·콜 반반, 다른 칸은 콜해요.');
+    for (const { s, line, sentence } of ALL) {
+      for (const t of [sentence?.text, lineSentence(s, line, { topic: true })?.text]) if (t) expect(t).not.toMatch(/(주로|절반만|절반은|반반|가끔)[^,.]*, 나머지는/);
+    }
+  });
+
+  it("(d) 'X만 V하고, Y는 절반만 V' 대신 '늘 V하는 건 X까지이고, …'", () => {
+    expect(at('rfi:UTG', 'KJo')).toBe('UTG는 오프수트 K 중 늘 오픈하는 건 KQo까지이고, KJo는 절반만 오픈해요.');
+    expect(at('rfi:UTG', 'KJo', true)).toBe('오프수트 K 중 늘 오픈하는 건 KQo까지이고, KJo는 절반만 오픈해요.');
+    expect(at('vs_3bet:UTG:BB', '98s')).toBe('UTG는 BB 3벳에 수티드 커넥터 중 늘 콜하는 건 T9s까지이고, 98s는 주로 콜해요.');
+    expect(at('vs_open:HJ:UTG', 'AQo')).toBe('HJ는 UTG 오픈에 오프수트 A 중 늘 3벳하는 건 AKo까지이고, AQo는 3벳과 콜을 반반 섞어요.');
+  });
+
+  it("(e) 주로인 칸을 이름으로 부를 때는 '주로'와 함께", () => {
+    expect(at('vs_open:SB:HJ', 'A2s')).toBe('SB는 HJ 오픈에 ATs까지는 3벳, A9s는 절반만 3벳, A5s~A3s는 3벳, A2s는 주로 3벳해요.');
+    expect(at('vs_3bet:UTG:SB', 'A4s')).toBe('UTG는 SB 3벳에 수티드 A 중 AKs는 4벳, ATs까지는 콜, A5s는 4벳, A4s는 주로 4벳해요.');
+    expect(at('vs_open:BB:SB', 'A9s')).toBe('BB는 SB 오픈에 수티드 A 중 A9s까지는 3벳, A6s까지는 콜, A5s부터는 전부 3벳해요.');
+  });
+
+  it("(f) 콜론 머리표('HJ: …') 없이 문장으로", () => {
+    expect(at('vs_3bet:UTG:BB', 'A5s')).toBe('UTG에서 AKs는 4벳, ATs까지는 콜, A9s는 절반만 콜, A5s·A4s는 4벳, A3s는 절반만 4벳해요.');
+    // 액션별 나열에서 콜 칸(ATs·A9s)이 AJs 바로 뒤에 이어지므로 AJs 를 그 앞에 두고 'A9s까지는'으로 — 주로인 A9s 를 범위로 덮습니다.
+    expect(at('vs_open:HJ:UTG', 'A5s')).toBe('HJ에서 AKs·AQs·A5s·A4s는 3벳, A3s는 절반만 3벳, AJs는 3벳·콜 반반, A9s까지는 콜해요.');
+    // '〈자리〉에서'로도 넘치는 두 줄은 주어를 뺍니다(리빌 바로 위 상황 줄이 내 자리와 상대를 말합니다).
+    expect(at('vs_open:BTN:HJ', 'A5s')).toBe('AKs·AQs·A5s·A4s는 3벳, AJs는 3벳·콜 반반, A3s·A2s는 절반만 3벳, 다른 칸은 콜해요.');
+    for (const { s, line, sentence } of ALL) {
+      for (const t of [sentence?.text, lineSentence(s, line, { topic: true })?.text]) if (t) expect(t).not.toMatch(/:/);
+    }
   });
 });
 

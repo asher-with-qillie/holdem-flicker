@@ -638,7 +638,10 @@ describe('atlas: worked examples (§5.6)', () => {
     ]);
     const a5 = handAtlas('A5s');
     expect(texts(rfiThesis(a5)).join(' ')).toBe('A5s는 어느 자리에서나 오픈해요. 앞에서 오픈하면 어디서나 3벳해요.');
-    expect(sectionDigest(a5.sections.vs_3bet).text).toBe('15곳 전부 4벳 · 그중 3곳은 절반만');
+    // 그 3곳은 4벳 50 · 콜 25 · 폴드 25 — '절반만'(= 나머지는 폴드)으로 줄이지 않습니다(THEORY_SPEC §5).
+    expect(sectionDigest(a5.sections.vs_3bet).text).toBe('15곳 전부 4벳 · 그중 3곳은 절반이 콜·폴드');
+    expect(texts(compareCells(cellOf(a5, 'vs_3bet', 'UTG', 'HJ'), cellOf(a5, 'vs_3bet', 'UTG', 'SB')))[0]).toBe('SB 3벳에는 4벳해요. HJ 3벳에는 절반은 4벳하고, 나머지를 콜과 폴드로 나눠요.');
+    expect(texts(compareCells(cellOf(a5, 'vs_3bet', 'UTG', 'HJ'), cellOf(a5, 'vs_3bet', 'UTG', 'BTN'))).slice(0, 2)).toEqual(['둘 다 4벳이에요.', 'HJ 상대로는 콜도 폴드도 25%씩 섞어요.']);
     expect(texts(compareCells(cellOf(a5, 'vs_4bet', 'BTN', 'CO'), cellOf(a5, 'vs_4bet', 'BTN', 'HJ')).slice(0, 2))).toEqual(['둘 다 폴드예요.', 'CO 상대로는 올인도 25% 섞어요.']);
     const p55 = handAtlas('55');
     // 차이 레버 0개 → 결론만. 이유를 지어내지 않습니다.
@@ -654,10 +657,11 @@ describe('atlas: worked examples (§5.6)', () => {
   });
   it('gateText · rfiThesis 의 다른 꼴 (§5.4)', () => {
     const k6 = handAtlas('K6o');
-    expect(texts(rfiThesis(k6))[0]).toMatch(/^K6o는 SB에서 (절반만 |주로 )?오픈하고, 나머지는 폴드예요\.$/);
+    // 비중어 바로 뒤의 '나머지는'은 "SB 의 나머지 절반"으로도 읽혀서 '다른 자리에서는'(THEORY_SPEC §5).
+    expect(texts(rfiThesis(k6))[0]).toMatch(/^K6o는 SB에서 (절반만 |주로 )?오픈하고, 다른 자리에서는 폴드해요\.$/);
     expect(texts(rfiThesis(handAtlas('72o')))[0]).toBe('72o는 어느 자리에서도 오픈하지 않아요.');
     const q8 = texts(rfiThesis(handAtlas('Q8o')))[0];
-    expect(q8).toMatch(/오픈하고, 나머지는 폴드예요\.$/);
+    expect(q8).toMatch(/오픈하고, 다른 자리에서는 폴드해요\.$/);
     expect(q8).toContain('BTN과 SB에서');
     const kj = handAtlas('KJo');
     expect(gateText(cellOf(kj, 'vs_5bet', 'UTG', 'HJ'))).toBe('UTG에서 4벳하지 않으니 올인을 받을 일이 없어요.');
@@ -665,5 +669,14 @@ describe('atlas: worked examples (§5.6)', () => {
     expect(gateText(cellOf(t2, 'vs_3bet', 'UTG', 'HJ'))).toBe('UTG에서 오픈하지 않으니 이 상황은 안 생겨요.');
     expect(gateText(cellOf(t2, 'vs_4bet', 'HJ', 'UTG'))).toBe('UTG 오픈에 3벳하지 않으니 4벳을 받을 일이 없어요.');
     expect(uniformLine(handAtlas('AA').sections.vs_open)?.text).toMatch(/^어느 자리에서나 \S+해요\.$/);
+    // 섹션에 이 패로 못 오는 칸이 있으면 '어느 자리에서나' 대신 오는 칸의 수로(THEORY_SPEC §5 — 못 오는 칸까지 덮지 않게).
+    expect(uniformLine(handAtlas('A2s').sections.vs_5bet)?.text).toBe('이 패가 오는 3곳에서는 폴드해요.');
+    for (const hand of ALL_HANDS) {
+      for (const kind of SCENARIO_KINDS) {
+        const sec = handAtlas(hand).sections[kind];
+        const u = uniformLine(sec);
+        if (u && sec.cells.some((c) => !c.reachable)) expect(u.text, `${hand} ${kind}`).not.toMatch(/어느 자리에서나/);
+      }
+    }
   });
 });

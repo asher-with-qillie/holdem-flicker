@@ -234,6 +234,8 @@ describe('sheet: 자리 문장의 이름 규칙 (§4.2-⑥, 리뷰)', () => {
   const WORD = (mix: Array<{ action: string; weight: number }>, rest: string) => {
     const [m0, m1] = mix;
     if (m0.weight >= 0.6) return null;
+    // 세 액션 칸(콜 50 · 4벳 25 · 폴드 25): '절반만'(= 나머지는 폴드)으로 부르지 않고 '절반은'으로(THEORY_SPEC §5).
+    if (mix.filter((m) => m.weight > 0.001).length >= 3) return 'split';
     if (m1 && Math.abs(m1.weight - m0.weight) < 0.01 && m1.action !== rest) return '반반';
     return m0.action === rest ? '절반은' : '절반만';
   };
@@ -255,33 +257,77 @@ describe('sheet: 자리 문장의 이름 규칙 (§4.2-⑥, 리뷰)', () => {
     return out;
   }
 
-  it('섞인 자리(비중 ≤ 0.5)는 그 자리 이름 뒤에 비중어가 오거나, "나머지 자리에서는 · 어느 자리에서나 〈비중어〉"에 든다 · "나머지는" 꼴은 없다', () => {
+  it('섞인 자리(비중 ≤ 0.5)는 그 자리 이름 뒤에 비중어가 오거나, "다른 자리에서는 · 어느 자리에서나 〈비중어〉"에 든다 · "나머지는" 꼴은 없다', () => {
     let weak = 0;
+    let split = 0;
     for (const { s, hand, e } of EXPLAINED) {
       if (s.kind === 'rfi') continue; // rfi 는 rfiThesis(atlas.test 가 따로 봅니다)
       const text = e.across.line.text;
       const where = `${scenarioKey(s)} ${hand}: ${text}`;
-      expect(text, where).not.toMatch(/나머지는/);
+      expect(text, where).not.toMatch(/나머지는|나머지 자리/);
       const ms = mentions(text);
-      for (const c of e.across.cells.filter((x) => x.reachable)) {
-        const w = WORD(c.mixList, c.scenario.kind === 'vs_limp' && c.scenario.hero === 'BB' ? 'check' : 'fold');
+      const live = e.across.cells.filter((x) => x.reachable);
+      const restOf = (c: (typeof live)[number]) => (c.scenario.kind === 'vs_limp' && c.scenario.hero === 'BB' ? 'check' : 'fold');
+      for (const c of live) {
+        const w = WORD(c.mixList, restOf(c));
         if (!w) continue;
         weak++;
         const m = ms.find((x) => x.seats.includes(c.scenario.hero));
-        if (m) expect(m.tail.includes(w), `${where} ← ${c.scenario.hero} ${w}`).toBe(true);
-        else expect(text, `${where} ← ${c.scenario.hero} ${w}`).toMatch(new RegExp(`(나머지 자리에서는|어느 자리에서나) ${w === '반반' ? '\\S+ \\S+ 반반' : w}`));
+        // 세 액션 자리: '절반은 콜(, 절반은 4벳·폴드 · 하고 나머지를 …)' 또는 46em 을 넘을 때 '콜 반·4벳·폴드'.
+        // 같은 1순위의 '절반만' 자리는 세 액션 자리와 한 묶음일 때만 '절반은'으로 같이 부를 수 있습니다.
+        const sameGroupSplit = !!m && live.some((x) => x !== c && m.seats.includes(x.scenario.hero) && WORD(x.mixList, restOf(x)) === 'split');
+        const ok = (tail: string) => (w === 'split' ? /절반은|반·/.test(tail) : tail.includes(w) || (w === '절반만' && sameGroupSplit && tail.includes('절반은')));
+        if (w === 'split') split++;
+        if (m) expect(ok(m.tail), `${where} ← ${c.scenario.hero} ${w}`).toBe(true);
+        else {
+          const g = /(다른 자리에서는|어느 자리에서나) (.*)$/.exec(text);
+          expect(!!g && (w === '반반' ? /\S+ \S+ 반반/.test(g[2]) : ok(g[2])), `${where} ← ${c.scenario.hero} ${w}`).toBe(true);
+        }
       }
     }
     expect(weak).toBeGreaterThan(100);
+    expect(split).toBeGreaterThan(20);
+  });
+
+  it("THEORY_SPEC §5: 못 오는 자리를 '어느 자리에서나' · '다른 자리에서는'으로 덮지 않고(a), 'X에서만 V'는 다른 자리가 rest 일 때만(g)", () => {
+    let only = 0;
+    for (const { s, hand, e } of EXPLAINED) {
+      if (s.kind === 'rfi') continue;
+      const text = e.across.line.text;
+      const where = `${scenarioKey(s)} ${hand}: ${text}`;
+      const live = e.across.cells.filter((x) => x.reachable);
+      if (live.length < e.across.cells.length) expect(text, where).not.toMatch(/어느 자리에서나|다른 자리에서는/);
+      const m = /((?:(?:UTG|HJ|CO|BTN|SB|BB)[~·]?)+)에서만 (\S+?)(해요|하고)/.exec(text);
+      if (!m) continue;
+      only++;
+      const named = mentions(`${m[1]}에서`)[0].seats;
+      const others = live.filter((c) => !named.includes(c.scenario.hero));
+      const restAll = others.every((c) => c.primary === (c.scenario.kind === 'vs_limp' && c.scenario.hero === 'BB' ? 'check' : 'fold'));
+      // 다른 자리가 전부 rest 면 '…에서만 콜해요'로 끝나고, 아니면 '…에서만 폴드하고, 다른 자리에서는 콜해요'처럼 그 액션을 말합니다.
+      if (restAll) expect(m[3], where).toBe('해요');
+      else expect(text, where).toMatch(/에서만 \S+하고, (다른 자리에서는|(?:(?:UTG|HJ|CO|BTN|SB|BB)[~·]?)+에서는) /);
+    }
+    expect(only).toBeGreaterThan(100);
+    const across = (sc: Scenario, hand: string) => explainStep(stepFor(sc, hand)).across.line.text;
+    expect(across({ kind: 'vs_open', hero: 'SB', villain: 'UTG' }, 'KTs')).toBe('KTs는 UTG 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.');
+    expect(across({ kind: 'vs_open', hero: 'BB', villain: 'CO' }, 'KTs')).toBe('KTs는 CO 오픈에 SB에서만 3벳하고, 다른 자리에서는 콜해요.');
+    expect(across({ kind: 'vs_limp', hero: 'BB' }, '98s')).toBe('98s는 림프에 HJ~SB에서 레이즈하고, BB에서는 체크해요.');
+    expect(across({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'AJs')).toBe('AJs는 UTG 4벳에 HJ~SB에서 폴드해요.');
+    expect(across({ kind: 'vs_3bet', hero: 'BTN', villain: 'SB' }, 'K8s')).toBe('K8s는 SB 3벳에 BTN에서는 주로 콜하고, HJ·CO에서는 폴드해요.');
+    // (b) 세 액션 자리
+    expect(across({ kind: 'vs_3bet', hero: 'UTG', villain: 'HJ' }, 'A5s')).toBe('A5s는 HJ 3벳에 UTG에서 절반은 4벳하고, 나머지를 콜과 폴드로 나눠요.');
+    expect(across({ kind: 'vs_3bet', hero: 'BTN', villain: 'BB' }, 'A9o')).toBe('A9o는 BB 3벳에 CO·SB에서 폴드, BTN에서 절반은 폴드, 절반은 4벳·콜이에요.');
   });
 
   it('리뷰가 짚은 자리 문장', () => {
     const across = (sc: Scenario, hand: string) => explainStep(stepFor(sc, hand)).across.line.text;
-    expect(across({ kind: 'vs_open', hero: 'SB', villain: 'CO' }, 'A7s')).toBe('A7s는 CO 오픈에 SB에서는 절반만 3벳하고, 나머지 자리에서는 콜해요.');
+    expect(across({ kind: 'vs_open', hero: 'SB', villain: 'CO' }, 'A7s')).toBe('A7s는 CO 오픈에 SB에서는 절반만 3벳하고, 다른 자리에서는 콜해요.');
     expect(across({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'AKs')).toBe('AKs는 UTG 4벳에 HJ~BTN에서 주로 올인하고, SB·BB에서는 올인과 콜을 반반 섞어요.');
     expect(across({ kind: 'vs_open', hero: 'HJ', villain: 'UTG' }, 'AQo')).toBe('AQo는 UTG 오픈에 HJ~BTN·BB에서 3벳과 콜을 반반 섞고, SB에서는 3벳해요.');
     expect(across({ kind: 'vs_limp', hero: 'HJ' }, '72o')).toBe('72o는 림프에 어느 자리에서도 레이즈하지 않아요.');
-    expect(across({ kind: 'cold_4bet', hero: 'CO' }, 'AKo')).toBe('AKo는 앞에서 3벳이 나오면 CO에서는 절반은 폴드하고, 나머지 자리에서는 절반만 4벳해요.');
+    // 세 액션 자리(CO 폴드 50 · 4벳 25 · 콜 25, BTN·BB 4벳 50 · 콜 25 · 폴드 25)는 '절반만'으로 줄이지 않습니다 —
+    // 나눔까지 부르면 46em 을 넘어서 '절반은'으로 줄였고, 나머지가 폴드뿐인 SB 만 '절반만 4벳'이에요.
+    expect(across({ kind: 'cold_4bet', hero: 'CO' }, 'AKo')).toBe('AKo는 앞에서 3벳이 나오면 CO에서 절반은 폴드, BTN·BB에서 절반은 4벳, SB에서 절반만 4벳이에요.');
   });
 
   it('부분 정답 문장: 계속 · rest 반반은 "이 칸은 …", 두 계속 액션 반반만 "반반이라 더 공격적인 …"', () => {

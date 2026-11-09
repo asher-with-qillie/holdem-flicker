@@ -2,7 +2,7 @@ import { gateText, handAtlas, rfiThesis, type AtlasCell, type Claim, type LeverI
 import { getChartCells, getChartDef } from './data';
 import { classifyHand, dominatorOf, duel, exampleCtx, heroIsIP, seatsBehind, show, villainChart, type HandClass } from './explain';
 import { parseHandName } from './hands';
-import { actWord, josa } from './ko';
+import { actWord, emWidth, josa, splitOf, splitPhrase } from './ko';
 import { lineOf, lineSentence, weightWord, type LineDef, type LineSentence, type WeightWord } from './line';
 import { priceFacts } from './priceFacts';
 import { AGGRESSION_ORDER, rangeShare, restAction } from './range';
@@ -177,6 +177,9 @@ function ctxOf(s: Scenario): string {
   }
 }
 
+/** 자리 문장 한도(§2.5). */
+export const ACROSS_MAX_EM = 46;
+
 /** 1순위 비중이 이 값 이상이면 비중어 없이 액션만 말해도 됩니다(§3.4 이름 규칙 — 줄 문장과 같은 기준, '주로'). */
 const STRONG = 0.6 - 1e-9;
 const strongCell = (c: AtlasCell) => (c.mixList[0]?.weight ?? 1) >= STRONG;
@@ -184,8 +187,11 @@ const strongCell = (c: AtlasCell) => (c.mixList[0]?.weight ?? 1) >= STRONG;
 /**
  * 자리 문장(S-0 · S-a · S-b · S-b′ · S-c). live = 도달 칸만, axis = 행 전체의 자리 순서.
  * 줄 문장과 같은 이름 규칙을 따릅니다: 비중 0.5 이하인 자리는 비중어와 함께 부르고, 묶어서 말하는 자리들은
- * 그 액션이 1순위이고 비중이 0.6 이상이어야 합니다. '나머지는'은 '나머지 자리에서는'으로 씁니다 —
- * 비중어 바로 뒤의 '나머지는'이 "나머지 절반은"으로 읽혔습니다(리뷰).
+ * 그 액션이 1순위이고 비중이 0.6 이상이어야 합니다. 그리고 THEORY_SPEC §5:
+ *  - 다른 자리는 '다른 자리에서는'으로 부릅니다(비중어 바로 뒤의 '나머지는'은 "나머지 절반은"으로 읽힙니다).
+ *    열에 도달할 수 없는 자리가 있으면 '어느 자리에서나' · '다른 자리에서는' 대신 자리 이름을 댑니다 — 못 오는 자리까지 덮지 않게.
+ *  - 'X에서만 폴드해요'는 다른 자리가 콜인지 3벳인지 안 보여서, 다른 자리가 rest(폴드·체크)가 아니면 그 액션까지 말합니다.
+ *  - 세 액션 자리(콜 50 · 4벳 25 · 폴드 25)는 비중어 하나로 줄이지 않고 나눔을 부릅니다.
  */
 function seatAxisText(s: Scenario, hand: HandName, live: AtlasCell[], axis: Pos[]): string {
   const kind = s.kind;
@@ -194,14 +200,23 @@ function seatAxisText(s: Scenario, hand: HandName, live: AtlasCell[], axis: Pos[
   const byPrimary = new Map<Action, AtlasCell[]>();
   for (const c of live) byPrimary.set(c.primary, [...(byPrimary.get(c.primary) ?? []), c]);
   const groups = [...byPrimary.entries()];
-  const words = (cs: AtlasCell[]) => cs.map(wordOf);
-  const sameWord = (cs: AtlasCell[]) => words(cs).every((w) => w === wordOf(cs[0]));
+  const splitOfCell = (c: AtlasCell) => splitOf(c.mixList);
+  /** 같은 라벨인가: 비중어 · 반반의 2순위 · 세 액션의 나눔까지 같아야 한 묶음으로 부릅니다. */
+  const key = (c: AtlasCell) => `${wordOf(c)}|${wordOf(c) === '반반' ? c.mixList[1].action : ''}|${(splitOfCell(c) ?? []).join()}`;
+  const sameWord = (cs: AtlasCell[]) => cs.every((c) => key(c) === key(cs[0]));
   const seats = (cs: AtlasCell[]) => seatList(cs.map(seatOf), axis);
-  /** 비중어 + 동사: '절반만 콜하고' · '콜해요' · '4벳과 콜을 반반 섞고'. */
-  const wv = (c: AtlasCell, end: '해요' | '하고') => {
+  /** 열의 모든 자리가 도달 가능한가 — 아니면 '어느 자리에서나' · '다른 자리에서는'이 못 오는 자리까지 덮습니다. */
+  const allLive = live.length === axis.length;
+  const others = (cs: AtlasCell[]) => (allLive ? '다른 자리에서는' : `${seats(cs)}에서는`);
+  /** 비중어 + 동사: '절반만 콜하고' · '콜해요' · '4벳과 콜을 반반 섞고' · '절반은 콜하고, 나머지를 4벳과 폴드로 나눠요'(끝 절만). */
+  const wv = (c: AtlasCell, end: '해요' | '하고'): string | null => {
+    const sp = splitOfCell(c);
+    if (sp) return end === '해요' ? splitPhrase(sp, kind, 'solo') : null;
     const w = wordOf(c);
     return w === '반반' ? `${tiePair(c)} 반반 ${end === '해요' ? '섞어요' : '섞고'}` : `${wPrefix(w)}${V(c.primary, end)}`;
   };
+  const anySplit = live.some((c) => splitOfCell(c));
+  const words = (cs: AtlasCell[]) => cs.map(wordOf);
 
   // S-0(림프): 어느 자리도 레이즈를 섞지 않으면 '어느 자리에서도 레이즈하지 않아요' — 'BB에서만 체크해요'는 BB 만
   // 체크할 수 있다는 당연한 말이라 아무것도 가르치지 않습니다(rfiThesis 의 '오픈하지 않아요'와 같은 꼴).
@@ -214,18 +229,18 @@ function seatAxisText(s: Scenario, hand: HandName, live: AtlasCell[], axis: Pos[
     const [a, cs] = groups[0];
     const w = wordOf(cs[0]);
     if (sameWord(cs)) {
-      // 도달 칸이 한 자리뿐이면 '어느 자리에서나'가 거짓말이 됩니다 — 그 자리 이름을 씁니다.
-      const where = cs.length === 1 ? `${seats(cs)}에서` : '어느 자리에서나';
-      return w === '반반' ? `${H} ${where} ${tiePair(cs[0])} 반반 섞어요.` : `${H} ${where} ${wPrefix(w)}${V(a, '해요')}.`;
+      // 도달 칸이 한 자리뿐이거나 열에 못 오는 자리가 있으면 '어느 자리에서나'가 거짓말이 됩니다 — 자리 이름을 씁니다.
+      const where = cs.length === 1 || !allLive ? `${seats(cs)}에서` : '어느 자리에서나';
+      return w === '반반' ? `${H} ${where} ${tiePair(cs[0])} 반반 섞어요.` : `${H} ${where} ${wv(cs[0], '해요')}.`;
     }
     const ws = new Map<WeightWord, AtlasCell[]>();
     for (const c of cs) ws.set(wordOf(c), [...(ws.get(wordOf(c)) ?? []), c]);
-    if (!words(cs).includes('반반')) {
+    if (!anySplit && !words(cs).includes('반반')) {
       const parts = [...ws.entries()].map(([ww, g]) => `${seats(g)}에서 ${ww === 'full' ? '항상' : ww}`);
       return `${H} ${parts.join(', ')} ${V(a, '해요')}.`;
     }
     // 반반이 섞이면 비중어별로 자리를 묶어 두 절로: 'HJ~BTN에서 주로 올인하고, SB·BB에서는 올인과 콜을 반반 섞어요.'
-    if (ws.size === 2) {
+    if (!anySplit && ws.size === 2) {
       const [[, g1], [, g2]] = [...ws.entries()];
       return `${H} ${seats(g1)}에서 ${wv(g1[0], '하고')}, ${seats(g2)}에서는 ${wv(g2[0], '해요')}.`;
     }
@@ -237,12 +252,19 @@ function seatAxisText(s: Scenario, hand: HandName, live: AtlasCell[], axis: Pos[
     const [minor, major] = x[1].length < y[1].length || (x[1].length === y[1].length && agg(x[0]) > agg(y[0])) ? [x, y] : [y, x];
     if (minor[1].length <= 2 && major[1].length >= 2) {
       const [ma, mcs] = minor;
-      // '…에서만 X해요'는 나머지 자리를 이름 없이 다수 액션으로 덮습니다 — 다수가 전부 센 칸(≥ 0.6)일 때만.
-      if (mcs.every((c) => wordOf(c) === 'full') && major[1].every(strongCell)) return `${H} ${seats(mcs)}에서만 ${V(ma, '해요')}.`;
-      // '나머지 자리에서는'에는 다수의 비중어를 붙입니다. 다수의 비중어가 다르면 — 전부 센 칸(full · 주로)이면 비중어 없이,
-      // 섞인 칸(≤ 0.5)이 끼어 있으면 하나로 못 묶으니 S-c.
-      const majorWord = sameWord(major[1]) ? wv(major[1][0], '해요') : major[1].every(strongCell) ? V(major[0], '해요') : null;
-      if (sameWord(mcs) && majorWord) return `${H} ${seats(mcs)}에서는 ${wv(mcs[0], '하고')}, 나머지 자리에서는 ${majorWord}.`;
+      const [mj, jcs] = major;
+      // 다수의 말: 비중어가 같으면 그 말, 다르지만 전부 센 칸(full · 주로)이면 비중어 없이, 섞인 칸(≤ 0.5)이 끼면 하나로 못 묶으니 S-c.
+      const majorWord = sameWord(jcs) ? wv(jcs[0], '해요') : jcs.every(strongCell) ? V(mj, '해요') : null;
+      if (mcs.every((c) => wordOf(c) === 'full') && jcs.every(strongCell)) {
+        // '…에서만 X해요'는 다른 자리를 다수 액션으로 덮습니다. 다수가 rest(폴드)면 그 말로 충분하지만('KTs는 BB에서만 콜해요'),
+        // 아니면 다른 자리가 무엇을 하는지 안 보입니다 — 'KTs는 UTG 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.'
+        if (jcs.every((c) => c.primary === cellRest(c))) return `${H} ${seats(mcs)}에서만 ${V(ma, '해요')}.`;
+        // 림프의 BB 체크는 BB 만 할 수 있어서 'BB에서만 체크해요'는 당연한 말입니다 — 레이즈하는 자리를 먼저 부릅니다.
+        if (kind === 'vs_limp' && ma === 'check') return `${H} ${seats(jcs)}에서 ${V(mj, '하고')}, BB에서는 체크해요.`;
+        if (majorWord) return `${H} ${seats(mcs)}에서만 ${V(ma, '하고')}, ${others(jcs)} ${majorWord}.`;
+      }
+      const minorWord = sameWord(mcs) ? wv(mcs[0], '하고') : null;
+      if (minorWord && majorWord) return `${H} ${seats(mcs)}에서는 ${minorWord}, ${others(jcs)} ${majorWord}.`;
     }
   }
 
@@ -252,20 +274,38 @@ function seatAxisText(s: Scenario, hand: HandName, live: AtlasCell[], axis: Pos[
   const restCells = live.filter(isRest);
   if (contGroups.length === 1 && contGroups[0][1].length <= 2 && restCells.length >= 2 && contGroups[0][1].every((c) => !isRest(c)) && sameWord(contGroups[0][1]) && (sameWord(restCells) || restCells.every(strongCell))) {
     const [, cs] = contGroups[0];
-    const restActs = new Set(restCells.map((c) => c.primary));
-    const restWord = restActs.size === 2 ? '폴드나 체크' : restActs.has('check') ? '체크' : '폴드';
-    const w = sameWord(restCells) ? wPrefix(wordOf(restCells[0])) : '';
-    return `${H} ${seats(cs)}에서 ${wv(cs[0], '하고')}, 나머지 자리에서는 ${w}${josa(restWord, '이에요/예요')}.`;
+    const lead = wv(cs[0], '하고');
+    if (lead) {
+      const restActs = new Set(restCells.map((c) => c.primary));
+      const restWord = restActs.size === 2 ? '폴드나 체크' : restActs.has('check') ? '체크' : '폴드';
+      const w = sameWord(restCells) ? wPrefix(wordOf(restCells[0])) : '';
+      return `${H} ${seats(cs)}에서 ${lead}, ${others(restCells)} ${w}${josa(restWord, '이에요/예요')}.`;
+    }
   }
 
   // S-c: 자리를 라벨로 묶어 나열. 센 칸(≥ 0.6)은 1순위 액션으로, 섞인 칸(≤ 0.5)은 캡슐 라벨('절반만 레이즈',
   // '3벳·콜 반반')로 따로 묶습니다 — 섞인 자리를 같은 액션의 다른 자리 속에 숨기지 않습니다.
-  const label = (c: AtlasCell) => (strongCell(c) ? actWord(c.primary, kind) : wordOf(c) === '반반' ? `${actWord(c.mixList[0].action, kind)}·${actWord(c.mixList[1].action, kind)} 반반` : `${wordOf(c)} ${actWord(c.primary, kind)}`);
-  const byLabel = new Map<string, AtlasCell[]>();
-  for (const c of live) byLabel.set(label(c), [...(byLabel.get(label(c)) ?? []), c]);
-  const parts = [...byLabel.entries()].map(([l, cs]) => `${seats(cs)}에서 ${l}`);
-  const last = parts.pop()!;
-  return `${H} ${[...parts, josa(last, '이에요/예요')].join(', ')}.`;
+  // 세 액션 자리는 '절반은 콜, 절반은 4벳·폴드'로 부르고, 그러면 46em 을 넘는 문장은 '콜 반·4벳·폴드'로,
+  // 그래도 넘치면 '절반은 콜'로 줄입니다('절반만 콜'은 나머지 절반이 폴드라는 말이라 세 액션 자리에는 쓰지 않습니다).
+  // 마지막 단계에서는 같은 1순위의 '절반만' 자리도 '절반은'으로 같이 묶습니다(참인 말: 절반은 콜).
+  const sc = (level: 0 | 1 | 2 | 3) => {
+    const label = (c: AtlasCell) => {
+      const sp = splitOfCell(c);
+      if (sp) {
+        const [a1, ...rest] = sp.map((x) => actWord(x, kind));
+        return level === 0 ? splitPhrase(sp, kind, 'noun') : level === 1 ? `${a1} 반·${rest.join('·')}` : `절반은 ${a1}`;
+      }
+      if (level === 3 && wordOf(c) === '절반만' && live.some((x) => splitOfCell(x) && x.primary === c.primary)) return `절반은 ${actWord(c.primary, kind)}`;
+      return strongCell(c) ? actWord(c.primary, kind) : wordOf(c) === '반반' ? `${actWord(c.mixList[0].action, kind)}·${actWord(c.mixList[1].action, kind)} 반반` : `${wordOf(c)} ${actWord(c.primary, kind)}`;
+    };
+    const byLabel = new Map<string, AtlasCell[]>();
+    for (const c of live) byLabel.set(label(c), [...(byLabel.get(label(c)) ?? []), c]);
+    const parts = [...byLabel.entries()].map(([l, cs]) => `${seats(cs)}에서 ${l}`);
+    const last = parts.pop()!;
+    return `${H} ${[...parts, josa(last, '이에요/예요')].join(', ')}.`;
+  };
+  if (!anySplit) return sc(0);
+  return ([0, 1, 2, 3] as const).map(sc).find((t) => emWidth(t) <= ACROSS_MAX_EM) ?? sc(3);
 }
 
 /**
@@ -320,24 +360,57 @@ export function mixBlock(step: Step): { chips: Array<{ action: Action; pct: numb
 
 /** 킥커 대결 줄을 쓰는 계열(§4.2-⑦). wheel_ace 는 블로커 줄을 따로 씁니다. */
 const KICKER_CLASSES = new Set<HandClass>(['big_ace', 'suited_ace', 'offsuit_ace', 'suited_broadway', 'offsuit_broadway', 'suited_king', 'suited_qj']);
+/** 블러프로 쓰는 액션 — 블로커 줄은 이 액션이 1순위인 칸에만 붙습니다. */
+const BLUFF_ACTIONS = new Set<Action>(['threebet', 'fourbet', 'allin']);
+/** 셋 확률 줄이 맞는 결정 — 플랍을 보러 들어가는 콜 · 오픈(레이즈) · BB 체크. 3벳 이상은 셋 확률이 이유가 아닙니다. */
+const SET_ACTIONS = new Set<Action>(['call', 'raise', 'check']);
+/** 섞인 칸(1순위 < 60%, THEORY_SPEC §6.1). */
+const MIXED = 0.6 - 1e-9;
 
 /**
- * 예시 한 줄 — 세 모양만(§4.2-⑦). 해당하지 않으면 null.
- *  - 중간·작은 페어: `내 2♠2♦ → 플랍에서 셋이 될 확률 12%예요.`
- *  - 킥커 대결: `내 K♠10♠ vs 상대 A♦K♦ → K를 맞춰도 킥커에서 밀려요.` — 상대는 내 높은 카드에 더 큰 킥커(A)를 붙인 패,
+ * 패 하나의 예시 모양(결정과 상관없이) — 카드 그림 검사에 씁니다. 해당하지 않으면 null.
+ *  - 중간·작은 페어(set): `내 2♠2♦ → 플랍에서 셋이 될 확률 12%예요.` — 책은 작은 페어를 셋이 될 확률(약 12%)과
+ *    보드 커버리지로 설명합니다(THEORY_SPEC §1-2).
+ *  - 킥커 대결(domination): `내 K♠10♠ vs 상대 A♦K♦ → K를 맞춰도 킥커에서 밀려요.` — 상대는 내 높은 카드에 더 큰 킥커(A)를 붙인 패,
  *    수티드니스는 내 패와 같게(수티드면 AKs, 오프수트면 AKo). 내 높은 카드가 A 면 AK.
- *  - 휠 A: `내 A♠5♠ → A를 쥐고 있어 상대 AA·AK 조합이 줄어요.`
+ *  - 휠 A(blocker): `내 A♠5♠ → A를 쥐고 있어 상대 AA·AK 조합이 줄어요.`
  * 무늬는 늘 ♠ 쪽으로 만들고, explainStep 이 화면 카드에 맞춰 뒤집습니다.
  */
-export function oneExample(step: Step): string | null {
-  const info = parseHandName(step.hand);
-  const cls = classifyHand(step.hand);
+export function exampleShape(hand: HandName): { kind: 'set' | 'domination' | 'blocker'; text: string } | null {
+  const info = parseHandName(hand);
+  const cls = classifyHand(hand);
   const ctx = exampleCtx(info);
-  if (cls === 'mid_pair' || cls === 'small_pair') return `내 ${ctx.me} → 플랍에서 셋이 될 확률 12%예요.`;
-  if (cls === 'wheel_ace') return `내 ${ctx.me} → A를 쥐고 있어 상대 AA·AK 조합이 줄어요.`;
+  if (cls === 'mid_pair' || cls === 'small_pair') return { kind: 'set', text: `내 ${ctx.me} → 플랍에서 셋이 될 확률 12%예요.` };
+  if (cls === 'wheel_ace') return { kind: 'blocker', text: `내 ${ctx.me} → A를 쥐고 있어 상대 AA·AK 조합이 줄어요.` };
   if (KICKER_CLASSES.has(cls) && dominatorOf(info)) {
     const opp = info.high === 'A' ? 'AK' : `A${info.high}`;
-    return duel(ctx, `${opp}${info.kind === 'suited' ? 's' : 'o'}`, `${josa(show(info.high), '을/를')} 맞춰도 킥커에서 밀려요.`);
+    return { kind: 'domination', text: duel(ctx, `${opp}${info.kind === 'suited' ? 's' : 'o'}`, `${josa(show(info.high), '을/를')} 맞춰도 킥커에서 밀려요.`) };
   }
   return null;
+}
+
+/**
+ * 예시 한 줄(§4.2-⑦) — **결정과 맞을 때만**(THEORY_SPEC §6.4). 해당하지 않으면 null.
+ *  - 지배 예시('킥커에서 밀려요')는 폴드 · 섞기 칸에만: 1순위가 폴드이거나, 섞인 칸(1순위 < 60%)에 폴드가 섞여 있을 때
+ *    ('절반만 오픈'하는 KJo — 나머지 절반을 접는 이유). 오픈·콜·3벳만 하는 패에 '밀려요'를 붙이면 그 결정의 이유처럼
+ *    읽히지만 거꾸로입니다(오픈하는 AQs, 체크하는 BB).
+ *  - 블로커 예시('AA·AK 조합이 줄어요')는 블러프 칸, 곧 1순위가 3벳·4벳·올인인 칸에만.
+ *  - 셋 확률 예시는 플랍을 보러 들어가는 칸(1순위가 콜·오픈·체크이거나, 섞인 칸에 콜·오픈이 섞임)에만 — 폴드하는 44,
+ *    3벳하는 99 에는 붙지 않습니다(감사: 폴드 칸 118줄).
+ */
+export function oneExample(step: Step): string | null {
+  const shape = exampleShape(step.hand);
+  if (!shape) return null;
+  const mix = step.mixList;
+  const p = mix[0]?.action ?? step.answer;
+  const mixed = (mix[0]?.weight ?? 1) < MIXED;
+  const has = (as: Action[]) => mix.some((m) => as.includes(m.action) && m.weight > 0.001);
+  switch (shape.kind) {
+    case 'domination':
+      return p === 'fold' || (mixed && has(['fold'])) ? shape.text : null;
+    case 'blocker':
+      return BLUFF_ACTIONS.has(p) ? shape.text : null;
+    case 'set':
+      return SET_ACTIONS.has(p) || (mixed && has(['call', 'raise'])) ? shape.text : null;
+  }
 }
