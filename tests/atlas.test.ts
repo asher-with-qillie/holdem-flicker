@@ -10,6 +10,9 @@ import {
   handAtlas,
   isReachable,
   nearestCellWithAction,
+  POSITION_IP,
+  POSITION_OOP,
+  SB_OPEN,
   newcomersAt,
   rfiProfile,
   rfiThesis,
@@ -28,6 +31,7 @@ import { heroIsIP, seatsBehind } from '../src/poker/explain';
 import { acrossRow } from '../src/poker/sheet';
 import { ALL_HANDS, seedRandom } from '../src/poker/hands';
 import { priceFacts } from '../src/poker/priceFacts';
+import { defendShare } from '../src/poker/theory/spot';
 import { fullMix, primaryAction, rangeShare } from '../src/poker/range';
 import { allScenarios, scenarioKey } from '../src/poker/scenarios';
 import { cardKeyOf, stepForKey } from '../src/state/srs';
@@ -148,15 +152,15 @@ const sentences = (text: string) => text.split(/(?<=[.?])\s+/).filter((x) => x.t
  * (예전에는 explainStep 의 왜? 불릿 집합과 대조했는데, 그 불릿은 해설 재설계로 사라졌습니다.)
  */
 const LEVER_CONSTANTS = new Set<string>([
-  '포지션이 있어요.',
-  '포지션이 없어요.',
-  'SB는 콜하면 BB에게 스퀴즈당하기 쉬워요.',
+  POSITION_IP,
+  POSITION_OOP,
+  'SB는 콜하면 BB에게 스퀴즈당하기 쉽고 포지션도 없어요.',
   '그래서 3벳 아니면 폴드예요.',
   'BB는 이미 1bb를 냈으니 체크하면 공짜로 플랍을 봐요.',
-  '앞자리 오픈은 강한 패 위주예요.',
-  '뒷자리 오픈엔 약한 패도 많이 섞여 있어요.',
-  'SB는 뒤에 BB 한 명뿐이라 따로 외워요.',
-  ...(['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'] as Pos[]).flatMap((v) => [`${v} 3벳엔 블러프도 섞여 있어요.`, `${v} 3벳은 밸류 위주예요.`]),
+  '앞자리 오픈은 강한 패 위주라 좁게 맞서요.',
+  '뒷자리 오픈엔 약한 패도 많이 섞여 있어 넓게 맞서요.',
+  SB_OPEN,
+  ...(['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'] as Pos[]).flatMap((v) => [`${v} 3벳엔 블러프도 섞여 있어 더 넓게 지켜요.`, `${v} 3벳은 밸류 위주라 더 좁게 지켜요.`]),
 ]);
 
 /* ------------------------------------------------------------------ */
@@ -422,10 +426,10 @@ describe('atlas: sentences re-derive from the charts (§5.5)', () => {
         }
         if (lever.id === 'openWidth') expect(lever.nums).toEqual([share({ kind: 'rfi', hero: s.villain ?? s.hero }, 'raise')]);
         if (lever.id === 'threebetWidth') expect(lever.nums).toEqual([share({ kind: 'vs_open', hero: s.villain!, villain: s.hero }, 'threebet')]);
-        if (lever.id === 'position') expect(lever.text).toBe(heroIsIP(s) ? '포지션이 있어요.' : '포지션이 없어요.');
+        if (lever.id === 'position') expect(lever.text).toBe(heroIsIP(s) ? POSITION_IP : POSITION_OOP);
         if (lever.id === 'openWidth') expect(lever.text).toBe(`${s.villain ?? s.hero}${(s.villain ?? s.hero) === 'BTN' ? '은' : '는'} ${lever.nums[0]}%를 오픈해요.`);
         if (lever.id === 'threebetWidth') expect(lever.text).toBe(`${s.villain}${s.villain === 'BTN' ? '은' : '는'} ${lever.nums[0]}%를 3벳해요.`);
-        if (lever.id === 'behind') expect(lever.text).toBe(`뒤에 ${lever.nums[0]}명이 남아 있어요.`);
+        if (lever.id === 'behind') expect(lever.text).toMatch(new RegExp(`^뒤에 ${lever.nums[0]}명이 남아 있어 .+기 쉬워요\\.$`));
         if (lever.id === 'bbPrice') {
           expect(lever.text).toBe(`BB는 이미 1bb를 냈으니 ${priceFacts(s)!.toCall}만 더 내면 돼요. ${s.villain === 'SB' ? 'SB 상대로는 포지션도 있어요.' : '마지막 차례라 제일 넓게 콜해요.'}`);
         }
@@ -599,6 +603,38 @@ describe('atlas: style lint (§5.4)', () => {
 
 /* ------------------------------------------------------------------ */
 
+/* 레버의 결과 절(블라인드 3벳엔 더 넓게 · 뒷자리 오픈엔 넓게 · SB 오픈은 BTN보다 넓지 않다)이 차트에서 참인지 — atlas.ts 주석. */
+describe('atlas: 레버 결과 절은 차트로 확인한 것만', () => {
+  const blinds: Pos[] = ['SB', 'BB'];
+  const seats: Pos[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+  it('블라인드 3벳에는 모든 오프너가 블라인드가 아닌 3벳보다 넓게 지킨다', () => {
+    for (const hero of seats) {
+      const d = (v: Pos) => (hasChart({ kind: 'vs_3bet', hero, villain: v }) ? defendShare({ kind: 'vs_3bet', hero, villain: v }) : null);
+      const blind = seats.filter((v) => blinds.includes(v)).map(d).filter((x): x is number => x != null);
+      const other = seats.filter((v) => !blinds.includes(v)).map(d).filter((x): x is number => x != null);
+      if (blind.length && other.length) expect(Math.min(...blind), hero).toBeGreaterThan(Math.max(...other));
+    }
+  });
+  it('오픈에 맞서는 비중은 오프너가 앞자리(UTG·HJ)일 때가 뒷자리일 때보다 작다', () => {
+    for (const hero of seats) {
+      const d = (v: Pos) => (hasChart({ kind: 'vs_open', hero, villain: v }) ? defendShare({ kind: 'vs_open', hero, villain: v }) : null);
+      const early = (['UTG', 'HJ'] as Pos[]).map(d).filter((x): x is number => x != null);
+      const late = (['CO', 'BTN', 'SB'] as Pos[]).map(d).filter((x): x is number => x != null);
+      if (early.length && late.length) expect(Math.max(...early), hero).toBeLessThan(Math.min(...late));
+    }
+  });
+  it('SB 오픈은 BTN 오픈보다 넓지 않다', () => {
+    expect(defendShare).toBeDefined();
+    const open = (hero: Pos) => {
+      const cells = getChartCells({ kind: 'rfi', hero });
+      let t = 0;
+      for (const h of ALL_HANDS) t += (cells[h]?.raise ?? 0) * (h.length === 2 ? 6 : h[2] === 's' ? 4 : 12);
+      return t / 1326;
+    };
+    expect(open('SB')).toBeLessThanOrEqual(open('BTN'));
+  });
+});
+
 /* 스펙 §5.6 의 예시 몇 개를 그대로 고정합니다 — 템플릿이 바뀌면 여기서 먼저 보입니다. 문구는 EXPLAIN_SPEC §5.4 표(해요체). */
 describe('atlas: worked examples (§5.6)', () => {
   const texts = (lines: Line[]) => lines.map((l) => l.text);
@@ -607,13 +643,13 @@ describe('atlas: worked examples (§5.6)', () => {
     expect(texts(rfiThesis(a))).toEqual(['KJo는 UTG에서 절반만, HJ부터는 항상 오픈해요.']);
     expect(texts(compareCells(cellOf(a, 'rfi', 'UTG'), cellOf(a, 'rfi', 'HJ')))).toEqual([
       'HJ에서는 오픈해요. UTG에서는 절반만 오픈해요.',
-      'UTG는 뒤에 5명, HJ는 4명이 남아요.',
+      'UTG는 뒤에 5명, HJ는 4명이 남아 UTG가 3벳을 받기 더 쉬워요.',
       '오픈 레인지는 UTG 18%, HJ 21%예요.',
     ]);
     expect(texts(compareCells(cellOf(a, 'vs_open', 'BB', 'BTN'), cellOf(a, 'vs_open', 'BB', 'UTG')))).toEqual([
       'BTN 오픈에는 3벳과 콜을 반반 섞어요. UTG 오픈에는 콜해요.',
       'UTG는 18%, BTN은 46%를 오픈해요.',
-      '앞자리 오픈은 강한 패 위주예요. 뒷자리 오픈엔 약한 패도 많이 섞여 있어요.',
+      '앞자리 오픈은 강한 패 위주라 좁게 맞서요. 뒷자리 오픈엔 약한 패도 많이 섞여 있어 넓게 맞서요.',
     ]);
     expect(sectionDigest(a.sections.vs_3bet).text).toBe('콜 3곳 · 폴드 12곳');
     expect(sectionDigestDetail(a.sections.vs_3bet)?.text).toBe('콜 3곳: BTN vs SB · BTN vs BB · SB vs BB');
@@ -627,8 +663,8 @@ describe('atlas: worked examples (§5.6)', () => {
     expect(texts(rfiThesis(s76)).join(' ')).toBe('76s는 어느 자리에서나 오픈해요. 앞에서 오픈하면 콜 9곳 · 3벳 1곳 · 폴드 5곳이에요.');
     expect(texts(compareCells(cellOf(s76, 'vs_3bet', 'CO', 'SB'), cellOf(s76, 'vs_3bet', 'CO', 'BTN')))).toEqual([
       'SB 3벳에는 절반만 콜해요. BTN 3벳에는 폴드해요.',
-      'SB 상대로는 포지션이 있고, BTN 상대로는 없어요.',
-      'SB 3벳엔 블러프도 섞여 있어요. BTN 3벳은 밸류 위주예요.',
+      'SB 상대로는 포지션이 있어 플랍 이후 유리하고, BTN 상대로는 불리해요.',
+      'SB 3벳엔 블러프도 섞여 있어 더 넓게 지켜요. BTN 3벳은 밸류 위주라 더 좁게 지켜요.',
     ]);
     const q9 = handAtlas('Q9o');
     expect(texts(rfiThesis(q9)).join(' ')).toBe('Q9o는 BTN부터 오픈해요.');

@@ -326,16 +326,33 @@ export function entrySeat(hand: HandName): Pos | 'SB' | null {
  * 'behind' 는 블라인드가 아닌 자리에서만 — SB 가 BTN 보다 좁은 건 뒤에 남은 사람 수가 아니라 값과 포지션 때문이라,
  * 블라인드를 가로질러 "뒤에 남은 사람"으로 설명하면 틀린 포커를 가르칩니다.
  */
+/*
+ * 레버는 사실만 말하지 않고 결과까지 말합니다(THEORY_SPEC §2 — 감사에서 결과 없는 레버 2,249줄).
+ * 결과 절은 차트로 확인한 것만 씁니다: 블라인드 3벳에는 모든 오프너가 더 넓게 지키고(49~59% 대 41~52%),
+ * 오픈에 맞서는 비중은 오프너가 뒷자리일수록 늘고, SB 오픈(46.2%)은 BTN(46.3%)보다 넓지 않습니다.
+ * tests/atlas.test.ts 가 이 셋을 모든 칸에서 다시 셉니다.
+ */
+export const POSITION_IP = '포지션이 있어 플랍 이후 내내 유리해요.';
+export const POSITION_OOP = '포지션이 없어 플랍 이후 내내 불리해요.';
+export const SB_OPEN = 'SB는 뒤에 BB 한 명뿐이지만 포지션이 없어, BTN보다 넓게 오픈하지는 않아요.';
+/** 뒤에 남은 사람이 많을수록 생기는 일(책 4장 「뒤에 남은 사람」). '…기 쉬워요' 앞에 붙습니다. */
+const BEHIND_RISK: Partial<Record<ScenarioKind, string>> = {
+  rfi: '3벳을 받',
+  vs_open: '콜했을 때 스퀴즈를 받',
+  vs_limp: '뒤에서 강한 패가 나오',
+  cold_4bet: '뒤에서 강한 패가 나오',
+};
+
 export function seatLevers(s: Scenario): Lever[] {
   const out: Lever[] = [];
   const { kind, hero } = s;
   const v = s.villain;
   if (v && kind !== 'vs_5bet') {
-    out.push({ id: 'position', text: heroIsIP(s) ? '포지션이 있어요.' : '포지션이 없어요.', nums: [], constant: true });
+    out.push({ id: 'position', text: heroIsIP(s) ? POSITION_IP : POSITION_OOP, nums: [], constant: true });
   }
   if ((kind === 'rfi' || kind === 'vs_open' || kind === 'vs_limp' || kind === 'cold_4bet') && !isBlind(hero)) {
     const n = seatsBehind(hero);
-    out.push({ id: 'behind', text: `뒤에 ${n}명이 남아 있어요.`, nums: [n], constant: false });
+    out.push({ id: 'behind', text: `뒤에 ${n}명이 남아 있어 ${BEHIND_RISK[kind]}기 쉬워요.`, nums: [n], constant: false });
   }
   if (kind === 'vs_open' && hero === 'BB') {
     const price = priceFacts(s)!;
@@ -343,12 +360,12 @@ export function seatLevers(s: Scenario): Lever[] {
     out.push({ id: 'bbPrice', text: `BB는 이미 1bb를 냈으니 ${price.toCall}만 더 내면 돼요. ${tail}`, nums: [], constant: false });
   }
   if (kind === 'vs_open' && hero === 'SB') {
-    out.push({ id: 'sbRaiseOrFold', text: 'SB는 콜하면 BB에게 스퀴즈당하기 쉬워요. 그래서 3벳 아니면 폴드예요.', nums: [], constant: true });
+    out.push({ id: 'sbRaiseOrFold', text: 'SB는 콜하면 BB에게 스퀴즈당하기 쉽고 포지션도 없어요. 그래서 3벳 아니면 폴드예요.', nums: [], constant: true });
   }
   if (kind === 'vs_limp' && hero === 'BB') out.push({ id: 'bbFree', text: 'BB는 이미 1bb를 냈으니 체크하면 공짜로 플랍을 봐요.', nums: [], constant: true });
   // 3벳 레인지의 성격은 vs_3bet 에서만 — vs_5bet 해설은 올인 레인지를 말하지 3벳 레인지를 말하지 않습니다.
   if (kind === 'vs_3bet' && v) {
-    out.push({ id: 'blind3bet', text: isBlind(v) ? `${v} 3벳엔 블러프도 섞여 있어요.` : `${v} 3벳은 밸류 위주예요.`, nums: [], constant: true });
+    out.push({ id: 'blind3bet', text: isBlind(v) ? `${v} 3벳엔 블러프도 섞여 있어 더 넓게 지켜요.` : `${v} 3벳은 밸류 위주라 더 좁게 지켜요.`, nums: [], constant: true });
   }
   if ((kind === 'vs_open' || kind === 'vs_4bet') && v) {
     const p = openPct(v);
@@ -363,10 +380,10 @@ export function seatLevers(s: Scenario): Lever[] {
     out.push({ id: 'threebetWidth', text: `${josa(v, '은/는')} ${p}%를 3벳해요.`, nums: [p], constant: false });
   }
   if (kind === 'vs_open' && v) {
-    if (isEarly(v)) out.push({ id: 'earlyOpener', text: '앞자리 오픈은 강한 패 위주예요.', nums: [], constant: true });
-    else out.push({ id: 'lateOpener', text: '뒷자리 오픈엔 약한 패도 많이 섞여 있어요.', nums: [], constant: true });
+    if (isEarly(v)) out.push({ id: 'earlyOpener', text: '앞자리 오픈은 강한 패 위주라 좁게 맞서요.', nums: [], constant: true });
+    else out.push({ id: 'lateOpener', text: '뒷자리 오픈엔 약한 패도 많이 섞여 있어 넓게 맞서요.', nums: [], constant: true });
   }
-  if (kind === 'rfi' && hero === 'SB') out.push({ id: 'sbOpen', text: 'SB는 뒤에 BB 한 명뿐이라 따로 외워요.', nums: [], constant: true });
+  if (kind === 'rfi' && hero === 'SB') out.push({ id: 'sbOpen', text: SB_OPEN, nums: [], constant: true });
   return out;
 }
 
@@ -418,8 +435,8 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
     const oop = ip === a ? b : a;
     const text =
       axis === 'villain'
-        ? `${seatOf(ip)} 상대로는 포지션이 있고, ${seatOf(oop)} 상대로는 없어요.`
-        : `${seatOf(ip)}에서는 포지션이 있고, ${seatOf(oop)}에서는 없어요.`;
+        ? `${seatOf(ip)} 상대로는 포지션이 있어 플랍 이후 유리하고, ${seatOf(oop)} 상대로는 불리해요.`
+        : `${seatOf(ip)}에서는 포지션이 있어 플랍 이후 유리하고, ${seatOf(oop)}에서는 불리해요.`;
     position = { id: 'position', text, nums: [], constant: false };
   }
   // 2. behind — 양쪽 다 블라인드가 아닐 때만 후보입니다.
@@ -427,7 +444,12 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
   const ba = lA.get('behind');
   const bb = lB.get('behind');
   if (ba && bb && ba.nums[0] !== bb.nums[0]) {
-    behind = { id: 'behind', text: `${josa(A.scenario.hero, '은/는')} 뒤에 ${ba.nums[0]}명, ${josa(B.scenario.hero, '은/는')} ${bb.nums[0]}명이 남아요.`, nums: [ba.nums[0], bb.nums[0]], constant: false };
+    behind = {
+      id: 'behind',
+      text: `${josa(A.scenario.hero, '은/는')} 뒤에 ${ba.nums[0]}명, ${josa(B.scenario.hero, '은/는')} ${bb.nums[0]}명이 남아 ${josa(A.scenario.hero, '이/가')} ${BEHIND_RISK[sa.kind]}기 더 쉬워요.`,
+      nums: [ba.nums[0], bb.nums[0]],
+      constant: false,
+    };
   }
   // 3. bbPrice / sbRaiseOrFold / bbFree — 한쪽에만 있는 자리 문장을 결론 순서(더 공격적인 쪽 먼저)로 나란히.
   const [first, second] = orderPair(a, b, axis);

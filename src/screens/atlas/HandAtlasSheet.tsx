@@ -16,6 +16,7 @@ import {
   newcomersAt,
   rfiThesis,
   seatLevers,
+  SB_OPEN,
   sectionDigest,
   sectionDigestDetail,
   type AtlasCell,
@@ -573,10 +574,10 @@ function AtlasBody({
             onSelect={onTap}
           />
           <p className="atlas__lever-core t-footnote ink-2">
-            <PlainText text="뒤에 남은 사람이 적을수록 넓게 오픈해요." />
+            <PlainText text="뒤에 남은 사람이 적을수록 3벳을 받을 일이 줄어 넓게 오픈해요." />
           </p>
           <p className="t-footnote ink-2">
-            <PlainText text="SB는 뒤에 BB 한 명뿐이라 따로 외워요." />
+            <PlainText text={SB_OPEN} />
           </p>
           {hasTie(sections.rfi) && (
             <p className="t-footnote ink-3">
