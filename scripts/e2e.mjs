@@ -452,9 +452,9 @@ async function pass(P) {
     const body = await page.locator('.screen.coach').innerText().catch(() => '');
     check(body.length > 0, 'coach: screen missing');
     check(/아직 볼 게 없어요|아직 성향이 안 보여요|내 성향/.test(body), `coach: neither the empty state nor the axes rendered ("${body.slice(0, 40)}")`);
-    // 실수가 없어도 읽을 것이 있어야 한다 (초보가 제일 많이 틀리는 곳 3장).
-    check(/초보가 제일 많이 틀리는 곳/.test(body), 'coach: cold-start cards missing');
-    check(/내 기록이 아니라 일반적인 이야기예요/.test(body), 'coach: cold-start cards must say they are not the user\'s own record');
+    // 실수가 없어도 읽을 것이 있어야 한다 (책이 강조하는 세 가지 — CoachEmpty.tsx BASICS_HEADING).
+    check(/책이 강조하는 세 가지/.test(body), 'coach: cold-start cards missing');
+    check(/내 기록이 아니라 책에서 가져온 이야기예요/.test(body), 'coach: cold-start cards must say they are not the user\'s own record');
     // 실수가 0인데 성향을 단정하면 안 된다.
     check(!/기웁니다|헐겁습니다|샙니다/.test(body), `coach: claimed a tendency with no mistakes ("${body.slice(0, 60)}")`);
   }
