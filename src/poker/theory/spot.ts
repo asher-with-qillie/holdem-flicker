@@ -118,7 +118,7 @@ export function spotReason(s: Scenario): SpotReason {
         diff = '책의 균형 전략은 SB가 반값 할인 덕분에 림프를 약 38% 섞고, 레이즈는 약 24%예요. 이 차트는 림프 없이 레이즈 아니면 폴드로 단순하게 만들었어요.';
       } else {
         lines.push(`${josa(h, '은/는')} 뒤에 ${BEHIND[h]}명이 남고, 그중 ${LATER[h]}명은 플랍 이후 ${h}보다 나중에 행동해요.`);
-        lines.push(`그만큼 3벳을 받을 위험이 있어서, 3벳을 받아도 버틸 수 있는 ${pct(W)}만 오픈해요.`);
+        lines.push(`그만큼 3벳을 받을 위험이 있어서, 3벳을 받아도 버틸 수 있을 만큼인 ${pct(W)}만 오픈해요.`);
         ids = h === 'CO' ? ['seats-behind', 'raise-or-fold'] : ['seats-behind', 'early-high-cards'];
       }
       break;
