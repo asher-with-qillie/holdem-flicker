@@ -110,7 +110,8 @@ function SeatNumbers({ seat }: { seat: Explanation['seat'] }) {
 export function WhyBlock({ why, scenario }: { why: Explanation['why']; scenario: Scenario }) {
   const [open, setOpen] = useState<PrincipleId | null>(null);
   const card = open ? PRINCIPLES[open] : null;
-  const cardNums = card?.numbers?.(scenario) ?? null;
+  // 자리 이유의 숫자 줄과 같은 숫자면 카드에서 다시 보이지 않아요
+  const cardNums = ((n) => (n && n !== why.spot.numbers ? n : null))(card?.numbers?.(scenario) ?? null);
   return (
     <section className="ui-why" aria-label="왜 이렇게 칠까">
       <h3 className="ui-explain__h">왜 이렇게 칠까</h3>
