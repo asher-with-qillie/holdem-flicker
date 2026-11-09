@@ -186,6 +186,31 @@ describe('이 패 이유(handReason.ts)', () => {
     expect(missing.slice(0, 20)).toEqual([]);
   });
 
+  it.runIf(entries.length > 0)('책과 다른 점이 "이 차트는 {패} …해요"라고 하면 그 칸의 비중과 맞아요', () => {
+    let matched = 0;
+    const ACT: Record<string, string> = { 폴드: 'fold', 콜: 'call', '3벳': 'threebet', '4벳': 'fourbet', 오픈: 'raise', 올인: 'allin', 레이즈: 'raise', 체크: 'check' };
+    const bad: string[] = [];
+    for (const { id, s } of CHARTS) {
+      if (!hasChart(s)) continue;
+      const cells = getChartCells(s);
+      for (const h of ALL_HANDS) {
+        if (!isReachable(s, h).ok) continue;
+        const d = handReason(s, h, cells[h])?.bookDiff;
+        if (!d) continue;
+        const esc = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const m = d.match(new RegExp(`이 차트는 (?:4벳한 )?${esc}[을를] (늘 |주로 |절반만 |가끔 )?(폴드|콜|3벳|4벳|오픈|올인|레이즈|체크)해요`));
+        if (!m) continue;
+        matched++;
+        const w = fullMix(cells[h]).find((x) => x.action === ACT[m[2]])?.weight ?? 0;
+        const word = (m[1] ?? '').trim();
+        const ok = word === '절반만' ? Math.abs(w - 0.5) < 1e-6 : word === '주로' ? w >= 0.6 : word === '가끔' ? w > 0 && w <= 0.25 : w === 1;
+        if (!ok) bad.push(`${id} ${h}: ${m[0]} (실제 ${Math.round(w * 100)}%)`);
+      }
+    }
+    expect(bad.slice(0, 20)).toEqual([]);
+    expect(matched, '검사한 문장 수').toBeGreaterThan(20);
+  });
+
   it.runIf(entries.length > 0)('문장은 한 문장 해요체, 80자 이하, 원리 카드가 있어요', () => {
     for (const [key, e] of entries) {
       expect(e.text.length, key).toBeLessThanOrEqual(80);
