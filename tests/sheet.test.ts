@@ -126,9 +126,10 @@ describe('sheet: 차트 메모 정리본 (§6.4, §7.2-4·5)', () => {
    */
   const MEMO_CONTENT = new Set(['필요 승률', '팟 오즈', 'SPR']);
 
-  // 647개를 하나씩 다시 쓰고, 이 패에만 해당하는 이유가 없거나 도달할 수 없는 칸의 41개는 지웠어요(THEORY_SPEC §9-2).
-  it('606개 전부 BANNED 에 걸리지 않는다', () => {
-    expect(NOTES.length).toBe(606);
+  // 647개를 하나씩 다시 쓰고, 이 패에만 해당하는 이유가 없거나(시트의 다른 조각을 되풀이할 뿐인 것 포함) 도달할 수 없는
+  // 칸의 41개를 지웠고(THEORY_SPEC §9-2), 교차 검토(시트 한 장을 통째로 읽기)에서 11개를 더 지웠어요.
+  it('595개 전부 BANNED 에 걸리지 않는다', () => {
+    expect(NOTES.length).toBe(595);
     const bad: string[] = [];
     for (const { where, text } of NOTES) {
       const hits = bannedHits(text).filter((h) => !MEMO_CONTENT.has(h));
