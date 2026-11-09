@@ -23,6 +23,10 @@ const scen = (d: (typeof ALL_CHART_DEFS)[number]): Scenario => ({ kind: d.kind, 
 const share = (s: Scenario, a: Action) => rangeShare(getChartCells(s), a);
 const CHARTS = ALL_CHART_DEFS.map((d) => ({ id: d.id, s: scen(d) }));
 
+
+/** 버튼 단어는 '폴드'예요. 이론 문장에서 '접어요 · 접고 · 접는' 같은 동사를 쓰지 않아요(THEORY_SPEC §1 말투). */
+const FOLD_VERB = /접[어고는었을으아기]|접습/;
+
 describe('가격(price.ts)', () => {
   it('책 1장의 필요 승률 = 콜 금액 ÷ 콜 뒤의 팟을 앱 크기로 계산해요', () => {
     const p = (s: Scenario) => Math.round(priceOf(s)!.need * 1000) / 10;
@@ -49,6 +53,7 @@ describe('자리 이유(spot.ts) — 차트에 대해 단정하는 말', () => {
       expect(r.principles.length, id).toBeGreaterThan(0);
       for (const p of r.principles) expect(PRINCIPLES[p], `${id} ${p}`).toBeDefined();
       for (const t of [...r.lines, r.numbers ?? '', r.bookDiff ?? '']) expect(bannedHits(t, 'style'), `${id}: ${t}`).toEqual([]);
+      for (const t of [...r.lines, r.bookDiff ?? '']) expect(t, id).not.toMatch(FOLD_VERB);
     }
   });
 
@@ -140,6 +145,7 @@ describe('원리 카드(principles.ts)', () => {
       expect(sentences.length, `${id}: ${p.body}`).toBeGreaterThanOrEqual(2);
       expect(sentences.length, `${id}: ${p.body}`).toBeLessThanOrEqual(3);
       expect(bannedHits(p.body, 'style'), id).toEqual([]);
+      expect(p.body, id).not.toMatch(FOLD_VERB);
       expect(p.ref, id).toMatch(/^책 \d+장/);
     }
   });
@@ -189,6 +195,7 @@ describe('이 패 이유(handReason.ts)', () => {
       for (const p of e.principles) expect(PRINCIPLES[p], `${key} ${p}`).toBeDefined();
       for (const m of e.text.matchAll(/\{([^}|]+)(?:\|([^}]+))?\}/g)) expect(['hand', 'hero', 'villain'], `${key}: ${m[0]}`).toContain(m[1]);
       if (e.bookDiff) expect(bannedHits(e.bookDiff, 'style'), key).toEqual([]);
+      expect(`${e.text} ${e.bookDiff}`, key).not.toMatch(FOLD_VERB);
     }
   });
 });
