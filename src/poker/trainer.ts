@@ -64,7 +64,8 @@ export function interestingWeights(hero: Pos): Record<HandName, number> {
  *  Line A (hero opens): rfi → vs_3bet (random later villain) → vs_5bet
  *  Line B (hero faces an open): vs_open (random earlier villain) → vs_4bet
  *  Line C: cold_4bet (random opener + 3-bettor in front)
- *  Line D: vs_limp (한 명이 림프한 뒤 hero 차례) — 다른 줄기와 이어지지 않는 별개의 손패입니다.
+ *  Line D: vs_limp (한 명이 림프한 뒤 hero 차례, BB 는 SB 의 림프) — 다른 줄기와 이어지지 않는 별개의 손패입니다.
+ * Line A 의 rfi 에서 SB 가 림프하면(1순위가 limp) 3벳 대응으로 잇지 않습니다 — 3벳 대응은 레이즈로 오픈했을 때만 생깁니다.
  * Later steps in a line only appear when the memorized answer of the previous step continues aggressively.
  * 앞 스텝을 훈련하지 않을 때(그 종류가 꺼져 있을 때)도 같은 기준 — 앞 차트의 **1순위**가 그 액션인지 — 으로 잇습니다.
  * 비중이 조금이라도 있으면 잇던 옛 규칙은 3벳 25% 칸까지 4벳 대응을 냈고, 그 칸은 atlas.isReachable 이 '도달 불가'로
@@ -136,16 +137,13 @@ export function buildSteps(hero: Pos, hand: HandName, opts: SessionOptions, rng:
   }
 
   // Line D — 림프는 앞의 어떤 줄기와도 이어지지 않습니다(오픈이 없었으니 3벳도 없습니다).
-  // 림퍼 자리는 화면에만 쓰고 차트는 hero 만 봅니다. SB 는 림퍼로 뽑지 않습니다 — 이 앱의
-  // rfi:SB 차트가 'SB 는 레이즈 아니면 폴드'라고 말하고 있어서, SB 가 림프하는 문제를 내면
-  // 앱이 스스로와 모순됩니다.
+  // 림퍼 자리는 화면에만 쓰고 차트는 hero 만 봅니다. BB 의 림퍼는 언제나 SB 입니다 — 책의 균형 전략에서
+  // 림프하는 자리는 SB 뿐이고(5장 2절), BB 차트는 'SB 가 림프했고 BB 차례'를 뜻합니다(scenarios.limperOf).
+  // HJ·CO·BTN·SB 는 앞자리의 한 명(약한 플레이어 — 책 4장 7절)을 뽑습니다. 앞자리에는 SB 가 없습니다.
   if (kinds.has('vs_limp') && hero !== 'UTG') {
-    const limpers = before.filter((p) => p !== 'SB');
-    if (limpers.length) {
-      const limper = pickFrom(limpers);
-      const s = makeStep({ kind: 'vs_limp', hero, extras: { limper } }, hand);
-      if (s) steps.push(s);
-    }
+    const limper: Pos = hero === 'BB' ? 'SB' : pickFrom(before);
+    const s = makeStep({ kind: 'vs_limp', hero, extras: { limper } }, hand);
+    if (s) steps.push(s);
   }
 
   steps.forEach((s, i) => {
@@ -209,6 +207,10 @@ const MIXED_BELOW = 0.6;
 /** hero 의 첫 결정이 되는 종류 — 뒤 스텝(3벳·4벳·5벳 대응)은 buildSteps 가 도달할 때만 붙입니다. */
 const ROOT_KINDS: readonly ScenarioKind[] = ['rfi', 'vs_open', 'vs_limp', 'cold_4bet'];
 
+/**
+ * 돈을 더 넣지 않는 답. 림프는 여기 들지 않습니다 — SB 가 0.5bb 를 더 내고 들어가는 결정이고, 외울 것(어느 패를 레이즈 대신
+ * 림프하는가)이 있는 칸이라 안쪽 림프 칸도 딜 가중치 1을 받고, 답이 림프인 스텝은 '전부 폴드' 정리에 걸리지 않습니다.
+ */
 const isPassive = (a: Action) => a === 'fold' || a === 'check';
 
 /** 13×13 표에서 (row, col) 의 이웃 칸 — 상하좌우, 페어는 대각선의 이웃 페어까지. */

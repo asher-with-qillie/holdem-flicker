@@ -68,8 +68,11 @@ export function familyOf(hand: HandName): Family {
   return 'trash';
 }
 
-/** 이 칸에서 이 패가 하는 일. 섞인 칸(1순위 < 60%)은 위 두 액션을 이름으로 붙입니다(mix:threebet+call). */
-export type Bucket = 'fold' | 'check' | 'raise' | 'call' | 'agg' | `mix:${string}`;
+/**
+ * 이 칸에서 이 패가 하는 일. 섞인 칸(1순위 < 60%)은 위 두 액션을 이름으로 붙입니다(mix:threebet+call · mix:limp+raise).
+ * 'limp' 는 SB 첫 진입의 림프(rfi:SB) — 레이즈와 이유가 달라서(반값으로 플랍을 봄 · 림프 범위를 지키는 강한 패) 따로 둡니다.
+ */
+export type Bucket = 'fold' | 'check' | 'limp' | 'raise' | 'call' | 'agg' | `mix:${string}`;
 
 const AGG: Action[] = ['threebet', 'fourbet', 'allin'];
 
@@ -80,6 +83,7 @@ export function bucketOf(mix: ActionMix | undefined): Bucket {
   if (top.weight < 0.6 && list[1]) return `mix:${top.action}+${list[1].action}`;
   if (top.action === 'fold') return 'fold';
   if (top.action === 'check') return 'check';
+  if (top.action === 'limp') return 'limp';
   if (top.action === 'call') return 'call';
   if (AGG.includes(top.action)) return 'agg';
   return 'raise';

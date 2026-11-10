@@ -36,6 +36,9 @@
   /* ---- actions (chroma tuned for the dark ground) ---- */
   --act-fold: #7C8594; --act-check: #8FA0B8; --act-call: #34C77B; --act-raise: #FF8A3D;
   --act-threebet: #FF5A5A; --act-fourbet: #A46BFF; --act-allin: #FFD23F;
+  /* 림프(SB 첫 진입): 비어 있던 청록 색상대(약 193°) — 같은 차트에 나오는 폴드(회색) · 레이즈(주황)와 반대편이고,
+     체크(채도 낮은 청회색)보다 훨씬 진해 구분되며, 콜(초록 149°)과는 한 차트에 같이 나오지 않습니다. 진한 바탕이라 글자는 --ink-on-tint. */
+  --act-limp: #3CC4E8;
 
   /* ---- heatmap ramp ---- */
   --heat-0: rgba(255, 255, 255, 0.06); --heat-1: #1E5A46; --heat-2: #2A8A66; --heat-3: #3BBF8C; --heat-4: #4DE3A6;
@@ -330,6 +333,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.01em; }
 .badge--check { background: var(--act-check); }
 .badge--call { background: var(--act-call); }
 .badge--raise { background: var(--act-raise); }
+.badge--limp { background: var(--act-limp); color: var(--ink-on-tint); }
 .badge--threebet { background: var(--act-threebet); }
 .badge--fourbet { background: var(--act-fourbet); }
 .badge--allin { background: var(--act-allin); color: var(--ink-on-tint); }

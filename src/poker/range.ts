@@ -161,11 +161,15 @@ export function fullMix(mix: ActionMix | undefined): Array<{ action: Action; wei
 }
 
 /**
- * 공격성 오름차순. ACTIONS 는 '저장 형식' 순서라(check 가 맨 뒤) 그걸 공격성으로 쓰면
+ * 공격성 오름차순. ACTIONS 는 '저장 형식' 순서라(check · limp 가 맨 뒤) 그걸 공격성으로 쓰면
  * 체크가 제일 공격적인 액션이 됩니다 — 50/50 체크·레이즈 패가 체크로 굳어지고, 트레이너는
  * 맞게 레이즈한 사람을 틀렸다고 합니다. 두 순서를 영영 갈라 둡니다.
+ *
+ * 림프는 '수동적인 진입'이라 폴드 · 체크 다음, 콜 앞입니다: 돈을 더 내고 들어가니 체크보다는 앞으로 나가지만,
+ * 아무것도 올리지 않습니다. 그래서 림프 50 · 레이즈 50 칸의 정답(동점 규칙)은 레이즈, 림프 50 · 폴드 50 칸은 림프입니다.
+ * 림프(rfi:SB)와 콜(대응 상황)은 한 차트에 같이 나오지 않아 둘 사이 순서가 화면을 바꾸지는 않습니다.
  */
-export const AGGRESSION_ORDER: readonly Action[] = ['fold', 'check', 'call', 'raise', 'threebet', 'fourbet', 'allin'];
+export const AGGRESSION_ORDER: readonly Action[] = ['fold', 'check', 'limp', 'call', 'raise', 'threebet', 'fourbet', 'allin'];
 const aggression = (a: Action): number => AGGRESSION_ORDER.indexOf(a);
 
 /** The action to memorize: highest weight; ties go to the more aggressive action. */
@@ -204,7 +208,7 @@ export function continueWeights(cells: ChartCells, actions?: Action[]): Record<H
 
 /** Debug helper: cells → compact per-action range string. */
 export function describeChart(cells: ChartCells): Record<Action, string> {
-  const by: Record<Action, string[]> = { fold: [], check: [], call: [], raise: [], threebet: [], fourbet: [], allin: [] };
+  const by: Record<Action, string[]> = { fold: [], check: [], limp: [], call: [], raise: [], threebet: [], fourbet: [], allin: [] };
   for (const h of ALL_HANDS) {
     for (const { action, weight } of fullMix(cells[h])) {
       if (action === 'fold') continue;

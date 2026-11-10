@@ -512,7 +512,7 @@ html:is([data-layout="squat"], [data-layout="land"]) .trainer-strip .pstrip__dea
 .trainer-strip .pstrip__seat:has(.pstrip__tag--threebet) .pstrip__chip { --tagc: var(--act-threebet); }
 .trainer-strip .pstrip__seat:has(.pstrip__tag--fourbet) .pstrip__chip { --tagc: var(--act-fourbet); }
 .trainer-strip .pstrip__seat:has(.pstrip__tag--allin) .pstrip__chip { --tagc: var(--act-allin); }
-.trainer-strip .pstrip__seat:has(.pstrip__tag--limp) .pstrip__chip { --tagc: var(--ink-2); }
+.trainer-strip .pstrip__seat:has(.pstrip__tag--limp) .pstrip__chip { --tagc: var(--act-limp); }
 html:is([data-layout="squat"], [data-layout="land"]) .trainer-strip .pstrip__chip { box-shadow: inset 0 -3px 0 var(--tagc, transparent); }
 html:is([data-layout="tall"], [data-layout="wide"]) .trainer-strip .pstrip__caption { display: none; }
 

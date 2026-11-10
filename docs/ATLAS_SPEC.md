@@ -270,6 +270,7 @@ export interface PriceFacts { toCall: string; pot: string; needPct?: number }
 export function priceFacts(s: Scenario): PriceFacts | null;
 //   vs_open BB vs SB {2bb, 6bb, 33} · BB 그 외 {1.5bb, 5.5bb, 27} · SB {2bb, 6bb} · 그 외 {2.5bb, 6.5bb}
 //   vs_3bet 블라인드 {8bb, 22bb, 36} · 그 외 {5bb, 16.5bb, 30} · vs_4bet {-, -, 30} · vs_5bet {-, -, 38~40 → needPct 39}
+//   (당시 크기 기준. 지금 priceFacts 는 theory/price.ts 의 책 크기를 읽습니다: vs_3bet 블라인드 7.5bb · 뒷자리 6bb · BB 의 SB 상대 6bb)
 //   scenarioLines 는 이 값을 읽어 **지금과 글자가 같은** 문장을 만든다(골든 테스트로 고정).
 
 /* ---------- src/poker/range.ts ---------- */

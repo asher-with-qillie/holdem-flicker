@@ -66,8 +66,16 @@ const VILLAIN_WORD: Partial<Record<Scenario['kind'], string>> = { vs_open: '오�
 /**
  * 숫자 줄. 모든 %는 rangeShare(1,326조합 가중)를 반올림한 정수 하나뿐입니다.
  * 내 액션은 비중이 큰 순서로, 0인 액션과 나머지(폴드·체크)는 뺍니다.
+ * rfi 사다리의 SB 는 차트에 림프가 있으면 레이즈와 림프를 따로 적습니다('SB 레이즈 24% · 림프 38%') — 둘을 더해
+ * 'SB 62%'라고 하면 BTN 보다 넓게 '오픈'한다고 읽히고, 레이즈만 적으면 림프가 사라집니다.
  */
-type SeatNumbers = { text: string; ladder: Array<{ pos: Pos; pct: number; me: boolean }> | null; nums: number[] };
+export type LadderRung = { pos: Pos; pct: number; me: boolean; limp?: number };
+type SeatNumbers = { text: string; ladder: LadderRung[] | null; nums: number[] };
+
+/** 사다리 한 칸의 글자: 'BTN 46%' · 림프가 있으면 'SB 레이즈 24% · 림프 38%'. 화면(ExplanationSheet)도 이 글자를 씁니다. */
+export function rungText(x: LadderRung): string {
+  return x.limp ? `${x.pos} 레이즈 ${x.pct}% · 림프 ${x.limp}%` : `${x.pos} ${x.pct}%`;
+}
 const numbersCache = new Map<string, SeatNumbers>();
 
 export function seatNumbers(s: Scenario): SeatNumbers {
@@ -83,12 +91,18 @@ export function seatNumbers(s: Scenario): SeatNumbers {
 
 function computeSeatNumbers(s: Scenario): SeatNumbers {
   if (s.kind === 'rfi') {
-    const ladder = RFI_SEATS.map((pos) => ({ pos, pct: pct(rangeShare(getChartCells({ kind: 'rfi', hero: pos }), 'raise')), me: pos === s.hero }));
-    return { text: ladder.map((x) => `${x.pos} ${x.pct}%`).join(' · '), ladder, nums: ladder.map((x) => x.pct) };
+    const ladder = RFI_SEATS.map((pos): LadderRung => {
+      const cells = getChartCells({ kind: 'rfi', hero: pos });
+      const limp = rangeShare(cells, 'limp');
+      const rung: LadderRung = { pos, pct: pct(rangeShare(cells, 'raise')), me: pos === s.hero };
+      if (limp > 0) rung.limp = pct(limp);
+      return rung;
+    });
+    return { text: ladder.map(rungText).join(' · '), ladder, nums: ladder.flatMap((x) => (x.limp ? [x.pct, x.limp] : [x.pct])) };
   }
   const cells = getChartCells(s);
   const rest = restAction(getChartDef(s));
-  const mine = (['call', 'raise', 'threebet', 'fourbet', 'allin'] as Action[])
+  const mine = (['call', 'limp', 'raise', 'threebet', 'fourbet', 'allin'] as Action[])
     .filter((a) => a !== rest)
     .map((a) => ({ a, share: rangeShare(cells, a) }))
     .filter((x) => x.share > 0)
@@ -127,6 +141,9 @@ export function seatLever(s: Scenario): { text: string; id: LeverId } | null {
     const W = pct(rangeShare(getChartCells(s), 'raise'));
     // 레버는 30자(공백 뺀 글자) 안 — tests/line.test.ts.
     if (hero === 'SB') {
+      // 림프가 있는 차트는 레이즈와 림프를 따로(책 5장 2절 — 레이즈 약 24% · 림프 약 38%).
+      const L = pct(rangeShare(getChartCells(s), 'limp'));
+      if (L > 0) return { id: 'sbOpen', text: `SB는 포지션이 없어 레이즈 ${W}%에 림프 ${L}%를 섞어요.` };
       const btn = pct(rangeShare(getChartCells({ kind: 'rfi', hero: 'BTN' }), 'raise'));
       if (W === btn) return { id: 'sbOpen', text: `SB는 BB만 남아도 포지션이 없어 BTN만큼인 ${W}%를 오픈해요.` };
       if (W < btn) return { id: 'sbOpen', text: `SB는 포지션이 없어서 BTN보다 좁은 ${W}%를 오픈해요.` };
@@ -389,8 +406,8 @@ export function mixBlock(step: Step): { chips: Array<{ action: Action; pct: numb
 const KICKER_CLASSES = new Set<HandClass>(['big_ace', 'suited_ace', 'offsuit_ace', 'suited_broadway', 'offsuit_broadway', 'suited_king', 'suited_qj']);
 /** 블러프로 쓰는 액션 — 블로커 줄은 이 액션이 1순위인 칸에만 붙습니다. */
 const BLUFF_ACTIONS = new Set<Action>(['threebet', 'fourbet', 'allin']);
-/** 셋 확률 줄이 맞는 결정 — 플랍을 보러 들어가는 콜 · 오픈(레이즈) · BB 체크. 3벳 이상은 셋 확률이 이유가 아닙니다. */
-const SET_ACTIONS = new Set<Action>(['call', 'raise', 'check']);
+/** 셋 확률 줄이 맞는 결정 — 플랍을 보러 들어가는 콜 · 오픈(레이즈) · SB 림프 · BB 체크. 3벳 이상은 셋 확률이 이유가 아닙니다. */
+const SET_ACTIONS = new Set<Action>(['call', 'raise', 'limp', 'check']);
 /** 섞인 칸(1순위 < 60%, THEORY_SPEC §6.1). */
 const MIXED = 0.6 - 1e-9;
 
@@ -439,6 +456,6 @@ export function oneExample(step: Step): string | null {
     case 'blocker':
       return BLUFF_ACTIONS.has(p) ? shape.text : null;
     case 'set':
-      return SET_ACTIONS.has(p) || (mixed && has(['call', 'raise'])) ? shape.text : null;
+      return SET_ACTIONS.has(p) || (mixed && has(['call', 'raise', 'limp'])) ? shape.text : null;
   }
 }

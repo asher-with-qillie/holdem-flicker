@@ -280,7 +280,8 @@ describe('oneExample', () => {
           expect(p === 'fold' || (mixed && has('fold')), where).toBe(true);
           if (p !== 'fold') mixedFold++;
         } else if (shape.kind === 'blocker') expect(['threebet', 'fourbet', 'allin'], where).toContain(p);
-        else expect(['call', 'raise', 'check'].includes(p) || (mixed && (has('call') || has('raise'))), where).toBe(true);
+        // 셋 확률: 플랍을 보러 들어가는 칸 — 콜 · 오픈 · SB 림프 · BB 체크(섞인 칸이면 콜 · 오픈 · 림프가 섞임).
+        else expect(['call', 'raise', 'limp', 'check'].includes(p) || (mixed && (has('call') || has('raise') || has('limp'))), where).toBe(true);
         if (!e.more.memo) shown[shape.kind]++;
       }
     }
@@ -482,19 +483,21 @@ describe('trainer sequences', () => {
 });
 
 describe('림프 대응의 포지션 (heroIsIP)', () => {
-  // 림퍼는 언제나 내 앞자리에 앉아 있습니다. 블라인드는 플랍 이후 먼저, 나머지는 나중에 액션합니다.
-  // 예전에는 BB 가 "나중에 액션"으로 읽혀 모든 BB 림프 카드에 포지션 문장이 거꾸로 붙었습니다.
-  it('BB·SB 림프 카드는 포지션이 없고, CO·BTN 림프 카드는 포지션이 있다 — 림퍼 자리를 몰라도 같다', () => {
+  // HJ·CO·BTN·SB 의 림퍼는 내 앞자리입니다. SB 는 플랍 이후 먼저, HJ·CO·BTN 은 나중에 액션합니다.
+  // BB 의 림퍼는 언제나 SB 입니다(책의 균형 전략에서 림프하는 자리는 SB 뿐) — 플랍 이후 SB 가 먼저 액션하니 BB 는 포지션이 있습니다.
+  it('SB 림프 카드는 포지션이 없고, CO·BTN · BB(SB 림프) 카드는 포지션이 있다 — 림퍼 자리를 몰라도 같다', () => {
     for (const limper of ['UTG', 'HJ', 'CO', undefined] as Array<Pos | undefined>) {
       const extras = limper ? { limper } : undefined;
-      for (const hero of ['SB', 'BB'] as Pos[]) expect(heroIsIP({ kind: 'vs_limp', hero, extras }), `${hero} ${limper}`).toBe(false);
+      expect(heroIsIP({ kind: 'vs_limp', hero: 'SB', extras }), `SB ${limper}`).toBe(false);
       for (const hero of ['CO', 'BTN'] as Pos[]) if (hero !== limper) expect(heroIsIP({ kind: 'vs_limp', hero, extras }), `${hero} ${limper}`).toBe(true);
     }
+    expect(heroIsIP({ kind: 'vs_limp', hero: 'BB' })).toBe(true);
+    expect(heroIsIP({ kind: 'vs_limp', hero: 'BB', extras: { limper: 'SB' } })).toBe(true);
     for (const hand of ALL_HANDS) {
-      for (const hero of ['SB', 'BB'] as Pos[]) {
-        const text = allStrings(explainStep(stepFor({ kind: 'vs_limp', hero, extras: { limper: 'HJ' } }, hand))).join('\n');
-        expect(text, `${hero} ${hand}`).not.toContain('포지션이 있어요');
-      }
+      const sb = allStrings(explainStep(stepFor({ kind: 'vs_limp', hero: 'SB', extras: { limper: 'HJ' } }, hand))).join('\n');
+      expect(sb, `SB ${hand}`).not.toContain('포지션이 있어요');
+      const bb = allStrings(explainStep(stepFor({ kind: 'vs_limp', hero: 'BB', extras: { limper: 'SB' } }, hand))).join('\n');
+      expect(bb, `BB ${hand}`).not.toContain('포지션이 없어요');
     }
   });
 });

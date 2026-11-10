@@ -105,7 +105,7 @@ function buildClassPrior(): Array<{ cls: HandClass; hand: string; p: number }> {
 /* 작은 도구                                                            */
 /* ------------------------------------------------------------------ */
 
-/** scenarioActions 는 공격성 오름차순입니다 — 그래서 인덱스가 곧 공격성 순위입니다. */
+/** scenarioActions 는 공격성 오름차순입니다 — 그래서 인덱스가 곧 공격성 순위입니다(rfi:SB 는 폴드 < 림프 < 레이즈). */
 function rankOf(kind: ScenarioKind, hero: Pos, a: Action): number {
   return scenarioActions(kind, hero).indexOf(a);
 }
@@ -402,6 +402,10 @@ export const PATTERN_RULES: PatternRule[] = [
       if (!PREMIUM_CLASSES.includes(m.handClass)) return false;
       // 폴드는 premium_overfold 가 맡습니다 — 여기 문구는 '콜한 것'을 전제로 씁니다.
       if (m.chosen === 'fold') return false;
+      // SB 의 림프(rfi:SB)는 이 규칙이 잡지 않습니다. 문구가 '콜한 이 패'를 전제로 쓰였고, 책의 균형 전략은 SB 림프 범위에
+      // AA·KK·QQ·AK 를 일부러 조금 섞어요(5장 2절 — 림프를 지키는 함정). 그래서 '센 패로 림프 = 얌전하게 쓴 실수'라고 단정할 수 없습니다.
+      // 그 실수는 성향 축(공격 쪽 부호 검정 · 진입 축)과 자리 뭉치(seat_hotspot)가 그대로 셉니다.
+      if (m.chosen === 'limp') return false;
       const chosen = rankOf(m.kind, m.hero, m.chosen);
       const answer = rankOf(m.kind, m.hero, m.answer);
       return chosen >= 0 && answer >= 0 && chosen < answer;

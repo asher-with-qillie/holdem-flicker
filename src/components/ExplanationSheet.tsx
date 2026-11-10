@@ -1,5 +1,6 @@
 import { Fragment, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Explanation } from '../poker/explain';
+import { rungText } from '../poker/sheet';
 import type { Step } from '../poker/trainer';
 import type { Action, Scenario, ScenarioKind } from '../poker/types';
 import { PRINCIPLES, type PrincipleId } from '../poker/theory/principles';
@@ -81,24 +82,29 @@ export function MixChips({ chips, kind }: { chips: Array<{ action: Action; pct: 
   );
 }
 
-/** ④ 숫자 줄. rfi 는 자리 사다리이고 내 자리를 굵게, 나머지 상황은 엔진 문자열 그대로(명사형). */
+/**
+ * ④ 숫자 줄. rfi 는 자리 사다리이고 내 자리를 굵게, 나머지 상황은 엔진 문자열 그대로(명사형).
+ * SB 에 림프가 있으면 그 칸은 'SB 레이즈 24% · 림프 38%'(엔진 rungText) — 레이즈 · 림프 한 덩어리씩만 줄을 바꿉니다.
+ */
 function SeatNumbers({ seat }: { seat: Explanation['seat'] }) {
   if (!seat.ladder) return <p className="ui-explain__nums tnum">{seat.numbers}</p>;
   return (
     <p className="ui-explain__nums tnum">
-      {seat.ladder.map((x, i) => (
-        <Fragment key={x.pos}>
-          {i > 0 && ' · '}
-          {/* a seat and its % never part at a line break — lines break only at the ' · ' separators */}
-          {x.me ? (
-            <b className="ui-explain__pair">
-              {x.pos} {x.pct}%
-            </b>
-          ) : (
-            <span className="ui-explain__pair">{`${x.pos} ${x.pct}%`}</span>
-          )}
-        </Fragment>
-      ))}
+      {seat.ladder.map((x, i) => {
+        // a seat and its % never part at a line break — lines break only at the ' · ' separators
+        const parts = rungText(x).split(' · ');
+        return (
+          <Fragment key={x.pos}>
+            {i > 0 && ' · '}
+            {parts.map((t, k) => (
+              <Fragment key={t}>
+                {k > 0 && ' · '}
+                {x.me ? <b className="ui-explain__pair">{t}</b> : <span className="ui-explain__pair">{t}</span>}
+              </Fragment>
+            ))}
+          </Fragment>
+        );
+      })}
     </p>
   );
 }

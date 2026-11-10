@@ -86,6 +86,7 @@ const ACT_OF_WORD: Record<string, Action[]> = {
   '4벳': ['fourbet'],
   올인: ['allin'],
   체크: ['check'],
+  림프: ['limp'],
 };
 const KIND_OF_WORD: Record<string, ScenarioKind> = { 오픈: 'vs_open', '3벳': 'vs_3bet', '4벳': 'vs_4bet', 올인: 'vs_5bet' };
 
@@ -270,7 +271,7 @@ describe('atlas: 74 cells', () => {
 
 describe('atlas: sentences re-derive from the charts (§5.5)', () => {
   // '…에서는 콜도 50% 섞어요'의 '콜도'는 1순위가 아니라 섞는 쪽이라 뺍니다(그 숫자는 (c)가 따로 대조합니다).
-  const RE_HERO = /(UTG|HJ|CO|BTN|SB|BB)(에서는|에서|부터|만) ?(절반만 |절반은 |주로 )?(폴드|콜|오픈|레이즈|3벳|4벳|올인|체크)(?!도)/g;
+  const RE_HERO = /(UTG|HJ|CO|BTN|SB|BB)(에서는|에서|부터|만) ?(절반만 |절반은 |주로 )?(폴드|콜|오픈|레이즈|3벳|4벳|올인|체크|림프)(?!도)/g;
   const RE_VILLAIN = /(UTG|HJ|CO|BTN|SB) (오픈|3벳|4벳|올인)에는 (절반만 |절반은 |주로 )?(폴드|콜|오픈|레이즈|3벳|4벳|올인)/g;
   // half 패턴 thesis 는 자리와 액션이 떨어져 있습니다("UTG에서 절반만, HJ부터 항상 오픈합니다") — 위 두 정규식이
   // 하나도 못 뽑아서, 자리를 잘못 적은 thesis 가 claims 만 맞으면 통과했습니다. 그 꼴을 따로 뽑습니다.
@@ -706,8 +707,9 @@ describe('atlas: 드문 칸(앞 단계 액션을 섞는 칸)은 비중으로 말
             never++;
             expect(isRare(c), where).toBe(false);
             expect([g.kind, g.needed, g.weight], where).toEqual([zero.kind, zero.needed, 0]);
-            // 비중 0 이면 예전 문장 그대로
-            expect(text, where).toMatch(/하지 않으니 (이 상황은 안 생겨요|올인을 받을 일이 없어요|4벳을 받을 일이 없어요)\.$/);
+            // 비중 0 이면 예전 문장 그대로. SB 에서 림프가 1순위인 패의 3벳 대응 칸만 '오픈 대신 림프하니'(림프한 뒤 BB 의 레이즈는 3벳이 아님).
+            if (g.kind === 'rfi' && primaryOf(hand, { kind: 'rfi', hero: c.scenario.hero }) === 'limp') expect(text, where).toBe(`${c.scenario.hero}에서는 오픈 대신 림프하니 이 상황은 안 생겨요.`);
+            else expect(text, where).toMatch(/하지 않으니 (이 상황은 안 생겨요|올인을 받을 일이 없어요|4벳을 받을 일이 없어요)\.$/);
           } else {
             rare++;
             expect(isRare(c), where).toBe(true);

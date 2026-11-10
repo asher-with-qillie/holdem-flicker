@@ -25,7 +25,7 @@ export function lineOf(hand: string): LineDef {
   return { id: `o${info.high}`, label: `오프수트 ${info.high}`, obj: `오프수트 ${rankP(info.high)}`, slots: RANKS.map((_, i) => ({ hand: gridHand(i, hi), inLine: i > hi })) };
 }
 const agg = (a: Action) => AGGRESSION_ORDER.indexOf(a);
-const VERB: Record<Action, string> = { fold: '폴드', check: '체크', call: '콜', raise: '오픈', threebet: '3벳', fourbet: '4벳', allin: '올인' };
+const VERB: Record<Action, string> = { fold: '폴드', check: '체크', call: '콜', raise: '오픈', threebet: '3벳', fourbet: '4벳', allin: '올인', limp: '림프' };
 const verb = (a: Action, s: Scenario) => (a === 'raise' && s.kind === 'vs_limp' ? '레이즈' : VERB[a]);
 export function subject(s: Scenario): string {
   const H = seatP(s.hero, '는'); const v = s.villain;

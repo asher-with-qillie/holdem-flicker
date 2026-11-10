@@ -79,7 +79,7 @@ const GROUPED: Partial<Record<AxisId, readonly [AxisGroup, AxisGroup]>> = {
  */
 function belongs(id: AxisId, m: CoachMistake): boolean {
   switch (id) {
-    // 오답 선택지가 둘인 상황만 방향을 말해 줍니다(rfi·vs_5bet 은 선택지가 하나뿐입니다).
+    // 오답 선택지가 둘인 상황만 방향을 말해 줍니다(rfi·vs_5bet 은 오답이 하나뿐 — 단 rfi:SB 는 림프가 더해져 셋입니다).
     case 'aggression':
       return scenarioActions(m.kind, m.hero).length === 3;
     // 거르는 조건이 없는 유일한 축입니다 — 실수 전체가 그대로 재료입니다.

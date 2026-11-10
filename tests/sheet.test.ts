@@ -8,7 +8,7 @@ import { rangeShare } from '../src/poker/range';
 import { allScenarios, scenarioKey, scenarioSituation } from '../src/poker/scenarios';
 import { seatLever, seatNumbers } from '../src/poker/sheet';
 import { stepFor } from '../src/poker/trainer';
-import { DISCLAIMER } from '../src/screens/charts/disclaimer';
+import { DISCLAIMER, DISCLAIMER_BB_LIMP } from '../src/screens/charts/disclaimer';
 import { SCENARIO_KINDS, type Pos, type Scenario } from '../src/poker/types';
 
 /*
@@ -66,7 +66,7 @@ describe('sheet: 금지 표현 (§7.2-4)', () => {
     for (const hand of ALL_HANDS) for (const { text } of atlasTexts(hand)) check(text, `atlas ${hand}`);
     for (const s of allScenarios()) check(scenarioSituation(s), `situation ${scenarioKey(s)}`);
     for (const s of allScenarios()) check(scenarioSituation({ ...s, extras: { limper: 'HJ', opener: 'UTG', threeBettor: 'HJ' } }), `situation+extras ${scenarioKey(s)}`);
-    for (const t of Object.values(DISCLAIMER)) check(t, 'DISCLAIMER');
+    for (const t of [...Object.values(DISCLAIMER), DISCLAIMER_BB_LIMP]) check(t, 'DISCLAIMER');
     // 용어 풀이: 용어 이름 자체(SPR · c-bet · 팟 오즈)는 이론 용어라 금지 목록에 있습니다 — 풀이 부분만 봅니다.
     for (const [term] of GLOSS) check(glossSentence(term)!.slice(term.length), `gloss ${term}`);
     expect(bad.slice(0, 20)).toEqual([]);
@@ -96,7 +96,7 @@ describe('sheet: 말투 (§7.2-5)', () => {
       }
     }
     for (const s of allScenarios()) for (const x of sentences(scenarioSituation(s))) if (!endsInYo(x)) bad.push(`situation ${scenarioKey(s)}: ${x}`);
-    for (const t of Object.values(DISCLAIMER)) for (const x of sentences(t)) if (!/요[.?]$/.test(x)) bad.push(`DISCLAIMER: ${x}`);
+    for (const t of [...Object.values(DISCLAIMER), DISCLAIMER_BB_LIMP]) for (const x of sentences(t)) if (!/요[.?]$/.test(x)) bad.push(`DISCLAIMER: ${x}`);
     for (const [term] of GLOSS) expect(glossSentence(term)!).toMatch(/(예요|이에요)\.$/);
     expect(bad.slice(0, 20)).toEqual([]);
     expect(glossSentence('블로커')).toBe('블로커는 내가 쥔 카드 때문에 상대 조합이 줄어드는 효과예요.');
@@ -112,7 +112,9 @@ describe('sheet: 말투 (§7.2-5)', () => {
     expect(scenarioSituation({ kind: 'vs_5bet', hero: 'UTG', villain: 'BTN' })).toBe('UTG 오픈 → BTN 3벳 → 내 4벳 → BTN 올인. 콜할까요?');
     expect(scenarioSituation({ kind: 'cold_4bet', hero: 'BTN', extras: { opener: 'UTG', threeBettor: 'CO' } })).toBe('앞에서 오픈과 3벳이 나왔어요. BTN, 내 차례예요.');
     expect(scenarioSituation({ kind: 'vs_limp', hero: 'CO', extras: { limper: 'HJ' } })).toBe('HJ가 림프했어요. CO, 내 차례예요.');
-    expect(scenarioSituation({ kind: 'vs_limp', hero: 'BB', extras: { limper: 'BTN' } })).toBe('BTN이 림프했어요. BB는 체크 아니면 레이즈예요.');
+    // BB 의 림프 대응 = SB 가 림프했고 BB 차례(책의 균형 전략에서 림프하는 자리는 SB 뿐) — extras 가 없어도 SB 입니다.
+    expect(scenarioSituation({ kind: 'vs_limp', hero: 'BB', extras: { limper: 'SB' } })).toBe('SB가 림프했어요. BB는 체크 아니면 레이즈예요.');
+    expect(scenarioSituation({ kind: 'vs_limp', hero: 'BB' })).toBe('SB가 림프했어요. BB는 체크 아니면 레이즈예요.');
   });
 });
 
@@ -198,7 +200,8 @@ describe('sheet: 레버 데이터 판단 (§7.2-12)', () => {
         expect(lever.text, where).toBe(`${s.hero === 'BTN' ? 'BTN은' : `${s.hero}는`} ${s.villain}보다 포지션이 ${heroIsIP(s) ? '있어요' : '없어요'}.`);
       }
       if (s.kind === 'vs_5bet' || s.kind === 'cold_4bet') expect(lever?.text ?? '', where).not.toMatch(/포지션/);
-      if (s.kind === 'rfi') expect(lever?.text, where).toMatch(/오픈해요\.$/);
+      // rfi 레버는 오픈 폭 — SB 차트에 림프가 있으면 레이즈와 림프를 따로('SB는 포지션이 없어 레이즈 24%에 림프 38%를 섞어요.').
+      if (s.kind === 'rfi') expect(lever?.text, where).toMatch(rangeShare(getChartCells(s), 'limp') > 0 ? /^SB는 포지션이 없어 레이즈 \d+%에 림프 \d+%를 섞어요\.$/ : /오픈해요\.$/);
       if (s.kind === 'vs_open' && s.hero === 'BB') expect(lever?.id).toBe('bbPrice');
       if (s.kind === 'vs_limp') expect(lever?.id ?? null).toBe(s.hero === 'BB' ? 'bbFree' : null);
     }
@@ -344,7 +347,7 @@ describe('sheet: 자리 문장의 이름 규칙 (§4.2-⑥, 리뷰)', () => {
   });
 
   it('부분 정답 문장: 두 액션의 가치가 비슷하다는 것(책 2장 무차별)을 먼저, 채점은 그다음 — "더 공격적인"은 두 계속 액션의 반반에만', () => {
-    const actionLabelOf = (a: string, s: Scenario) => (a === 'raise' ? (s.kind === 'vs_limp' ? '레이즈' : '오픈') : ({ call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크' } as Record<string, string>)[a]);
+    const actionLabelOf = (a: string, s: Scenario) => (a === 'raise' ? (s.kind === 'vs_limp' ? '레이즈' : '오픈') : ({ call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크', limp: '림프' } as Record<string, string>)[a]);
     let restTie = 0;
     let contTie = 0;
     for (const { e, s } of EXPLAINED) {

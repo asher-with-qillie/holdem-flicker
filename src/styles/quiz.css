@@ -221,7 +221,7 @@ html:is([data-layout="squat"], [data-layout="land"]) .quiz-zq .pstrip__dealer { 
 .quiz-zq .pstrip__seat:has(.pstrip__tag--threebet) .pstrip__chip { --tagc: var(--act-threebet); }
 .quiz-zq .pstrip__seat:has(.pstrip__tag--fourbet) .pstrip__chip { --tagc: var(--act-fourbet); }
 .quiz-zq .pstrip__seat:has(.pstrip__tag--allin) .pstrip__chip { --tagc: var(--act-allin); }
-.quiz-zq .pstrip__seat:has(.pstrip__tag--limp) .pstrip__chip { --tagc: var(--ink-2); }
+.quiz-zq .pstrip__seat:has(.pstrip__tag--limp) .pstrip__chip { --tagc: var(--act-limp); }
 html:is([data-layout="tall"], [data-layout="wide"]) .quiz-zq .pstrip__caption { display: none; }
 
 /* ---- squat 382×580: HUD 40 · seats 36 · situation 22 · [hand | T] · label 25 · prompt 20 · answers 56 · feedback 186 ---- */

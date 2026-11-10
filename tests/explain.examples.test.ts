@@ -30,7 +30,7 @@ import type { Action, Scenario, ScenarioKind } from '../src/poker/types';
 
 /** §3.6 의 스트립 표기: · 유령, ┆ 도달 불가, _ 빈칸, ▌ 경계 막대, ( ) 링, a/b 섞인 칸(1·2순위). */
 function stripNotation(e: Explanation, kind: ScenarioKind): string {
-  const A: Record<Action, string> = { raise: kind === 'vs_limp' ? 'R' : 'O', call: 'C', threebet: '3', fourbet: '4', allin: 'J', fold: 'F', check: 'X' };
+  const A: Record<Action, string> = { raise: kind === 'vs_limp' ? 'R' : 'O', call: 'C', threebet: '3', fourbet: '4', allin: 'J', fold: 'F', check: 'X', limp: 'L' };
   const out: string[] = [];
   e.line.slots.forEach((slot, i) => {
     let t = slot.role === 'ghost' ? '·' : slot.role === 'unreachable' ? '┆' : slot.role === 'empty' ? '_' : slot.mix!.slice(0, 2).map((m) => A[m.action]).join('/');
@@ -333,7 +333,7 @@ describe('EXPLAIN_SPEC 의 실제 칸 13개 (§3.6 · §4.3)', () => {
       expect(Number(emWidth(c.sentence).toFixed(1))).toBe(c.em);
       // ②~⑦ 시트(§4.3)
       expect(e.sibling?.text ?? null).toBe(c.sibling);
-      expect(e.mix ? e.mix.chips.map((x) => `${{ raise: kind === 'vs_limp' ? '레이즈' : '오픈', call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크' }[x.action]} ${x.pct}%`).join(' · ') : null).toBe(c.mix);
+      expect(e.mix ? e.mix.chips.map((x) => `${{ raise: kind === 'vs_limp' ? '레이즈' : '오픈', call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크', limp: '림프' }[x.action]} ${x.pct}%`).join(' · ') : null).toBe(c.mix);
       expect(e.mix?.partial ?? null).toBe(c.partial);
       expect(e.seat.numbers).toBe(c.numbers);
       expect(e.seat.lever).toBe(c.lever);
@@ -355,7 +355,7 @@ describe('EXPLAIN_SPEC 의 실제 칸 13개 (§3.6 · §4.3)', () => {
 
 /** 타일 라벨(§4.2-⑥): 1순위 액션, 100% 미만이면 비중어. 반반은 캡슐과 같은 'a·b 반반'. */
 function tileLabel(mix: Array<{ action: Action; weight: number }>, kind: ScenarioKind, hero: string): string {
-  const w = (a: Action) => ({ raise: kind === 'vs_limp' ? '레이즈' : '오픈', call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크' })[a];
+  const w = (a: Action) => ({ raise: kind === 'vs_limp' ? '레이즈' : '오픈', call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크', limp: '림프' })[a];
   const [m0, m1] = mix;
   if (m0.weight >= 0.999) return w(m0.action);
   if (m0.weight >= 0.6) return `주로 ${w(m0.action)}`;

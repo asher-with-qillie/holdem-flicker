@@ -19,7 +19,7 @@ import { useSrs } from '../state/srs';
 import { useLayout } from '../state/viewport';
 import { CellCard, openChartVisit } from './charts/CellCard';
 import { CellSheet } from './charts/CellSheet';
-import { DISCLAIMER } from './charts/disclaimer';
+import { disclaimerFor } from './charts/disclaimer';
 import { ChartFilters, FilterRow } from './charts/ChartFilters';
 import { ActionShares, ChartLegend } from './charts/ChartStats';
 import { masteryFor } from './charts/mastery';
@@ -286,7 +286,7 @@ export function ChartsScreen() {
       이 상황으로 훈련하기
     </CapsuleButton>
   );
-  const disclaimer = <p className="charts__disclaimer t-footnote">{DISCLAIMER[sel.kind]}</p>;
+  const disclaimer = <p className="charts__disclaimer t-footnote">{disclaimerFor(sel)}</p>;
 
   const card = active && stage && (
     <CellCard

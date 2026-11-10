@@ -17,8 +17,8 @@ import {
   handAtlas,
   newcomersAt,
   rfiThesis,
+  sbOpenLine,
   seatLevers,
-  SB_OPEN,
   sectionDigest,
   sectionDigestDetail,
   type AtlasCell,
@@ -52,6 +52,8 @@ type ThreeSeg = 'vs_3bet' | 'vs_5bet';
 // 책 2장 4절(무차별): 두 액션으로 나눠 쓰는 패는 두 액션의 가치가 같습니다 — '더 공격적인 쪽'은 앱의 채점 규칙일 뿐이라고 적습니다.
 const TIE_NOTE = '비중이 같은 칸은 두 액션의 가치가 거의 같아요. 채점만 더 공격적인 쪽을 정답으로 쳐요.';
 const NEWCOMER_MAX = 9;
+/** 림프 대응 섹션의 BB 칸 설명(scenarios.limperOf). HJ~SB 칸은 '앞에서 한 명이 림프'입니다. */
+const BB_LIMP_NOTE = 'BB 칸은 SB가 림프한 상황이에요. 다른 칸은 앞자리의 한 명이 림프한 상황이에요.';
 /** 섹션 row 문장으로 쓰는 레버(자리만 보는 것). 숫자 레버·상대 레버는 비교 블록이 맡습니다. */
 const ROW_LEVERS: LeverId[] = ['behind', 'bbPrice', 'sbRaiseOrFold', 'bbFree'];
 /** 두 칸 배치의 오른쪽 머리 — 고른 칸이 어느 섹션인지. */
@@ -531,7 +533,7 @@ function AtlasBody({
 
   // 오픈 대응의 행 문장: 선택된 행(없으면 origin 행, 그것도 없으면 BB)의 자리 레버 ≤ 2줄. 4벳 대응에는 자리 레버가 없습니다.
   const rowHero: Pos = (selected?.scenario.kind === 'vs_open' ? selected.scenario.hero : marks.origin?.kind === 'vs_open' ? marks.origin.hero : undefined) ?? 'BB';
-  // 상대는 선택한 칸의 상대 — BB×SB 를 골랐는데 UTG 값(1.5bb/5.5bb)을 보여 주면 틀립니다(BB vs SB 는 2bb/6bb).
+  // 상대는 선택한 칸의 상대 — BB×SB 를 골랐는데 UTG 값(1.5bb/5.5bb)을 보여 주면 틀립니다(BB vs SB 는 2bb/6bb — 책의 SB 레이즈 3bb).
   const rowVillain =
     selected?.scenario.kind === 'vs_open' && selected.scenario.hero === rowHero ? selected.scenario.villain : openSec.cols?.find((v) => v !== rowHero);
   const rowLines =
@@ -574,6 +576,8 @@ function AtlasBody({
             captions={[
               { label: '뒤에', values: rfi.seats.map((s) => `${s.behind}명`) },
               { label: '오픈', values: rfi.seats.map((s) => `${s.share}%`) },
+              // SB 차트에 림프가 있으면(책 5장 2절) 림프 폭을 따로 한 줄 — '오픈' 줄의 SB 값은 레이즈만입니다. 림프는 SB 에만 있어요.
+              ...(rfi.seats.some((s) => s.limpShare > 0) ? [{ label: '림프', values: rfi.seats.map((s) => (s.limpShare > 0 ? `${s.limpShare}%` : '—')) }] : []),
             ]}
             onSelect={onTap}
           />
@@ -581,7 +585,7 @@ function AtlasBody({
             <PlainText text="뒤에 남은 사람이 적을수록 3벳을 받을 일이 줄어 넓게 오픈해요." />
           </p>
           <p className="t-footnote ink-2">
-            <PlainText text={SB_OPEN} />
+            <PlainText text={sbOpenLine()} />
           </p>
           {hasTie(sections.rfi) && (
             <p className="t-footnote ink-3">
@@ -675,6 +679,10 @@ function AtlasBody({
         <Section title="림프 대응 · 앞에서 한 명이 림프" tag="사람 작성">
           <SeatStrip cells={limp.cells} kind="vs_limp" marks={marks} onSelect={onTap} />
           <Digest sec={limp} />
+          {/* BB 칸만 림퍼가 정해져 있어요 — 책의 균형 전략에서 림프하는 자리는 SB 뿐이라 BB 는 SB 의 림프를 받습니다. */}
+          <p className="t-footnote ink-2">
+            <PlainText text={BB_LIMP_NOTE} />
+          </p>
           <p className="atlas__disclaimer t-footnote ink-3">{DISCLAIMER.vs_limp}</p>
           {detailFor('vs_limp')}
         </Section>
