@@ -9,10 +9,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'UTG',
     actions: {
       allin: [
-        'KK+', 'QQ:0.25', 'AKs:0.75', 'AKo:0.5',
+        'KK', 'AA:0.5', 'AKs:0.5', 'AKo:0.75',
       ].join(','),
       call: [
-        'QQ:0.75', 'AKs:0.25', 'AKo:0.5', 'JJ:0.5', 'AQs:0.25',
+        'AA:0.5', 'AKs:0.5', 'AKo:0.25', 'QQ-66', 'AQs', 'AJs:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 콜할 패도 그만큼 강해야 해요. AA·KK는 올인, QQ는 주로 콜하고, AKo는 올인과 콜을 반반 섞으며, JJ는 절반만 콜하고 A5s~A3s는 폴드해요. 책은 포지션이 있으면 대부분 콜하고 AA도 절반쯤 콜로 숨긴다고 하지만, 이 차트는 올인이 콜보다 많고 AA는 늘 올인해요.',
@@ -33,10 +33,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'UTG',
     actions: {
       allin: [
-        'KK+', 'QQ:0.25', 'AKs:0.75', 'AKo:0.5',
+        'KK', 'AA:0.5', 'AKs:0.5', 'AKo:0.75',
       ].join(','),
       call: [
-        'QQ:0.75', 'AKs:0.25', 'AKo:0.5', 'JJ:0.5', 'AQs:0.25',
+        'AA:0.5', 'AKs:0.5', 'AKo:0.25', 'QQ-66', 'AQs', 'AJs:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 콜할 패도 그만큼 강해야 해요. AA·KK는 올인, AKs는 주로 올인하고, QQ는 주로 콜, JJ는 절반만 콜하며, AQo·KQs·A5s~A3s는 폴드해요. 책은 포지션이 있으면 대부분 콜하고 AA도 절반쯤 콜로 숨긴다고 하지만, 이 차트는 올인이 콜보다 많고 AA는 늘 올인해요.',
@@ -58,10 +58,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'UTG',
     actions: {
       allin: [
-        'KK+', 'QQ:0.25', 'AKs:0.75', 'AKo:0.5',
+        'KK', 'AA:0.5', 'AKs:0.5', 'AKo:0.5',
       ].join(','),
       call: [
-        'QQ:0.75', 'AKs:0.25', 'AKo:0.5', 'JJ:0.5', 'AQs:0.5',
+        'AA:0.5', 'AKs:0.5', 'AKo:0.5', 'QQ-TT', 'AQs', 'AJs:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 콜할 패도 그만큼 강해야 해요. AA·KK는 올인, QQ는 주로 콜하고, AKo는 올인과 콜을 반반 섞으며, JJ·AQs는 절반만 콜해요. 책은 포지션이 있으면 대부분 콜하고 AA도 절반쯤 콜로 숨긴다고 하지만, 이 차트는 올인이 콜보다 많고 AA는 늘 올인해요.',
@@ -83,10 +83,11 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'HJ',
     actions: {
       allin: [
-        'KK+', 'QQ:0.75', 'AKs:0.5', 'AKo:0.5',
+        'KK', 'AA:0.5', 'AKs:0.75', 'AKo:0.75', 'QQ:0.25',
       ].join(','),
       call: [
-        'QQ:0.25', 'JJ:0.75', 'TT:0.25', 'AKs:0.5', 'AKo:0.5', 'AQs:0.5',
+        'AA:0.5', 'AKs:0.25', 'AKo:0.25', 'QQ:0.75', 'JJ-55', 'AQs', 'AJs', 'KQs', 'KJs',
+        'ATs:0.5', 'AQo:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 콜할 패도 그만큼 강해야 해요. AA·KK는 올인, QQ는 주로 올인하고, AK는 올인과 콜을 반반 섞으며, JJ는 주로 콜하고 A5s~A3s는 폴드해요. 책은 포지션이 있으면 대부분 콜하고 AA도 절반쯤 콜로 숨긴다고 하지만, 이 차트는 올인이 콜보다 많고 AA는 늘 올인해요.',
@@ -108,10 +109,11 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'HJ',
     actions: {
       allin: [
-        'KK+', 'QQ:0.75', 'AKs:0.5', 'AKo:0.5',
+        'KK', 'AA:0.5', 'AKs:0.75', 'AKo:0.75', 'QQ:0.25',
       ].join(','),
       call: [
-        'QQ:0.25', 'JJ:0.75', 'TT:0.25', 'AKs:0.5', 'AKo:0.5', 'AQs:0.5',
+        'AA:0.5', 'AKs:0.25', 'AKo:0.25', 'QQ:0.75', 'JJ-TT', 'AQs', 'AJs', 'KQs', 'KJs',
+        'AQo:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 콜할 패도 그만큼 강해야 해요. AA·KK는 올인, QQ는 주로 올인하고, AK는 올인과 콜을 반반 섞으며, JJ는 주로 콜하고 A5s~A2s는 폴드해요. 책은 포지션이 있으면 대부분 콜하고 AA도 절반쯤 콜로 숨긴다고 하지만, 이 차트는 올인이 콜보다 많고 AA는 늘 올인해요.',
@@ -133,10 +135,11 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'CO',
     actions: {
       allin: [
-        'KK+', 'QQ:0.5', 'AKs:0.75', 'AKo:0.5', 'A5s:0.25',
+        'KK', 'AA:0.5', 'AKs', 'AKo', 'QQ:0.25', 'JJ:0.25', 'A5s:0.5',
       ].join(','),
       call: [
-        'QQ:0.5', 'JJ', 'TT:0.5', 'AKs:0.25', 'AKo:0.5', 'AQs', 'AJs:0.25',
+        'AA:0.5', 'QQ:0.75', 'JJ:0.75', 'TT-99', 'AQs', 'AJs', 'ATs', 'A9s-A6s', 'KQs', 'KJs',
+        'AQo:0.5', 'A5s:0.5', 'A4s:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 콜할 패도 그만큼 강해야 해요. AA·KK는 올인, QQ·AKo는 올인과 콜을 반반 섞고, JJ·AQs는 콜하며, A5s는 가끔 올인 블러프로 써요. 책은 포지션이 있으면 대부분 콜하고 AA도 절반쯤 콜로 숨긴다고 하지만, 이 차트는 올인이 콜보다 조금 많고 AA는 늘 올인해요.',
@@ -158,10 +161,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'UTG',
     actions: {
       allin: [
-        'KK+', 'QQ:0.5', 'AKs:0.5', 'AKo:0.5',
+        'KK', 'AA:0.75', 'AKs:0.75', 'AKo:0.75',
       ].join(','),
       call: [
-        'QQ:0.5', 'JJ:0.5', 'AKs:0.5', 'AKo:0.5',
+        'AA:0.25', 'AKs:0.25', 'AKo:0.25', 'QQ-TT', '99:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 포지션 없이 콜할 패도 그만큼 강해야 해요. AA·KK는 올인, QQ·AK는 올인과 콜을 반반 섞고, JJ는 절반만 콜하며, TT·AQs·A5s~A2s는 폴드해요. 책은 상대 4벳이 양극화될수록 AA도 콜로 숨긴다고 하지만, 이 차트는 AA를 늘 올인해요.',
@@ -183,10 +186,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'UTG',
     actions: {
       allin: [
-        'KK+', 'QQ:0.5', 'AKs:0.5', 'AKo:0.5',
+        'KK', 'AA:0.75', 'AKs:0.75', 'AKo:0.75',
       ].join(','),
       call: [
-        'QQ:0.5', 'JJ:0.5', 'AKs:0.5', 'AKo:0.5',
+        'AA:0.25', 'AKs:0.25', 'AKo:0.25', 'QQ-TT',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 포지션 없이 콜할 패도 그만큼 강해야 해요. AA·KK는 올인, QQ·AK는 올인과 콜을 반반 섞고, JJ는 절반만 콜하며, AQs·AQo·A5s~A2s는 폴드해요. 책은 상대 4벳이 양극화될수록 AA도 콜로 숨긴다고 하지만, 이 차트는 AA를 늘 올인해요.',
@@ -207,10 +210,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'HJ',
     actions: {
       allin: [
-        'KK+', 'QQ:0.75', 'AKs:0.5', 'AKo:0.5',
+        'KK', 'AA:0.75', 'AKs:0.75', 'AKo:0.75', 'QQ:0.25',
       ].join(','),
       call: [
-        'QQ:0.25', 'JJ:0.75', 'TT:0.25', 'AKs:0.5', 'AKo:0.5', 'AQs:0.25',
+        'AA:0.25', 'AKs:0.25', 'AKo:0.25', 'QQ:0.75', 'JJ-99', '88:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 포지션 없이 콜할 패도 그만큼 강해야 해요. AA·KK는 올인, QQ는 주로 올인하고, AK는 올인과 콜을 반반 섞으며, JJ는 주로 콜하고 99·88·KQs는 폴드해요. 책은 상대 4벳이 양극화될수록 AA도 콜로 숨긴다고 하지만, 이 차트는 AA를 늘 올인해요.',
@@ -232,10 +235,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'HJ',
     actions: {
       allin: [
-        'KK+', 'QQ:0.75', 'AKs:0.5', 'AKo:0.5',
+        'KK', 'AA:0.75', 'AKs:0.75', 'AKo:0.75', 'QQ:0.25',
       ].join(','),
       call: [
-        'QQ:0.25', 'JJ:0.75', 'TT:0.25', 'AKs:0.5', 'AKo:0.5', 'AQs:0.25',
+        'AA:0.25', 'AKs:0.25', 'AKo:0.25', 'QQ:0.75', 'JJ-TT', 'AQs', 'AJs',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 포지션 없이 콜할 패도 그만큼 강해야 해요. AA·KK는 올인, QQ는 주로 올인하고, AK는 올인과 콜을 반반 섞으며, JJ는 주로 콜하고 AQo·KQs는 폴드해요. 책은 상대 4벳이 양극화될수록 AA도 콜로 숨긴다고 하지만, 이 차트는 AA를 늘 올인해요.',
@@ -257,10 +260,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'CO',
     actions: {
       allin: [
-        'KK+', 'QQ:0.75', 'JJ:0.25', 'AKs', 'AKo:0.75', 'A5s:0.25',
+        'KK', 'AA:0.75', 'AKs', 'AKo', 'QQ:0.5', 'JJ:0.25', 'A5s:0.25',
       ].join(','),
       call: [
-        'QQ:0.25', 'JJ:0.75', 'TT:0.5', 'AKo:0.25', 'AQs:0.75', 'AJs:0.25',
+        'AA:0.25', 'QQ:0.5', 'JJ:0.75', 'TT-66', 'AQs', 'AJs', 'ATs:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 포지션 없이 콜할 패도 그만큼 강해야 해요. AA·KK·AKs는 올인, QQ·AKo는 주로 올인, JJ·AQs는 주로 콜하고, A5s는 가끔 올인 블러프로 쓰며 99~77은 폴드해요. 책은 상대 4벳이 양극화될수록 AA도 콜로 숨긴다고 하지만, 이 차트는 AA를 늘 올인해요.',
@@ -282,10 +285,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'CO',
     actions: {
       allin: [
-        'KK+', 'QQ:0.75', 'JJ:0.25', 'AKs', 'AKo:0.75', 'A5s:0.25',
+        'KK', 'AA:0.75', 'AKs', 'AKo', 'QQ:0.5', 'JJ:0.25', 'A5s:0.25',
       ].join(','),
       call: [
-        'QQ:0.25', 'JJ:0.75', 'TT:0.5', 'AKo:0.25', 'AQs:0.75', 'AJs:0.25',
+        'AA:0.25', 'QQ:0.5', 'JJ:0.75', 'TT-99', 'AQs', 'AJs', 'ATs', 'AQo:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 포지션 없이 콜할 패도 그만큼 강해야 해요. AA·KK·AKs는 올인, QQ·AKo는 주로 올인, JJ·AQs는 주로 콜하고, A5s는 가끔 올인 블러프로 쓰며 99는 폴드해요. 책은 상대 4벳이 양극화될수록 AA도 콜로 숨긴다고 하지만, 이 차트는 AA를 늘 올인해요.',
@@ -307,10 +310,11 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       allin: [
-        'QQ+', 'AKs', 'AKo', 'JJ:0.25', 'A5s-A4s:0.25',
+        'KK-QQ', 'AA:0.5', 'AKs', 'AKo', 'JJ:0.75', 'TT:0.75', 'A5s:0.5',
       ].join(','),
       call: [
-        'JJ:0.75', 'TT:0.75', '99:0.25', 'AQs:0.75', 'AJs:0.5', 'KQs:0.5', 'AQo:0.25',
+        'AA:0.5', 'JJ:0.25', 'TT:0.25', '99-55', 'AQs', 'AJs', 'ATs', 'A9s', 'KQs', 'KJs',
+        'AQo:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 포지션 없이 콜할 패도 그만큼 강해야 해요. QQ 이상·AK는 전부 올인, JJ·TT·AQs는 주로 콜하고, A5s·A4s는 가끔 올인 블러프로 쓰며 88~66은 폴드해요. 책은 상대 4벳이 양극화될수록 AA도 콜로 숨긴다고 하지만, 이 차트는 AA를 늘 올인해요.',
@@ -332,10 +336,11 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       allin: [
-        'QQ+', 'AKs', 'AKo', 'JJ:0.25', 'A5s-A4s:0.25',
+        'KK-QQ', 'AA:0.5', 'AKs', 'AKo', 'JJ:0.75', 'TT:0.75', 'A5s:0.5',
       ].join(','),
       call: [
-        'JJ:0.75', 'TT:0.75', '99:0.5', 'AQs', 'AJs:0.5', 'KQs:0.5', 'AQo:0.25',
+        'AA:0.5', 'JJ:0.25', 'TT:0.25', '99-66', 'AQs', 'AJs', 'ATs', 'A9s', 'KQs', 'KJs',
+        'AQo:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 포지션 없이 콜할 패도 그만큼 강해야 해요. QQ 이상·AK는 전부 올인, AQs는 콜, JJ·TT은 주로 콜하고, A5s·A4s는 가끔 올인 블러프로 쓰며 AJo·KQo는 폴드해요. 책은 상대 4벳이 양극화될수록 AA도 콜로 숨긴다고 하지만, 이 차트는 AA를 늘 올인해요.',
@@ -357,11 +362,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       allin: [
-        'QQ+', 'AKs', 'AKo:0.75', 'JJ:0.25', 'A5s-A4s:0.25',
+        'KK-JJ', 'AA:0.5', 'AKs', 'AKo', 'KQs', 'A5s-A4s:0.5',
       ].join(','),
       call: [
-        'JJ:0.75', 'TT', '99:0.5', 'AKo:0.25', 'AQs', 'AJs:0.75', 'ATs:0.5', 'KQs:0.75',
-        'KJs:0.25', 'AQo:0.5',
+        'AA:0.5', 'TT-88', 'AQs', 'AJs', 'ATs', 'AQo', 'AJo', 'KJs', 'A5s-A4s:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 콜할 패도 그만큼 강해야 해요. AA·KK·QQ·AKs는 올인, AKo는 주로 올인, TT·AQs는 콜하고, A5s·A4s는 가끔 올인 블러프로 써요. 책은 포지션이 있으면 대부분 콜하고 AA도 절반쯤 콜로 숨긴다고 하지만, 이 차트는 콜과 올인이 비슷하고 AA는 늘 올인해요.',
