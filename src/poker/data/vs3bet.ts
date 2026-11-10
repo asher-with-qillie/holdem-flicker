@@ -325,7 +325,7 @@ export const VS_3BET_CHARTS: ChartDef[] = [
       call: [
         'QQ:0.75', 'JJ-55', '44:0.5', 'AKo:0.25', 'AQs', 'AJs', 'ATs', 'A9s',
         'A8s:0.5', 'KQs', 'KJs', 'KTs', 'K9s:0.5', 'QJs', 'QTs', 'JTs',
-        'J9s:0.5', 'T9s', '98s', '87s', 'AQo', 'AJo:0.5', 'KQo:0.5',
+        'J9s:0.5', 'T9s', '98s', '87s', 'AQo', 'AJo:0.5', 'KQo:0.5', 'A5s:0.25',
       ].join(','),
     },
     summary: 'CO는 BB보다 포지션이 있어 콜해도 에퀴티를 잘 실현하니, 4벳보다 콜로 더 많이 지켜요. QQ 이상·AK·A5s·A4s는 4벳, A3s는 주로 4벳하고, JJ·AQs는 주로 콜, TT~55·AQo·QTs·98s·87s는 콜해요.',
@@ -349,10 +349,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       fourbet: [
-        'QQ+', 'JJ:0.5', 'AKs', 'AKo', 'A5s-A2s:0.5', 'AJo:0.25', 'ATo:0.25', 'KQo:0.25',
+        'QQ+', 'JJ:0.5', 'TT-66:0.25', 'AKs', 'AKo', 'A5s-A2s:0.5', 'AJo:0.25', 'ATo:0.25',
+        'KQo:0.25',
       ].join(','),
       call: [
-        'JJ:0.5', 'TT-55', '44-22:0.5', 'AQs', 'AJs-A6s', 'A5s-A2s:0.5', 'KQs-K9s', 'K8s:0.5',
+        'JJ:0.5', 'TT-66:0.75', '55', '44-22:0.5', 'AQs', 'AJs-A6s', 'A5s-A2s:0.5', 'KQs-K9s', 'K8s:0.5',
         'QJs-Q9s', 'JTs', 'J9s', 'T9s', 'T8s:0.5', '98s', '87s', '76s',
         '65s', '54s:0.5', 'AQo', 'AJo:0.75', 'ATo:0.5', 'KQo:0.75', 'KJo:0.5', 'QJo:0.25',
       ].join(','),
@@ -379,11 +380,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       fourbet: [
-        'QQ+', 'JJ:0.5', 'AKs', 'AKo', 'A5s-A2s:0.5', 'AJo:0.25', 'ATo:0.25', 'KQo:0.25',
-        'KJo:0.25',
+        'QQ+', 'JJ:0.5', 'TT-66:0.25', 'AKs', 'AKo', 'A5s-A2s:0.5', 'AJo:0.25', 'ATo:0.25',
+        'KQo:0.25',
       ].join(','),
       call: [
-        'JJ:0.5', 'TT-55', '44-22:0.5', 'AQs', 'AJs-A6s', 'A5s-A2s:0.5', 'KQs-K9s', 'K8s:0.75',
+        'JJ:0.5', 'TT-66:0.75', '55', '44-22:0.5', 'AQs', 'AJs-A6s', 'A5s-A2s:0.5', 'KQs-K9s', 'K8s:0.75',
         'QJs-Q9s', 'JTs', 'J9s', 'T9s', 'T8s:0.5', '98s', '87s', '76s',
         '65s', '54s:0.5', 'AQo', 'AJo:0.75', 'ATo:0.5', 'KQo:0.75', 'KJo:0.5', 'QJo:0.5',
       ].join(','),
