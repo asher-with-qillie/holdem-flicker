@@ -1,8 +1,9 @@
 import type { ChartDef } from '../types';
 
 /**
- * RFI (raise first in) ranges — 6-max, 100bb, ~2.5bb open (SB 3bb), raise-or-fold from SB.
- * Approximates commonly published solver outputs (GTO Wizard / Upswing style) at mid-stakes rake.
+ * RFI (raise first in) ranges — 6-max, 100bb, 2.5bb open (SB 3bb raise, or limp to 1bb).
+ * Built to the book's equilibrium (MPT ch.5 — docs/BOOK_CHART_SPEC.md §3.1): UTG 17 · HJ 21 · CO 28 · BTN 43%,
+ * SB limp 38 · raise 24 · fold 38% with partial premium traps in the limp range (§5).
  * Weights (":0.5") mark mixed-frequency hands; the memorization answer is the highest-weight action.
  */
 export const RFI_CHARTS: ChartDef[] = [
@@ -12,10 +13,10 @@ export const RFI_CHARTS: ChartDef[] = [
     hero: 'UTG',
     actions: {
       raise: [
-        '22+',
+        '55+', '44-22:0.5',
         'A2s+',
-        'K9s+', 'Q9s+', 'J9s+', 'T9s', '98s', '87s', '76s', '65s:0.5',
-        'AJo+', 'KQo', 'ATo:0.5', 'KJo:0.5',
+        'K9s+', 'Q9s+', 'J9s+', 'T9s', '98s', '87s:0.5', '76s:0.5',
+        'AJo+', 'KQo', 'ATo:0.5', 'A9o:0.25', 'KJo:0.5',
       ].join(','),
     },
     summary:
@@ -33,10 +34,10 @@ export const RFI_CHARTS: ChartDef[] = [
     hero: 'HJ',
     actions: {
       raise: [
-        '22+',
+        '33+', '22:0.5',
         'A2s+',
-        'K7s+', 'Q9s+', 'J9s+', 'T8s+', '98s', '97s:0.5', '87s', '76s', '65s', '54s:0.5',
-        'ATo+', 'KJo+', 'QJo:0.5', 'KTo:0.5',
+        'K7s+', 'Q9s+', 'J9s+', 'T8s+', '98s', '97s:0.5', '87s', '76s', '65s',
+        'ATo+', 'A9o:0.5', 'KJo+', 'QJo:0.5', 'KTo:0.5',
       ].join(','),
     },
     summary:
@@ -56,7 +57,7 @@ export const RFI_CHARTS: ChartDef[] = [
       raise: [
         '22+',
         'A2s+',
-        'K4s+', 'Q7s+', 'J8s+', 'T8s+', '97s+', '86s+', '75s+', '65s', '54s', '64s:0.5',
+        'K5s+', 'Q7s+', 'J8s+', 'T8s+', '97s+', '86s+', '75s+', '65s', '54s',
         'A8o+', 'KTo+', 'QTo+', 'JTo',
       ].join(','),
     },
@@ -75,7 +76,7 @@ export const RFI_CHARTS: ChartDef[] = [
       raise: [
         '22+',
         'A2s+', 'K2s+', 'Q2s+', 'J4s+', 'T6s+', '96s+', '85s+', '75s+', '64s+', '53s+',
-        'A2o+', 'K7o+', 'Q9o+', 'Q8o:0.5', 'J9o+', 'J8o:0.5', 'T9o', 'T8o:0.5', '98o:0.5',
+        'A4o+', 'K8o+', 'Q9o+', 'Q8o:0.5', 'J9o+', 'J8o:0.5', 'T9o', 'T8o:0.5',
       ].join(','),
     },
     summary:
@@ -96,9 +97,15 @@ export const RFI_CHARTS: ChartDef[] = [
     hero: 'SB',
     actions: {
       raise: [
-        '22+',
-        'A2s+', 'K2s+', 'Q3s+', 'Q2s:0.5', 'J5s+', 'T6s+', '96s+', '85s+', '75s+', '64s+', '54s', '53s:0.5',
-        'A2o+', 'K7o+', 'K6o:0.5', 'Q9o+', 'Q8o:0.5', 'J9o+', 'J8o:0.5', 'T9o', 'T8o:0.5', '98o:0.5',
+        'AA:0.75', 'KK:0.5', 'QQ:0.75', 'JJ:0.5', 'TT-44',
+        'A2s+', 'K2s+', 'Q9s+', 'J9s+', 'T9s',
+        'AKo:0.75', 'AQo:0.5', 'AJo-A5o', 'KTo+', 'QJo',
+      ].join(','),
+      limp: [
+        'AA:0.25', 'KK:0.5', 'QQ:0.25', 'JJ:0.5', '33-22',
+        'Q8s-Q2s', 'J8s-J2s', 'T8s-T2s', '97s-92s', '86s-82s', '75s-73s', '64s-63s', '53s',
+        '98s', '87s', '76s', '65s', '54s', '43s',
+        'AKo:0.25', 'AQo:0.5', 'A4o-A2o', 'K9o-K2o', 'QTo-Q5o', 'JTo-J7o', 'T9o-T8o', '98o', '87o',
       ].join(','),
     },
     summary:

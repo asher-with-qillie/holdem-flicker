@@ -4,8 +4,7 @@ import type { ChartDef } from '../types';
  * 림프 대응 (아이솔레이션) 차트 — 6-max, 100bb, **림퍼 정확히 한 명**, 레이즈 4bb (SB 에서는 5bb).
  * BB 차트(`vs_limp:BB`)는 'SB 가 림프했고 BB 차례'이고, 책의 크기대로 레이즈는 3.5bb 입니다(theory/price.ts LIMP_RAISE).
  *
- * ⚠ 이 파일은 다른 차트들과 근거의 급이 다릅니다. rfi.ts 머리말의 "널리 공개된 솔버 결과를 근사"
- * 라는 말이 여기에는 **해당되지 않습니다**. 이유:
+ * ⚠ 앞사람의 림프(HJ · CO · BTN · SB 차례)는 기성 솔버 결과로 맞출 수 없는 곳입니다. 이유:
  *
  *  · 레이크가 있는 6맥스 100bb 트리에서 솔버는 (SB 말고는) 림프를 하지 않습니다. 그래서 '앞사람이
  *    림프했다'는 노드가 기성 솔루션에 아예 없습니다(docs/RANGE_SPEC.md — SB 만 림프를 섞고, 다른 자리는
@@ -17,20 +16,15 @@ import type { ChartDef } from '../types';
  *  · GTO Wizard AI 의 프리플랍 트리는 림퍼를 **한 명까지만** 넣을 수 있습니다
  *    (`No limps` / `SB complete` / `1 limp + SB complete`). 그래서 이 파일도 한 명까지만 다룹니다.
  *
- * 그래서 아래 레인지는 **공개된 사람 작성 차트를 옮긴 것**이고, 그 차트가 없는 자리는 출처가 밝힌
- * 규칙으로 채웠습니다. 차트마다 `summary` 에 어디서 왔는지 적어 두었습니다.
- *
- * ':0.5' 의 뜻이 이 파일에서만 다릅니다. rfi.ts 에서는 '솔버가 반반 섞는다'는 뜻이지만, 여기서는
- * **공개된 두 차트가 서로 다르게 말하는 구간** 입니다 (Upswing 은 빼고 Brokos 는 넣는 패).
- * 상대가 느슨할수록 올리는 쪽이고, 앱의 동점 규칙(더 공격적인 쪽)에 따라 레이즈로 채점됩니다.
+ * 그래서 아래 레인지는 책(MPT)의 고립 조언을 따릅니다(노트 4장 7절 — 뒤에 공격적인 사람이 있을 수 있으면
+ * 수동적인 림퍼라도 **평소 오픈 범위 수준**으로 고립): HJ · CO · BTN 은 그 자리의 rfi 레이즈 범위와 같고,
+ * SB 는 rfi:SB 레이즈 범위와 같은 폭(약 24%)입니다. BB(SB 림프)는 책이 숫자를 주지 않아 공개 솔버 자료의
+ * 양극화 모양(레이즈 약 40%)을 씁니다(docs/BOOK_CHART_SPEC.md §3.7 · §5). ':0.5' 같은 비중은 rfi.ts 와 같은 뜻입니다.
  *
  * 자리별로 림퍼가 어디에서 림프했는지는 **가리지 않습니다**. Upswing 차트가 명시합니다 —
  * "림퍼의 포지션과 무관하게, 정확히 한 명이 림프했다고 가정". 그 구분을 두는 출처가 없어서
  * 만들면 근거 없는 구분을 지어내는 셈이 됩니다. 차트 id 는 `vs_limp:<hero>` 하나뿐입니다.
  */
-
-/** Upswing Lab "Button vs Limp" 의 빨강(항상 레이즈) 구간. CO·SB 가 같이 씁니다. */
-const UPSWING_BTN_RED = '55+, A8s+, A5s-A4s, K9s+, Q9s+, J9s+, T9s, 98s, AJo+, KQo';
 
 export const VS_LIMP_CHARTS: ChartDef[] = [
   {
@@ -38,7 +32,13 @@ export const VS_LIMP_CHARTS: ChartDef[] = [
     kind: 'vs_limp',
     hero: 'HJ',
     actions: {
-      raise: '77+, ATs+, KTs+, QTs+, JTs, T9s, 98s, AQo+',
+      // 책 4장 7절: 뒤에 공격적인 사람이 있을 수 있으면 평소 오픈 범위 수준으로 고립 — rfi:HJ 와 같은 범위.
+      raise: [
+        '33+', '22:0.5',
+        'A2s+',
+        'K7s+', 'Q9s+', 'J9s+', 'T8s+', '98s', '97s:0.5', '87s', '76s', '65s',
+        'ATo+', 'A9o:0.5', 'KJo+', 'QJo:0.5', 'KTo:0.5',
+      ].join(','),
     },
     summary:
       '림퍼는 대개 실력이 약해서 레이즈로 혼자 상대하지만, 먼저 들어온 만큼 처음 오픈할 때(21%)보다 좁게 9%만 레이즈해요. 77 이상·ATs 이상·KTs 이상·QTs 이상·JTs·T9s·98s·AQo 이상만 레이즈하고 나머지는 폴드해요. 책은 림퍼가 수동적일수록 넓게 레이즈한다고 해요.',
@@ -54,7 +54,13 @@ export const VS_LIMP_CHARTS: ChartDef[] = [
     kind: 'vs_limp',
     hero: 'CO',
     actions: {
-      raise: UPSWING_BTN_RED,
+      // rfi:CO 와 같은 범위(책 4장 7절).
+      raise: [
+        '22+',
+        'A2s+',
+        'K5s+', 'Q7s+', 'J8s+', 'T8s+', '97s+', '86s+', '75s+', '65s', '54s',
+        'A8o+', 'KTo+', 'QTo+', 'JTo',
+      ].join(','),
     },
     summary:
       '림퍼는 대개 실력이 약해서 레이즈로 혼자 상대하지만, 먼저 들어온 만큼 처음 오픈할 때(29%)보다 좁게 14%만 레이즈해요. 55 이상·A8s 이상·A5s·A4s·K9s 이상·Q9s 이상·J9s 이상·T9s·98s·AJo 이상·KQo만 레이즈하고 나머지는 폴드해요. 책은 림퍼가 수동적일수록 넓게 레이즈한다고 해요.',
@@ -69,9 +75,11 @@ export const VS_LIMP_CHARTS: ChartDef[] = [
     kind: 'vs_limp',
     hero: 'BTN',
     actions: {
+      // rfi:BTN 과 같은 범위(책 4장 7절).
       raise: [
-        '66+, A8s+, A5s-A4s, K9s+, Q9s+, J9s+, T9s, 98s, AJo+, KQo',
-        '55:0.5, A7s-A6s:0.5, A3s-A2s:0.5, K8s:0.5, ATo-A9o:0.5, KJo-KTo:0.5, QJo:0.5',
+        '22+',
+        'A2s+', 'K2s+', 'Q2s+', 'J4s+', 'T6s+', '96s+', '85s+', '75s+', '64s+', '53s+',
+        'A4o+', 'K8o+', 'Q9o+', 'Q8o:0.5', 'J9o+', 'J8o:0.5', 'T9o', 'T8o:0.5',
       ].join(','),
     },
     summary:
@@ -89,7 +97,12 @@ export const VS_LIMP_CHARTS: ChartDef[] = [
     kind: 'vs_limp',
     hero: 'SB',
     actions: {
-      raise: UPSWING_BTN_RED,
+      // rfi:SB 의 레이즈 범위(24%)와 같은 폭: 트랩 섞기를 뺀 강한 패는 늘 레이즈하고, 가장 약한 44 · A5o 를 덜어 냈어요.
+      raise: [
+        '55+',
+        'A2s+', 'K2s+', 'Q9s+', 'J9s+', 'T9s',
+        'A6o+', 'KTo+', 'QJo',
+      ].join(','),
     },
     summary:
       '림퍼는 대개 실력이 약해서 레이즈로 혼자 상대하지만, 먼저 들어온 만큼 처음 오픈할 때(46%)보다 훨씬 좁게 14%만 레이즈해요. 같은 상황의 CO와 똑같이 55 이상·A8s 이상·A5s·A4s·K9s 이상·Q9s 이상·J9s 이상·T9s·98s·AJo 이상·KQo만 레이즈해요. 책은 림퍼가 수동적일수록 넓게 레이즈한다고 해요.',
@@ -106,7 +119,13 @@ export const VS_LIMP_CHARTS: ChartDef[] = [
     // 빅블라인드는 이미 1bb를 냈습니다 — 공짜로 접을 수 없습니다. 안 올린 패는 전부 체크입니다.
     rest: 'check',
     actions: {
-      raise: '66+, A9s+, A5s-A4s, KTs+, QTs+, JTs, T9s, AJo+, KQo',
+      // 양극화(공개 솔버 자료, docs/BOOK_CHART_SPEC.md §5): SB 림프 범위에 강한 패 + 가장 약한 오프수트 블러프, 중간 패는 체크.
+      raise: [
+        '55+',
+        'A2s+', 'K7s+', 'Q9s+', 'JTs',
+        'A5o+', 'K8o+', 'QTo+',
+        '93o-92o', '84o-82o', '74o-72o', '64o-62o', '53o-52o', '43o-42o', '32o',
+      ].join(','),
     },
     summary:
       '공짜로 플랍을 볼 수 있는 BB에게 폴드는 늘 손해라서, 폴드 없이 레이즈 아니면 체크만 해요. 66 이상·A9s 이상·KTs 이상·QTs 이상·JTs·T9s·AJo 이상·KQo는 강한 패로, A5s·A4s는 A 블로커가 있는 패로 레이즈하고(12%), 나머지 88%는 체크해요. 책은 림퍼가 수동적일수록 넓게 레이즈한다고 해요.',
