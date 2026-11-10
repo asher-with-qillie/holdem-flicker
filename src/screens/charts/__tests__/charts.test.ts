@@ -113,10 +113,10 @@ describe('chart selection', () => {
 describe('disclaimer module', () => {
   it('DISCLAIMER module holds the THEORY_SPEC §10 strings', async () => {
     const { DISCLAIMER, SOLVER_NOTE } = await import('../disclaimer');
-    expect(SOLVER_NOTE).toBe("공개된 솔버 결과를 단순하게 줄인 차트예요. 책(Modern Poker Theory)의 균형 전략과 다른 곳은 해설의 '책과 다른 점'에 적었어요.");
+    expect(SOLVER_NOTE).toBe('책(Modern Poker Theory) 5장의 비율 · 베팅 크기 · 원리에 맞춰 만든 차트예요. 책이 숫자를 주지 않은 곳은 공개 솔버 자료로 채웠고, 패 하나하나의 빈도는 원서 차트와 다를 수 있어요.');
     for (const kind of ['rfi', 'vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet', 'cold_4bet'] as const) expect(DISCLAIMER[kind]).toBe(SOLVER_NOTE);
     // '솔버는 림프를 하지 않는다'고 쓰면 책(SB 림프 약 38%)과 어긋나요 — 노드가 없다는 사실만 적어요
     expect(DISCLAIMER.vs_limp).not.toContain('솔버는 림프를 하지 않아서');
-    expect(DISCLAIMER.vs_limp).toBe('솔버 결과에는 SB 말고 림프하는 노드가 거의 없어서, 이 차트는 사람이 만든 기본값이에요. 림퍼가 한 명일 때만 맞고, 책은 림퍼의 유형에 따라 아이솔레이트 폭을 바꾸라고 해요.');
+    expect(DISCLAIMER.vs_limp).toBe('책의 균형 전략에서는 SB 말고 림프하는 자리가 없어서, 앞에서 림프한 사람은 약한 플레이어로 봐요. 이 차트는 책의 기본 조언대로 평소 오픈 범위만큼 아이솔레이트해요. 림퍼가 수동적이면 더 넓게, 공격적이면 강한 패 위주로 좁혀요.');
   });
 });
