@@ -6,6 +6,8 @@
  *     hero    — a hand class (AKo, QQ, A5s) averaged over its combos, or exact cards (AsKd)
  *     villain — a range string (KK+,AKs,AQs:0.5,A5s-A2s), exact cards (AhKh), or a chart action:
  *               chart:<chart id>:<action>   e.g. chart:vs_4bet:HJ:UTG:allin  (weights from the chart)
+ *               reach:<chart id>:<action>   the same, times how often the chart's owner reaches that spot
+ *                                           (e.g. reach:vs_3bet:SB:BB:fourbet counts SB's AA at its 75% raise weight)
  *   prints: equity (win + tie/2) and the villain combos used after card removal.
  */
 import { equityVs } from './equity-lib';

@@ -35,7 +35,7 @@ export const HAND_REASONS: Record<string, HandReasonEntry> = {
   'rfi|BTN|ak|raise': { text: 'AK는 제일 높은 두 카드라 탑페어를 자주 만들고, 맞히면 킥커까지 제일 높아 지배당하지 않아요.', principles: ['hand-strength', 'domination'], bookDiff: '' },
   'rfi|BTN|bw_o|raise': { text: '오프수트 브로드웨이는 높은 카드 둘로 탑페어를 자주 만들고, 포지션이 있어 오프수트라도 실현이 나쁘지 않아요.', principles: ['hand-strength', 'realization'], bookDiff: '' },
   'rfi|BTN|bw_s|raise': { text: '수티드 브로드웨이는 높은 카드·수티드·연결성 중 둘 이상을 갖춰, 블라인드의 3벳에도 콜로 이어 가기 좋아요.', principles: ['hand-strength', 'offsuit-3bet-pot'], bookDiff: '' },
-  'rfi|BTN|conn_s|fold': { text: '{hand|은/는} 수티드지만 카드가 낮아 맞혀도 더 높은 패에 지기 쉬워, BTN에서도 오픈하기엔 힘이 모자라요.', principles: ['hand-strength'], bookDiff: '' },
+  'rfi|BTN|conn_s|fold': { text: '{hand|은/는} 수티드지만 카드가 낮아 맞힌 페어가 약하거나 사이가 벌어져 스트레이트 길이 적어, BTN에서도 오픈하기엔 힘이 모자라요.', principles: ['hand-strength'], bookDiff: '' },
   'rfi|BTN|conn_s|raise': { text: '수티드 커넥터는 수티드·연결성으로 에퀴티를 잘 실현하는데, 포지션까지 있어 사이가 두 칸인 패도 오픈해요.', principles: ['realization', 'hand-strength'], bookDiff: '' },
   'rfi|BTN|kq_s|raise': { text: '수티드 K·Q는 높은 카드와 수티드가 있어, 지배당할 상대가 적은 BTN에서는 킥커가 낮아도 오픈해요.', principles: ['early-high-cards', 'hand-strength'], bookDiff: '' },
   'rfi|BTN|off_mid|fold': { text: '{hand|은/는} 수티드도 아니고 페어를 맞혀도 킥커가 약하거나 숫자가 낮아, 포지션이 있어도 에퀴티를 실현하기 어려워요.', principles: ['realization', 'hand-strength'], bookDiff: '' },

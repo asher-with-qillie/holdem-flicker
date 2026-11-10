@@ -106,18 +106,33 @@ function evaluate(cs: C[]): number {
   return pack(0, singles.slice(0, 5));
 }
 
+/**
+ * 그 차트의 주인이 이 칸까지 실제로 오는 비중: 3벳 대응 · 5벳 대응은 오픈(레이즈), 5벳 대응은 거기에 4벳, 4벳 대응은 3벳
+ * (src/poker/theory/spot.ts pathParts · atlas.isReachable 과 같은 경로). SB 가 림프를 섞는 AA(레이즈 75%)는 3벳 대응에서 75%만 와요.
+ */
+function reachWeight(sc: { kind: string; hero: string; villain?: string }, h: string): number {
+  const w = (s: object, a: string) => fullMix(getChartCells(s as never)[h as HandName]).find((m) => m.action === a)?.weight ?? 0;
+  let r = 1;
+  if (sc.kind === 'vs_3bet' || sc.kind === 'vs_5bet') r *= w({ kind: 'rfi', hero: sc.hero }, 'raise');
+  if (sc.kind === 'vs_5bet') r *= w({ kind: 'vs_3bet', hero: sc.hero, villain: sc.villain }, 'fourbet');
+  if (sc.kind === 'vs_4bet') r *= w({ kind: 'vs_open', hero: sc.hero, villain: sc.villain }, 'threebet');
+  return r;
+}
+
 export function villainCombos(spec: string): Array<{ c: [C, C]; w: number }> {
-  if (spec.startsWith('chart:')) {
+  // chart:<id>:<action> — 그 차트의 비중 그대로. reach:<id>:<action> — 거기에 그 차트 주인이 이 칸까지 실제로 오는 비중(reachWeight)을 곱해요.
+  const reach = spec.startsWith('reach:');
+  if (spec.startsWith('chart:') || reach) {
     const parts = spec.slice(6).split(':');
     const action = parts.pop()!;
     const id = parts.join(':');
     const def = ALL_CHART_DEFS.find((d) => d.id === id);
     if (!def) throw new Error(`no chart ${id}`);
-    const sc = { kind: def.kind, hero: def.hero, ...(def.villain ? { villain: def.villain } : {}) } as never;
-    const cells = getChartCells(sc);
+    const sc = { kind: def.kind, hero: def.hero, ...(def.villain ? { villain: def.villain } : {}) };
+    const cells = getChartCells(sc as never);
     const out: Array<{ c: [C, C]; w: number }> = [];
     for (const [h, mix] of Object.entries(cells)) {
-      const w = fullMix(mix).find((m) => m.action === action)?.weight ?? 0;
+      const w = (fullMix(mix).find((m) => m.action === action)?.weight ?? 0) * (reach ? reachWeight(sc, h) : 1);
       if (w > 0) for (const c of combosOf(h)) out.push({ c, w });
     }
     return out;
