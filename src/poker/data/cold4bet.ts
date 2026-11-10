@@ -8,10 +8,7 @@ export const COLD_4BET_CHARTS: ChartDef[] = [
     hero: 'CO',
     actions: {
       fourbet: [
-        'KK+', 'QQ:0.5', 'AKs:0.75', 'AKo:0.25', 'A5s:0.25',
-      ].join(','),
-      call: [
-        'QQ:0.5', 'JJ:0.25', 'AKs:0.25', 'AKo:0.25', 'AQs:0.25',
+        'QQ+', 'AKs', 'AKo', 'JJ:0.75', 'AQs:0.5',
       ].join(','),
     },
     summary: '콜하면 패의 정보가 새고 4벳이었다면 폴드했을 사람들이 싸게 따라오니, 콜은 거의 하지 않고 4벳 아니면 폴드로 정리해요. AA·KK는 늘, AKs는 주로, A5s는 가끔 4벳하고, QQ는 4벳과 콜을 반반 섞으며 AKo는 절반은 폴드해요. 책은 콜드 4벳을 약 3~6%로 둔다고 하는데, 이 차트는 약 2%예요.',
@@ -31,10 +28,7 @@ export const COLD_4BET_CHARTS: ChartDef[] = [
     hero: 'BTN',
     actions: {
       fourbet: [
-        'KK+', 'QQ:0.5', 'AKs:0.75', 'AKo:0.5', 'A5s:0.25',
-      ].join(','),
-      call: [
-        'QQ:0.5', 'JJ:0.5', 'AKs:0.25', 'AKo:0.25', 'AQs:0.5',
+        'JJ+', 'AKs', 'AKo', 'AQs', 'TT:0.5', 'A5s:0.5',
       ].join(','),
     },
     summary: '콜하면 패의 정보가 새고 4벳이었다면 폴드했을 사람들이 싸게 따라오니, 콜은 거의 하지 않고 4벳 아니면 폴드로 정리해요. AA·KK는 늘, AKs는 주로, AKo는 절반만, A5s는 가끔 4벳하고, QQ는 4벳과 콜을 반반 섞으며 JJ·AQs는 절반만 콜해요. 책은 콜드 4벳을 약 3~6%로 둔다고 하는데, 이 차트는 약 2%예요.',
@@ -54,10 +48,7 @@ export const COLD_4BET_CHARTS: ChartDef[] = [
     hero: 'SB',
     actions: {
       fourbet: [
-        'KK+', 'QQ:0.5', 'AKs:0.75', 'AKo:0.5',
-      ].join(','),
-      call: [
-        'QQ:0.5', 'JJ:0.25', 'AKs:0.25',
+        'TT+', 'AKs', 'AKo', 'AQs', 'AQo:0.75', 'A5s',
       ].join(','),
     },
     summary: '콜하면 패의 정보가 새고 4벳이었다면 폴드했을 BB와 오픈한 사람이 싸게 따라오니, 콜은 거의 하지 않고 4벳 아니면 폴드로 정리해요. 4벳은 AA·KK·QQ·AK에만 쓰고 블러프는 없으며, QQ는 4벳과 콜을 반반 섞고 AKo는 절반만 4벳해요. 책은 콜드 4벳을 약 3~6%로 둔다고 하는데, 이 차트는 약 2%예요.',
@@ -77,10 +68,7 @@ export const COLD_4BET_CHARTS: ChartDef[] = [
     hero: 'BB',
     actions: {
       fourbet: [
-        'KK+', 'QQ:0.5', 'AKs:0.5', 'AKo:0.5',
-      ].join(','),
-      call: [
-        'QQ:0.5', 'JJ:0.5', 'AKs:0.5', 'AKo:0.25', 'AQs:0.25',
+        'TT+', 'AKs', 'AKo', 'AQs', 'AQo', '99:0.5', 'A5s-A4s',
       ].join(','),
     },
     summary: 'BB가 콜해도 패의 정보가 새고 4벳이었다면 폴드했을 오픈한 사람이 싸게 따라오니, 콜은 거의 하지 않고 4벳 아니면 폴드로 정리해요. 4벳은 AA·KK·QQ·AK에만 쓰고 블러프는 없으며, AKs·QQ는 4벳과 콜을 반반 섞고 JJ는 절반만 콜해요. 책은 콜드 4벳을 약 3~6%로 둔다고 하는데, 이 차트는 약 2%예요.',
