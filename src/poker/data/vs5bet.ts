@@ -1,6 +1,9 @@
 import type { ChartDef } from '../types';
 
-/** vs5bet charts — generated from reconciled author consensus (see docs/RANGE_SPEC.md). Edit freely; run npm test after. */
+/**
+ * 5벳(올인) 대응 차트 — 책(MPT 5장): 4벳한 패 중 TT 이상과 AK는 콜, BTN 이 블라인드를 상대할 때는 66 이상과 AK.
+ * 블러프로 4벳한 패는 폴드해요(docs/BOOK_CHART_SPEC.md §3.5). Edit freely; run npm test after.
+ */
 export const VS_5BET_CHARTS: ChartDef[] = [
   {
     id: 'vs_5bet:UTG:HJ',

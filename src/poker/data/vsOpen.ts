@@ -1,6 +1,10 @@
 import type { ChartDef } from '../types';
 
-/** vsOpen charts — generated from reconciled author consensus (see docs/RANGE_SPEC.md). Edit freely; run npm test after. */
+/**
+ * 오픈 대응 차트 — 책(MPT 5장)의 균형 전략에 맞춰 만들었어요(docs/BOOK_CHART_SPEC.md §3.2, tests/book-charts.test.ts).
+ * HJ · CO · SB 는 콜 없이 선형 3벳, BTN 은 콜 + 양극화 3벳, BB 는 콜과 3벳(BTN 상대 선형, SB 상대 양극화).
+ * 책이 숫자를 주지 않은 폭(BB 방어 · SB 3벳 등)은 공개 솔버 자료로 채웠어요(§5). Edit freely; run npm test after.
+ */
 export const VS_OPEN_CHARTS: ChartDef[] = [
   {
     id: 'vs_open:HJ:UTG',

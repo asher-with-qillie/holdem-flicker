@@ -1,6 +1,10 @@
 import type { ChartDef } from '../types';
 
-/** vs3bet charts — generated from reconciled author consensus (see docs/RANGE_SPEC.md). Edit freely; run npm test after. */
+/**
+ * 3벳 대응 차트 — 책(MPT 5장)의 균형 전략에 맞춰 만들었어요(docs/BOOK_CHART_SPEC.md §3.3, tests/book-charts.test.ts).
+ * 포지션 없이 3벳을 받으면(뒤의 3벳) 4벳을 늘리고, 포지션이 있으면(블라인드의 3벳) 주로 콜해요.
+ * 비율은 책의 예(HJ: CO 상대 약 22% · BB 상대 약 10%)와 공개 솔버 자료(§5)로 맞췄어요. Edit freely; run npm test after.
+ */
 export const VS_3BET_CHARTS: ChartDef[] = [
   {
     id: 'vs_3bet:UTG:HJ',

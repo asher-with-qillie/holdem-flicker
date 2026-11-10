@@ -1,6 +1,10 @@
 import type { ChartDef } from '../types';
 
-/** vs4bet charts — generated from reconciled author consensus (see docs/RANGE_SPEC.md). Edit freely; run npm test after. */
+/**
+ * 4벳 대응 차트 — 책(MPT 5장)의 균형 전략에 맞춰 만들었어요(docs/BOOK_CHART_SPEC.md §3.4, tests/book-charts.test.ts).
+ * 포지션이 있으면 대부분 콜(AA 절반 슬로우플레이, KK 아래 페어는 콜), 블라인드는 올인을 더 섞고,
+ * CO · BTN 의 4벳에는 ATs · A5s 같은 5벳 블러프를 써요. Edit freely; run npm test after.
+ */
 export const VS_4BET_CHARTS: ChartDef[] = [
   {
     id: 'vs_4bet:HJ:UTG',

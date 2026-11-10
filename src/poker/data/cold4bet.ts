@@ -1,6 +1,10 @@
 import type { ChartDef } from '../types';
 
-/** cold4bet charts — generated from reconciled author consensus (see docs/RANGE_SPEC.md). Edit freely; run npm test after. */
+/**
+ * 콜드 4벳 차트 — 책(MPT 5장): 오픈과 3벳 사이에서는 콜 없이 4벳 아니면 폴드, 폭은 약 3~6%.
+ * 자리별 폭(CO 3 · BTN 3.75 · SB 4.75 · BB 5.5%)은 공개 솔버 자료로 채웠어요(docs/BOOK_CHART_SPEC.md §3.6 · §5).
+ * Edit freely; run npm test after.
+ */
 export const COLD_4BET_CHARTS: ChartDef[] = [
   {
     id: 'cold_4bet:CO',
