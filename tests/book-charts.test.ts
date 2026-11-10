@@ -84,7 +84,8 @@ describe('RFI (노트 5장 2절)', () => {
     expect(Math.abs(pct(rfi('SB'), 'raise') - 24)).toBeLessThanOrEqual(1);
   });
   it('SB 림프 범위에 AA · KK · QQ · AK가 일부 들어 있어요 (림프 뒤 재레이즈 · AA 슬로우플레이)', () => {
-    for (const h of ['AA', 'KK', 'QQ', 'AKs', 'AKo']) expect(w(rfi('SB'), h, LIMP), h).toBeGreaterThan(0);
+    // AK는 AKo 쪽이에요 — AKs는 늘 레이즈(명세 §5, 아래 '책이 비워 둔 곳'의 SB 레이즈 범위 테스트).
+    for (const h of ['AA', 'KK', 'QQ', 'AKo']) expect(w(rfi('SB'), h, LIMP), h).toBeGreaterThan(0);
   });
   it('BTN은 책이 든 범위(모든 포켓페어, A2s+, A4o+, K2s+, Q2s+, J4s+, K8o+)를 전부 오픈하고 A3o · A2o · K7o는 오픈하지 않아요', () => {
     const must = [
