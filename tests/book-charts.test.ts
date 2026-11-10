@@ -288,3 +288,52 @@ describe('림프 대응 (노트 4장 7절)', () => {
     expect(Math.abs(pct({ kind: 'vs_limp', hero: 'SB' }, 'raise') - pct(rfi('SB'), 'raise'))).toBeLessThanOrEqual(1);
   });
 });
+
+/* 책이 숫자를 주지 않은 곳 — 공개 솔버 자료로 채운 목표(docs/BOOK_CHART_SPEC.md §5). 허용폭을 더 넓게 둬요. */
+describe('책이 비워 둔 곳 (공개 솔버 자료로 채운 목표)', () => {
+  it('BB 방어(콜 + 3벳): UTG 29 · HJ 33 · CO 38 · BTN 45 · SB 57 (±2), 3벳 6 · 7.5 · 9.5 · 14 · 16 (±1.5)', () => {
+    const target: Array<[Pos, number, number]> = [['UTG', 29, 6], ['HJ', 33, 7.5], ['CO', 38, 9.5], ['BTN', 45, 14], ['SB', 57, 16]];
+    for (const [v, d, t] of target) {
+      const s = vo('BB', v);
+      expect(Math.abs(pct(s, 'call') + pct(s, 'threebet') - d), `BB vs ${v} 방어`).toBeLessThanOrEqual(2);
+      expect(Math.abs(pct(s, 'threebet') - t), `BB vs ${v} 3벳`).toBeLessThanOrEqual(1.5);
+    }
+  });
+  it('SB 3벳: UTG 7 · HJ 8.5 · CO 11 (±1.5)', () => {
+    ([['UTG', 7], ['HJ', 8.5], ['CO', 11]] as Array<[Pos, number]>).forEach(([v, t]) => expect(Math.abs(pct(vo('SB', v), 'threebet') - t), v).toBeLessThanOrEqual(1.5));
+  });
+  it('SB 레이즈 범위: AKs · AQs · AJs · ATs · A9s · A8s · KQs · KJs · QJs · QTs · JTs는 늘 레이즈, 트랩 비중은 AA 25 · KK 50 · QQ 25 · JJ 50 · AKo 25 · AQo 50', () => {
+    for (const h of ['AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s', 'KQs', 'KJs', 'QJs', 'QTs', 'JTs']) expect(w(rfi('SB'), h, 'raise'), h).toBe(1);
+    const trap: Record<string, number> = { AA: 0.25, KK: 0.5, QQ: 0.25, JJ: 0.5, AKo: 0.25, AQo: 0.5 };
+    for (const [h, l] of Object.entries(trap)) {
+      expect(w(rfi('SB'), h, LIMP), h).toBeCloseTo(l, 5);
+      expect(w(rfi('SB'), h, 'raise'), h).toBeCloseTo(1 - l, 5);
+    }
+  });
+  it('BB vs SB 림프: 레이즈 약 40% (±3), 양극화(강한 패 + 약한 오프수트 블러프, 중간 패는 체크)', () => {
+    const s: Scenario = { kind: 'vs_limp', hero: 'BB' };
+    expect(Math.abs(pct(s, 'raise') - 40)).toBeLessThanOrEqual(3);
+    for (const h of ['AA', 'KK', 'QQ', 'AKs', 'AKo']) expect(w(s, h, 'raise'), h).toBeGreaterThanOrEqual(0.75);
+    // 블러프: 아주 약한 오프수트 패가 레이즈하고, 그보다 강한 중간 패(Q7s 같은 수티드 · 낮은 오프수트 A)는 체크
+    expect(['72o', 'T4o', '92o', '84o', '83o', '94o', '73o'].filter((h) => w(s, h, 'raise') > 0).length).toBeGreaterThan(0);
+    expect(['Q7s', 'A4o', 'A3o', 'A2o'].filter((h) => primary(s, h) === 'check').length).toBeGreaterThan(0);
+  });
+  it('3벳 대응 콜(오픈한 패 중): 포지션 없을 때 약 25, 블라인드 3벳에는 약 33 (±6)', () => {
+    const oop: Array<[Pos, Pos]> = [['UTG', 'HJ'], ['UTG', 'CO'], ['UTG', 'BTN'], ['HJ', 'CO'], ['HJ', 'BTN'], ['CO', 'BTN']];
+    const ip: Array<[Pos, Pos]> = [['UTG', 'SB'], ['UTG', 'BB'], ['HJ', 'SB'], ['HJ', 'BB'], ['CO', 'SB'], ['CO', 'BB'], ['BTN', 'SB'], ['BTN', 'BB']];
+    for (const [h, v] of oop) expect(Math.abs(relPct(v3(h, v), 'call') - 25), `${h}:${v}`).toBeLessThanOrEqual(6);
+    for (const [h, v] of ip) expect(Math.abs(relPct(v3(h, v), 'call') - 33), `${h}:${v}`).toBeLessThanOrEqual(6);
+  });
+  it('SB vs BB 3벳(SB 레이즈 범위 중): 4벳 약 20, 콜 약 25 (±5)', () => {
+    expect(Math.abs(relPct(v3('SB', 'BB'), 'fourbet') - 20)).toBeLessThanOrEqual(5);
+    expect(Math.abs(relPct(v3('SB', 'BB'), 'call') - 25)).toBeLessThanOrEqual(5);
+  });
+  it('블라인드의 4벳 대응(3벳한 패 중): 올인 약 25, 콜 약 30 (±8)', () => {
+    for (const h of ['SB', 'BB'] as Pos[])
+      for (const v of ['UTG', 'HJ', 'CO', 'BTN', 'SB'] as Pos[]) {
+        if (v === h || !hasChart(v4(h, v))) continue;
+        expect(Math.abs(relPct(v4(h, v), 'allin') - 25), `${h}:${v} 올인`).toBeLessThanOrEqual(8);
+        expect(Math.abs(relPct(v4(h, v), 'call') - 30), `${h}:${v} 콜`).toBeLessThanOrEqual(8);
+      }
+  });
+});
