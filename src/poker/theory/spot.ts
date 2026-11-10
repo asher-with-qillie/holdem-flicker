@@ -11,7 +11,7 @@
  */
 import { ALL_CHART_DEFS, getChartCells, hasChart } from '../data';
 import { fullMix, rangeShare } from '../range';
-import { ALL_HANDS, parseHandName } from '../hands';
+import { ALL_HANDS, combos, parseHandName } from '../hands';
 import { heroInPosition } from '../scenarios';
 import { josa } from '../ko';
 import type { Action, Pos, Scenario } from '../types';
@@ -48,24 +48,51 @@ const BOOK_5BET_CALL_BTN = [...BOOK_5BET_CALL, '99', '88', '77', '66'];
 const LATER: Record<Pos, number> = { UTG: 3, HJ: 2, CO: 1, BTN: 0, SB: 0, BB: 0 };
 const BEHIND: Record<Pos, number> = { UTG: 5, HJ: 4, CO: 3, BTN: 2, SB: 1, BB: 0 };
 
-/** 이 상황에서 계속 가는 비율: vs_open 은 전체 패 기준, 그 밖은 바로 앞 단계 범위 기준. */
-export function defendShare(s: Scenario): number | null {
+/**
+ * 이 상황까지 오는 앞 단계(내 액션): 3벳 대응 · 5벳 대응은 오픈(레이즈), 5벳 대응은 거기에 4벳, 4벳 대응은 3벳.
+ * atlas.isReachable 의 경로와 같아요.
+ */
+function pathOf(s: Scenario): Array<{ at: Scenario; a: Action }> {
   const v = s.villain;
+  const out: Array<{ at: Scenario; a: Action }> = [];
+  if (s.kind === 'vs_3bet' || s.kind === 'vs_5bet') out.push({ at: { kind: 'rfi', hero: s.hero }, a: 'raise' });
+  if (s.kind === 'vs_5bet') out.push({ at: { kind: 'vs_3bet', hero: s.hero, villain: v }, a: 'fourbet' });
+  if (s.kind === 'vs_4bet') out.push({ at: { kind: 'vs_open', hero: s.hero, villain: v }, a: 'threebet' });
+  return out;
+}
+
+/**
+ * 앞 단계 범위 중 이 액션의 비율('오픈한 패 중' · '3벳한 패 중' · '4벳한 패 중'). 패마다 앞 단계에서 실제로 그 액션을 한 만큼
+ * 가중해요: 3벳을 25%만 하는 66 은 4벳 대응에서도 25%만 세고, SB 가 림프를 섞는 AA(레이즈 75%)는 75%만 세요.
+ * (차트의 비중을 그대로 나누면 — 4벳 대응 콜 비중 ÷ 3벳 비중 — 가끔 3벳하는 패가 다 센 것처럼 들어가 부풀어요.)
+ */
+function pathParts(s: Scenario, acts: Action[]): number[] | null {
+  const steps = pathOf(s);
+  if (!hasChart(s) || !steps.length || !steps.every((p) => hasChart(p.at))) return null;
+  const cur = getChartCells(s);
+  const prev = steps.map((p) => ({ cells: getChartCells(p.at), a: p.a }));
+  let den = 0;
+  const num = acts.map(() => 0);
+  for (const h of ALL_HANDS) {
+    const w = prev.reduce((acc, p) => acc * (p.cells[h]?.[p.a] ?? 0), combos(h));
+    if (!w) continue;
+    den += w;
+    acts.forEach((a, i) => (num[i] += w * (cur[h]?.[a] ?? 0)));
+  }
+  return den ? num.map((n) => n / den) : null;
+}
+
+/** 이 상황에서 계속 가는 비율: vs_open 은 전체 패 기준, 그 밖은 앞 단계에서 실제로 온 범위 기준(pathParts). */
+export function defendShare(s: Scenario): number | null {
   switch (s.kind) {
     case 'vs_open':
       return share(s, 'call') + share(s, 'threebet');
-    case 'vs_3bet': {
-      const before = share({ kind: 'rfi', hero: s.hero }, 'raise');
-      return before ? (share(s, 'call') + share(s, 'fourbet')) / before : null;
-    }
-    case 'vs_4bet': {
-      const before = share({ kind: 'vs_open', hero: s.hero, villain: v }, 'threebet');
-      return before ? (share(s, 'call') + share(s, 'allin')) / before : null;
-    }
-    case 'vs_5bet': {
-      const before = share({ kind: 'vs_3bet', hero: s.hero, villain: v }, 'fourbet');
-      return before ? share(s, 'call') / before : null;
-    }
+    case 'vs_3bet':
+      return pathParts(s, ['call', 'fourbet'])?.reduce((x, y) => x + y, 0) ?? null;
+    case 'vs_4bet':
+      return pathParts(s, ['call', 'allin'])?.reduce((x, y) => x + y, 0) ?? null;
+    case 'vs_5bet':
+      return pathParts(s, ['call'])?.[0] ?? null;
     default:
       return null;
   }
@@ -107,9 +134,10 @@ function cellPhrase(s: Scenario, h: string): string {
   return `${josa(h, '을/를')} ${word}${ACT_KO[top?.action ?? 'fold'] ?? ''}`;
 }
 
-/** 반올림한 두 부분(앞 단계 범위 중 %). 합계는 이 둘의 합으로 써요 — 따로 반올림하면 더해지지 않아요. */
-function relParts(s: Scenario, before: number, a: Action, b: Action): [number, number] {
-  return [Math.round((share(s, a) / before) * 100), Math.round((share(s, b) / before) * 100)];
+/** 반올림한 두 부분(앞 단계에서 실제로 온 범위 중 %, pathParts). 합계는 이 둘의 합으로 써요 — 따로 반올림하면 더해지지 않아요. */
+function relParts(s: Scenario, a: Action, b: Action): [number, number] {
+  const [x, y] = pathParts(s, [a, b]) ?? [0, 0];
+  return [Math.round(x * 100), Math.round(y * 100)];
 }
 
 function numbersFor(s: Scenario, ids: PrincipleId[]): string | null {
@@ -217,8 +245,7 @@ export function spotReason(s: Scenario): SpotReason {
     }
     case 'vs_3bet': {
       const ip = heroInPosition(h, v!);
-      const before = share({ kind: 'rfi', hero: h }, 'raise');
-      const [c, f] = relParts(s, before, 'call', 'fourbet');
+      const [c, f] = relParts(s, 'call', 'fourbet');
       if (ip) {
         lines.push(`${josa(h, '은/는')} ${v}보다 포지션이 있어서, 콜해도 에퀴티를 잘 실현해요.`);
         lines.push(`그래서 오픈한 패의 ${c + f}%를 지키는데, 콜(${c}%)이 4벳(${f}%)보다 많아요.`);
@@ -235,7 +262,7 @@ export function spotReason(s: Scenario): SpotReason {
         lines.push(`${josa(h, '은/는')} ${v}보다 포지션이 없어서, 콜하면 플랍 이후 내내 불리해요.`);
         // 책 5장 3절: 포지션이 없으면 4벳이 늘어요(HJ 는 CO 의 3벳에 약 22%, BB 의 3벳에 약 10%를 4벳). 같은 오프너의 BB 3벳 대응과 견줘요.
         const ipRef: Scenario = { kind: 'vs_3bet', hero: h, villain: 'BB' };
-        const [ci, fi] = relParts(ipRef, before, 'call', 'fourbet');
+        const [ci, fi] = relParts(ipRef, 'call', 'fourbet');
         const shaped = share(s, 'fourbet') > share(ipRef, 'fourbet') && share(s, 'call') < share(ipRef, 'call');
         lines.push(
           shaped
@@ -251,8 +278,7 @@ export function spotReason(s: Scenario): SpotReason {
     case 'vs_4bet': {
       const spr = sprAfterCall(s);
       lines.push(`4벳 팟은 이미 팟이 커서, 콜하면 남은 스택이 팟의 두 배도 안 돼요(SPR 약 ${spr ? spr.toFixed(1) : '1.7'}).`);
-      const before = share({ kind: 'vs_open', hero: h, villain: v }, 'threebet');
-      const [a, c] = relParts(s, before, 'allin', 'call');
+      const [a, c] = relParts(s, 'allin', 'call');
       const ip = heroInPosition(h, v!);
       // 책 5장 5절: 포지션이 있으면(4벳을 받은 IP) 약 18%만 올인하고 대부분 콜, AA 도 절반쯤 콜로 슬로우플레이.
       // 블라인드는 포지션과 상대 4벳의 모양에 따라 올인과 콜을 나누고, 상대 4벳이 양극화될수록 콜과 AA 슬로우플레이가 늘어요.
@@ -272,7 +298,9 @@ export function spotReason(s: Scenario): SpotReason {
     }
     case 'vs_5bet': {
       lines.push('올인(5벳)에 콜하면 남은 스택을 전부 걸게 돼서, 상대 올인 범위를 상대로 높은 승률이 필요해요.');
-      lines.push('그래서 그만큼 에퀴티가 있는 패만 콜하고, 블러프로 4벳한 패는 폴드해요.');
+      // 콜하는 패 중에는 필요 승률에 조금 모자라는 패도 있어요(UTG의 QQ · AKo 는 BTN 올인에 약 36% — 메모가 말해요).
+      // '그만큼 에퀴티가 있는 패만'은 그 칸들에서 거짓이라 '그 언저리 이상'으로 써요(교차 검토).
+      lines.push('그래서 승률이 그 언저리 이상인 패만 콜하고, 블러프로 4벳한 패는 폴드해요.');
       ids = ['vs-5bet', 'fourbet-polar'];
       // 책 5장 2·3절과 견줘요: 이 자리에 오는 패(4벳한 패) 중 책이 콜하는 패와 1순위가 다르면 그 패를 이름으로 적어요.
       const gate: Scenario = { kind: 'vs_3bet', hero: h, villain: v };
@@ -289,7 +317,9 @@ export function spotReason(s: Scenario): SpotReason {
       const followers = h === 'BB' ? '오픈한 사람이' : '다른 사람들이';
       lines.push(`${h} 앞에서 이미 오픈과 3벳이 나왔어요. 콜하면 내 패 정보가 새고, 4벳이었다면 폴드했을 ${followers} 싸게 따라올 수 있어요.`);
       lines.push(C === 0 ? `그래서 콜 없이 4벳(약 ${pct(F)}) 아니면 폴드로 정리해요.` : `그래서 대부분 4벳(약 ${pct(F)}) 아니면 폴드로 정리하고, 콜은 ${pct(C)}만 섞어요.`);
-      ids = ['cold-4bet', 'fourbet-polar', 'blockers'];
+      // '4벳은 양 끝으로'(최강 패 + 블로커 블러프)는 블러프가 있는 자리에만 — CO 의 콜드 4벳은 QQ+ · AK · JJ · AQs 뿐인 순수 밸류예요(교차 검토).
+      const hasBluff = ALL_HANDS.some((x) => /^A[2-5]s$/.test(x) && weightOf(s, x, 'fourbet') > 0);
+      ids = hasBluff ? ['cold-4bet', 'fourbet-polar', 'blockers'] : ['cold-4bet', 'hand-strength', 'blockers'];
       if (C > 0 || F < BOOK_COLD4[0] - BOOK_TOL / 2 || F > BOOK_COLD4[1] + BOOK_TOL / 2)
         diff = `책은 콜드 4벳을 4벳 아니면 폴드로 두고, 상대가 타이트하면 약 3%, 넓으면 약 6%로 둬요. 이 차트는 4벳 ${pct(F)}${C > 0 ? ` · 콜 ${pct(C)}` : ''}예요.`;
       break;

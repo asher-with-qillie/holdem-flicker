@@ -152,6 +152,15 @@ function checkSentence(s: Scenario, cs: Cell[], text: string, claims: LineClaim[
         named.set(c.hand, 'word');
         break;
       }
+      case 'mostly': {
+        // '54s까지는 주로 3벳': 범위로 부른 칸이 전부 주로(100% 아님)여야 하고, 문장에 '주로'가 있어야 해요(교차 검토).
+        for (const h of c.hands) {
+          const x = cs[idx(h)];
+          if (!x || x.p !== c.action || x.full || x.word !== '주로') err.push(`mostly ${h}: ${x?.p} ${x?.word}`);
+        }
+        if (!text.includes(`주로 ${actOf(c.action, s)}`)) err.push(`mostly: '주로 ${actOf(c.action, s)}'가 문장에 없음`);
+        break;
+      }
       case 'split': {
         const x = cs[idx(c.hand)];
         if (!x || x.split?.join() !== c.actions.join() || Math.abs(x.w - 0.5) > 0.01) err.push(`split ${c.hand}: ${x?.split} ${x?.w}`);
@@ -348,7 +357,9 @@ describe('line: 문장 존재 · 길이 (§7.2-2·3)', () => {
     // vs_open BTN:CO 수티드 A('AJs~A9s는 3벳·콜 반반, A8s~A6s는 절반만 3벳해요')가 그렇게 줄 이름을 지킵니다.
     // 이중 주제('SB는 AKo는 …')가 되는 noLabel 은 쓰지 않고, 목적어인 줄 이름('오프수트 K를 콜하고, …')은 빼지 않습니다.
     // noSubj 둘(vs_3bet CO:BB · vs_open BTN:HJ 의 수티드 A)은 '〈자리〉에서'를 붙여도 42em 을 넘습니다.
-    expect(fallback).toEqual({ noLabel: 20, noCtx: 3, noSubj: 2 });
+    // 범위로 부른 칸이 전부 주로면 '주로'를 붙이면서(교차 검토) vs_open BTN:UTG 수티드 커넥터('54s까지는 주로 3벳해요')가
+    // 줄 이름을 넣으면 43.4em 이라 noLabel 이 하나 늘었어요(19 + 1 + 1).
+    expect(fallback).toEqual({ noLabel: 21, noCtx: 3, noSubj: 2 });
     expect(ALL.filter((x) => x.sentence?.fallback === 'noSubj').map((x) => `${scenarioKey(x.s)} ${x.line.id}`)).toEqual(['vs_3bet:CO:BB sA', 'vs_open:BTN:HJ sA']);
     expect(ALL.filter((x) => x.sentence?.fallback === 'noLabel' && x.sentence.form === 'frame').map((x) => scenarioKey(x.s))).toEqual(['vs_open:BTN:UTG']);
     expect(ALL.filter((x) => x.sentence?.fallback === 'noLabel' && x.sentence.form === 'except').map((x) => `${scenarioKey(x.s)} ${x.line.id}`)).toEqual(['rfi:SB oA']);
@@ -565,7 +576,9 @@ describe('line: 줄 문장의 모호함 (THEORY_SPEC §5)', () => {
     // 액션별 나열에서 콜 칸(AJs~A9s)이 AQs 바로 뒤에 이어지므로 AQs 를 그 앞에 두고 'A9s까지는'으로 — 주로인 A9s 를 범위로 덮습니다.
     expect(at('vs_3bet:CO:BTN', 'A5s')).toBe('CO에서 AKs·A5s~A2s는 4벳, A8s는 절반만 4벳, AQs는 4벳·콜 반반, A9s까지는 콜해요.');
     // '〈자리〉에서'로도 넘치는 두 줄은 주어를 뺍니다(리빌 바로 위 상황 줄이 내 자리와 상대를 말합니다).
-    expect(at('vs_open:BTN:HJ', 'A5s')).toBe('AQs까지는 3벳, AJs는 3벳·콜 반반, ATs는 콜, A9s는 절반만 3벳, A5s~A2s는 3벳해요.');
+    // AKs · AQs 는 둘 다 3벳 75%라 범위로 불러도 '주로'를 붙여요(교차 검토 — '주로인 칸을 주로 없이 이름'은 THEORY_SPEC §5 의 모호함).
+    expect(at('vs_open:BTN:HJ', 'A5s')).toBe('AQs까지는 주로 3벳, AJs는 3벳·콜 반반, ATs는 콜, A9s는 절반만 3벳, A5s~A2s는 3벳해요.');
+    expect(at('vs_open:BTN:UTG', '76s')).toBe('BTN은 UTG 오픈에 98s까지는 콜, 87s는 3벳·콜 반반, 54s까지는 주로 3벳해요.');
     for (const { s, line, sentence } of ALL) {
       for (const t of [sentence?.text, lineSentence(s, line, { topic: true })?.text]) if (t) expect(t).not.toMatch(/:/);
     }

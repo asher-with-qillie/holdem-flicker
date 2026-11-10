@@ -81,6 +81,7 @@ export type LineClaim =
   | { t: 'only'; hands: HandName[]; action: Action } // p = a 인 칸 = 정확히 hands
   | { t: 'toEnd'; from: HandName; action: Action; whole: boolean } // from부터 끝까지 a
   | { t: 'weight'; hand: HandName; action: Action; word: WeightWord } // 이름 + 비중어
+  | { t: 'mostly'; hands: HandName[]; action: Action } // 범위로 부른 칸('54s까지는 주로 3벳')이 전부 주로(≥ 60%, 100% 아님)
   | { t: 'minor'; hands: HandName[]; actions: Action[] } // 모두 p = rest, 계속 비중 > 0 인 칸 = 정확히 hands, 그 액션들 = actions
   | { t: 'rest'; except: HandName[]; action: Action; whole: boolean } // except 밖의 칸 전부 a
   | { t: 'split'; hand: HandName; actions: Action[] }; // 세 액션 칸: 1순위 actions[0] 이 절반, 나머지 절반을 actions[1..] 로 나눔
@@ -880,9 +881,18 @@ function listForm(cs: LineCell[], rest: Action, kind: ScenarioKind, S: string, O
       for (const c of G) claims.push({ t: 'weight', hand: c.hand, action: a, word: c.word });
       return { who: listWho(G), noun: `주로 ${actWord(a, kind)}`, verbal: (end: End) => `주로 ${V(a, end)}` };
     };
+    // 범위로 부르는 여러 칸이 전부 주로(100% 아님)면 '주로'를 붙입니다 — '54s까지는 3벳해요'는 76s~54s 가 모두 3벳 75% 인데
+    // 늘 3벳하는 것처럼 읽혔어요(THEORY_SPEC §5 '주로인 칸을 주로 없이 이름', 교차 검토). full 과 주로가 섞인 범위는 그대로 둡니다.
+    const allMostly = G.every((x) => !x.full);
+    const mw = (t: string) => (allMostly ? `주로 ${t}` : t);
+    // 범위의 비중은 upto · toEnd claim 이 칸마다 확인해요(덮는 칸은 전부 센 칸이어야 함) — 이름을 대지 않은 칸에 weight claim 을 달지 않아요.
+    const mostlyClaims = () => {
+      if (allMostly) claims.push({ t: 'mostly', hands: G.map((c) => c.hand), action: a });
+    };
     if (it.range) {
       claims.push({ t: 'upto', from: c0.hand, to: last.hand, action: a });
-      return { who: `${last.hand}까지는`, noun: actWord(a, kind), verbal: (end) => V(a, end) };
+      mostlyClaims();
+      return { who: `${last.hand}까지는`, noun: mw(actWord(a, kind)), verbal: (end) => mw(V(a, end)) };
     }
     if (order === 'action') {
       // 이 액션의 칸 전부(섞인 칸은 따로 비중어로) — 'AKs·A5s·A4s는 4벳'. 마지막 항목이 남은 칸 전부면 '다른 칸은'
@@ -901,12 +911,14 @@ function listForm(cs: LineCell[], rest: Action, kind: ScenarioKind, S: string, O
       // '…부터는 전부'는 줄 끝까지 덮습니다 — 그 뒤에 도달 불가 칸이 있으면 '전부'를 붙이지 않습니다.
       const whole = G.every((x) => x.full) && !holes.some((i) => i > c0.slot);
       claims.push({ t: 'toEnd', from: c0.hand, action: a, whole });
-      return { who: `${c0.hand}부터는${whole ? ' 전부' : ''}`, noun: actWord(a, kind), verbal: (end) => V(a, end) };
+      mostlyClaims();
+      return { who: `${c0.hand}부터는${whole ? ' 전부' : ''}`, noun: mw(actWord(a, kind)), verbal: (end) => mw(V(a, end)) };
     }
-    if (!adjacent && G.every((x) => !x.full)) return mostly();
+    if (!adjacent && allMostly) return mostly();
     claims.push({ t: 'upto', from: at(c0) === 0 ? null : c0.hand, to: last.hand, action: a });
+    mostlyClaims();
     // 앞 항목에 바로 이어지면 '…까지는'(앞 항목 다음 칸부터), 떨어져 있으면 양 끝을 다 부릅니다.
-    return { who: adjacent ? `${last.hand}까지${objForm ? '' : '는'}` : listWho(G), noun: actWord(a, kind), verbal: (end) => V(a, end) };
+    return { who: adjacent ? `${last.hand}까지${objForm ? '' : '는'}` : listWho(G), noun: mw(actWord(a, kind)), verbal: (end) => mw(V(a, end)) };
   };
   const n = items.length;
   const first = items[0];
@@ -916,7 +928,10 @@ function listForm(cs: LineCell[], rest: Action, kind: ScenarioKind, S: string, O
     const G = first.cells;
     const a = G[0].p;
     claims.push({ t: 'upto', from: null, to: G[G.length - 1].hand, action: a });
-    const head = `${G[G.length - 1].hand}${G.length === 1 ? '만' : '까지'}`;
+    // 첫 묶음이 여러 칸이고 전부 주로면 '…까지 주로 3벳하고'(render 의 allMostly 와 같은 규칙).
+    const headMostly = G.length > 1 && G.every((x) => !x.full);
+    if (headMostly) claims.push({ t: 'mostly', hands: G.map((c) => c.hand), action: a });
+    const head = `${G[G.length - 1].hand}${G.length === 1 ? '만' : '까지'}${headMostly ? ' 주로' : ''}`;
     if (n === 1) text = `${S} ${O} ${head} ${V(a, '해요')}.`;
     else {
       const r = render(1, true);

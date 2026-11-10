@@ -474,7 +474,7 @@ vs_open:BTN:UTG	sQ	P2m	36.0	BTN은 UTG 오픈에 수티드 Q 중 늘 콜하는 �
 vs_open:BTN:UTG	oQ	P0	21.3	BTN은 UTG 오픈에 오프수트 Q를 전부 폴드해요.
 vs_open:BTN:UTG	sJ	P2	20.1	BTN은 UTG 오픈에 수티드 J를 JTs만 콜해요.
 vs_open:BTN:UTG	oJ	P0	21.3	BTN은 UTG 오픈에 오프수트 J를 전부 폴드해요.
-vs_open:BTN:UTG	conn	P4+list	41.0	BTN은 UTG 오픈에 수티드 커넥터 중 98s까지는 콜, 87s는 3벳·콜 반반, 54s까지는 3벳해요.
+vs_open:BTN:UTG	conn	P4+list-noL	35.4	BTN은 UTG 오픈에 98s까지는 콜, 87s는 3벳·콜 반반, 54s까지는 주로 3벳해요.
 vs_open:BTN:UTG	sT	P2	20.1	BTN은 UTG 오픈에 수티드 T을 T9s만 콜해요.
 vs_open:BTN:UTG	oT	P0	21.3	BTN은 UTG 오픈에 오프수트 T을 전부 폴드해요.
 vs_open:BTN:UTG	s9	P2	20.1	BTN은 UTG 오픈에 수티드 9를 98s만 콜해요.
@@ -501,7 +501,7 @@ vs_4bet:BTN:UTG	s7	P0	15.5	BTN은 UTG 4벳에 76s를 폴드해요.
 vs_4bet:BTN:UTG	s6	P0	15.5	BTN은 UTG 4벳에 65s를 폴드해요.
 vs_4bet:BTN:UTG	s5	P0	15.5	BTN은 UTG 4벳에 54s를 폴드해요.
 vs_open:BTN:HJ	pair	P3+list	35.4	BTN은 HJ 오픈에 포켓페어 중 JJ까지는 3벳, 33까지는 콜, 22는 절반만 콜해요.
-vs_open:BTN:HJ	sA	P4+list-noSubj	38.6	AQs까지는 3벳, AJs는 3벳·콜 반반, ATs는 콜, A9s는 절반만 3벳, A5s~A2s는 3벳해요.
+vs_open:BTN:HJ	sA	P4+list-noSubj	40.9	AQs까지는 주로 3벳, AJs는 3벳·콜 반반, ATs는 콜, A9s는 절반만 3벳, A5s~A2s는 3벳해요.
 vs_open:BTN:HJ	oA	P2m	31.7	BTN은 HJ 오픈에 오프수트 A를 AQo까지 3벳하고, AJo는 주로 3벳해요.
 vs_open:BTN:HJ	sK	P4+list	36.1	BTN은 HJ 오픈에 수티드 K 중 KQs·KJs는 3벳·콜 반반, KTs는 콜, K9s는 3벳해요.
 vs_open:BTN:HJ	oK	P2h	34.2	BTN은 HJ 오픈에 오프수트 K 중 KQo는 주로 3벳하고, 그 아래 칸은 폴드해요.
