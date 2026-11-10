@@ -163,13 +163,18 @@ describe('sheet: 차트 메모 정리본 (§6.4, §7.2-4·5)', () => {
 });
 
 describe('sheet: 숫자 줄 (§7.2-11)', () => {
-  it('모든 %가 Math.round(rangeShare×100)이고, rfi 사다리는 18/21/29/46/46', () => {
+  it('모든 %가 Math.round(rangeShare×100)이고, rfi 사다리는 17/21/28/43 · SB 레이즈 24 · 림프 38', () => {
     for (const s of SCENARIOS) {
       const n = seatNumbers(s);
       const pcts = [...n.text.matchAll(/(\d+)%( 미만)?/g)].map((m) => (m[2] ? 0 : Number(m[1])));
       expect(pcts, n.text).toEqual(n.nums);
       if (s.kind === 'rfi') {
-        expect(n.ladder!.map((x) => x.pct)).toEqual([18, 21, 29, 46, 46]);
+        // 책 5장 2절: UTG(LJ) 약 17 · HJ 약 21 · CO 약 28 · BTN 약 43, SB 는 레이즈 약 24 · 림프 약 38 — SB 칸은 둘을 따로 적어요
+        // (더해서 'SB 62%'라고 하면 BTN 보다 넓게 오픈한다고 읽히고, 레이즈만 적으면 림프가 사라져요).
+        expect(n.ladder!.map((x) => x.pct)).toEqual([17, 21, 28, 43, 24]);
+        expect(n.ladder!.map((x) => x.limp ?? null)).toEqual([null, null, null, null, 38]);
+        expect(n.text).toBe('UTG 17% · HJ 21% · CO 28% · BTN 43% · SB 레이즈 24% · 림프 38%');
+        expect(n.ladder!.find((x) => x.pos === 'SB')!.limp).toBe(Math.round(rangeShare(getChartCells({ kind: 'rfi', hero: 'SB' }), 'limp') * 100));
         expect(n.ladder!.filter((x) => x.me).map((x) => x.pos)).toEqual([s.hero]);
         for (const x of n.ladder!) expect(x.pct).toBe(Math.round(rangeShare(getChartCells({ kind: 'rfi', hero: x.pos }), 'raise') * 100));
       } else {
@@ -181,7 +186,7 @@ describe('sheet: 숫자 줄 (§7.2-11)', () => {
         for (const x of mine) expect(shares, `${scenarioKey(s)} ${n.text}`).toContain(x);
       }
     }
-    expect(seatNumbers({ kind: 'vs_open', hero: 'BB', villain: 'CO' }).text).toBe('CO 오픈 29% → 내 콜 37% · 3벳 9%');
+    expect(seatNumbers({ kind: 'vs_open', hero: 'BB', villain: 'CO' }).text).toBe('CO 오픈 28% → 내 콜 29% · 3벳 9%');
   });
 });
 
@@ -193,6 +198,8 @@ describe('sheet: 레버 데이터 판단 (§7.2-12)', () => {
       if (lever?.id === 'sbRaiseOrFold') {
         expect(s.kind === 'vs_open' && s.hero === 'SB', where).toBe(true);
         expect(rangeShare(getChartCells(s), 'call'), where).toBeLessThan(0.02);
+        // '콜 없이'는 콜이 정확히 0 일 때만, '거의 안 하고'는 0 보다 크고 2% 아래일 때만.
+        expect(lever.text, where).toBe(rangeShare(getChartCells(s), 'call') === 0 ? 'SB는 콜 없이 3벳 아니면 폴드해요.' : 'SB는 콜을 거의 안 하고, 대부분 3벳 아니면 폴드해요.');
       }
       if (s.kind === 'vs_open' && s.hero === 'SB' && rangeShare(getChartCells(s), 'call') < 0.02) expect(lever?.id, where).toBe('sbRaiseOrFold');
       if (lever?.id === 'position') {
@@ -205,13 +212,17 @@ describe('sheet: 레버 데이터 판단 (§7.2-12)', () => {
       if (s.kind === 'vs_open' && s.hero === 'BB') expect(lever?.id).toBe('bbPrice');
       if (s.kind === 'vs_limp') expect(lever?.id ?? null).toBe(s.hero === 'BB' ? 'bbFree' : null);
     }
-    // BTN 오픈은 책의 약 43%(5장 2절)와 차트 46%를 같이 밝힙니다(감사 19).
-    expect(seatLever({ kind: 'rfi', hero: 'BTN' })?.text).toBe('BTN은 블라인드만 남아 책의 약 43%보다 넓은 46%를 오픈해요.');
-    // SB 오픈은 뒤에 한 명뿐이라서 넓은 게 아닙니다 — SB 46.2% 는 BTN 46.3% 보다 넓지 않고, 포지션이 없어서예요(감사 7).
-    expect(seatLever({ kind: 'rfi', hero: 'SB' })?.text).toBe('SB는 BB만 남아도 포지션이 없어 BTN만큼인 46%를 오픈해요.');
-    expect(Math.round(rangeShare(getChartCells({ kind: 'rfi', hero: 'SB' }), 'raise') * 100)).toBe(Math.round(rangeShare(getChartCells({ kind: 'rfi', hero: 'BTN' }), 'raise') * 100));
-    // SB 는 콜을 0.7~1.5% 섞어서 '대부분'(감사 0).
-    expect(seatLever({ kind: 'vs_open', hero: 'SB', villain: 'UTG' })?.text).toBe('SB는 콜을 거의 안 하고, 대부분 3벳 아니면 폴드해요.');
+    // BTN 오픈은 책의 약 43%(5장 2절)를 밝힙니다(감사 19). 차트가 책과 같은 43%라 같은 숫자를 두 번 쓰지 않아요
+    // (예전 차트 46%: '책의 약 43%보다 넓은 46%를', 같을 때의 옛 문장: '책의 약 43%와 같은 43%를').
+    expect(Math.round(rangeShare(getChartCells({ kind: 'rfi', hero: 'BTN' }), 'raise') * 100)).toBe(43);
+    expect(seatLever({ kind: 'rfi', hero: 'BTN' })?.text).toBe('BTN은 블라인드만 남아 책과 같은 약 43%를 오픈해요.');
+    // SB 오픈은 레이즈와 림프를 따로 — 책 5장 2절: 레이즈 약 24% · 림프 약 38%(감사 7: 'BTN만큼 연다'는 림프가 없던 차트의 말).
+    expect(seatLever({ kind: 'rfi', hero: 'SB' })?.text).toBe('SB는 포지션이 없어 레이즈 24%에 림프 38%를 섞어요.');
+    // SB 는 오픈에 콜하지 않아요(책 5장 5절 — 네 오프너 모두 콜 0).
+    for (const v of ['UTG', 'HJ', 'CO', 'BTN'] as Pos[]) {
+      expect(rangeShare(getChartCells({ kind: 'vs_open', hero: 'SB', villain: v }), 'call'), v).toBe(0);
+      expect(seatLever({ kind: 'vs_open', hero: 'SB', villain: v })?.text, v).toBe('SB는 콜 없이 3벳 아니면 폴드해요.');
+    }
     // HJ · CO · BTN 의 오픈 대응: 포지션만 말하면 콜의 이유처럼 읽혀서, 책이 드는 스퀴즈 위험을 같이(감사 18).
     for (const s of SCENARIOS.filter((x) => x.kind === 'vs_open' && ['HJ', 'CO', 'BTN'].includes(x.hero))) {
       expect(seatLever(s)).toEqual({ id: 'behind', text: `${s.hero === 'BTN' ? 'BTN은' : `${s.hero}는`} 포지션이 있어도 콜하면 뒤에서 스퀴즈를 받기 쉬워요.` });
@@ -301,7 +312,9 @@ describe('sheet: 자리 문장의 이름 규칙 (§4.2-⑥, 리뷰)', () => {
       }
     }
     expect(weak).toBeGreaterThan(100);
-    expect(split).toBeGreaterThan(20);
+    // 세 액션 자리는 새 차트에서 ATo 의 BTN 두 칸(SB · BB 3벳에 콜 50 · 4벳 25 · 폴드 25)뿐이에요. 그 칸이 보이는 자리 문장은
+    // SB 3벳 열의 도달 자리 4개(UTG~BTN)와 BB 3벳 열의 5개(UTG~SB)에서 하나씩 — 9번 모두 '절반은'으로 불러요(예전 차트는 20번 넘게).
+    expect(split).toBe(9);
   });
 
   it("THEORY_SPEC §5: 못 오는 자리를 '어느 자리에서나' · '다른 자리에서는'으로 덮지 않고(a), 'X에서만 V'는 다른 자리가 rest 일 때만(g)", () => {
@@ -324,26 +337,33 @@ describe('sheet: 자리 문장의 이름 규칙 (§4.2-⑥, 리뷰)', () => {
     }
     expect(only).toBeGreaterThan(100);
     const across = (sc: Scenario, hand: string) => explainStep(stepFor(sc, hand)).across.line.text;
-    expect(across({ kind: 'vs_open', hero: 'SB', villain: 'UTG' }, 'KTs')).toBe('KTs는 UTG 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.');
+    // 새 차트에서 다시 고른 예(같은 꼴): SB 는 오픈에 콜하지 않아서(책 5장 5절) 'UTG 오픈에 SB에서만 폴드'하는 꼴은 오픈 대응에서 사라졌어요.
+    // 'KTs는 UTG 오픈에 BTN·BB에서만 콜해요.'(다른 자리가 전부 폴드)와, 3벳 대응의 'UTG에서만 폴드하고, 다른 자리에서는 콜해요.'
+    expect(across({ kind: 'vs_open', hero: 'SB', villain: 'UTG' }, 'KTs')).toBe('KTs는 UTG 오픈에 BTN·BB에서만 콜해요.');
+    expect(across({ kind: 'vs_3bet', hero: 'UTG', villain: 'SB' }, 'KTs')).toBe('KTs는 SB 3벳에 UTG에서만 폴드하고, 다른 자리에서는 콜해요.');
     expect(across({ kind: 'vs_open', hero: 'BB', villain: 'CO' }, 'KTs')).toBe('KTs는 CO 오픈에 SB에서만 3벳하고, 다른 자리에서는 콜해요.');
-    expect(across({ kind: 'vs_limp', hero: 'BB' }, '98s')).toBe('98s는 림프에 HJ~SB에서 레이즈하고, BB에서는 체크해요.');
-    expect(across({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'AJs')).toBe('AJs는 UTG 4벳에 HJ~SB에서 폴드해요.');
-    expect(across({ kind: 'vs_3bet', hero: 'BTN', villain: 'SB' }, 'K8s')).toBe('K8s는 SB 3벳에 BTN에서는 주로 콜하고, HJ·CO에서는 폴드해요.');
-    // (b) 세 액션 자리
-    expect(across({ kind: 'vs_3bet', hero: 'UTG', villain: 'HJ' }, 'A5s')).toBe('A5s는 HJ 3벳에 UTG에서 절반은 4벳하고, 나머지를 콜과 폴드로 나눠요.');
-    expect(across({ kind: 'vs_3bet', hero: 'BTN', villain: 'BB' }, 'A9o')).toBe('A9o는 BB 3벳에 CO·SB에서 폴드, BTN에서 절반은 폴드, 절반은 4벳·콜이에요.');
+    // 림프에: SB 는 약 24%만 레이즈해서 98s 는 이제 SB 에서 폴드해요 — J9s 가 HJ~SB 모두 레이즈하는 예.
+    expect(across({ kind: 'vs_limp', hero: 'BB' }, 'J9s')).toBe('J9s는 림프에 HJ~SB에서 레이즈하고, BB에서는 체크해요.');
+    // 열에 도달 칸이 아닌 자리(BB 는 UTG 오픈에 AJo 를 주로 콜하고 3벳은 25%만 — 4벳은 그때만 받아요)가 있으면 '어느 자리에서나' 대신 자리 이름.
+    expect(across({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'AJo')).toBe('AJo는 UTG 4벳에 HJ~SB에서 폴드해요.');
+    expect(across({ kind: 'vs_3bet', hero: 'BTN', villain: 'BB' }, 'K8s')).toBe('K8s는 BB 3벳에 BTN에서는 주로 콜하고, HJ·CO·SB에서는 폴드해요.');
+    // (b) 세 액션 자리 — 새 차트의 세 액션 칸은 ATo 의 BTN(블라인드 3벳에 콜 50 · 4벳 25 · 폴드 25) 두 칸뿐이에요.
+    expect(across({ kind: 'vs_3bet', hero: 'BTN', villain: 'SB' }, 'ATo')).toBe('ATo는 SB 3벳에 UTG~CO에서 폴드, BTN에서 절반은 콜, 절반은 4벳·폴드예요.');
+    expect(across({ kind: 'vs_3bet', hero: 'BTN', villain: 'BB' }, 'ATo')).toBe('ATo는 BB 3벳에 UTG~CO·SB에서 폴드, BTN에서 절반은 콜, 절반은 4벳·폴드예요.');
   });
 
   it('리뷰가 짚은 자리 문장', () => {
     const across = (sc: Scenario, hand: string) => explainStep(stepFor(sc, hand)).across.line.text;
-    expect(across({ kind: 'vs_open', hero: 'SB', villain: 'CO' }, 'A7s')).toBe('A7s는 CO 오픈에 SB에서는 절반만 3벳하고, 다른 자리에서는 콜해요.');
-    expect(across({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'AKs')).toBe('AKs는 UTG 4벳에 HJ~BTN에서 주로 올인하고, SB·BB에서는 올인과 콜을 반반 섞어요.');
-    expect(across({ kind: 'vs_open', hero: 'HJ', villain: 'UTG' }, 'AQo')).toBe('AQo는 UTG 오픈에 HJ~BTN·BB에서 3벳과 콜을 반반 섞고, SB에서는 3벳해요.');
-    expect(across({ kind: 'vs_limp', hero: 'HJ' }, '72o')).toBe('72o는 림프에 어느 자리에서도 레이즈하지 않아요.');
-    // 세 액션 자리(CO 폴드 50 · 4벳 25 · 콜 25, BTN·BB 4벳 50 · 콜 25 · 폴드 25)는 '절반만'으로 줄이지 않습니다 —
-    // 나눔까지 부르면 46em 을 넘어서 '절반은'으로 줄였고, 나머지가 폴드뿐인 SB 만 '절반만 4벳'이에요.
-    // 콜드 상황의 앞머리는 '오픈과 3벳 뒤에'(책 5장 3절 — 앞의 오픈까지). 짧아진 만큼 46em 안에서 나눔('폴드 반·4벳·콜')까지 부릅니다.
-    expect(across({ kind: 'cold_4bet', hero: 'CO' }, 'AKo')).toBe('AKo는 오픈과 3벳 뒤에 CO에서 폴드 반·4벳·콜, BTN·BB에서 4벳 반·콜·폴드, SB에서 절반만 4벳이에요.');
+    // 새 차트에서 같은 꼴을 가진 칸으로 다시 골랐어요(A7s · AKs · AQo · 72o · AKo 는 차트가 바뀌어 다른 꼴이 됐어요).
+    expect(across({ kind: 'vs_open', hero: 'SB', villain: 'CO' }, '66')).toBe('66은 CO 오픈에 SB에서는 절반만 3벳하고, 다른 자리에서는 콜해요.');
+    expect(across({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'AKo')).toBe('AKo는 UTG 4벳에 HJ·CO·SB·BB에서 주로 올인하고, BTN에서는 올인과 콜을 반반 섞어요.');
+    expect(across({ kind: 'vs_open', hero: 'BTN', villain: 'CO' }, 'KJs')).toBe('KJs는 CO 오픈에 BTN·BB에서 3벳과 콜을 반반 섞고, SB에서는 3벳해요.');
+    // 72o 는 이제 BB 가 SB 의 림프에 블러프로 레이즈해요(양극화 — BOOK_CHART_SPEC §5) — 어느 자리도 레이즈하지 않는 예는 J3s.
+    expect(across({ kind: 'vs_limp', hero: 'HJ' }, '72o')).toBe('72o는 림프에 BB에서만 레이즈해요.');
+    expect(across({ kind: 'vs_limp', hero: 'HJ' }, 'J3s')).toBe('J3s는 림프에 어느 자리에서도 레이즈하지 않아요.');
+    // 콜드 상황의 앞머리는 '오픈과 3벳 뒤에'(책 5장 3절 — 앞의 오픈까지). 콜드 4벳은 이제 4벳 아니면 폴드라(책 5장 3절) 세 액션 칸이 없어요 —
+    // 섞인 자리(BTN 4벳 50 · 폴드 50)는 비중어와 함께 불러요.
+    expect(across({ kind: 'cold_4bet', hero: 'CO' }, 'TT')).toBe('TT은 오픈과 3벳 뒤에 CO에서 폴드, BTN에서 절반만 4벳, SB·BB에서 4벳이에요.');
   });
 
   it('부분 정답 문장: 두 액션의 가치가 비슷하다는 것(책 2장 무차별)을 먼저, 채점은 그다음 — "더 공격적인"은 두 계속 액션의 반반에만', () => {
@@ -374,7 +394,8 @@ describe('sheet: 자리 문장의 이름 규칙 (§4.2-⑥, 리뷰)', () => {
     expect(restTie).toBeGreaterThan(100);
     expect(contTie).toBeGreaterThan(50);
     expect(explainStep(stepFor({ kind: 'rfi', hero: 'UTG' }, 'KJo')).mix!.partial).toBe('오픈과 폴드는 가치가 비슷해요. 채점은 오픈이 정답이에요.');
-    expect(explainStep(stepFor({ kind: 'cold_4bet', hero: 'CO' }, 'QQ')).mix!.partial).toBe('4벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 4벳이 정답이에요.');
+    // 두 계속 액션의 반반: CO 가 BTN 3벳에 AQs 를 4벳 50 · 콜 50(예전 예의 콜드 4벳 QQ 는 이제 늘 4벳 — 콜드 4벳에 콜이 없어요).
+    expect(explainStep(stepFor({ kind: 'vs_3bet', hero: 'CO', villain: 'BTN' }, 'AQs')).mix!.partial).toBe('4벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 4벳이 정답이에요.');
   });
 });
 

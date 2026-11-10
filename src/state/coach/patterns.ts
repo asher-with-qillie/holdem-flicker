@@ -172,8 +172,9 @@ function deckForKind(kind: ScenarioKind): DeckId {
 }
 
 /**
- * '무늬 때문에 들어간' 패. wheel_ace(A5s~A2s)는 넣지 않습니다 — 차트에서 그 패들은 무늬가 아니라
- * A 블로커 때문에 3벳으로 가고 콜 빈도가 0이라, '무늬만 보고 들어간' 경우가 아닙니다.
+ * '무늬 때문에 들어간' 패. wheel_ace(A5s~A2s)는 넣지 않습니다 — 차트에서 그 패들이 들어갈 때는 무늬보다 A 블로커 때문에
+ * 3벳 · 4벳 블러프로 가는 일이 많아서(BTN 의 양극화 3벳, 3벳 대응의 4벳), '무늬만 보고 들어간' 경우와 이유가 달라요.
+ * (BB 는 BTN · SB 오픈에 A5s~A2s 를 3벳 절반 · 콜 절반으로 섞어요.)
  */
 const SUITED_TRAP_CLASSES: HandClass[] = ['suited_gapper', 'suited_qj', 'suited_king', 'suited_connector'];
 const PREMIUM_CLASSES: HandClass[] = ['premium_pair', 'big_pair', 'ak'];
@@ -189,17 +190,20 @@ export const PATTERN_RULES: PatternRule[] = [
     koName: '3벳할 자리에서 콜해요',
     minSample: 6,
     /**
-     * 차트의 3벳 레인지는 두 덩어리입니다 — 제일 센 패, 그리고 콜 빈도가 0이라 3벳 아니면 접는 약한 패.
-     * '레인지 위쪽이면서 4벳에 접을 수 있어야 3벳'이라는 AND 조건은 그 둘이 배타적이라 성립하지 않습니다.
+     * 3벳 범위의 모양은 자리마다 달라요. 책(5장 4절): 콜 범위가 있으면(BTN · BB) 3벳은 최강 패와 블러프로 양극화되고,
+     * 콜 범위가 없으면(HJ · CO · SB) 3벳 아니면 폴드라 강한 패부터 차례로 3벳하는 선형이에요(BB 는 BTN 에게도 선형 — 책이 짚은 예외).
+     * 차트를 책에 맞춰 다시 만들면서 HJ · CO · SB 의 3벳에는 작은 수티드 A 가 A5s · A4s 정도만 남아(HJ vs UTG 는 A4s 절반,
+     * SB vs UTG · HJ 는 A4s 폴드, SB vs BTN 만 A3s · A2s 절반까지),
+     * 예전 문장 '3벳에는 센 패와 작은 수티드 A가 들어가요'(모든 vs_open 에서 AA·KK·QQ·AK 와 A5s·A4s 를 늘 3벳)는 거짓이 됐어요.
      *
-     * '3벳은 센 패와 접을 패'처럼 양극화를 모든 자리의 규칙으로 말하지 않습니다. 책(5장 4절)은 콜 범위가 있는
-     * 자리만 양극화하고 HJ·CO·SB 는 센 패부터 차례로 3벳한다고 하지만, 이 앱 차트는 모든 vs_open 에서
-     * AA·KK·QQ·AK 와 A5s·A4s 를 늘 3벳합니다(claims.test.ts). 그래서 '어떤 패가 들어가는지'만 말합니다.
+     * 그래서 모든 자리에 참인 조건문으로 말합니다: '콜 범위가 없으면 센 패부터 3벳해요' — 차트에서 콜이 0인 vs_open
+     * (HJ · CO · SB 7장)은 모두 선형이고 AA·KK·QQ·AK 를 늘 3벳해요(claims.test.ts 가 승률 순서로 다시 계산). 콜이 정답인
+     * 칸이 있는 BTN · BB 의 실수에는 '거기는 콜 범위가 있다'는 대비로 읽혀요. '양극화'·'선형'은 코치 금지어라 풀어 씁니다.
      */
     match: (m) => m.answer === 'threebet' && m.chosen === 'call',
     advice: [
       '콜하면 상대가 접을 기회가 없어요.',
-      '3벳에는 센 패와 작은 수티드 A가 들어가요.',
+      '콜 범위가 없으면 센 패부터 3벳해요.',
       '이 패, 애매해서 콜한 건 아닌가요?',
     ],
     drillFor: deckDrill('vs_open', topHero),
@@ -228,10 +232,12 @@ export const PATTERN_RULES: PatternRule[] = [
     koName: '3벳을 받으면 너무 많이 폴드해요',
     minSample: 6,
     /**
-     * vs_3bet 차트의 4벳은 양극화돼 있습니다(책 5장 2절 '4-bet은 블로커가 좋은 핸드를 섞은 양극화 범위') — 4벳 칸이 AA·KK·QQ·AK 와 A5s·A4s 이고 AQs·JJ·TT 는 그보다 아래인 콜 칸입니다.
+     * vs_3bet 차트의 4벳은 양극화돼 있습니다(책 5장 2절 '4-bet은 블로커가 좋은 핸드를 섞은 양극화 범위') — 4벳의 중심이 AA·KK·QQ·AK 와
+     * 작은 수티드 A 이고, JJ·TT·AQs 는 대개 콜 쪽입니다(예외: SB vs BB 는 JJ 를 늘, CO vs BTN 은 JJ 를 주로 4벳하고 TT · AQs 를
+     * 절반 섞어요. 그 밖에는 JJ · TT 를 일부 섞는 정도).
      * 그래서 '센 순서로 줄 세워 맨 위가 4벳'이라는 선형 모델을 가르치면 차트와 어긋납니다.
      * '약한 A'라고 하면 A9o 같은 오프수트로 읽히는데, 차트의 4벳 블러프는 작은 수티드 A(휠 에이스)입니다
-     * (A9o 는 BTN 이 BB 의 3벳에 4벳할 때 25% 섞일 뿐). 조합 수로도 4벳의 절반 넘게가 센 패와 작은 수티드 A 라
+     * (오프수트 A 는 AQo~ATo 가 일부 섞일 뿐 — A9o 이하는 4벳하지 않아요). 조합 수로도 4벳의 절반 넘게가 센 패와 작은 수티드 A 라
      * '주로'를 붙입니다(claims.test.ts).
      */
     match: (m) => m.kind === 'vs_3bet' && m.chosen === 'fold' && m.answer !== 'fold',
@@ -287,7 +293,7 @@ export const PATTERN_RULES: PatternRule[] = [
     /**
      * 오픈 판단으로 한정합니다. kind 를 안 걸면 '3벳을 맞고 못 접은' 실수까지 끌어와 오픈 레인지 탓으로 오진하고
      * 훈련도 엉뚱한 덱으로 보냅니다. 기억용 기준(페어·둘 다 높음·수티드 중 둘)은 UTG 오픈 45칸 중 30칸을
-     * 접으라고 해서 쓰지 않습니다 — 차트는 22+ 와 A2s+ 와 ATo+ 를 전부 엽니다.
+     * 접으라고 해서 쓰지 않습니다 — 차트는 55+ 와 A2s+ 와 AJo+ 를 늘 열고, 44~22 · ATo · KJo 도 절반 섞습니다.
      *
      * 사람 수는 규칙이 잡는 두 자리를 다 덮게 씁니다(UTG 뒤 다섯 명, HJ 뒤 네 명). '한 명만 세도 밀린다'는
      * 글자 그대로는 거짓이라(무작위 한 패를 상대로는 UTG 오픈이 다 앞섭니다) 책의 이유 — 뒤에 사람이 많을수록
@@ -307,8 +313,11 @@ export const PATTERN_RULES: PatternRule[] = [
     koName: '뒷자리에서 너무 좁게 오픈해요',
     minSample: 6,
     /**
-     * CO−UTG 로 실제로 늘어나는 건 오프수트 브로드웨이(QJo·KTo·QTo·JTo), 낮은 수티드 K(K8s~K4s), 수티드 갭퍼입니다.
-     * 작은 페어는 UTG 부터 이미 22+ 로 전부 열고 수티드 커넥터는 54s 한 칸만 늘어나므로 그 둘을 지목하면 안 됩니다.
+     * CO−UTG 로 늘어나는 것: 오프수트 브로드웨이(QJo·KTo·QTo·JTo, UTG 에서 절반인 KJo), 낮은 수티드 K·Q(K8s~K5s · Q8s · Q7s),
+     * 수티드 커넥터 · 갭퍼(65s · 54s · 97s · 86s · 75s · J8s · T8s, UTG 에서 절반인 87s · 76s), 작은 페어(UTG 에서 절반인 44~22),
+     * 오프수트 A(A8o, UTG 에서 절반 · 가끔인 ATo · A9o). 책 5장 2절도 HJ 가 CO 보다 줄이는 패로
+     * 작은 페어 · 약한 오프수트 브로드웨이 · 수티드 커넥터 · 약한 수티드 Kx·Qx 를 들어요. 문구는 claims.test.ts 가 확인하는
+     * 두 무리(오프수트 브로드웨이 · 낮은 수티드)만 말합니다.
      */
     match: (m) => m.kind === 'rfi' && (m.hero === 'CO' || m.hero === 'BTN') && m.answer !== 'fold' && m.chosen === 'fold',
     advice: [

@@ -11,7 +11,7 @@ import { stepFor } from '../src/poker/trainer';
 
 /*
  * 골든 코퍼스 — docs/EXPLAIN_SPEC.md §7.3.
- * 74개 상황 × 25줄의 줄 문장 1,089개를 전부 다시 만들어 tests/__golden__/line-sentences.tsv 와 바이트 단위로 비교합니다.
+ * 74개 상황 × 25줄의 줄 문장 1,096개를 전부 다시 만들어 tests/__golden__/line-sentences.tsv 와 바이트 단위로 비교합니다.
  * 열: scenarioKey \t lineId \t frame(+except / +list 꼴, 폭 폴백이면 -noL / -noCtx / -noSubj) \t emWidth(소수 1자리) \t text
  *
  * 카피를 **의도적으로** 바꿀 때만 다시 씁니다:
@@ -45,6 +45,15 @@ import { stepFor } from '../src/poker/trainer';
  *      ('SB는 UTG 오픈에 수티드 Q 중 QJs만 3벳을 25% 섞고, 그 아래 칸은 폴드해요.' · '…AKo를 주로 폴드하고, 콜도 25% 섞어요.').
  *    시트 골든은 레버(시트에 그리지는 않지만 Explanation.seat.lever) — SB 오픈 · BTN 오픈(책 약 43%) · SB 오픈 대응('대부분') ·
  *    HJ · CO · BTN 오픈 대응(스퀴즈 위험) — 과 콜드 4벳 자리 문장의 앞머리, 형제 줄의 '가끔'이 바뀌었습니다.
+ *  - 74개 차트를 책(MPT 5장, docs/BOOK_CHART_SPEC.md)에 맞춰 다시 만든 뒤: 줄 문장 1,089 → 1,096개. 도달 칸이 생기거나
+ *    없어진 줄 때문에 vs_3bet 227 → 208, vs_4bet 92 → 117, vs_5bet 45 → 46(나머지 상황은 줄 수 그대로). 같은 (상황, 줄)
+ *    1,056개 가운데 525개는 글자 그대로, 531개가 바뀌었고, 40개가 새로 생기고 33개가 없어졌습니다. 거의 전부 차트가 바뀐 탓이고,
+ *    생성기 쪽 변화는 다섯 문장뿐입니다(tests/line.test.ts — '경계 + 예외' 꼴 'SB는 포켓페어를 44까지 오픈하고 33부터는 전부
+ *    림프하되, KK·JJ는 오픈·림프 반반이에요.', 'X만 V'의 '만' 빼기, 줄 이름을 목적어로 남기기, 'X부터 Y까지는 → X~Y는').
+ *    꼴: frame 998 · +except 5 · +list 93, 폭 폴백: noL 20 · noCtx 3 · noSubj 2. 틀 분포는 아래 스냅숏처럼 바뀌었습니다
+ *    (단조롭지 않은 P4 33 → 63: BB · BTN 의 양극화 3벳, 블로커 4벳 · 5벳 블러프, 휠 A, BB 의 림프 대응 블러프 레이즈).
+ *    시트 골든은 도달 칸 6,255 → 6,263개이고, 숫자 줄(책의 RFI 17 · 21 · 28 · 43, SB 레이즈 24 · 림프 38) · 레버(SB 오픈 ·
+ *    SB 오픈 대응 '콜 없이' · BTN 오픈 '책과 같은 약 43%') · 자리 문장 · 형제 줄이 새 차트를 따라 바뀌었습니다.
  */
 
 const GOLDEN = new URL('./__golden__/line-sentences.tsv', import.meta.url);
@@ -73,7 +82,7 @@ describe('line golden corpus (§7.3)', () => {
   it('regenerates tests/__golden__/line-sentences.tsv byte for byte', () => {
     if (process.env.UPDATE_GOLDEN === '1') writeFileSync(GOLDEN, tsv);
     expect(existsSync(GOLDEN), 'tests/__golden__/line-sentences.tsv 가 없습니다 — UPDATE_GOLDEN=1 로 만들고 diff 를 리뷰하세요').toBe(true);
-    expect(tsv.split('\n').length).toBe(1089);
+    expect(tsv.split('\n').length).toBe(1096);
     const want = readFileSync(GOLDEN, 'utf8');
     if (tsv !== want) {
       // 어느 줄이 움직였는지 먼저 보여 줍니다(전체 diff 는 UPDATE_GOLDEN=1 로 다시 쓰고 git diff 로).
@@ -86,7 +95,8 @@ describe('line golden corpus (§7.3)', () => {
   });
 
   it('frame distribution snapshot', () => {
-    expect(frames).toEqual({ P0: 472, P0h: 15, P1: 31, P2: 195, P2c: 8, P2m: 122, P2h: 105, P3: 51, P3h: 57, P4: 33 });
+    // 책 차트로 다시 만든 뒤의 분포(이력 맨 아래 항목). 옛 차트: { P0: 472, P0h: 15, P1: 31, P2: 195, P2c: 8, P2m: 122, P2h: 105, P3: 51, P3h: 57, P4: 33 }.
+    expect(frames).toEqual({ P0: 514, P0h: 6, P1: 53, P2: 240, P2c: 7, P2m: 62, P2h: 57, P3: 61, P3h: 33, P4: 63 });
   });
 });
 

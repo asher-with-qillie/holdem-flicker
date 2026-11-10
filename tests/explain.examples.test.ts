@@ -26,6 +26,17 @@ import type { Action, Scenario, ScenarioKind } from '../src/poker/types';
  *  [콜드]   콜드 상황의 앞머리 '오픈과 3벳 뒤에'(책 5장 3절 — 앞의 오픈까지).
  *  [섞음]   P0h 의 '가끔' → 섞는 비중('3벳을 25% 섞고').
  *  [셋]     셋이 될 확률은 '약 12%'(11.8% — 용어집과 같은 말).
+ *
+ * 74개 차트를 책(MPT 5장)에 맞춰 다시 만든 뒤 다시 고정 — [책]:
+ *  - 칸이 스펙에서 맡은 점을 그대로 가르치면 문자열만 새 출력으로 바꿨습니다(KJo · A5s · 22 · KTs). 문자열마다 차트에서 다시 확인했습니다.
+ *  - 그 점이 그 칸에서 사라졌으면(섞던 칸이 순수해짐, 줄 모양이 바뀜) 같은 점을 가르치는 칸으로 옮기고 docs/EXPLAIN_SPEC.md
+ *    §3.6 · §4.3 도 함께 고쳤습니다: SB 오픈 85o → 75o(P0), BTN←HJ 76s → BB←UTG 87s(커넥터 P2m), HJ←UTG QQ → BTN←HJ AKo
+ *    (P3h · 주로), CO 콜드 QQ → JJ(콜드는 콜이 없음 · 주로 꼬리), BB 림프 55 → 44(체크 · P2c), BTN 림프 ATo → Q8o(절반만 레이즈),
+ *    BB←BTN 54s → BB←CO 54s(P4 커넥터 · 반반), SB←UTG QJs → HJ←BTN 3벳 KQo(P0h). vs_5bet 15개 차트에는 섞는 칸이 없어
+ *    QQ 를 남기고, 가르치는 점을 §5(a)(칸 이름) · P1 로 바꿨습니다.
+ *  - [레버] SB 오픈은 '포지션이 없어 레이즈 24%에 림프 38%를 섞어요', SB 오픈 대응은 '콜 없이 3벳 아니면 폴드'(콜 0%).
+ *  - 메모 유무(memo · example)는 이 판의 차트 메모 기준입니다. 메모를 고쳐 쓰는 단계에서 칸에 메모가 생기거나 없어지면
+ *    example 도 함께 바뀝니다(메모가 있으면 예시 없음, §4.2-⑦).
  */
 
 /** §3.6 의 스트립 표기: · 유령, ┆ 도달 불가, _ 빈칸, ▌ 경계 막대, ( ) 링, a/b 섞인 칸(1·2순위). */
@@ -64,21 +75,25 @@ interface Case {
 const CASES: Case[] = [
   {
     s: { kind: 'rfi', hero: 'SB' },
-    hand: '85o',
-    title: 'SB 오픈 · 85o',
+    hand: '75o',
+    title: 'SB 오픈 · 75o',
     capsule: '폴드',
-    // 스펙 표기 `· · · · · · · │ F F (F) F F F` 의 '│'는 범례에 없는 구분선이라 뺐습니다(유령 7칸 + 줄 칸 6칸 = 13).
-    strip: '· · · · · · · F F (F) F F F',
-    sentence: 'SB는 오프수트 8을 전부 폴드해요.',
+    // [책] 옛 85o 의 줄(오프수트 8)은 SB 가 87o 를 림프해 P0 이 아니게 됐습니다('87o만 림프해요', P2). 전부 폴드인 줄(P0)은
+    // SB 의 오프수트 7 이 이어받습니다. 스펙 표기의 '│'는 범례에 없는 구분선이라 뺐습니다(유령 8칸 + 줄 칸 5칸 = 13).
+    strip: '· · · · · · · · F (F) F F F',
+    sentence: 'SB는 오프수트 7을 전부 폴드해요.',
     frame: 'P0',
     em: 15.3,
-    sibling: '수티드 8은 85s까지 오픈해요.',
+    sibling: '수티드 7은 73s까지 림프해요.', // [책] SB 는 레이즈 · 림프 · 폴드 세 가지(책 5장 2절) — 76s~73s 는 림프, 72s 는 폴드.
     mix: null,
     partial: null,
-    numbers: 'UTG 18% · HJ 21% · CO 29% · BTN 46% · SB 46%',
-    lever: 'SB는 BB만 남아도 포지션이 없어 BTN만큼인 46%를 오픈해요.', // [레버]
+    // [책] SB 칸은 레이즈와 림프를 따로 댑니다(책 5장 2절: 림프 약 38% · 레이즈 약 24%).
+    numbers: 'UTG 17% · HJ 21% · CO 28% · BTN 43% · SB 레이즈 24% · 림프 38%',
+    // [책] 숫자는 책 5장 2절(레이즈 약 24% · 림프 약 38%). 책이 드는 림프의 이유는 '포지션이 없어서'가 아니라 반값 할인입니다
+    // (포지션이 없는 어려운 자리지만 할인이 있어 SB 에서만 림프가 의미 있음) — 레버 문구는 생성기(sheet.ts seatLever)의 것을 고정합니다.
+    lever: 'SB는 포지션이 없어 레이즈 24%에 림프 38%를 섞어요.',
     tiles: 'UTG 폴드 · HJ 폴드 · CO 폴드 · BTN 폴드 · SB 폴드',
-    across: '85o는 어느 자리에서도 오픈하지 않아요.',
+    across: '75o는 어느 자리에서도 오픈하지 않아요.',
     example: null,
     memo: false,
   },
@@ -94,8 +109,8 @@ const CASES: Case[] = [
     sibling: '수티드 K는 K9s까지 오픈해요.',
     mix: '오픈 50% · 폴드 50%',
     partial: '오픈과 폴드는 가치가 비슷해요. 채점은 오픈이 정답이에요.', // [부분] [무차별]
-    numbers: 'UTG 18% · HJ 21% · CO 29% · BTN 46% · SB 46%',
-    lever: 'UTG는 뒤에 5명이 남아 18%만 오픈해요.',
+    numbers: 'UTG 17% · HJ 21% · CO 28% · BTN 43% · SB 레이즈 24% · 림프 38%', // [책] 책의 RFI 폭 17 · 21 · 28 · 43
+    lever: 'UTG는 뒤에 5명이 남아 17%만 오픈해요.',
     tiles: 'UTG 절반만 오픈 · HJ 오픈 · CO 오픈 · BTN 오픈 · SB 오픈',
     across: 'KJo는 UTG에서 절반만, HJ부터는 항상 오픈해요.',
     example: null,
@@ -106,19 +121,22 @@ const CASES: Case[] = [
     hand: 'A5s',
     title: 'CO 3벳 대응 · A5s',
     capsule: '4벳',
-    strip: '· 4 C C C C/F F F F (4) 4 F F',
-    // [이름] A9s(콜 75 · 폴드 25)가 'ATs까지 콜' 뒤에서 나머지(폴드)로 읽혔습니다 — '까지'를 주로 칸까지 넣습니다.
-    sentence: 'CO는 BTN 3벳에 수티드 A를 AKs·A5s·A4s만 4벳하고, A9s까지 콜해요.',
+    strip: '· 4 4/C C C C/F 4/F F F (4) 4 4 4',
+    // [책] 포지션 없이 3벳을 받으면 콜하면 플랍 이후 내내 불리해 4벳을 늘립니다(책 5장 3절) — 이 차트에서는 휠 A(A5s~A2s)가
+    // 전부 4벳, A8s 는 4벳 50 · 폴드 50, AQs 는 4벳·콜 반반. 섞인 칸 둘의 이름까지 대면 42em 을 넘어, 주어의 상대 액션을 뺀
+    // noCtx 꼴('CO에서 …')이 됩니다(상대는 리빌 바로 위 상황 줄이 말합니다).
+    // [이름] A9s(콜 75 · 폴드 25)는 이름 없이 'A9s까지는 콜'이 덮습니다 — 0.6 이상이라 덮어도 되는 비중(§3.4).
+    sentence: 'CO에서 AKs·A5s~A2s는 4벳, A8s는 절반만 4벳, AQs는 4벳·콜 반반, A9s까지는 콜해요.',
     frame: 'P4',
-    em: 31.6,
-    // [이름] AJo(콜 50 · 폴드 50)를 부릅니다 — 세 항목이라 칸 나열 꼴.
-    sibling: '오프수트 A 중 AKo는 4벳, AQo는 콜, AJo는 절반만 콜해요.',
+    em: 38.9,
+    // [이름] AQo(4벳·콜 반반) · AJo(4벳 50 · 폴드 50)를 부릅니다 — 세 항목이라 칸 나열 꼴.
+    sibling: '오프수트 A 중 AKo는 4벳, AQo는 4벳·콜 반반, AJo는 절반만 4벳해요.',
     mix: null,
     partial: null,
-    numbers: 'BTN 3벳 8% → 내 콜 9% · 4벳 3%',
+    numbers: 'BTN 3벳 12% → 내 콜 7% · 4벳 6%',
     lever: 'CO는 BTN보다 포지션이 없어요.',
-    tiles: 'UTG 주로 4벳 · HJ 주로 4벳 · CO 4벳',
-    across: 'A5s는 BTN 3벳에 UTG·HJ에서 주로, CO에서 항상 4벳해요.',
+    tiles: 'UTG 4벳 · HJ 4벳 · CO 4벳',
+    across: 'A5s는 BTN 3벳에 어느 자리에서나 4벳해요.',
     example: null,
     memo: true,
   },
@@ -135,30 +153,36 @@ const CASES: Case[] = [
     sibling: null,
     mix: null,
     partial: null,
-    numbers: 'CO 오픈 29% → 내 콜 37% · 3벳 9%',
+    numbers: 'CO 오픈 28% → 내 콜 29% · 3벳 9%',
     lever: 'BB는 이미 1bb를 냈으니 1.5bb만 더 내면 돼요.',
-    tiles: 'BTN 콜 · SB 폴드 · BB 콜',
-    across: '22는 CO 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.', // [§5g]
+    tiles: 'BTN 절반만 콜 · SB 폴드 · BB 콜',
+    // [책] 책 5장 5절: CO처럼 넓게 열수록 블라인드의 스퀴즈가 늘어 BTN 의 콜 범위는 줄어듭니다. 이 차트에서는 BTN 이 CO 오픈에
+    // 33 · 22 를 절반만 콜해(어느 패인지는 책이 아니라 차트) 'SB에서만 폴드' 꼴(§5g)이 아니라 S-c 칸 나열이 됩니다 — 절반만 콜하는
+    // BTN 을 콜로 덮지 않습니다.
+    across: '22는 CO 오픈에 BTN에서 절반만 콜, SB에서 폴드, BB에서 콜이에요.',
     example: '내 2♠2♦ → 플랍에서 셋이 될 확률은 약 12%예요.', // [셋] [§5h] 콜하는 작은 페어 — 셋 확률이 이 결정의 이유예요(THEORY_SPEC §1-2).
     memo: false,
   },
   {
-    s: { kind: 'vs_open', hero: 'BTN', villain: 'HJ' },
-    hand: '76s',
-    title: 'BTN 오픈 대응 · 76s',
+    s: { kind: 'vs_open', hero: 'BB', villain: 'UTG' },
+    hand: '87s',
+    title: 'BB 오픈 대응 · 87s',
     capsule: '콜',
-    strip: '_ · · · · C C C (C) C C/F▌F F',
-    sentence: 'BTN은 HJ 오픈에 수티드 커넥터를 65s까지 콜하고, 54s는 절반만 콜해요.',
+    // [책] 옛 칸 BTN ← HJ 76s 는 BTN 이 이제 오픈에 콜을 5~7%만 하고 3벳을 양극화해(책 5장 5절) P4 줄이 됐습니다
+    // ('T9s는 콜, 98s는 3벳·콜 반반, 54s까지는 3벳'). 수티드 커넥터 줄의 P2m(빈칸 · 유령 4칸 + 경계 막대)은 BB ← UTG 가
+    // 이어받습니다. 76s~54s(콜 75 · 3벳 25)는 이름 없이 '54s까지 콜'이 덮습니다(§9: '까지'는 full · 주로 칸까지).
+    strip: '_ · · · · C C (C) C/3 C/3 C/3 C/F▌F',
+    sentence: 'BB는 UTG 오픈에 수티드 커넥터를 54s까지 콜하고, 43s는 절반만 콜해요.',
     frame: 'P2m',
     em: 32.9,
     sibling: null,
     mix: null,
     partial: null,
-    numbers: 'HJ 오픈 21% → 내 콜 12% · 3벳 6%',
-    lever: 'BTN은 포지션이 있어도 콜하면 뒤에서 스퀴즈를 받기 쉬워요.', // [레버]
-    tiles: 'CO 주로 콜 · BTN 콜 · SB 폴드 · BB 주로 콜',
-    across: '76s는 HJ 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.', // [§5g]
-    example: null,
+    numbers: 'UTG 오픈 17% → 내 콜 23% · 3벳 6%',
+    lever: 'BB는 이미 1bb를 냈으니 1.5bb만 더 내면 돼요.',
+    tiles: 'HJ 폴드 · CO 폴드 · BTN 3벳·콜 반반 · SB 폴드 · BB 콜',
+    across: '87s는 UTG 오픈에 HJ·CO·SB에서 폴드, BTN에서 3벳·콜 반반, BB에서 콜이에요.', // [자리] 반반인 BTN 은 캡슐 라벨로
+    example: null, // 수티드 커넥터에는 예시 모양이 없습니다(exampleShape).
     memo: false,
   },
   {
@@ -170,32 +194,36 @@ const CASES: Case[] = [
     sentence: 'SB는 UTG 오픈에 수티드 K 중 늘 3벳하는 건 KQs까지이고, KJs는 절반만 3벳해요.', // [§5d]
     frame: 'P2m',
     em: 36.6,
-    sibling: '오프수트 K 중 KQo는 절반만 3벳하고, 그 아래 칸은 폴드해요.', // [§5c]
+    // [책] SB 는 콜 없이 강한 패부터 선형으로 3벳해(책 5장 4절 — 이 차트는 7%) KQo 도 3벳하지 않습니다 — 옛 'KQo는 절반만 3벳하고,
+    // 그 아래 칸은 폴드해요'([§5c])가 줄 전체 폴드로.
+    sibling: '오프수트 K는 전부 폴드해요.',
     mix: null,
     partial: null,
-    numbers: 'UTG 오픈 18% → 내 3벳 8% · 콜 1%',
-    lever: 'SB는 콜을 거의 안 하고, 대부분 3벳 아니면 폴드해요.', // [레버]
-    tiles: 'HJ 콜 · CO 콜 · BTN 콜 · SB 폴드 · BB 콜',
-    across: 'KTs는 UTG 오픈에 SB에서만 폴드하고, 다른 자리에서는 콜해요.', // [§5g]
+    numbers: 'UTG 오픈 17% → 내 3벳 7%', // [책] 콜 0% 라 숫자 줄에서 빠집니다(0인 액션은 뺌, §4.2-④).
+    lever: 'SB는 콜 없이 3벳 아니면 폴드해요.', // [책] 책 5장 5절 '앞자리의 오픈에는 콜 없이 3-bet 아니면 폴드' — 콜 비중이 정확히 0
+    tiles: 'HJ 폴드 · CO 폴드 · BTN 콜 · SB 폴드 · BB 콜',
+    across: 'KTs는 UTG 오픈에 BTN·BB에서만 콜해요.', // [책] HJ · CO 도 콜 없이 3벳 아니면 폴드 — 콜하는 자리는 BTN · BB 뿐(S-b)
     example: '내 K♠10♠ vs 상대 A♦K♦ → K를 맞춰도 킥커에서 밀려요.', // 폴드 칸이라 지배 예시가 남습니다.
     memo: false,
   },
   {
-    s: { kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' },
-    hand: 'QQ',
-    title: 'HJ 4벳 대응 · QQ',
-    capsule: '주로 콜',
-    strip: 'J J (C/J) C/F ┆ ┆ ┆ ┆ ┆ ┆ ┆ ┆ ┆',
-    sentence: 'HJ는 UTG 4벳에 포켓페어 중 KK까지는 올인하고, QQ는 주로, JJ는 절반만 콜해요.',
+    s: { kind: 'vs_4bet', hero: 'BTN', villain: 'HJ' },
+    hand: 'AKo',
+    title: 'BTN 4벳 대응 · AKo',
+    capsule: '주로 올인',
+    // [책] 옛 칸 HJ ← UTG QQ(콜 75 · 올인 25)는 콜 100% 가 됐습니다(책 5장 5절: 포지션이 있으면 KK보다 약한 페어는 대부분 콜).
+    // 'P3h · 주로 칸 · 2순위 25% 라 부분 정답 없음 · 점선 칸'은 BTN ← HJ 의 AKo(올인 75 · 콜 25)가 이어받습니다.
+    strip: '· (J/C) C/F▌F ┆ ┆ ┆ ┆ ┆ ┆ ┆ ┆ ┆',
+    sentence: 'BTN은 HJ 4벳에 오프수트 A 중 AKo는 주로 올인하고, AQo는 절반만 콜해요.',
     frame: 'P3h',
-    em: 36.4,
-    sibling: null,
-    mix: '콜 75% · 올인 25%',
+    em: 33.7,
+    sibling: '수티드 A 중 AKs는 주로 올인하고, AJs까지는 콜해요.',
+    mix: '올인 75% · 콜 25%',
     partial: null, // 25 < 40
-    numbers: 'UTG 4벳 2% → 내 올인 2% · 콜 1%',
-    lever: 'HJ는 UTG보다 포지션이 있어요.',
-    tiles: 'HJ 주로 콜 · CO 주로 콜 · BTN 주로 콜 · SB 올인·콜 반반 · BB 올인·콜 반반',
-    across: 'QQ는 UTG 4벳에 SB·BB에서는 올인과 콜을 반반 섞고, 다른 자리에서는 주로 콜해요.', // [자리] [§5c]
+    numbers: 'HJ 4벳 5% → 내 콜 3% · 올인 2%',
+    lever: 'BTN은 HJ보다 포지션이 있어요.',
+    tiles: 'CO 주로 올인 · BTN 주로 올인 · SB 주로 올인 · BB 주로 올인',
+    across: 'AKo는 HJ 4벳에 어느 자리에서나 주로 올인해요.',
     example: null,
     memo: true,
   },
@@ -203,117 +231,132 @@ const CASES: Case[] = [
     s: { kind: 'vs_5bet', hero: 'CO', villain: 'BTN' },
     hand: 'QQ',
     title: 'CO 올인 대응 · QQ',
-    capsule: '주로 콜',
-    strip: 'C C (C/F) ┆ ┆ ┆ ┆ ┆ ┆ ┆ ┆ ┆ ┆',
-    sentence: 'CO는 BTN 올인에 포켓페어를 KK까지 콜하고, QQ는 주로 콜해요.',
-    frame: 'P2m',
-    em: 28.4,
+    capsule: '콜',
+    // [책] 올인(5벳)에는 TT 이상과 AK 만 콜하고(책 5장 3절), vs_5bet 15개 차트에 섞는 칸이 하나도 없습니다. 옛 'QQ는 주로 콜'
+    // (콜 75 · 폴드 25)이 콜 100% 가 돼, 이 칸은 이제 §5(a) — 도달 칸이 줄의 일부뿐이면 줄 이름 대신 칸 이름으로
+    // ('AA~TT을', 99 아래는 CO 가 4벳하지 않아 점선) — 와 P1 을 보여 줍니다. '주로 · P2m 꼬리'는 9번(콜드 JJ)이 이어받습니다.
+    strip: 'C C (C) C C ┆ ┆ ┆ ┆ ┆ ┆ ┆ ┆',
+    sentence: 'CO는 BTN 올인에 AA~TT을 콜해요.',
+    frame: 'P1',
+    em: 15.2,
     sibling: null,
-    mix: '콜 75% · 폴드 25%',
+    mix: null,
     partial: null,
-    numbers: 'BTN 올인 2% → 내 콜 2%',
+    numbers: 'BTN 올인 2% → 내 콜 3%',
     lever: null,
-    tiles: 'UTG 폴드 · HJ 절반만 콜 · CO 주로 콜',
-    // [자리] 'UTG에서만 폴드'는 HJ(콜 50 · 폴드 50)를 콜로 덮었습니다.
-    across: 'QQ는 BTN 올인에 UTG에서 폴드, HJ에서 절반만 콜, CO에서 콜이에요.',
+    tiles: 'UTG 콜 · HJ 콜 · CO 콜',
+    across: 'QQ는 BTN 올인에 어느 자리에서나 콜해요.',
     example: null,
     memo: true,
   },
   {
     s: { kind: 'cold_4bet', hero: 'CO', extras: { opener: 'UTG', threeBettor: 'HJ' } },
-    hand: 'QQ',
-    title: 'CO 콜드 4벳 · QQ',
-    capsule: '4벳·콜 반반',
-    strip: '4 4 (4/C)▌F/C F F F F F F F F F',
-    sentence: 'CO는 오픈과 3벳 뒤에 포켓페어를 KK까지 4벳하고, QQ는 4벳과 콜을 반반 섞어요.', // [콜드]
+    hand: 'JJ',
+    title: 'CO 콜드 4벳 · JJ',
+    capsule: '주로 4벳',
+    // [책] 오픈과 3벳 사이에서는 4벳 아니면 폴드라(책 5장 3절) 콜드 4벳 차트에 콜이 없고, 옛 QQ(4벳·콜 반반)가 4벳 100% 가
+    // 됐습니다. 두 계속 액션의 반반('더 공격적인 …')은 12번이 보여 주고, 여기서는 JJ(4벳 75 · 폴드 25)가 P2m 꼬리의 주로 칸
+    // (옛 8번 'QQ는 주로 콜'의 모양)과 부분 정답 없음(25 < 40)을 보여 줍니다.
+    strip: '4 4 4 (4/F)▌F F F F F F F F F',
+    sentence: 'CO는 오픈과 3벳 뒤에 포켓페어를 QQ까지 4벳하고, JJ는 주로 4벳해요.', // [콜드]
     frame: 'P2m',
-    em: 36.3, // [콜드]
+    em: 31.7,
     sibling: null,
-    mix: '4벳 50% · 콜 50%',
-    partial: '4벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 4벳이 정답이에요.', // [무차별]
-    numbers: '내 4벳 2% · 콜 1%',
+    mix: '4벳 75% · 폴드 25%',
+    partial: null, // 25 < 40
+    numbers: '내 4벳 3%', // [책] 콜 0% 라 빠집니다.
     lever: null,
-    tiles: 'CO 4벳·콜 반반 · BTN 4벳·콜 반반 · SB 4벳·콜 반반 · BB 4벳·콜 반반',
-    across: 'QQ는 오픈과 3벳 뒤에 어느 자리에서나 4벳과 콜을 반반 섞어요.', // [콜드]
+    tiles: 'CO 주로 4벳 · BTN 4벳 · SB 4벳 · BB 4벳',
+    across: 'JJ는 오픈과 3벳 뒤에 CO에서 주로, BTN~BB에서 항상 4벳해요.', // [콜드] S-a 비중어가 다른 꼴('주로 · 항상')
     example: null,
     memo: true,
   },
   {
-    s: { kind: 'vs_limp', hero: 'BB', extras: { limper: 'HJ' } },
-    hand: '55',
-    title: 'BB 림프 대응 · 55',
+    // 림퍼는 언제나 SB 입니다(scenarios.limperOf — BB 차트는 'SB 가 림프했고 BB 차례').
+    s: { kind: 'vs_limp', hero: 'BB', extras: { limper: 'SB' } },
+    hand: '44',
+    title: 'BB 림프 대응 · 44',
     capsule: '체크',
-    strip: 'R R R R R R R R R▌(X) X X X',
-    sentence: 'BB는 림프에 포켓페어를 66까지 레이즈하고, 55부터는 체크해요.',
+    // [책] BB 는 SB 의 림프에 55 이상을 레이즈해(BOOK_CHART_SPEC §5 — 책이 칸을 주지 않는 곳이라 공개 솔버 자료로 채움) 옛 55(체크)가
+    // 레이즈가 됐습니다. 체크 칸 · P2c · 공짜 플랍 레버는 바로 아래 44 가 이어받습니다.
+    strip: 'R R R R R R R R R R▌(X) X X',
+    sentence: 'BB는 림프에 포켓페어를 55까지 레이즈하고, 44부터는 체크해요.',
     frame: 'P2c',
     em: 29.0,
     sibling: null,
     mix: null,
     partial: null,
-    numbers: '내 레이즈 12% · 나머지 체크',
+    numbers: '내 레이즈 40% · 나머지 체크',
     lever: 'BB는 이미 1bb를 냈으니 체크하면 공짜로 플랍을 봐요.',
-    tiles: 'HJ 폴드 · CO 레이즈 · BTN 절반만 레이즈 · SB 레이즈 · BB 체크',
-    // [자리] 'CO~SB에서 레이즈'가 BTN(레이즈 50 · 폴드 50)을 덮었습니다.
-    across: '55는 림프에 HJ에서 폴드, CO·SB에서 레이즈, BTN에서 절반만 레이즈, BB에서 체크예요.',
-    example: null,
-    memo: true,
+    tiles: 'HJ 레이즈 · CO 레이즈 · BTN 레이즈 · SB 레이즈 · BB 체크',
+    // [책] HJ · CO · BTN 은 림퍼를 평소 오픈 범위만큼 아이솔레이트하고(책 4장 7절: 뒤에 공격적인 사람이 있으면 평소 오픈 범위
+    // 수준으로) SB 도 44 를 레이즈합니다 — 레이즈하는 넷을 묶고 BB 의 체크를 따로.
+    across: '44는 림프에 HJ~SB에서 레이즈하고, BB에서는 체크해요.',
+    example: '내 4♠4♦ → 플랍에서 셋이 될 확률은 약 12%예요.', // [셋] [§5h] 체크로 플랍을 보는 작은 페어 — 셋 확률이 이유예요.
+    memo: false,
   },
   {
     s: { kind: 'vs_limp', hero: 'BTN', extras: { limper: 'HJ' } },
-    hand: 'ATo',
-    title: 'BTN 림프 대응 · ATo',
+    hand: 'Q8o',
+    title: 'BTN 림프 대응 · Q8o',
     capsule: '절반만 레이즈',
-    strip: '· R R R (R/F) R/F▌F F F F F F F',
-    sentence: 'BTN은 림프에 오프수트 A를 AJo까지 레이즈하고, ATo·A9o는 절반만 레이즈해요.',
+    // [책] HJ · CO · BTN 은 림퍼를 평소 오픈 범위만큼 아이솔레이트해(책 4장 7절 — 이 차트는 BTN 오픈과 칸까지 같음) 옛 ATo(레이즈 50 · 폴드 50)가 레이즈 100% 가
+    // 됐습니다. '절반만 레이즈 · 부분 정답 · S-b′ 자리 문장'은 BTN 오픈과 같은 50% 칸인 Q8o 가 이어받습니다.
+    strip: '· · · R R R (R/F)▌F F F F F F',
+    sentence: 'BTN은 림프에 오프수트 Q를 Q9o까지 레이즈하고, Q8o는 절반만 레이즈해요.',
     frame: 'P2m',
-    em: 36.1,
-    // [이름] 'A4s까지'가 A7s·A6s(레이즈 50 · 폴드 50)를 덮었습니다 — '나머지 전부' 꼴.
-    sibling: '수티드 A는 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.',
+    em: 34,
+    sibling: '수티드 Q는 전부 레이즈해요.',
     mix: '레이즈 50% · 폴드 50%',
     partial: '레이즈와 폴드는 가치가 비슷해요. 채점은 레이즈가 정답이에요.', // [부분] [무차별]
-    numbers: '내 레이즈 17%',
+    numbers: '내 레이즈 43%',
     lever: null,
     tiles: 'HJ 폴드 · CO 폴드 · BTN 절반만 레이즈 · SB 폴드 · BB 체크',
-    across: 'ATo는 림프에 BTN에서 절반만 레이즈하고, 다른 자리에서는 폴드나 체크예요.', // [자리] [§5c]
-    example: '내 A♠10♦ vs 상대 A♦K♠ → A를 맞춰도 킥커에서 밀려요.', // [§5h] 섞기 칸(레이즈 50 · 폴드 50) — 접는 절반의 이유예요.
+    across: 'Q8o는 림프에 BTN에서 절반만 레이즈하고, 다른 자리에서는 폴드나 체크예요.', // [자리] [§5c]
+    example: null, // Q8o 에는 예시 모양이 없습니다(exampleShape — 킥커 대결 계열이 아님). 메모도 없어 ⑦ 은 숨김.
     memo: false,
   },
   {
-    s: { kind: 'vs_open', hero: 'BB', villain: 'BTN' },
+    s: { kind: 'vs_open', hero: 'BB', villain: 'CO' },
     hand: '54s',
     title: 'BB 오픈 대응 · 54s',
     capsule: '3벳·콜 반반',
-    strip: '_ · · · · C/3 C/3 C/3 C/3 3/C (3/C) C C/F',
-    // [이름] 65s·54s 는 3벳·콜 반반이고 32s 는 콜 50 · 폴드 50 — '65s·54s만 3벳'과 '나머지는 전부 콜'이 둘 다 과장이었습니다.
-    sentence: 'BB는 BTN 오픈에 수티드 커넥터를 콜하고, 65s·54s는 3벳·콜 반반, 32s는 절반만 콜해요.',
+    // [책] BB 는 BTN 상대로 선형으로 3벳해(책 5장 5절: BN 을 상대로 선형, SB 를 상대로 양극화 — 4절이 짚은 예외) 옛 BB ← BTN
+    // 커넥터 줄이 '43s까지 콜'(P2)이 됐습니다. '단조롭지 않은 커넥터 줄(P4) · 3벳·콜 반반 · 더 공격적인 3벳'은 BB ← CO 가
+    // 이어받습니다 — 87s~54s 를 블러프 쪽 3벳과 콜로 반반, 그 위아래 98s 까지 · 43s 는 콜.
+    strip: '_ · · · · C C 3/C 3/C 3/C (3/C) C F',
+    sentence: 'BB는 CO 오픈에 수티드 커넥터 중 98s까지는 콜, 87s~54s는 3벳·콜 반반, 43s는 콜해요.',
     frame: 'P4',
-    em: 39.8,
+    em: 39.3,
     sibling: null,
     mix: '3벳 50% · 콜 50%',
     partial: '3벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 3벳이 정답이에요.', // [무차별]
-    numbers: 'BTN 오픈 46% → 내 콜 48% · 3벳 13%',
+    numbers: 'CO 오픈 28% → 내 콜 29% · 3벳 9%',
     lever: 'BB는 이미 1bb를 냈으니 1.5bb만 더 내면 돼요.',
-    tiles: 'SB 폴드 · BB 3벳·콜 반반',
-    across: '54s는 BTN 오픈에 SB에서 폴드, BB에서 3벳·콜 반반이에요.',
+    tiles: 'BTN 3벳 · SB 폴드 · BB 3벳·콜 반반',
+    across: '54s는 CO 오픈에 BTN에서 3벳, SB에서 폴드, BB에서 3벳·콜 반반이에요.',
     example: null,
     memo: false,
   },
   {
-    s: { kind: 'vs_open', hero: 'SB', villain: 'UTG' },
-    hand: 'QJs',
-    title: 'SB 오픈 대응 · QJs',
+    s: { kind: 'vs_3bet', hero: 'HJ', villain: 'BTN' },
+    hand: 'KQo',
+    title: 'HJ 3벳 대응 · KQo',
     capsule: '주로 폴드',
-    strip: '· · · (F/3) F F F F F F F F F',
-    sentence: 'SB는 UTG 오픈에 수티드 Q 중 QJs만 3벳을 25% 섞고, 그 아래 칸은 폴드해요.', // [§5c] [섞음]
+    // [책] SB 가 오픈에 콜 없이 선형으로 3벳해(책 5장 4절) 옛 칸 SB ← UTG QJs(폴드 75 · 3벳 25)가 폴드 100% 가 됐고,
+    // vs_open 에는 P0h 줄이 하나도 남지 않았습니다. 'P0h · 주로 폴드 · 섞는 비중([섞음])'은 HJ ← BTN 3벳의 KQo
+    // (폴드 75 · 4벳 25)가 이어받습니다. 나머지 칸은 '그 아래 칸은' 대신 이름으로 댑니다(KJo·KTo).
+    strip: '· · (F/4) F F ┆ ┆ ┆ ┆ ┆ ┆ ┆ ┆',
+    sentence: 'HJ는 BTN 3벳에 오프수트 K 중 KQo만 4벳을 25% 섞고, KJo·KTo는 폴드해요.', // [섞음]
     frame: 'P0h',
-    em: 34, // [섞음]
-    sibling: '오프수트 Q는 전부 폴드해요.',
-    mix: '폴드 75% · 3벳 25%',
+    em: 33.9,
+    sibling: '수티드 K는 KTs까지 콜해요.', // KQs(콜 75 · 4벳 25)는 '까지'가 덮습니다.
+    mix: '폴드 75% · 4벳 25%',
     partial: null,
-    numbers: 'UTG 오픈 18% → 내 3벳 8% · 콜 1%',
-    lever: 'SB는 콜을 거의 안 하고, 대부분 3벳 아니면 폴드해요.', // [레버]
-    tiles: 'HJ 콜 · CO 콜 · BTN 콜 · SB 주로 폴드 · BB 주로 콜',
-    across: 'QJs는 UTG 오픈에 SB에서는 주로 폴드하고, 다른 자리에서는 콜해요.', // [자리] [§5c]
+    numbers: 'BTN 3벳 9% → 내 콜 6% · 4벳 5%',
+    lever: 'HJ는 BTN보다 포지션이 없어요.',
+    tiles: 'UTG 주로 폴드 · HJ 주로 폴드 · CO 절반만 4벳',
+    across: 'KQo는 BTN 3벳에 CO에서는 절반만 4벳하고, 다른 자리에서는 주로 폴드해요.', // [자리] S-b — 소수의 비중어와 다수의 비중어를 함께
     example: null,
     memo: true,
   },

@@ -676,7 +676,9 @@ function AtlasBody({
       </div>
 
       <div data-kind="vs_limp">
-        <Section title="림프 대응 · 앞에서 한 명이 림프" tag="사람 작성">
+        {/* 꼬리표 '사람 작성'은 지웠어요: 차트를 책에 맞추면서 HJ~SB 칸은 책의 기본 조언(평소 오픈 범위만큼 아이솔레이트)대로,
+            BB 칸은 공개 솔버 자료로 채워서 '사람이 만든 차트'가 아니에요. 출처는 아래 면책 문장이 말해요. */}
+        <Section title="림프 대응 · 앞에서 한 명이 림프">
           <SeatStrip cells={limp.cells} kind="vs_limp" marks={marks} onSelect={onTap} />
           <Digest sec={limp} />
           {/* BB 칸만 림퍼가 정해져 있어요 — 책의 균형 전략에서 림프하는 자리는 SB 뿐이라 BB 는 SB 의 림프를 받습니다. */}

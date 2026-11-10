@@ -19,6 +19,7 @@ import { ABOUT } from '../../../screens/coach/AxisSheet';
 import { BASICS, BASICS_HEADING, BASICS_NOTE, FULL_GATE, coachEmptyCopy } from '../../../screens/coach/CoachEmpty';
 import { computeAxes } from '../axes';
 import { localCoach } from '../copy';
+import { equityVs } from '../../../../scripts/equity-lib';
 import { PATTERN_RULES } from '../patterns';
 import type { AxisId, AxisView, CoachDigest, CoachMistake, PatternHit } from '../types';
 
@@ -187,12 +188,39 @@ describe('규칙이 잡는 자리와 문구의 자리 수가 맞다', () => {
 describe('코치 문구가 차트에 대해 하는 말', () => {
   const STRONG = ['AA', 'KK', 'QQ', 'AKs', 'AKo'];
 
-  it("call_not_raise '3벳에는 센 패와 작은 수티드 A가 들어가요' — 모든 vs_open 에서 AA·KK·QQ·AK 와 A5s·A4s 는 늘 3벳", () => {
-    expect(PATTERN_RULES.find((r) => r.id === 'call_not_raise')!.advice[1]).toBe('3벳에는 센 패와 작은 수티드 A가 들어가요.');
-    const charts = defsOf('vs_open');
-    expect(charts.length).toBeGreaterThan(0);
-    for (const s of charts) {
-      for (const h of [...STRONG, 'A5s', 'A4s']) expect(weight(s, h, 'threebet'), `${s.hero}:${s.villain} ${h}`).toBe(1);
+  it("call_not_raise '콜 범위가 없으면 센 패부터 3벳해요' — 콜이 0인 vs_open 은 전부 선형이고 AA·KK·QQ·AK 를 늘 3벳", () => {
+    // 예전 문장 '3벳에는 센 패와 작은 수티드 A가 들어가요'(모든 vs_open 에서 AA·KK·QQ·AK 와 A5s·A4s 를 늘 3벳)는 차트를 책에
+    // 맞춘 뒤 거짓이 됐어요 — HJ vs UTG 의 A4s 는 절반, SB vs UTG · HJ 의 A4s 는 폴드예요(책 5장 4절: 콜 범위가 없는 HJ·CO·SB 는
+    // 선형으로 3벳). 새 문장은 조건문이라, 콜이 0인 차트마다 '강한 패부터 차례로'를 상대 오픈 범위에 대한 승률 순서로 다시 계산해요
+    // (tests/book-charts.test.ts 의 선형도와 같은 잣대: 3벳 조합의 80% 이상이 승률 상위 1.5배 폭 안, 88 이하 작은 페어는 책이 말한 예외).
+    expect(PATTERN_RULES.find((r) => r.id === 'call_not_raise')!.advice[1]).toBe('콜 범위가 없으면 센 패부터 3벳해요.');
+    const noCall = defsOf('vs_open').filter((s) => share(s, 'call') === 0);
+    // 콜 범위가 없는 자리는 HJ · CO · SB 이고(7장), 콜 범위가 있는 BTN · BB 는 이 문장이 덮지 않아요.
+    expect(noCall.map((s) => `${s.hero}:${s.villain}`).sort()).toEqual(['CO:HJ', 'CO:UTG', 'HJ:UTG', 'SB:BTN', 'SB:CO', 'SB:HJ', 'SB:UTG']);
+    for (const s of defsOf('vs_open')) if (s.hero === 'BTN' || s.hero === 'BB') expect(share(s, 'call'), `${s.hero}:${s.villain}`).toBeGreaterThan(0);
+    const eqCache = new Map<string, Record<string, number>>();
+    for (const s of noCall) {
+      for (const h of STRONG) expect(weight(s, h, 'threebet'), `${s.hero}:${s.villain} ${h}`).toBe(1);
+      const spec = `chart:rfi:${s.villain}:raise`;
+      if (!eqCache.has(spec)) eqCache.set(spec, Object.fromEntries(ALL_HANDS.map((h) => [h, equityVs(h, spec, 1200, 7).eq])));
+      const eq = eqCache.get(spec)!;
+      const total = ALL_HANDS.reduce((t, h) => t + weight(s, h, 'threebet') * combos(h), 0);
+      const top = new Set<string>();
+      let acc = 0;
+      for (const h of [...ALL_HANDS].sort((x, y) => eq[y] - eq[x])) {
+        if (acc >= total * 1.5) break;
+        top.add(h);
+        acc += combos(h);
+      }
+      let inTop = 0;
+      let counted = 0;
+      for (const h of ALL_HANDS) {
+        const c = weight(s, h, 'threebet') * combos(h);
+        if (!c || (h.length === 2 && '2345678'.includes(h[0]))) continue;
+        counted += c;
+        if (top.has(h)) inTop += c;
+      }
+      expect(inTop / counted, `${s.hero}:${s.villain} 선형도`).toBeGreaterThanOrEqual(0.8);
     }
   });
 

@@ -46,8 +46,12 @@ import {
 } from './sessionStore';
 
 const BASE: SessionConfig = { deck: 'rfi', positions: ['UTG', 'HJ', 'CO'], size: 10, speed: 'normal', exposure: false, manual: false };
-/** call 50 % / fold 50 % → answer call, fold = partial (≥ 0.4), fourbet = wrong. */
-const MIXED_KEY = 'vs_3bet:UTG:HJ|ATs';
+/**
+ * call 50 % / fold 50 % → answer call, fold = partial (≥ 0.4), fourbet = wrong (weight 0).
+ * Re-pointed after the book-chart rebuild: UTG vs HJ ATs is now call 75 / fold 25 (fold < 0.4 is no
+ * longer partial); AQo in the same chart is the call 50 / fold 50 cell, with no 4bet at all.
+ */
+const MIXED_KEY = 'vs_3bet:UTG:HJ|AQo';
 
 function start(over: Partial<SessionConfig> = {}) {
   const r = startSession({ ...BASE, ...over });

@@ -72,7 +72,7 @@ const VILLAIN_WORD: Partial<Record<Scenario['kind'], string>> = { vs_open: '오�
 export type LadderRung = { pos: Pos; pct: number; me: boolean; limp?: number };
 type SeatNumbers = { text: string; ladder: LadderRung[] | null; nums: number[] };
 
-/** 사다리 한 칸의 글자: 'BTN 46%' · 림프가 있으면 'SB 레이즈 24% · 림프 38%'. 화면(ExplanationSheet)도 이 글자를 씁니다. */
+/** 사다리 한 칸의 글자: 'BTN 43%' · 림프가 있으면 'SB 레이즈 24% · 림프 38%'. 화면(ExplanationSheet)도 이 글자를 씁니다. */
 export function rungText(x: LadderRung): string {
   return x.limp ? `${x.pos} 레이즈 ${x.pct}% · 림프 ${x.limp}%` : `${x.pos} ${x.pct}%`;
 }
@@ -128,9 +128,10 @@ const BOOK_BTN_OPEN = 43;
 /**
  * 자리 사실 한 문장 — 위에서부터 처음 맞는 하나만(§4.2-⑤). 전부 데이터로 판단합니다.
  * 지금은 시트에 그리지 않지만(자리 이유 theory/spot.ts 가 대신합니다) Explanation.seat.lever 로 남아 있어 참인 말만 둡니다:
- *  - SB 오픈: 뒤에 한 명뿐이라서 넓은 게 아닙니다 — SB(46.2%)는 BTN(46.3%)보다 넓지 않고, 포지션이 없어서예요(atlas.SB_OPEN).
- *  - BTN 오픈: 책은 약 43%(5장 2절) — 차트 폭과 함께 책의 숫자를 밝힙니다.
- *  - SB 의 오픈 대응: 차트는 콜을 0.7~1.5% 섞어서 '대부분' 3벳 아니면 폴드.
+ *  - SB 오픈: 차트에 림프가 있으면 레이즈와 림프를 따로(책 5장 2절 — 레이즈 약 24% · 림프 약 38%). 림프가 없으면 뒤에 한 명뿐이라서
+ *    넓은 게 아니라 포지션이 없어 BTN 보다 넓지 않다는 말(atlas.SB_OPEN 과 같은 뜻).
+ *  - BTN 오픈: 책은 약 43%(5장 2절) — 차트 폭과 함께 책의 숫자를 밝힙니다. 같으면 '책과 같은 약 43%'(같은 숫자를 두 번 쓰지 않게).
+ *  - SB 의 오픈 대응: 콜이 0 이면 '콜 없이 3벳 아니면 폴드'(책 5장 5절 — 지금 차트는 네 오프너 모두 0), 2% 아래면 '거의 안 하고'.
  *  - HJ · CO · BTN 의 오픈 대응: '포지션이 있어요'만 말하면 콜의 이유처럼 읽힙니다. 책은 뒤에 남은 사람의 스퀴즈 때문에
  *    HJ · CO 는 콜 없이 3벳 아니면 폴드, BTN 도 넓게 여는 상대에게는 콜을 줄인다고 해요(5장 5절) — 그 위험을 함께 말합니다.
  */
@@ -150,12 +151,16 @@ export function seatLever(s: Scenario): { text: string; id: LeverId } | null {
       return { id: 'sbOpen', text: `SB는 뒤에 BB만 남아 ${W}%를 오픈해요.` };
     }
     if (hero === 'BTN') {
-      const cmp = W > BOOK_BTN_OPEN ? '보다 넓은' : W < BOOK_BTN_OPEN ? '보다 좁은' : '와 같은';
+      // 차트가 책의 숫자와 같으면 '책의 약 43%와 같은 43%'처럼 같은 숫자를 두 번 쓰지 않습니다.
+      if (W === BOOK_BTN_OPEN) return { id: 'behind', text: `BTN은 블라인드만 남아 책과 같은 약 ${W}%를 오픈해요.` };
+      const cmp = W > BOOK_BTN_OPEN ? '보다 넓은' : '보다 좁은';
       return { id: 'behind', text: `BTN은 블라인드만 남아 책의 약 ${BOOK_BTN_OPEN}%${cmp} ${W}%를 오픈해요.` };
     }
     return { id: 'behind', text: `${josa(hero, '은/는')} 뒤에 ${seatsBehind(hero)}명이 남아 ${W}%만 오픈해요.` };
   }
   if (kind === 'vs_open' && hero === 'SB' && rangeShare(getChartCells(s), 'call') < SB_CALL_RARE) {
+    // 책 5장 5절: 앞자리 오픈에는 콜 없이 3벳 아니면 폴드.
+    if (rangeShare(getChartCells(s), 'call') === 0) return { id: 'sbRaiseOrFold', text: 'SB는 콜 없이 3벳 아니면 폴드해요.' };
     return { id: 'sbRaiseOrFold', text: 'SB는 콜을 거의 안 하고, 대부분 3벳 아니면 폴드해요.' };
   }
   if (kind === 'vs_open' && v && (hero === 'HJ' || hero === 'CO' || hero === 'BTN')) {

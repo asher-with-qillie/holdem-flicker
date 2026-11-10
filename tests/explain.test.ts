@@ -112,7 +112,11 @@ const CASES: Array<[Scenario, string]> = [
   [{ kind: 'cold_4bet', hero: 'BTN', extras: { opener: 'UTG', threeBettor: 'CO' } }, 'KK'],
   [{ kind: 'cold_4bet', hero: 'CO', extras: { opener: 'UTG', threeBettor: 'HJ' } }, 'A5s'],
   [{ kind: 'vs_limp', hero: 'BB', extras: { limper: 'HJ' } }, '55'],
+  // BB 의 SB 림프 대응은 양극화 레이즈(55+ 는 밸류 레이즈)라, 체크 칸은 가운데 패(44~22 등)입니다.
+  [{ kind: 'vs_limp', hero: 'BB', extras: { limper: 'SB' } }, '44'],
   [{ kind: 'vs_limp', hero: 'BTN', extras: { limper: 'CO' } }, 'ATo'],
+  // SB 의 첫 진입은 오픈 · 림프 · 폴드 셋입니다(책 5장: 림프 약 38%) — 약하지만 쳐지는 76s 는 림프.
+  [{ kind: 'rfi', hero: 'SB' }, '76s'],
 ];
 const allSteps: Step[] = CASES.map(([sc, hand]) => stepFor(sc, hand));
 
@@ -148,9 +152,18 @@ describe('explanations', () => {
     // 두 액션의 가치가 비슷하다는 것(책 2장 4절 무차별)을 먼저 말하고, '정답'은 채점이라고 밝힙니다(감사 10).
     // 2순위가 폴드(나머지 액션)인 반반에는 '더 공격적인'을 붙이지 않습니다(§2.2 — 오픈 · 폴드 사이의 말이 아닙니다).
     expect(ato.partial).toBe('오픈과 폴드는 가치가 비슷해요. 채점은 오픈이 정답이에요.');
-    // 계속하는 두 액션의 반반(3벳 50 / 콜 50)은 채점 규칙대로 '더 공격적인 …'.
-    expect(mixBlock(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'BTN' }, '54s'))!.partial).toBe('3벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 3벳이 정답이에요.');
-    expect(mixBlock(stepFor({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'QQ'))!.partial).toBeNull();
+    // 계속하는 두 액션의 반반(3벳 50 / 콜 50)은 채점 규칙대로 '더 공격적인 …'. BB vs CO 의 87s 는 양극화 3벳의 반반 칸입니다
+    // (옛 예시 BB vs BTN 54s 는 이제 늘 콜).
+    expect(mixBlock(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'CO' }, '87s'))!.partial).toBe('3벳과 콜은 가치가 비슷해요. 채점은 더 공격적인 3벳이 정답이에요.');
+    // SB 의 함정 림프: KK 는 오픈 50 / 림프 50 — 계속하는 두 액션의 반반이라 '더 공격적인 오픈'.
+    expect(mixBlock(stepFor({ kind: 'rfi', hero: 'SB' }, 'KK'))!.partial).toBe('오픈과 림프는 가치가 비슷해요. 채점은 더 공격적인 오픈이 정답이에요.');
+    // 2순위가 0.4 아래(오픈 75 / 림프 25 인 SB 의 AA)면 칩만 있고 부분 정답 문장은 없습니다(옛 예시 HJ vs UTG 4벳의 QQ 는 이제 늘 콜).
+    const aa = mixBlock(stepFor({ kind: 'rfi', hero: 'SB' }, 'AA'))!;
+    expect(aa.chips).toEqual([
+      { action: 'raise', pct: 75 },
+      { action: 'limp', pct: 25 },
+    ]);
+    expect(aa.partial).toBeNull();
   });
 
   it('percentages are written as numbers, never "10번 중 N번"', () => {
@@ -172,7 +185,7 @@ describe('line sentence in every kind', () => {
     }
     expect([...kinds].sort()).toEqual(['cold_4bet', 'rfi', 'vs_3bet', 'vs_4bet', 'vs_5bet', 'vs_limp', 'vs_open']);
     const answers = new Set(allSteps.map((s) => s.answer));
-    for (const a of ['fold', 'call', 'raise', 'threebet', 'fourbet', 'allin', 'check'] as const) expect(answers.has(a), a).toBe(true);
+    for (const a of ['fold', 'call', 'raise', 'threebet', 'fourbet', 'allin', 'check', 'limp'] as const) expect(answers.has(a), a).toBe(true);
   });
 
   it('the terminology policy holds for every hand in every charted spot', () => {
@@ -287,7 +300,10 @@ describe('oneExample', () => {
     }
     // 오픈하는 AQs · 체크하는 BB · 콜하는 A9o 에는 '킥커에서 밀려요'가 붙지 않습니다(감사: 결정과 무관한 예시 2,450줄).
     expect(oneExample(stepFor({ kind: 'rfi', hero: 'UTG' }, 'AQs'))).toBeNull();
-    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'UTG' }, 'A9o'))).toBeNull();
+    expect(oneExample(stepFor({ kind: 'vs_limp', hero: 'BB', extras: { limper: 'SB' } }, 'K6s'))).toBeNull();
+    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'HJ' }, 'A9o'))).toBeNull();
+    // UTG 상대로는 BB 가 A9o 를 폴드합니다(책 5장이 짚은 패) — 그래서 지배 예시가 붙습니다.
+    expect(oneExample(stepFor({ kind: 'vs_open', hero: 'BB', villain: 'UTG' }, 'A9o'))).toBe('내 A♠9♦ vs 상대 A♦K♠ → A를 맞춰도 킥커에서 밀려요.');
     expect(oneExample(stepFor({ kind: 'vs_4bet', hero: 'BTN', villain: 'UTG' }, 'A3s'))).toBeNull();
     expect(oneExample(stepFor({ kind: 'rfi', hero: 'UTG' }, 'A9o'))).toBe('내 A♠9♦ vs 상대 A♦K♠ → A를 맞춰도 킥커에서 밀려요.');
     expect(oneExample(stepFor({ kind: 'vs_open', hero: 'SB', villain: 'UTG' }, 'KTs'))).toBe('내 K♠10♠ vs 상대 A♦K♦ → K를 맞춰도 킥커에서 밀려요.');

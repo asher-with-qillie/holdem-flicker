@@ -104,7 +104,8 @@ export type LeverId =
   | 'blind3bet'
   | 'lateOpener'
   | 'earlyOpener'
-  | 'sbOpen';
+  | 'sbOpen'
+  | 'btnCallShrink';
 
 /** 한 칸의 자리 사실. constant = 숫자 없는 고정 문장(docs/EXPLAIN_SPEC.md §5.4 표의 문구와 글자가 같음). */
 export interface Lever {
@@ -174,7 +175,7 @@ const weightIn = (s: Scenario, hand: HandName, a: Action): number => fullMix(get
  * buildSteps 가 rfi 를 세션에서 뺐을 때 쓰는 "비중 > 0" 게이트는 쓰지 않습니다 — 트레이너 · 퀴즈 · 다이제스트는 ok 만 봅니다.
  *
  * 다만 1순위가 아니어도 그 액션을 섞는 패(UTG 오픈에 콜 75 · 3벳 25 인 TT)는 3벳한 25%만큼은 4벳을 받습니다. 그런 칸에
- * '3벳하지 않으니 4벳을 받을 일이 없어요'라고 하면 거짓이라(감사: 121칸), gate 에 앞 단계 액션의 비중(weight)을 담습니다.
+ * '3벳하지 않으니 4벳을 받을 일이 없어요'라고 하면 거짓이라(감사: 옛 차트 121칸 · 지금 차트 69칸), gate 에 앞 단계 액션의 비중(weight)을 담습니다.
  * 앞 단계 중 비중이 0인 게이트가 하나라도 있으면 그 게이트(절대 안 옴), 아니면 1순위가 아닌 첫 게이트(드물게 옴)를 돌려줍니다.
  */
 export function isReachable(s: Scenario, hand: HandName): { ok: boolean; gate?: Gate } {
@@ -296,8 +297,8 @@ export function rfiProfile(hand: HandName): RfiProfile {
   const firstAny = core.find((c) => c.raise > EPS)?.pos ?? null;
   const firstAlways = core.find((c) => c.raise >= 0.999)?.pos ?? null;
   const monotone = core.every((c, i) => i === 0 || c.raise >= core[i - 1].raise - EPS);
-  // 1순위만 보면 동점(오픈 50 / 폴드 50 → 오픈)이 BTN 의 항상 오픈과 같아 보여, 'BTN부터 오픈해요'가 SB 의 절반을
-  // 덮어 버립니다(Q2s·53s). 항상인지 아닌지가 다르면 SB 절을 붙입니다.
+  // 1순위만 보면 동점(오픈 50 / 림프 50 → 오픈)이 BTN 의 항상 오픈과 같아 보여, '어느 자리에서나 오픈해요'가 SB 의 림프를
+  // 덮어 버립니다(KK · AQo · JJ 의 반반, AA · QQ · AKo 의 림프 25% — 책 5장 2절의 함정 림프). 항상인지 아닌지가 다르면 SB 절을 붙입니다.
   const sbDiffers = sb.primary !== btn.primary || (sb.raise >= 0.999) !== (btn.raise >= 0.999);
   let pattern: RfiProfile['pattern'];
   if (core.every((c) => c.raise >= 0.999)) pattern = 'always';
@@ -353,14 +354,17 @@ export function entrySeat(hand: HandName): Pos | 'SB' | null {
  */
 /*
  * 레버는 사실만 말하지 않고 결과까지 말합니다(THEORY_SPEC §2 — 감사에서 결과 없는 레버 2,249줄).
- * 결과 절은 차트로 확인한 것만 씁니다: 블라인드 3벳에는 모든 오프너가 더 넓게 지키고(49~59% 대 41~52%),
- * 오픈에 맞서는 비중은 오프너가 뒷자리일수록 늘고, SB 오픈(46.2%)은 BTN(46.3%)보다 넓지 않습니다.
- * BB 는 어느 오프너에게나 다른 자리보다 넓게 콜하고(UTG 상대 25.8% 대 BTN 9.6%), SB 의 콜은 2% 아래이며(0.7~1.5%),
- * 블라인드는 같은 오프너에게 블라인드가 아닌 자리보다 넓게 3벳합니다(UTG 상대 6~8% 대 5.1%).
- * tests/atlas.test.ts 가 이것들을 모든 칸에서 다시 셉니다.
- *
- * 블라인드 3벳의 이유는 3벳 범위의 폭입니다. 예전 문장('블러프도 섞여 있어' · '밸류 위주라')은 차트와 책 둘 다와 맞지 않았습니다 —
- * 차트에서는 HJ · CO · BTN 의 3벳에도 A5s · A4s 블러프가 있고, 책은 BTN 3벳을 양극화, SB 3벳을 선형으로 봅니다(5장 4절).
+ * 결과 절은 차트로 확인한 것만 씁니다(tests/atlas.test.ts 가 모든 칸에서 다시 셉니다):
+ *  - 3벳 대응: 포지션이 있으면(블라인드의 3벳) 지키는 패의 75~80%가 콜이라 '콜 위주로 지켜요', 없으면(뒤에 앉은 상대의 3벳 ·
+ *    SB 가 BB 에게) 지키는 패의 43~47%가 4벳이라 '4벳을 더 섞어요'(포지션이 있을 때는 20~25%). 책 5장 3절: 포지션이 있으면
+ *    콜 위주, 없으면 4벳과 폴드가 늘어요 — HJ 는 CO 의 3벳에 약 22%, BB 의 3벳에 약 10%를 4벳.
+ *    예전 '블라인드 3벳은 범위가 넓어 더 넓게 지켜요'는 새 차트에서 거짓입니다: 블라인드의 3벳은 크기가 커서(약 10bb 대 8.5bb)
+ *    오프너가 오히려 덜 지키고(UTG 46~47% 대 48~51%), 블라인드가 더 넓게 3벳하지도 않아요(HJ · CO 상대로는 더 좁게).
+ *  - 오픈에 맞서는 비중은 오프너가 뒷자리일수록 늘고, BB 는 어느 오프너에게나 다른 자리보다 넓게 콜해요(UTG 상대 23% 대 BTN 7%).
+ *    다만 BTN 의 콜 범위는 오프너가 넓을수록 줄어요(UTG 7% → HJ · CO 6% — 책 5장 5절, BTN_CALL_SHRINK). 넓은 오프너에게 덜 계속하는
+ *    패(33 · 22)의 비교에는 '뒷자리 오픈엔 … 넓게 맞서요' 대신 그 이유를 대요.
+ *  - SB 의 오픈 대응은 콜이 0 이에요 — 책 5장 5절: 앞자리 오픈에는 콜 없이 3벳 아니면 폴드(콜하면 BB 의 스퀴즈, 포지션 없음, 레이크).
+ *  - SB 첫 진입은 레이즈 24% · 림프 38%(책 5장 2절)라 BTN(43%)보다 좁게 레이즈하고 림프를 따로 말해요(sbLimpText).
  */
 export const POSITION_IP = '포지션이 있어 플랍 이후 내내 유리해요.';
 export const POSITION_OOP = '포지션이 없어 플랍 이후 내내 불리해요.';
@@ -372,8 +376,8 @@ export function sbOpenLine(): string {
   const limp = sharePct({ kind: 'rfi', hero: 'SB' }, 'limp');
   return limp > 0 ? sbLimpText(openPct('SB'), limp) : SB_OPEN;
 }
-/** SB 의 오픈 대응(책 5장 5절: BB 의 스퀴즈 · 두 명을 상대로 포지션 없음 · 레이크). 차트는 콜을 0.7~1.5% 섞어서 '대부분'. */
-export const SB_RAISE_OR_FOLD = ['SB는 콜하면 BB에게 스퀴즈당하기 쉽고, 플랍 이후 포지션도 없어요.', '그래서 콜은 드물고, 대부분 3벳 아니면 폴드예요.'] as const;
+/** SB 의 오픈 대응(책 5장 5절: 콜 없이 3벳 아니면 폴드 — BB 의 스퀴즈 · 두 명을 상대로 포지션 없음 · 레이크). 차트의 콜은 네 오프너 모두 0. */
+export const SB_RAISE_OR_FOLD = ['SB는 콜하면 BB에게 스퀴즈당하기 쉽고, 플랍 이후 포지션도 없어요.', '그래서 콜 없이 3벳 아니면 폴드예요.'] as const;
 /**
  * BB 의 오픈 대응 꼬리. 가격은 책 5장 5절(이미 낸 1bb 덕분에 더 낼 돈이 작음 — 앞 문장)이고, 스퀴즈는 책이 콜을 줄이는
  * 이유로 드는 것(5장 5절의 SB · BTN, 8장의 'CO가 콜하면 뒤에 BN이 남아 스퀴즈')을 BB 에 맞춘 것입니다 — BB 는 뒤에 아무도 없어
@@ -382,8 +386,17 @@ export const SB_RAISE_OR_FOLD = ['SB는 콜하면 BB에게 스퀴즈당하기 �
  */
 export const BB_PRICE_TAIL = ['뒤에 아무도 없어 스퀴즈를 받지 않아요.', '그래서 포지션이 없어도 가장 넓게 콜해요.'] as const;
 export const BB_PRICE_TAIL_SB = 'SB 상대로는 포지션도 있어요.';
-/** 3벳한 쪽(v)이 블라인드냐에 따라. 블라인드는 같은 오프너에게 더 넓게 3벳합니다(차트, 테스트가 셉니다). */
-export const blind3betText = (v: Pos): string => (isBlind(v) ? `${v} 3벳은 범위가 넓어 더 넓게 지켜요.` : `${v} 3벳은 범위가 좁아 더 좁게 지켜요.`);
+/**
+ * 3벳 대응의 지키는 모양 — 오프너(hero)가 3벳한 쪽(v)에게 포지션이 있느냐에 따라(책 5장 3절, 위 주석). 블라인드의 3벳이면 포지션이
+ * 있고(SB 가 BB 에게 받을 때만 빼고), 뒤에 앉은 자리의 3벳이면 없어요.
+ */
+export const blind3betText = (v: Pos, ip: boolean): string => (ip ? `${v} 3벳에는 포지션이 있어 콜 위주로 지켜요.` : `${v} 3벳에는 포지션이 없어 4벳을 더 섞어요.`);
+/**
+ * BTN 의 오픈 대응에서 콜 범위가 오프너가 넓어질수록 줄어드는 이유(책 5장 5절: 'BN의 콜 범위는 줄어듭니다. CO처럼 넓게 열수록
+ * 블라인드의 스퀴즈가 늘어, 콜하면 위험해지기 때문입니다'). 차트의 BTN 콜도 UTG 7% → HJ · CO 6% 로 줄고, 33 · 22 는 넓은 오프너에게
+ * 절반만 콜해요 — 그 비교에서 '뒷자리 오픈엔 … 넓게 맞서요'는 결론과 거꾸로라 이 문장으로 바꿉니다(differingLevers).
+ */
+export const BTN_CALL_SHRINK = '넓게 여는 상대일수록 블라인드의 스퀴즈가 늘어 BTN은 콜을 줄여요.';
 /** 뒤에 남은 사람이 많을수록 생기는 일(책 4장 「뒤에 남은 사람」). '…기 쉬워요' 앞에 붙습니다. */
 const BEHIND_RISK: Partial<Record<ScenarioKind, string>> = {
   rfi: '3벳을 받',
@@ -413,7 +426,7 @@ export function seatLevers(s: Scenario): Lever[] {
   }
   if (kind === 'vs_limp' && hero === 'BB') out.push({ id: 'bbFree', text: 'BB는 이미 1bb를 냈으니 체크하면 공짜로 플랍을 봐요.', nums: [], constant: true });
   // 3벳 레인지의 폭은 vs_3bet 에서만 — vs_5bet 해설은 올인 레인지를 말하지 3벳 레인지를 말하지 않습니다.
-  if (kind === 'vs_3bet' && v) out.push({ id: 'blind3bet', text: blind3betText(v), nums: [], constant: true });
+  if (kind === 'vs_3bet' && v) out.push({ id: 'blind3bet', text: blind3betText(v, heroIsIP(s)), nums: [], constant: true });
   if ((kind === 'vs_open' || kind === 'vs_4bet') && v) {
     const p = openPct(v);
     out.push({ id: 'openWidth', text: `${josa(v, '은/는')} ${p}%를 오픈해요.`, nums: [p], constant: false });
@@ -475,8 +488,21 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
   const lA = A === a ? la : lb;
   const lB = A === a ? lb : la;
   const out: Lever[] = [];
+  // 0. BTN 의 오픈 대응을 villain 축에서 견줄 때, 넓게 여는 오프너(B)에게 오히려 덜 계속하는 패(33 · 22 — 콜 100 → 50)는 '뒷자리 오픈엔
+  // 약한 패도 많이 섞여 있어 넓게 맞서요'와 오픈 폭 숫자만으로는 거꾸로 읽혀요. 책 5장 5절의 이유(BTN_CALL_SHRINK)를 먼저 대고, 앞자리 ·
+  // 뒷자리 문장(6)은 뺍니다. 계속 비중 = 1 − 폴드 비중.
+  const cont = (c: AtlasCell) => 1 - (c.mixList.find((m) => m.action === 'fold')?.weight ?? 0);
+  const btnShrink = axis === 'villain' && sa.kind === 'vs_open' && sa.hero === 'BTN' && cont(B) < cont(A) - EPS;
+  if (btnShrink) out.push({ id: 'btnCallShrink', text: BTN_CALL_SHRINK, nums: [], constant: true });
 
   // 1. position
+  // 3벳 대응을 villain 축에서 견줄 때 한쪽만 블라인드면 포지션도 꼭 갈립니다(같은 오프너가 블라인드에게는 포지션이 있고, 뒤에 앉은
+  // 자리에게는 없어요). 이때 포지션 문장('SB 상대로는 포지션이 있어 플랍 이후 유리하고, …')과 blind3bet 문장('SB 3벳에는 포지션이
+  // 있어 콜 위주로 지켜요. …')을 따로 대면 같은 포지션을 두 번 말하고, 화면(AtlasDetail)은 첫 레버만 보여 줘서 지키는 모양(책 5장 3절)이
+  // 빠집니다 — 한 문장으로 합칩니다: 'SB 상대로는 포지션이 있어 콜 위주로 지키고, BTN 상대로는 없어 4벳을 더 섞어요.'
+  const ta = la.get('blind3bet');
+  const tb = lb.get('blind3bet');
+  const blind3betSplit = !!ta && !!tb && isBlind(sa.villain) !== isBlind(b.scenario.villain);
   let position: Lever | null = null;
   const pa = la.get('position');
   const pb = lb.get('position');
@@ -485,7 +511,9 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
     const oop = ip === a ? b : a;
     const text =
       axis === 'villain'
-        ? `${seatOf(ip)} 상대로는 포지션이 있어 플랍 이후 유리하고, ${seatOf(oop)} 상대로는 불리해요.`
+        ? blind3betSplit
+          ? `${seatOf(ip)} 상대로는 포지션이 있어 콜 위주로 지키고, ${seatOf(oop)} 상대로는 없어 4벳을 더 섞어요.`
+          : `${seatOf(ip)} 상대로는 포지션이 있어 플랍 이후 유리하고, ${seatOf(oop)} 상대로는 불리해요.`
         : `${seatOf(ip)}에서는 포지션이 있어 플랍 이후 유리하고, ${seatOf(oop)}에서는 불리해요.`;
     position = { id: 'position', text, nums: [], constant: false };
   }
@@ -501,9 +529,12 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
       constant: false,
     };
   }
-  // 3. bbPrice / sbRaiseOrFold / bbFree — 한쪽에만 있는 자리 문장을 결론 순서(더 공격적인 쪽 먼저)로 나란히.
+  // 3. bbPrice / sbRaiseOrFold / bbFree / sbOpen — 한쪽에만 있는 자리 문장을 결론 순서(더 공격적인 쪽 먼저)로 나란히.
+  // sbOpen: 오픈 칸을 SB 와 견줄 때 SB 의 림프는 오픈 폭('오픈 레인지는 BTN 43%, SB 24%예요')만으로는 안 보입니다 — K6o 처럼 BTN 은
+  // 폴드하고 SB 는 림프하는 칸에 그 숫자만 대면 BTN 이 더 넓게 여는데 왜 SB 가 들어가는지 거꾸로 읽혀요. SB 의 자리 문장
+  // ('SB는 포지션이 없어 레이즈는 24%로 좁히고, 반값으로 림프를 38% 섞어요.' — 책 5장 2절)을 먼저 둡니다.
   const [first, second] = orderPair(a, b, axis);
-  const roleIds: LeverId[] = ['bbPrice', 'sbRaiseOrFold', 'bbFree'];
+  const roleIds: LeverId[] = ['bbPrice', 'sbRaiseOrFold', 'bbFree', 'sbOpen'];
   const roles: Lever[] = [];
   for (const c of [first, second]) {
     const mine = c === a ? la : lb;
@@ -513,30 +544,38 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
       if (l && !other.has(id)) roles.push(l);
     }
   }
-  const role: Lever | null = roles.length ? { id: roles[0].id, text: roles.map((l) => firstSentence(l.text)).join(' '), nums: [], constant: roles.every((l) => l.constant) } : null;
+  const role: Lever | null = roles.length
+    ? { id: roles[0].id, text: roles.map((l) => firstSentence(l.text)).join(' '), nums: roles.flatMap((l) => l.nums), constant: roles.every((l) => l.constant) }
+    : null;
   // 블라인드와 비블라인드를 같은 축에서 견줄 때(BB 콜 ↔ BTN 폴드)는 자리 역할(값·마지막 차례·스퀴즈)이 결론을 받치는
   // 이유입니다. 포지션은 사실이지만 접는 쪽(BTN)이 유리하다고 먼저 말하면 결론과 반대로 읽힙니다 — 역할 문장을 앞에 둡니다.
   if (role && axis === 'hero') out.push(role);
   if (position) out.push(position);
   if (behind) out.push(behind);
   if (role && axis !== 'hero') out.push(role);
-  // 4. blind3bet — 한쪽만 블라인드일 때 두 문장(블라인드 먼저).
-  // 값은 "블라인드냐 아니냐"입니다 — 자리 이름만 다른 두 문장은 같은 값입니다.
-  const ta = la.get('blind3bet');
-  const tb = lb.get('blind3bet');
-  if (ta && tb && isBlind(sa.villain) !== isBlind(b.scenario.villain)) {
+  // 4. blind3bet — villain 축에서 한쪽만 블라인드일 때 두 문장(블라인드 먼저 — 포지션이 있는 쪽).
+  // 값은 "블라인드냐 아니냐"입니다 — 자리 이름만 다른 두 문장은 같은 값입니다. 같은 hero 라 블라인드냐 = 포지션이 있느냐예요.
+  // 포지션 문장이 이미 지키는 모양까지 말했으면(위 1 — blind3betSplit 이면 villain 축이라 포지션 문장은 늘 합친 꼴) 다시 말하지 않습니다.
+  if (ta && tb && blind3betSplit && !position) {
     const blindFirst = isBlind(sa.villain) ? [ta, tb] : [tb, ta];
     out.push({ id: 'blind3bet', text: blindFirst.map((l) => l.text).join(' '), nums: [], constant: true });
   }
   // 5. openWidth / threebetWidth — 2pt 이상 차이 날 때만.
   const oa = lA.get('openWidth');
   const ob = lB.get('openWidth');
+  // 오픈 칸을 SB 와 견줄 때는 SB 의 자리 문장(sbOpen 역할 레버)이 이미 SB 의 레이즈 폭을 말했습니다 — 'SB 24%'를 한 번 더 대지 않고
+  // 다른 자리의 폭만 댑니다: '…레이즈는 24%로 좁히고, 반값으로 림프를 38% 섞어요. BTN은 43%를 오픈해요.'
+  const sbSaid = roles.some((l) => l.id === 'sbOpen');
   if (oa && ob && Math.abs(oa.nums[0] - ob.nums[0]) >= 2) {
-    const text =
-      sa.kind === 'rfi'
-        ? `오픈 레인지는 ${A.scenario.hero} ${oa.nums[0]}%, ${B.scenario.hero} ${ob.nums[0]}%예요.`
-        : `${josa(A.scenario.villain!, '은/는')} ${oa.nums[0]}%, ${josa(B.scenario.villain!, '은/는')} ${ob.nums[0]}%를 오픈해요.`;
-    out.push({ id: 'openWidth', text, nums: [oa.nums[0], ob.nums[0]], constant: false });
+    const other = A.scenario.hero === 'SB' ? { pos: B.scenario.hero, p: ob.nums[0] } : { pos: A.scenario.hero, p: oa.nums[0] };
+    if (sa.kind === 'rfi' && sbSaid) out.push({ id: 'openWidth', text: `${josa(other.pos, '은/는')} ${other.p}%를 오픈해요.`, nums: [other.p], constant: false });
+    else {
+      const text =
+        sa.kind === 'rfi'
+          ? `오픈 레인지는 ${A.scenario.hero} ${oa.nums[0]}%, ${B.scenario.hero} ${ob.nums[0]}%예요.`
+          : `${josa(A.scenario.villain!, '은/는')} ${oa.nums[0]}%, ${josa(B.scenario.villain!, '은/는')} ${ob.nums[0]}%를 오픈해요.`;
+      out.push({ id: 'openWidth', text, nums: [oa.nums[0], ob.nums[0]], constant: false });
+    }
   }
   const wa = lA.get('threebetWidth');
   const wb = lB.get('threebetWidth');
@@ -550,7 +589,7 @@ export function differingLevers(a: AtlasCell, b: AtlasCell): Lever[] {
   // 6. early / late — 한쪽만 뒷자리 오프너면 두 상수를 나란히(앞자리 먼저).
   const ea = la.get('earlyOpener') ?? lb.get('earlyOpener');
   const lt = la.get('lateOpener') ?? lb.get('lateOpener');
-  if (ea && lt && la.has('earlyOpener') !== lb.has('earlyOpener')) {
+  if (ea && lt && la.has('earlyOpener') !== lb.has('earlyOpener') && !btnShrink) {
     out.push({ id: 'earlyOpener', text: `${ea.text} ${lt.text}`, nums: [], constant: true });
   }
   return out.slice(0, 2);
@@ -595,20 +634,30 @@ function restWords(cell: AtlasCell): string {
     .join('이나 ');
 }
 
-/** 열거용 수식어("UTG에서 절반만, …"). always 는 빈 문자열. */
-function weightWord(cell: AtlasCell): { word: string; nums: number[] } {
-  switch (cell.weightClass) {
-    case 'always':
-      return { word: '', nums: [] };
-    case 'most':
-      return { word: '주로', nums: [] };
-    case 'half':
-      return { word: '절반만', nums: [] };
-    case 'some': {
-      const p = pctInt(cell.mixList[0].weight);
-      return { word: `${p}%만`, nums: [p] };
-    }
-  }
+/**
+ * rfi 열거용 '오픈' 비중어("UTG에서 25%만, HJ에서 절반만, …") — 1순위가 아니라 **레이즈 비중**으로 정합니다.
+ * 1순위의 비중 등급을 쓰면 폴드 75 · 레이즈 25 칸(새 차트의 UTG A9o)이 '주로'가 되어 'UTG에서 주로 … 오픈해요'로 거꾸로 읽혔어요.
+ * 1 → 빈 문자열 · ≥ 0.6 → '주로' · 0.5 → '절반만' · 그 밖 → '{p}%만'(앱의 비중어 밖이라 숫자로, 줄 문장과 같은 꼴).
+ */
+function raiseWord(cell: AtlasCell): { word: string; nums: number[] } {
+  const r = cell.mixList.find((m) => m.action === 'raise')?.weight ?? 0;
+  if (r >= 0.999) return { word: '', nums: [] };
+  if (r >= 0.6 - EPS) return { word: '주로', nums: [] };
+  if (Math.abs(r - 0.5) < 0.01) return { word: '절반만', nums: [] };
+  const p = pctInt(r);
+  return { word: `${p}%만`, nums: [p] };
+}
+
+/** 같은 비중어가 이어지는 자리를 묶습니다: [UTG 절반만, HJ 절반만, CO 주로] → 'UTG·HJ에서 절반만, CO에서 주로'. */
+function seatWordGroups(seats: Pos[], words: Array<{ word: string }>, join: (ps: Pos[]) => string): string[] {
+  const groups: Array<{ word: string; seats: Pos[] }> = [];
+  seats.forEach((p, i) => {
+    const last = groups[groups.length - 1];
+    if (last && last.word === words[i].word) last.seats.push(p);
+    else groups.push({ word: words[i].word, seats: [p] });
+  });
+  // 빈 비중어(늘 오픈)는 '항상' — 'BTN에서 절반만, SB에서 항상 오픈하고'(지금 차트에는 없는 꼴이지만 '…에서  오픈'이 되지 않게).
+  return groups.map((g) => `${join(g.seats)}에서 ${g.word || '항상'}`);
 }
 
 interface Digest {
@@ -681,7 +730,7 @@ function digest(sec: AtlasSection): Digest {
     }
     if (!mixed.length) return { text: `${live.length}곳 전부 ${actWord(act, kind)}`, claims, nums: [live.length], uniform: act, named: null };
     // 섞인 칸을 라벨별로 묶어(많은 쪽부터) 이름을 댑니다 — 세 묶음까지, 30자(한글) 안일 때만. 넘치면 섞는 액션만.
-    // (JJ 의 4벳 대응은 '절반만 콜' 5 · '올인 25% 섞음' 5 · '폴드 25% 섞음' 4 — 섞는 액션만 말하면 절반 칸이 가려집니다.)
+    // (A5s 의 3벳 대응은 '4벳·콜 반반' 4 · '절반만 4벳' 3 · '콜 25% 섞음' 1 — 섞는 액션만 말하면 절반 칸이 가려집니다.)
     const byLabel = new Map<string, { cells: AtlasCell[]; nums: number[] }>();
     for (const c of mixed) {
       const l = mixLabel(c);
@@ -750,8 +799,8 @@ export function uniformLine(sec: AtlasSection): Line | null {
     if (n < sec.cells.length) return { text: `이 패가 ${sec.cells.some(isRare) ? '보통 ' : ''}오는 ${n}곳에서는 ${act}해요.`, claims: d.claims, nums: [n], source: 'computed' };
     return { text: `어느 자리에서나 ${act}해요.`, claims: d.claims, nums: [], source: 'computed' };
   }
-  // 1순위는 다 같아도 절반만 하는 칸이 있으면 '어느 자리에서나 3벳해요'가 그 칸을 덮습니다(A3s 는 15곳 중 6곳이 절반).
-  // 비중별로 칸 수를 댑니다: '9곳은 3벳하고, 5곳은 절반만 3벳하고, 1곳은 3벳과 콜을 반반 섞어요.' 세 마디를 넘으면 말하지 않습니다.
+  // 1순위는 다 같아도 절반만 하는 칸이 있으면 '어느 자리에서나 4벳해요'가 그 칸을 덮습니다(A5s 의 3벳 대응은 15곳 중 7곳이 절반).
+  // 비중별로 칸 수를 댑니다: '8곳은 4벳하고, 4곳은 4벳과 콜을 반반 섞고, 3곳은 절반만 4벳해요.' 세 마디를 넘으면 말하지 않습니다.
   type Clause = { k: number; mid: string | null; end: string; nums: number[] };
   const clauses: Clause[] = [];
   const strong = live.filter((c) => !weak.includes(c));
@@ -810,8 +859,16 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
   const out: Line[] = [];
   const sbCell = cell('SB');
   // SB 절: primary(SB) ≠ primary(BTN) 일 때만 덧붙입니다.
-  const sbClause = rfi.sbDiffers ? ` 단, SB에서는 ${weightPhrase(sbCell)}.` : '';
+  // SB 가 주로 오픈하고 나머지를 림프로 섞는 칸(AA · QQ · AKo 의 함정 림프 25% — 책 5장 2절)은 '주로 오픈해요'로 끝내면
+  // 나머지가 폴드로 읽힙니다. 섞는 쪽을 비중으로 댑니다: '단, SB에서는 주로 오픈하되 림프를 25% 섞어요.'
+  const sbMinor = sbCell.weightClass === 'most' ? sbCell.mixList.slice(1).filter((m) => m.weight > EPS) : [];
+  const sbMinorNamed = sbMinor.length === 1 && sbMinor[0].action !== 'fold';
+  const sbPhrase = sbMinorNamed
+    ? `주로 ${actWord(sbCell.primary, 'rfi')}하되 ${josa(actWord(sbMinor[0].action, 'rfi'), '을/를')} ${pctInt(sbMinor[0].weight)}% 섞어요`
+    : weightPhrase(sbCell);
+  const sbClause = rfi.sbDiffers ? ` 단, SB에서는 ${sbPhrase}.` : '';
   const sbClaims = rfi.sbDiffers ? [claimOf(sbCell)] : [];
+  const sbNums = rfi.sbDiffers && sbMinorNamed ? [pctInt(sbMinor[0].weight)] : [];
 
   switch (rfi.pattern) {
     case 'always': {
@@ -819,8 +876,8 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
         out.push({ text: `${subject} 어느 자리에서나 오픈해요.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
       } else {
         // SB 가 항상 오픈이 아니면(림프를 섞는 AA 같은 함정 칸 — 책 5장 2절) "어느 자리에서나"는 거짓입니다 — UTG~BTN 과 SB 를 나눠 말합니다.
-        // '…부터'는 앞자리 폴드가 있을 때(entry · half)의 말이라 쓰지 않습니다: 'AA는 UTG~BTN에서 오픈해요. 단, SB에서는 주로 오픈해요.'
-        out.push({ text: `${subject} UTG~BTN에서 오픈해요.${sbClause}`, claims: [...CORE_SEATS.map((p) => claimOf(cell(p))), ...sbClaims], nums: [], source: 'computed' });
+        // '…부터'는 앞자리 폴드가 있을 때(entry · half)의 말이라 쓰지 않습니다: 'AA는 UTG~BTN에서 오픈해요. 단, SB에서는 주로 오픈하되 림프를 25% 섞어요.'
+        out.push({ text: `${subject} UTG~BTN에서 오픈해요.${sbClause}`, claims: [...CORE_SEATS.map((p) => claimOf(cell(p))), ...sbClaims], nums: sbNums, source: 'computed' });
       }
       break;
     }
@@ -828,8 +885,8 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
       out.push({ text: `${subject} 어느 자리에서도 오픈하지 않아요.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
       break;
     case 'sbOnly': {
-      // SB 에서 림프(를 섞는) 패: 앞 네 자리는 폴드, SB 는 비중까지 — 'K3o는 UTG~BTN에서는 폴드하고, SB에서는 절반만 림프해요.'
-      // ('…에서는 오픈하지 않고'는 자리 + 액션 꼴이 부정문 속에 숨어, 문장만 보고 '오픈'으로 읽히기 쉽습니다.)
+      // SB 에서 림프(를 섞는) 패: 앞 네 자리는 폴드, SB 는 비중까지 — 'K6o는 UTG~BTN에서는 폴드하고, SB에서는 림프해요.'
+      // (책 5장 2절: SB 만 반값 할인 덕분에 림프를 섞어요. '…에서는 오픈하지 않고'는 자리 + 액션 꼴이 부정문 속에 숨어, 문장만 보고 '오픈'으로 읽히기 쉽습니다.)
       if (rfi.seats[4].limp > EPS) {
         // SB 도 1순위가 폴드인 칸(폴드 75 · 림프 25)은 'SB에서는 주로 폴드해요'로 끝내면 림프가 사라집니다 — 섞는 쪽을 비중으로 댑니다
         // (줄 문장의 '주로 폴드하되 림프를 25% 섞어요'와 같은 말): '97o는 UTG~BTN에서는 폴드하고, SB에서도 주로 폴드하되 림프를 25% 섞어요.'
@@ -843,11 +900,11 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
           out.push({ text: `${subject} UTG~BTN에서는 폴드하고, SB에서도 주로 폴드하되 ${mixText}.`, claims: strip.cells.map(claimOf), nums: ps, source: 'computed' });
           break;
         }
-        out.push({ text: `${subject} UTG~BTN에서는 폴드하고, SB에서는 ${weightPhrase(sbCell)}.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
+        out.push({ text: `${subject} UTG~BTN에서는 폴드하고, SB에서는 ${sbPhrase}.`, claims: strip.cells.map(claimOf), nums: sbMinorNamed ? [pctInt(sbMinor[0].weight)] : [], source: 'computed' });
         break;
       }
       // "SB에서만 절반만" 은 '만'이 겹칩니다. 두 절로 — 어디서 오픈하는지, 나머지는 폴드.
-      const w = weightWord(sbCell);
+      const w = raiseWord(sbCell);
       // '나머지는 폴드예요'는 비중어 바로 뒤라 "SB 의 나머지 절반"으로도 읽힙니다(THEORY_SPEC §5) — 자리라고 못 박습니다.
       out.push({ text: `${subject} SB에서 ${w.word ? `${w.word} ` : ''}오픈하고, 다른 자리에서는 폴드해요.`, claims: strip.cells.map(claimOf), nums: w.nums, source: 'computed' });
       break;
@@ -860,24 +917,24 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
       out.push({
         text: `${subject} ${first}부터 오픈해요.${sbClause}`,
         claims: [...after.map((p) => claimOf(cell(p))), ...before.map((p) => claimOf(cell(p))), ...sbClaims],
-        nums: [],
+        nums: sbNums,
         source: 'computed',
       });
       break;
     }
     case 'half': {
+      // 'A9o는 UTG에서 25%만, HJ에서 절반만, CO부터는 항상 오픈해요.' — 비중어는 레이즈 비중(raiseWord). 같은 비중어가 이어지면
+      // 묶습니다: '22는 UTG·HJ에서 절반만, CO부터는 항상 오픈해요.'('UTG에서 절반만, HJ에서 절반만'은 같은 말을 되풀이했어요.)
       const start = CORE_SEATS.indexOf(rfi.firstAny!);
       const end = CORE_SEATS.indexOf(rfi.firstAlways!);
-      const nums: number[] = [];
-      const parts = CORE_SEATS.slice(start, end).map((p) => {
-        const w = weightWord(cell(p));
-        nums.push(...w.nums);
-        return `${p}에서 ${w.word}`;
-      });
+      const seats = CORE_SEATS.slice(start, end);
+      const words = seats.map((p) => raiseWord(cell(p)));
+      const nums = [...new Set(words.flatMap((w) => w.nums))];
+      const parts = seatWordGroups(seats, words, (ps) => ps.join('·'));
       out.push({
         text: `${subject} ${parts.join(', ')}, ${rfi.firstAlways}부터는 항상 오픈해요.${sbClause}`,
         claims: [...CORE_SEATS.slice(start).map((p) => claimOf(cell(p))), ...sbClaims],
-        nums,
+        nums: [...nums, ...sbNums],
         source: 'computed',
       });
       break;
@@ -887,34 +944,28 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
       // 전부 열거. '부터'·'어디서나' 금지.
       const opens = (p: Pos) => cell(p).mixList.some((m) => m.action === 'raise' && m.weight > EPS);
       const seats = CORE_SEATS.filter(opens);
-      const nums: number[] = [];
       if (rfi.pattern === 'partial') {
-        // SB 도 같이 — Q8o 는 BTN 과 SB 에서 절반씩 엽니다. SB 를 빼고 말하면 "SB 에서는 안 연다"로 읽힙니다.
+        // SB 도 같이 — SB 가 레이즈로 같이 열면(옛 차트의 Q8o: BTN 과 SB 에서 절반씩) SB 를 빼고 말하면 "SB 에서는 안 연다"로 읽힙니다.
+        // 지금 차트의 partial 패(Q8o · J8o · T8o)는 SB 에서 림프해서 SB 절('단, SB에서는 림프해요')로 따로 말해요.
         // (sbClause 는 SB·BTN 의 1순위가 다를 때만 붙으므로, SB 가 여기 들어오면 sbClause 는 비어 있습니다.)
         // SB 가 림프를 1순위로 하면 '오픈'으로 묶지 않습니다 — 그 칸은 sbClause('단, SB에서는 림프해요')가 말합니다.
         // SB 칸에 림프가 섞여 있어도(오픈 50 · 림프 50) 묶지 않습니다: 'BTN과 SB에서 절반만 오픈하고, 다른 자리에서는 폴드해요'는
         // SB 의 나머지 절반을 폴드로 읽게 합니다. 그 칸은 따로 'SB에서는 오픈과 림프를 반반 섞어요'로 말합니다(sbOwn).
         const sbLimps = sbCell.mixList.some((m) => m.action === 'limp' && m.weight > EPS);
         const all = opens('SB') && sbCell.primary !== 'limp' && !sbLimps ? [...seats, 'SB' as Pos] : seats;
-        const sbOwn = !rfi.sbDiffers && sbLimps && opens('SB') ? ` 단, SB에서는 ${weightPhrase(sbCell)}.` : '';
-        const words = all.map((p) => weightWord(cell(p)));
-        words.forEach((w) => nums.push(...w.nums));
-        // 같은 수식어끼리 묶습니다: "BTN과 SB에서 절반만" / "CO에서 주로, BTN과 SB에서 절반만".
-        const groups: Array<{ word: string; seats: Pos[] }> = [];
-        all.forEach((p, i) => {
-          const last = groups[groups.length - 1];
-          if (last && last.word === words[i].word) last.seats.push(p);
-          else groups.push({ word: words[i].word, seats: [p] });
-        });
-        const parts = groups.map((g) => `${[...g.seats.slice(0, -1).map((p) => josa(p, '과/와')), g.seats[g.seats.length - 1]].join(' ')}에서 ${g.word}`);
+        const sbOwn = !rfi.sbDiffers && sbLimps && opens('SB') ? ` 단, SB에서는 ${sbPhrase}.` : '';
+        // 비중어는 레이즈 비중(raiseWord) — 같은 비중어끼리 묶습니다: "BTN과 SB에서 절반만" / "CO에서 주로, BTN과 SB에서 절반만".
+        const words = all.map((p) => raiseWord(cell(p)));
+        const nums = [...new Set(words.flatMap((w) => w.nums))];
+        const parts = seatWordGroups(all, words, (ps) => [...ps.slice(0, -1).map((p) => josa(p, '과/와')), ps[ps.length - 1]].join(' '));
         out.push({
           text: `${subject} ${parts.join(', ')} 오픈하고, 다른 자리에서는 폴드해요.${sbClause}${sbOwn}`,
           claims: [...all.map((p) => claimOf(cell(p))), ...sbClaims, ...(sbOwn ? [claimOf(sbCell)] : [])],
-          nums,
+          nums: [...nums, ...((sbClause || sbOwn) && sbMinorNamed ? [pctInt(sbMinor[0].weight)] : [])],
           source: 'computed',
         });
       } else {
-        out.push({ text: `${subject} ${seats.join('·')}에서만 오픈해요.${sbClause}`, claims: [...seats.map((p) => claimOf(cell(p))), ...sbClaims], nums, source: 'computed' });
+        out.push({ text: `${subject} ${seats.join('·')}에서만 오픈해요.${sbClause}`, claims: [...seats.map((p) => claimOf(cell(p))), ...sbClaims], nums: sbNums, source: 'computed' });
       }
       break;
     }
@@ -1190,7 +1241,9 @@ const BOOK_5BET_CALL = new Set<HandName>(['AA', 'KK', 'QQ', 'JJ', 'TT', 'AKs', '
 const BOOK_5BET_CALL_BTN = new Set<HandName>([...BOOK_5BET_CALL, '99', '88', '77', '66']);
 
 /**
- * 자리별 보기의 올인 대응 · 콜드 4벳 섹션 아래 '책과 다른 점' 한 줄(THEORY_SPEC §7). 이 패의 도달 칸에서 차트가 책과 다를 때만:
+ * 자리별 보기의 올인 대응 · 콜드 4벳 섹션 아래 '책과 다른 점' 한 줄(THEORY_SPEC §7). 이 패의 도달 칸에서 차트가 책과 다를 때만.
+ * 차트를 책에 맞춘 뒤로는 어느 패에서도 나오지 않아요(4벳한 TT 이상 · AK 는 올인에 늘 콜, 콜드 4벳은 콜 0) — 차트가 다시 책과
+ * 어긋날 때를 위한 가드로 남겨 둡니다(tests/atlas.test.ts 가 칸 수를 셉니다). 꼴:
  *  - vs_5bet: 책이 콜하는 패(TT 이상 · AK, BTN 은 66 이상)인데 차트가 늘 콜하지는 않는 칸 —
  *    '책은 올인에 TT 이상과 AK가 콜한다고 해요. 이 차트는 QQ를 4곳에서 폴드, 4곳에서 절반만 콜, 2곳에서 주로 콜해요.'
  *  - cold_4bet: 책은 대부분 4벳 아니면 폴드(콜하면 내 패 정보가 새고 뒷사람이 싸게 들어와요) — 차트가 콜을 섞는 칸이 있을 때만

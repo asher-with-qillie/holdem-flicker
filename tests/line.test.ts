@@ -3,9 +3,9 @@ import { isReachable } from '../src/poker/atlas';
 import { getChartCells, getChartDef, hasChart } from '../src/poker/data';
 import { classifyHand, explainStep } from '../src/poker/explain';
 import { ALL_HANDS } from '../src/poker/hands';
-import { emWidth } from '../src/poker/ko';
+import { emWidth, splitPhrase } from '../src/poker/ko';
 import { boundaryAfter, capsuleLabel, isMonotone, lineCells, lineOf, lineSentence, nearMiss, stripView, type LineClaim, type LineDef, type LineSentence, type WeightWord } from '../src/poker/line';
-import { AGGRESSION_ORDER, foldWeight, fullMix, restAction } from '../src/poker/range';
+import { AGGRESSION_ORDER, fullMix, restAction } from '../src/poker/range';
 import { allScenarios, scenarioKey } from '../src/poker/scenarios';
 import { seatLever, seatNumbers, acrossRow, siblingLine } from '../src/poker/sheet';
 import { stepFor } from '../src/poker/trainer';
@@ -312,22 +312,25 @@ describe('line: 줄 정의 (§7.2-1)', () => {
 });
 
 describe('line: 문장 존재 · 길이 (§7.2-2·3)', () => {
-  it('도달 칸이 있으면 문장, 없으면 null — 1,089개, 서로 다름', () => {
+  it('도달 칸이 있으면 문장, 없으면 null — 1,096개, 서로 다름', () => {
     for (const { s, line, sentence, cells } of ALL) {
       expect(sentence !== null, `${scenarioKey(s)} ${line.id}`).toBe(cells.length > 0);
       expect(lineCells(s, line).map((c) => c.hand)).toEqual(cells.map((c) => c.hand));
     }
     const texts = ALL.flatMap((x) => (x.sentence ? [x.sentence.text] : []));
     expect(SCENARIOS.length).toBe(74);
-    expect(texts.length).toBe(1089);
+    // 책에 맞춘 차트(MPT 5장)에서 도달 칸이 있는 줄: 3벳 대응 208(오픈 폭이 좁아져 −19) · 4벳 대응 117(BTN 양극화 3벳 ·
+    // BB 의 SB 상대 블러프 3벳으로 +25) · 5벳 대응 46(+1), 나머지 상황은 그대로 → 옛 1,089개에서 1,096개.
+    expect(texts.length).toBe(1096);
     // 서로 다릅니다 — 단, 도달 칸이 줄의 일부뿐이라 칸 이름으로 말하는 두 줄의 도달 칸이 똑같으면 같은 문장이 맞습니다
-    // (THEORY_SPEC §5 (a)): vs_4bet SB:CO 의 커넥터 줄과 수티드 T 줄은 둘 다 T9s 하나만 와서 'SB는 CO 4벳에 T9s를 폴드해요.'
+    // (THEORY_SPEC §5 (a)): vs_3bet SB:BB 의 커넥터 줄과 수티드 T 줄은 둘 다 T9s 하나만 와서(SB 의 레이즈 범위 24% 안의 T9s)
+    // 'SB는 BB 3벳에 T9s를 콜해요.'
     const byText = new Map<string, string[]>();
     for (const x of ALL) if (x.sentence) byText.set(x.sentence.text, [...(byText.get(x.sentence.text) ?? []), `${scenarioKey(x.s)}|${x.cells.map((c) => c.hand).join()}`]);
     const dup = [...byText.entries()].filter(([, ks]) => ks.length > 1);
     for (const [t, ks] of dup) expect(new Set(ks).size, `${t}: ${ks}`).toBe(1);
-    expect(dup.map(([t]) => t)).toEqual(['SB는 CO 4벳에 T9s를 폴드해요.']);
-    expect(byText.size).toBe(1088);
+    expect(dup.map(([t]) => t)).toEqual(['SB는 BB 3벳에 T9s를 콜해요.']);
+    expect(byText.size).toBe(1095);
   });
 
   it('줄 문장 · 형제 줄 ≤ 42em, 자리 문장 ≤ 46em, 레버 ≤ 30자, 숫자 줄 ≤ 34em · 폴백 실측', () => {
@@ -339,16 +342,21 @@ describe('line: 문장 존재 · 길이 (§7.2-2·3)', () => {
       const top = lineSentence(s, line, { topic: true });
       expect(emWidth(top!.text), top!.text).toBeLessThanOrEqual(42);
     }
-    // 폴백 실측(§9, THEORY_SPEC §5): 틀 문장의 noLabel 은 vs_open SB:BTN 커넥터 한 줄. 콜드 4벳 AKo 세 줄은 주어를
-    // '앞에서 3벳이 나오면' → '오픈과 3벳 뒤에'로 줄이면서(앞의 오픈까지 말하고 더 짧아요) 줄 이름을 되찾았습니다(28 → 24).
-    // 칸 나열 꼴은 noLabel 23 · noCtx 8 · noSubj 2 — 주로 칸에 '주로'를 붙이고(e) 세 액션 칸의 나눔을 부르느라(b) 길어졌습니다.
-    // noSubj 둘(vs_3bet UTG:CO · vs_open BTN:HJ 의 수티드 A)은 '〈자리〉에서'를 붙이면 42em 을 넘습니다.
-    expect(fallback).toEqual({ noLabel: 24, noCtx: 8, noSubj: 2 });
-    expect(ALL.filter((x) => x.sentence?.fallback === 'noSubj').map((x) => `${scenarioKey(x.s)} ${x.line.id}`)).toEqual(['vs_3bet:UTG:CO sA', 'vs_open:BTN:HJ sA']);
-    expect(ALL.filter((x) => x.sentence?.fallback === 'noLabel' && x.sentence.form === 'frame').map((x) => scenarioKey(x.s))).toEqual(['vs_open:SB:BTN']);
+    // 폴백 실측(§9, THEORY_SPEC §5): 틀 문장의 noLabel 은 vs_open BTN:UTG 오프수트 A 한 줄('늘 3벳하는 건 AKo까지이고, AQo는
+    // 주로, AJo는 절반만 3벳해요'). 칸 나열 꼴은 noLabel 18 · noCtx 3 · noSubj 2, 나머지 전부 꼴(+경계 + 예외 꼴)은 noLabel 1
+    // (rfi SB 오프수트 A — 줄 이름을 넣으면 42.1em). 줄 이름을 빼기 전에 'X부터 Y까지는'을 'X~Y는'으로 줄여 봅니다(뜻은 같음) —
+    // vs_open BTN:CO 수티드 A('AJs~A9s는 3벳·콜 반반, A8s~A6s는 절반만 3벳해요')가 그렇게 줄 이름을 지킵니다.
+    // 이중 주제('SB는 AKo는 …')가 되는 noLabel 은 쓰지 않고, 목적어인 줄 이름('오프수트 K를 콜하고, …')은 빼지 않습니다.
+    // noSubj 둘(vs_3bet CO:BB · vs_open BTN:HJ 의 수티드 A)은 '〈자리〉에서'를 붙여도 42em 을 넘습니다.
+    expect(fallback).toEqual({ noLabel: 20, noCtx: 3, noSubj: 2 });
+    expect(ALL.filter((x) => x.sentence?.fallback === 'noSubj').map((x) => `${scenarioKey(x.s)} ${x.line.id}`)).toEqual(['vs_3bet:CO:BB sA', 'vs_open:BTN:HJ sA']);
+    expect(ALL.filter((x) => x.sentence?.fallback === 'noLabel' && x.sentence.form === 'frame').map((x) => scenarioKey(x.s))).toEqual(['vs_open:BTN:UTG']);
+    expect(ALL.filter((x) => x.sentence?.fallback === 'noLabel' && x.sentence.form === 'except').map((x) => `${scenarioKey(x.s)} ${x.line.id}`)).toEqual(['rfi:SB oA']);
+    for (const x of ALL) if (x.sentence?.fallback === 'noLabel') expect(x.sentence.text, x.sentence.text).not.toMatch(/^\S+[은는] \S+[은는] /);
     const forms: Record<string, number> = {};
     for (const x of ALL) if (x.sentence) forms[x.sentence.form] = (forms[x.sentence.form] ?? 0) + 1;
-    expect(forms).toEqual({ frame: 992, except: 4, list: 93 });
+    // except 5 = 나머지 전부 꼴 3(vs_open SB:BTN · BTN:CO 수티드 A, BB:SB 오프수트 K) + 경계 + 예외 꼴 2(rfi SB 포켓페어 · 오프수트 A).
+    expect(forms).toEqual({ frame: 998, except: 5, list: 93 });
     // noCtx · noSubj 는 칸 나열 꼴에서만. noCtx 는 '〈내 자리〉에서 …'로 시작하는 문장이고(옛 'HJ:' 머리표 없음),
     // noSubj 는 그래도 넘치는 줄에서 주어를 뺀 문장입니다 — 리빌 바로 위 상황 줄이 내 자리와 상대를 말합니다.
     for (const x of ALL.filter((y) => y.sentence?.fallback === 'noCtx' || y.sentence?.fallback === 'noSubj')) {
@@ -375,7 +383,7 @@ describe('line: 문장 존재 · 길이 (§7.2-2·3)', () => {
 });
 
 describe('line: 주장 재계산 (§7.2-6)', () => {
-  it('1,089개 문장의 claims 가 차트에서 다시 계산해도 전부 참이고 이름 규칙을 지키며, 문장 속 패 이름 = claims 의 패', () => {
+  it('1,096개 문장의 claims 가 차트에서 다시 계산해도 전부 참이고 이름 규칙을 지키며, 문장 속 패 이름 = claims 의 패', () => {
     let n = 0;
     for (const { s, line, sentence, cells } of ALL) {
       if (!sentence) continue;
@@ -388,7 +396,7 @@ describe('line: 주장 재계산 (§7.2-6)', () => {
       for (const h of inText) expect(all.has(h), `${where}: 문장의 ${h} 가 claims 에 없음`).toBe(true);
       for (const h of mentioned) expect(inText.has(h), `${where}: claim 의 ${h} 가 문장에 없음`).toBe(true);
     }
-    expect(n).toBe(1089);
+    expect(n).toBe(1096);
   });
 
   it('형제 줄(topic)도 참이고 이름 규칙을 지킨다', () => {
@@ -415,19 +423,33 @@ describe('line: 주장 재계산 (§7.2-6)', () => {
 
   it('리뷰가 짚은 문장들 (§9)', () => {
     const at = (key: string, hand: string) => lineSentence(SCENARIOS.find((x) => scenarioKey(x) === key)!, lineOf(hand))!.text;
-    // '전부'가 50/50 칸을 덮던 P1
-    expect(at('vs_open:SB:CO', 'A7s')).toBe('SB는 CO 오픈에 수티드 A를 3벳하고, A8s부터 A6s까지는 절반만 3벳해요.');
+    // '전부'가 50/50 칸을 덮던 P1 — 줄 전부가 3벳이 1순위여도 섞인 칸이 있으면 '전부' 없이 그 칸을 부릅니다(BTN 의 양극화 3벳).
+    // 'AJs부터 A9s까지는'이 42em 을 넘겨 같은 범위를 'AJs~A9s는'으로 부릅니다.
+    expect(at('vs_open:BTN:CO', 'A7s')).toBe('BTN은 CO 오픈에 수티드 A를 3벳하고, AJs~A9s는 3벳·콜 반반, A8s~A6s는 절반만 3벳해요.');
     // '까지'가 줄 첫 칸에 붙고 run 1 의 섞인 꼬리를 버리던 P3
-    expect(at('vs_open:BB:UTG', 'AQo')).toBe('BB는 UTG 오픈에 AKo는 3벳, AQo는 3벳·콜 반반, A9o까지는 콜, A8o는 절반만 콜해요.');
+    expect(at('vs_open:BB:UTG', 'AQo')).toBe('BB는 UTG 오픈에 오프수트 A 중 AKo는 3벳, AQo는 3벳·콜 반반, ATo까지는 콜해요.');
     // 마지막 계속 run 의 섞인 꼬리(경계 막대 칸)를 부른다
-    expect(at('vs_3bet:UTG:HJ', '77')).toBe('UTG는 HJ 3벳에 KK까지는 4벳, QQ는 4벳·콜 반반, 88까지는 콜, 77은 절반만 콜해요.');
+    expect(at('vs_3bet:CO:BTN', '44')).toBe('CO는 BTN 3벳에 JJ까지는 4벳, TT은 4벳·콜 반반, 55까지는 콜, 44는 절반만 콜해요.');
     // '그 밖' 꼬리('콜을 섞어요') 대신 앞쪽 '주로' 칸을 '까지'에 넣는다
     expect(at('vs_open:BB:UTG', '76s')).toBe('BB는 UTG 오픈에 수티드 커넥터를 54s까지 콜하고, 43s는 절반만 콜해요.');
-    expect(at('vs_open:BB:SB', 'QTs')).toBe('BB는 SB 오픈에 수티드 Q 중 QJs는 주로 3벳, QTs는 3벳·콜 반반, Q9s부터는 콜해요.');
-    // P0h: 폴드 50 · 3벳 25 · 콜 25 인 칸 — '3벳이나 콜을 섞고'로 줄이지 않고 나눔을 부릅니다(THEORY_SPEC §5)
-    expect(at('vs_open:HJ:UTG', 'KQo')).toBe('HJ는 UTG 오픈에 오프수트 K 중 KQo는 절반은 폴드하고, 나머지를 3벳과 콜로 나눠요.');
+    expect(at('vs_open:BB:BTN', 'QTs')).toBe('BB는 BTN 오픈에 수티드 Q 중 QJs는 주로 3벳, QTs는 3벳·콜 반반, Q9s부터는 전부 콜해요.');
+    // P0h: 폴드 50 · 3벳 25 · 콜 25 인 칸 — '3벳이나 콜을 섞고'로 줄이지 않고 나눔을 부릅니다(THEORY_SPEC §5).
+    // 책에 맞춘 차트에는 이런 칸(R50/C25/C25)이 없어서(캡슐 테스트 참고) 그 칸에 붙는 마디를 직접 고정합니다.
+    expect(splitPhrase(['fold', 'threebet', 'call'], 'vs_open', 'solo')).toBe('절반은 폴드하고, 나머지를 3벳과 콜로 나눠요');
     // 섞인 칸이 사이에 낀 줄: '나머지 전부' 꼴
-    expect(at('vs_limp:BTN', 'A7s')).toBe('BTN은 림프에 수티드 A를 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.');
+    expect(at('vs_open:SB:BTN', 'A7s')).toBe('SB는 BTN 오픈에 수티드 A를 3벳하고, A7s·A6s·A3s·A2s는 절반만 3벳해요.');
+    // 계속 구간이 둘인 줄에서 섞인 칸이 구간 안쪽에 끼면: 경계 + 예외 꼴. rfi SB 포켓페어(SB 의 함정 림프 — AA·QQ 는 오픈 75 · 림프 25,
+    // KK·JJ 는 반반)를 칸 나열로 쓰면 'AA는 주로 오픈, KK는 오픈·림프 반반, QQ는 주로 오픈, …'으로 52em 이었습니다.
+    // AA·QQ(주로 오픈)는 이름 규칙대로 '44까지 오픈'이 덮습니다.
+    expect(at('rfi:SB', 'AA')).toBe('SB는 포켓페어를 44까지 오픈하고 33부터는 전부 림프하되, KK·JJ는 오픈·림프 반반이에요.');
+    expect(at('rfi:SB', 'AQo')).toBe('SB는 A5o까지 오픈하고 A4o부터는 전부 림프하되, AQo는 오픈·림프 반반이에요.');
+    // rfi SB 의 오픈 · 림프 · 폴드: 오픈(레이즈)은 '오픈', 림프는 '림프'.
+    expect(at('rfi:SB', 'QTo')).toBe('SB는 오프수트 Q를 QJo만 오픈하고, Q5o까지 림프해요.');
+    expect(at('rfi:SB', '76s')).toBe('SB는 수티드 커넥터를 T9s만 오픈하고, 43s까지 림프해요.');
+    // 'AKs만 올인하고'인데 A5s 가 올인을 25% 섞는 줄(BB vs CO 4벳, 휠 블로커 블러프)은 '만' 없이 칸 이름을 주제어로.
+    expect(at('vs_4bet:BB:CO', 'A5s')).toBe('BB는 CO 4벳에 수티드 A 중 AKs는 올인하고, ATs까지는 콜해요.');
+    // 줄 이름이 범위의 주인인 꼴은 폭 폴백에서도 줄 이름을 빼지 않습니다('BB는 SB 오픈에 콜하고, …'가 되지 않게).
+    expect(at('vs_open:BB:SB', 'K4o')).toBe('BB는 SB 오픈에 오프수트 K를 콜하고, KQo는 3벳·콜 반반, K6o~K2o는 절반만 3벳해요.');
   });
 });
 
@@ -435,17 +457,21 @@ describe('line: 줄 문장의 모호함 (THEORY_SPEC §5)', () => {
   const at = (key: string, hand: string, topic = false) => lineSentence(SCENARIOS.find((x) => scenarioKey(x) === key)!, lineOf(hand), { topic })!.text;
 
   it("(a) 도달 칸이 줄의 일부뿐이면 '전부'나 줄 이름 대신 칸 이름으로", () => {
-    expect(at('vs_5bet:CO:SB', 'AA')).toBe('CO는 SB 올인에 AA~QQ를 콜해요.');
-    expect(at('vs_5bet:UTG:HJ', 'AKo')).toBe('UTG는 HJ 올인에 AKo를 폴드해요.');
-    expect(at('vs_3bet:BTN:BB', '76s')).toBe('BTN은 BB 3벳에 T9s~54s를 콜해요.');
-    expect(at('vs_3bet:UTG:HJ', 'KQo', true)).toBe('오프수트 K는 KQo·KJo를 폴드해요.');
-    // 칸 이름 범위도 slot 으로: 98s·87s 가 못 오는 줄은 'T9s~54s'가 아니라 'T9s·76s~54s'.
-    expect(at('vs_4bet:BB:SB', 'T9s')).toBe('BB는 SB 4벳에 T9s·76s~54s를 폴드해요.');
+    expect(at('vs_5bet:UTG:HJ', 'AA')).toBe('UTG는 HJ 올인에 AA~QQ를 콜해요.');
+    // 5벳(올인)에는 TT+ 와 AK 로 콜(책 5장) — UTG 가 4벳한 오프수트 A 는 AKo 하나뿐입니다.
+    expect(at('vs_5bet:UTG:HJ', 'AKo')).toBe('UTG는 HJ 올인에 AKo를 콜해요.');
+    expect(at('vs_4bet:BTN:HJ', '76s')).toBe('BTN은 HJ 4벳에 98s~54s를 폴드해요.');
+    expect(at('vs_3bet:UTG:SB', 'KQo', true)).toBe('오프수트 K는 KQo·KJo를 폴드해요.');
+    // 칸 이름 범위도 slot 으로: KJo~K7o 가 못 오는 줄(BB 가 SB 에게 3벳하는 KQo 와 블러프 K6o~K2o)은 'KQo~K2o'가 아니라 'KQo·K6o~K2o'.
+    expect(at('vs_4bet:BB:SB', 'K4o')).toBe('BB는 SB 4벳에 KQo·K6o~K2o를 폴드해요.');
     // '그 아래 칸은'도 도달 불가 칸을 덮지 않게 — 그 아래 도달 칸이 전부 full 폴드면 이름으로, 하나도 없으면 그 절 없이.
-    expect(at('vs_4bet:BTN:UTG', 'AKo')).toBe('BTN은 UTG 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, AQo는 폴드해요.');
-    expect(at('vs_3bet:UTG:HJ', 'T9s')).toBe('UTG는 HJ 3벳에 수티드 커넥터 중 T9s는 절반만 콜하고, 98s~65s는 폴드해요.');
-    expect(at('vs_5bet:UTG:SB', 'AKo')).toBe('UTG는 SB 올인에 AKo를 주로 폴드하고, 콜도 25% 섞어요.');
-    expect(at('vs_5bet:UTG:SB', 'AKo', true)).toBe('오프수트 A는 AKo를 주로 폴드하고, 콜도 25% 섞어요.');
+    expect(at('vs_4bet:BTN:UTG', 'AKo')).toBe('BTN은 UTG 4벳에 오프수트 A 중 AKo는 올인과 콜을 반반 섞고, AQo·AJo는 폴드해요.');
+    expect(at('vs_3bet:UTG:HJ', 'T9s')).toBe('UTG는 HJ 3벳에 수티드 커넥터 중 T9s는 절반만 콜하고, 98s~76s는 폴드해요.');
+    expect(at('vs_3bet:UTG:HJ', 'KQo')).toBe('UTG는 HJ 3벳에 오프수트 K 중 KQo만 4벳을 25% 섞고, KJo는 폴드해요.');
+    // 그 아래 도달 칸이 하나도 없는 줄(도달 칸이 전부 '주로 폴드'인 섞인 칸 — 옛 'UTG는 SB 올인에 AKo를 주로 폴드하고, 콜도 25% 섞어요.')은
+    // 책에 맞춘 차트에서는 없어졌습니다: 5벳에는 AK 가 늘 콜이고(책 5장), 도달 칸이 전부 rest 가 1순위인 섞인 칸인 줄은 74개 차트 어디에도 없습니다.
+    const restOf = (s: Scenario) => restAction(getChartDef(s));
+    expect(ALL.filter((x) => x.cells.length && x.cells.every((c) => c.p === restOf(x.s) && !c.full)).map((x) => `${scenarioKey(x.s)} ${x.line.id}`)).toEqual([]);
     // 전수: 도달 불가 칸이 있는 줄의 문장에는 '전부'도, 줄 이름 전체를 덮는 claim(all)도 없습니다(checkSentence 가 claims 로도 봅니다).
     let n = 0;
     for (const { s, line, sentence } of ALL) {
@@ -458,9 +484,11 @@ describe('line: 줄 문장의 모호함 (THEORY_SPEC §5)', () => {
     // 전수: '그 아래 칸은'이 가리키는 도달 칸이 있고, 그 사이에 도달 불가 칸이 끼면 이름으로 못 부르는 칸('주로 폴드')이 있을 때뿐입니다.
     const rest = (s: Scenario) => restAction(getChartDef(s));
     let below = 0;
+    let generic = 0;
     for (const { s, line, cells } of ALL) {
       for (const t of [lineSentence(s, line)?.text, lineSentence(s, line, { topic: true })?.text]) {
         if (!t?.includes('그 아래 칸은')) continue;
+        generic++;
         const named = textHands(t.split('그 아래 칸은')[0], cells);
         const last = Math.max(...cells.flatMap((c, i) => (named.has(c.hand) ? [i] : [])));
         const under = cells.slice(last + 1);
@@ -471,17 +499,24 @@ describe('line: 줄 문장의 모호함 (THEORY_SPEC §5)', () => {
         }
       }
     }
-    expect(below).toBe(10);
+    // 책에 맞춘 차트에서는 도달 불가 칸 너머까지 '그 아래 칸은'으로 덮는 문장이 하나도 없습니다(옛 차트 10개): 점선 너머의 도달 칸이
+    // 전부 full 폴드라 이름으로 부르거나('…AQo·AJo는 폴드해요'), 그 아래에 점선이 없는 줄만 '그 아래 칸은'을 씁니다(문장 21 + 형제 줄 21).
+    expect(below).toBe(0);
+    expect(generic).toBe(42);
   });
 
   it('(b) 세 액션 칸은 나눔을 이름으로 — 비중어 하나로 줄이지 않습니다', () => {
-    expect(at('vs_open:CO:UTG', 'KQo')).toBe('CO는 UTG 오픈에 오프수트 K 중 KQo는 절반은 콜하고, 나머지를 3벳과 폴드로 나눠요.');
-    expect(at('vs_3bet:BTN:BB', 'A9o')).toBe('BTN은 BB 3벳에 AKo는 4벳, ATo까지는 콜, A9o는 절반은 폴드, 절반은 4벳·콜이에요.');
-    // 콜드 상황의 주어는 앞의 오픈까지(책 5장 3절: 오픈과 3벳 사이에 끼어 있을 때).
-    expect(at('cold_4bet:BTN', 'AKo')).toBe('BTN은 오픈과 3벳 뒤에 오프수트 A 중 AKo는 절반은 4벳하고, 나머지를 콜과 폴드로 나눠요.');
-    // 전수: 세 액션 칸이 있는 줄은 16개이고, 전부 split claim 으로 부릅니다.
+    // 책에 맞춘 차트의 세 액션 칸은 BTN 의 블라인드 3벳 대응 ATo(콜 50 · 4벳 25 · 폴드 25) 둘뿐입니다 — 칸 나열 안의 명사 꼴.
+    expect(at('vs_3bet:BTN:BB', 'ATo')).toBe('BTN은 BB 3벳에 AKo는 4벳, AJo까지는 콜, ATo는 절반은 콜, 절반은 4벳·폴드예요.');
+    expect(at('vs_3bet:BTN:SB', 'ATo')).toBe('BTN은 SB 3벳에 AKo는 4벳, AJo까지는 콜, ATo는 절반은 콜, 절반은 4벳·폴드예요.');
+    // 그 칸 하나만 말하는 꼴(옛 'CO는 UTG 오픈에 오프수트 K 중 KQo는 절반은 콜하고, 나머지를 3벳과 폴드로 나눠요.' — CO 는 이제
+    // 콜 없이 3벳 아니면 폴드)은 차트에 쓰이는 줄이 없어 마디를 직접 고정합니다. 콜드 상황도 같은 꼴입니다.
+    expect(splitPhrase(['call', 'threebet', 'fold'], 'vs_open', 'solo')).toBe('절반은 콜하고, 나머지를 3벳과 폴드로 나눠요');
+    expect(splitPhrase(['fourbet', 'call', 'fold'], 'cold_4bet', 'solo')).toBe('절반은 4벳하고, 나머지를 콜과 폴드로 나눠요');
+    expect(splitPhrase(['fold', 'fourbet', 'call'], 'vs_3bet', 'nounEnd')).toBe('절반은 폴드, 절반은 4벳·콜이에요');
+    // 전수: 세 액션 칸이 있는 줄은 2개이고, 전부 split claim 으로 부릅니다.
     const lines = ALL.filter((x) => x.cells.some((c) => c.split));
-    expect(lines.length).toBe(16);
+    expect(lines.map((x) => `${scenarioKey(x.s)} ${x.line.id}`)).toEqual(['vs_3bet:BTN:SB oA', 'vs_3bet:BTN:BB oA']);
     for (const x of lines) {
       for (const c of x.cells.filter((y) => y.split)) {
         expect(c.w, `${scenarioKey(x.s)} ${c.hand}`).toBeCloseTo(0.5);
@@ -492,10 +527,11 @@ describe('line: 줄 문장의 모호함 (THEORY_SPEC §5)', () => {
   });
 
   it("(c) 비중어 바로 뒤에 '나머지는'이 오지 않습니다 — '그 아래 칸은' · '다른 칸은'", () => {
-    expect(at('vs_open:BB:CO', '87o')).toBe('BB는 CO 오픈에 오프수트 8 중 87o는 절반만 콜하고, 그 아래 칸은 폴드해요.');
-    // 섞는 쪽은 비중으로(감사: '가끔'은 앱의 비중어 밖이었습니다). QJs 는 폴드 75 · 3벳 25.
-    expect(at('vs_open:SB:UTG', 'QJs')).toBe('SB는 UTG 오픈에 수티드 Q 중 QJs만 3벳을 25% 섞고, 그 아래 칸은 폴드해요.');
-    expect(at('vs_open:SB:UTG', 'QJs', true)).toBe('수티드 Q는 QJs만 3벳을 25% 섞고, 그 아래 칸은 폴드해요.');
+    expect(at('vs_open:CO:UTG', 'KQo')).toBe('CO는 UTG 오픈에 오프수트 K 중 KQo는 절반만 3벳하고, 그 아래 칸은 폴드해요.');
+    // 섞는 쪽은 비중으로(감사: '가끔'은 앱의 비중어 밖이었습니다). KQo 는 폴드 75 · 4벳 25.
+    // 그 아래 KJo 다음 칸(KTo~)은 UTG 의 오픈 범위 밖이라 '그 아래 칸은' 대신 이름으로 부릅니다((a)).
+    expect(at('vs_3bet:UTG:HJ', 'KQo')).toBe('UTG는 HJ 3벳에 오프수트 K 중 KQo만 4벳을 25% 섞고, KJo는 폴드해요.');
+    expect(at('vs_3bet:UTG:HJ', 'KQo', true)).toBe('오프수트 K는 KQo만 4벳을 25% 섞고, KJo는 폴드해요.');
     expect(at('vs_open:BB:UTG', 'A5s')).toBe('BB는 UTG 오픈에 AKs·AQs·A5s·A4s는 3벳, A3s·A2s는 3벳·콜 반반, 다른 칸은 콜해요.');
     for (const { s, line, sentence } of ALL) {
       for (const t of [sentence?.text, lineSentence(s, line, { topic: true })?.text]) {
@@ -510,22 +546,26 @@ describe('line: 줄 문장의 모호함 (THEORY_SPEC §5)', () => {
   it("(d) 'X만 V하고, Y는 절반만 V' 대신 '늘 V하는 건 X까지이고, …'", () => {
     expect(at('rfi:UTG', 'KJo')).toBe('UTG는 오프수트 K 중 늘 오픈하는 건 KQo까지이고, KJo는 절반만 오픈해요.');
     expect(at('rfi:UTG', 'KJo', true)).toBe('오프수트 K 중 늘 오픈하는 건 KQo까지이고, KJo는 절반만 오픈해요.');
-    expect(at('vs_3bet:UTG:BB', '98s')).toBe('UTG는 BB 3벳에 수티드 커넥터 중 늘 콜하는 건 T9s까지이고, 98s는 주로 콜해요.');
-    expect(at('vs_open:HJ:UTG', 'AQo')).toBe('HJ는 UTG 오픈에 오프수트 A 중 늘 3벳하는 건 AKo까지이고, AQo는 3벳과 콜을 반반 섞어요.');
+    // 꼬리가 '주로' 칸이어도 같습니다: 'AKo만 4벳하고, AQo는 주로 4벳해요'의 '만'은 AQo 의 4벳 75%와 어긋납니다.
+    expect(at('cold_4bet:SB', 'AQo')).toBe('SB는 오픈과 3벳 뒤에 오프수트 A 중 늘 4벳하는 건 AKo까지이고, AQo는 주로 4벳해요.');
+    // 꼬리에 비중어가 둘이면 동사는 끝에 한 번만.
+    expect(at('vs_open:BTN:UTG', 'AQo')).toBe('BTN은 UTG 오픈에 늘 3벳하는 건 AKo까지이고, AQo는 주로, AJo는 절반만 3벳해요.');
   });
 
   it("(e) 주로인 칸을 이름으로 부를 때는 '주로'와 함께", () => {
-    expect(at('vs_open:SB:HJ', 'A2s')).toBe('SB는 HJ 오픈에 ATs까지는 3벳, A9s는 절반만 3벳, A5s~A3s는 3벳, A2s는 주로 3벳해요.');
-    expect(at('vs_3bet:UTG:SB', 'A4s')).toBe('UTG는 SB 3벳에 수티드 A 중 AKs는 4벳, ATs까지는 콜, A5s는 4벳, A4s는 주로 4벳해요.');
-    expect(at('vs_open:BB:SB', 'A9s')).toBe('BB는 SB 오픈에 수티드 A 중 A9s까지는 3벳, A6s까지는 콜, A5s부터는 전부 3벳해요.');
+    // A3s 는 4벳 75 · 폴드 25(휠 블로커 4벳 블러프).
+    expect(at('vs_3bet:UTG:CO', 'A3s')).toBe('UTG는 CO 3벳에 수티드 A 중 AKs는 4벳, ATs까지는 콜, A5s·A4s는 4벳, A3s는 주로 4벳해요.');
+    expect(at('vs_3bet:UTG:BTN', 'A3s')).toBe('UTG는 BTN 3벳에 AKs는 4벳, ATs까지는 콜, A5s·A4s는 4벳, A3s는 주로 4벳해요.');
+    // 범위 '…까지는'이 덮는 주로 칸(AJs 3벳 75 · 콜 25)은 이름을 대지 않아도 됩니다.
+    expect(at('vs_open:BB:CO', 'A9s')).toBe('BB는 CO 오픈에 AJs까지는 3벳, ATs는 3벳·콜 반반, A6s까지는 콜, A5s부터는 전부 3벳해요.');
   });
 
   it("(f) 콜론 머리표('HJ: …') 없이 문장으로", () => {
-    expect(at('vs_3bet:UTG:BB', 'A5s')).toBe('UTG에서 AKs는 4벳, ATs까지는 콜, A9s는 절반만 콜, A5s·A4s는 4벳, A3s는 절반만 4벳해요.');
-    // 액션별 나열에서 콜 칸(ATs·A9s)이 AJs 바로 뒤에 이어지므로 AJs 를 그 앞에 두고 'A9s까지는'으로 — 주로인 A9s 를 범위로 덮습니다.
-    expect(at('vs_open:HJ:UTG', 'A5s')).toBe('HJ에서 AKs·AQs·A5s·A4s는 3벳, A3s는 절반만 3벳, AJs는 3벳·콜 반반, A9s까지는 콜해요.');
+    expect(at('vs_4bet:SB:BTN', 'A5s')).toBe('SB에서 AKs·A5s는 올인, ATs는 올인·콜 반반, A4s는 절반만 올인, AQs·AJs·A9s는 콜해요.');
+    // 액션별 나열에서 콜 칸(AJs~A9s)이 AQs 바로 뒤에 이어지므로 AQs 를 그 앞에 두고 'A9s까지는'으로 — 주로인 A9s 를 범위로 덮습니다.
+    expect(at('vs_3bet:CO:BTN', 'A5s')).toBe('CO에서 AKs·A5s~A2s는 4벳, A8s는 절반만 4벳, AQs는 4벳·콜 반반, A9s까지는 콜해요.');
     // '〈자리〉에서'로도 넘치는 두 줄은 주어를 뺍니다(리빌 바로 위 상황 줄이 내 자리와 상대를 말합니다).
-    expect(at('vs_open:BTN:HJ', 'A5s')).toBe('AKs·AQs·A5s·A4s는 3벳, AJs는 3벳·콜 반반, A3s·A2s는 절반만 3벳, 다른 칸은 콜해요.');
+    expect(at('vs_open:BTN:HJ', 'A5s')).toBe('AQs까지는 3벳, AJs는 3벳·콜 반반, ATs는 콜, A9s는 절반만 3벳, A5s~A2s는 3벳해요.');
     for (const { s, line, sentence } of ALL) {
       for (const t of [sentence?.text, lineSentence(s, line, { topic: true })?.text]) if (t) expect(t).not.toMatch(/:/);
     }
@@ -562,37 +602,71 @@ describe('line: 단서 일관성 (§7.2-7)', () => {
 });
 
 describe('line: 단조성 회귀 (§7.2-8)', () => {
-  /** 옛 rowBoundary.monotone: 계속 비중만 보고 비증가인가. */
+  /**
+   * 옛 rowBoundary.monotone: 계속 비중(1 − rest 비중)만 보고 비증가인가.
+   * (옛 테스트는 fullMix 에 이미 든 폴드 칸까지 더해 foldWeight 를 늘 0 으로 계산해서, rest 가 폴드인 줄은 무엇이든 '단조'였습니다.)
+   */
   const contMonotone = (cs: Cell[], rest: Action) => {
-    const ws = cs.map((c) => 1 - (rest === 'fold' ? foldWeight(Object.fromEntries(c.mix.map((m) => [m.action, m.weight]))) : (c.mix.find((m) => m.action === rest)?.weight ?? 0)));
+    const ws = cs.map((c) => 1 - (c.mix.find((m) => m.action === rest)?.weight ?? 0));
     return ws.every((w, i) => i === 0 || w <= ws[i - 1] + 1e-6);
   };
+  const key = (x: { s: Scenario; line: LineDef }) => `${scenarioKey(x.s)} ${x.line.id}`;
 
-  it('계속 비중으로는 단조지만 1순위가 번갈아 나오는 9개 수티드 A 줄과 BB 커넥터 줄은 P4 이고 경계 막대가 없다', () => {
-    const NINE = ['vs_open:BTN:CO', 'vs_open:BB:UTG', 'vs_open:BB:HJ', 'vs_open:BB:CO', 'vs_open:BB:BTN', 'vs_open:BB:SB', 'vs_3bet:BTN:SB', 'vs_3bet:BTN:BB', 'vs_3bet:SB:BB'];
-    const sA = lineOf('A5s');
-    for (const key of NINE) {
-      const s = SCENARIOS.find((x) => scenarioKey(x) === key)!;
-      const cs = cellsOf(s, sA);
-      expect(contMonotone(cs, restAction(getChartDef(s))), key).toBe(true);
-      expect(cs.every((c, i) => i === 0 || agg(c.p) <= agg(cs[i - 1].p)), key).toBe(false);
-      expect(lineSentence(s, sA)!.frame, key).toBe('P4');
-      expect(boundaryAfter(s, sA), key).toBeNull();
-    }
-    for (const key of ['vs_open:BB:BTN', 'vs_open:BB:SB']) {
-      const s = SCENARIOS.find((x) => scenarioKey(x) === key)!;
-      expect(lineSentence(s, lineOf('76s'))!.frame, key).toBe('P4');
-      expect(boundaryAfter(s, lineOf('76s')), key).toBeNull();
+  it('계속 비중으로는 단조지만 1순위가 번갈아 나오는 33줄은 P4 이고 경계 막대가 없다', () => {
+    // 계속 비중만 보던 옛 경계는 이 줄들을 단조로 보고 막대를 그었습니다. 전부 '콜할 수 있는 자리의 양극화 3벳·4벳'이라
+    // 1순위가 3벳(4벳 · 올인)/콜로 번갈아 나옵니다(책 5장: 콜 범위가 있으면 3벳은 양극화하고, 블로커가 좋은 패를 블러프로 섞습니다).
+    const want = [
+      // BB 의 오픈 대응 — 콜 범위가 있어 3벳이 양극화(책 5장: BTN 상대만 선형, SB 상대는 양극화). SB 상대 블러프는 낮은 수티드(J3s · T5s~T2s · 32s …)와 K6o~K2o
+      ...['UTG sA', 'HJ sA', 'HJ conn', 'CO sA', 'CO sK', 'CO conn', 'SB sA', 'SB oK', 'SB sJ', 'SB conn', 'SB sT', 'SB s9', 'SB s8', 'SB s7', 'SB s6', 'SB s5', 'SB s4'].map((k) => `vs_open:BB:${k}`),
+      // BTN 의 오픈 대응 — 콜 약 5~7% 와 양극화 3벳(K9s · QTs · 작은 수티드 커넥터가 3벳, KTs · QJs · T9s 는 콜)
+      ...['UTG sK', 'UTG conn', 'HJ sK', 'HJ sQ', 'HJ conn', 'CO sK', 'CO sQ', 'CO conn'].map((k) => `vs_open:BTN:${k}`),
+      // 3벳 대응의 양극화 4벳(최강 + 블로커, 책 5장 2절): A 블로커를 쥔 AJo · 휠 A 가 4벳으로 들어가고, 그 위의 AQo · 중간 수티드 A 는 콜(이나 폴드)
+      'vs_3bet:HJ:CO oA',
+      'vs_3bet:HJ:BTN oA',
+      'vs_3bet:BTN:SB sA',
+      'vs_3bet:BTN:BB sA',
+      'vs_3bet:SB:BB sA',
+      'vs_3bet:SB:BB oA',
+      // 4벳 대응: A5s 의 올인 블러프(책 5장 5절: 뒷자리 4벳에는 ATs · A5s 같은 블로커 패의 5벳 블러프가 이득이 되기 시작해요), 그 위의 수티드 A 는 콜
+      'vs_4bet:BTN:CO sA',
+      'vs_4bet:BB:SB sA',
+    ].sort();
+    const got = ALL.filter((x) => x.cells.length && contMonotone(x.cells, restAction(getChartDef(x.s))) && !isMonotone(lineCells(x.s, x.line)));
+    expect(got.map(key).sort()).toEqual(want);
+    for (const x of got) {
+      expect(x.cells.every((c, i) => i === 0 || agg(c.p) <= agg(x.cells[i - 1].p)), key(x)).toBe(false);
+      expect(x.sentence!.frame, key(x)).toBe('P4');
+      expect(boundaryAfter(x.s, x.line), key(x)).toBeNull();
     }
   });
 
-  it('단조롭지 않은 줄은 33개: 수티드 A 31개 + BB vs BTN/SB 커넥터 2개, 전부 P4', () => {
+  it('단조롭지 않은 줄은 63개, 전부 P4 — 수티드 A(휠 A 블로커) 34 · 수티드 A 밖의 양극화 3벳(BB 13 · BTN 8) · AJo 4벳 3 · BB 림프 대응 블러프 레이즈 5', () => {
     const non = ALL.filter((x) => x.cells.length && !isMonotone(lineCells(x.s, x.line)));
-    expect(non.length).toBe(33);
-    expect(non.filter((x) => x.line.id === 'sA').length).toBe(31);
-    expect(non.filter((x) => x.line.id === 'conn').map((x) => scenarioKey(x.s)).sort()).toEqual(['vs_open:BB:BTN', 'vs_open:BB:SB']);
+    expect(non.length).toBe(63);
+    // 수티드 A 34줄: 전부 휠 A(A5s~A2s) 중 하나가 그 위의 칸보다 공격적인 1순위 — 블로커 3벳 · 4벳 · 올인 블러프
+    // (책 5장: 블로커가 좋은 패를 블러프로, 4벳은 블로커를 섞은 양극화, 5벳 블러프 ATs · A5s). 콜이 없는 HJ · CO · SB 의 선형 3벳에도
+    // A5s(· A4s)가 A9s~A6s 를 건너뛰고 들어갑니다.
+    const sA = non.filter((x) => x.line.id === 'sA');
+    expect(sA.length).toBe(34);
+    for (const x of sA) {
+      const wheel = x.cells.filter((c) => ['A5s', 'A4s', 'A3s', 'A2s'].includes(c.hand));
+      expect(wheel.some((w) => x.cells.slice(0, x.cells.indexOf(w)).some((c) => agg(c.p) < agg(w.p))), key(x)).toBe(true);
+    }
+    // 수티드 A 밖: BB 의 오픈 대응 양극화 3벳 13 · BTN 의 양극화 3벳 8 · AJo 4벳 블러프 3 · BB 의 SB 림프 대응 5.
+    // BB 림프 대응(SB 림프, BB 차례)은 양극화 레이즈 — 가장 약한 오프수트(93o · 84o · 74o …)를 블러프로 레이즈하고 가운데는 체크해요
+    // (BOOK_CHART_SPEC — 책은 이 칸을 패 단위로 주지 않아 공개 솔버 자료로 채움).
+    expect(non.filter((x) => x.line.id !== 'sA').map(key).sort()).toEqual(
+      [
+        ...['HJ conn', 'CO sK', 'CO conn', 'SB oK', 'SB sJ', 'SB conn', 'SB sT', 'SB s9', 'SB s8', 'SB s7', 'SB s6', 'SB s5', 'SB s4'].map((k) => `vs_open:BB:${k}`),
+        ...['UTG sK', 'UTG conn', 'HJ sK', 'HJ sQ', 'HJ conn', 'CO sK', 'CO sQ', 'CO conn'].map((k) => `vs_open:BTN:${k}`),
+        'vs_3bet:HJ:CO oA',
+        'vs_3bet:HJ:BTN oA',
+        'vs_3bet:SB:BB oA',
+        ...['o9', 'o8', 'o7', 'o6', 'o5'].map((k) => `vs_limp:BB ${k}`),
+      ].sort(),
+    );
     for (const x of non) expect(x.sentence!.frame).toBe('P4');
-    expect(ALL.filter((x) => x.sentence?.frame === 'P4').length).toBe(33);
+    expect(ALL.filter((x) => x.sentence?.frame === 'P4').length).toBe(63);
   });
 
   it('경계 막대: 단조 줄, 계속 칸이 있고 마지막 계속 칸이 도달 가능한 마지막 칸이 아닐 때만', () => {
@@ -625,12 +699,15 @@ describe('line: 캡슐 (§7.2-9)', () => {
         const sh = shape(step.mixList, rest);
         if (step.mixList[0].weight >= 0.999) continue;
         counts.set(sh, (counts.get(sh) ?? 0) + 1);
-        const pattern = e.capsule.label.replace(/(오픈|레이즈|콜|3벳|4벳|올인|폴드|체크)/g, 'A');
+        // 림프(rfi SB)도 버튼 단어입니다 — 'KK는 오픈·림프 반반'이 'A·A 반반' 모양으로 읽히게.
+        const pattern = e.capsule.label.replace(/(오픈|레이즈|콜|3벳|4벳|올인|폴드|체크|림프)/g, 'A');
         labelOf.set(sh, new Set([...(labelOf.get(sh) ?? []), pattern]));
       }
     }
-    // 차트에 실제로 있는 혼합은 7가지뿐입니다(도달 가능한 칸 기준). 칸 수는 실측값입니다.
-    expect([...labelOf.keys()].sort()).toEqual(['R50/C25/C25', 'C50/C25/R25', 'C50/C50', 'C50/R50', 'C75/C25', 'C75/R25', 'R75/C25'].sort());
+    // 차트에 실제로 있는 혼합은 6가지뿐입니다(도달 가능한 칸 기준). 칸 수는 실측값입니다.
+    // §2.2 의 일곱째 모양 R50/C25/C25(폴드 50 · 둘이 25씩, 옛 HJ vs UTG 의 KQo)는 책에 맞춘 차트에 없습니다 — HJ · CO · SB 는 콜 없이
+    // 3벳 아니면 폴드라서요. 그 라벨('절반은 폴드')은 아래 라벨 리터럴이 합성 혼합으로 고정합니다.
+    expect([...labelOf.keys()].sort()).toEqual(['C50/C25/R25', 'C50/C50', 'C50/R50', 'C75/C25', 'C75/R25', 'R75/C25'].sort());
     expect(Object.fromEntries([...labelOf.entries()].map(([k, v]) => [k, [...v]]))).toEqual({
       'C75/C25': ['주로 A'],
       'C75/R25': ['주로 A'],
@@ -638,14 +715,18 @@ describe('line: 캡슐 (§7.2-9)', () => {
       'C50/R50': ['절반만 A'],
       'C50/C50': ['A·A 반반'],
       'C50/C25/R25': ['절반만 A'],
-      'R50/C25/C25': ['절반은 A'],
     });
-    expect(Object.fromEntries(counts)).toEqual({ 'C75/C25': 150, 'C75/R25': 91, 'R75/C25': 82, 'C50/R50': 209, 'C50/C50': 83, 'C50/C25/R25': 13, 'R50/C25/C25': 3 });
+    expect(Object.fromEntries(counts)).toEqual({ 'C75/C25': 101, 'C75/R25': 24, 'R75/C25': 21, 'C50/R50': 156, 'C50/C50': 101, 'C50/C25/R25': 2 });
     // 라벨 리터럴
     expect(capsuleLabel([{ action: 'fold', weight: 1 }], 'fold', 'rfi')).toBe('폴드');
     expect(capsuleLabel([{ action: 'raise', weight: 0.5 }, { action: 'fold', weight: 0.5 }], 'fold', 'vs_limp')).toBe('절반만 레이즈');
     expect(capsuleLabel([{ action: 'fourbet', weight: 0.5 }, { action: 'call', weight: 0.5 }], 'fold', 'cold_4bet')).toBe('4벳·콜 반반');
     expect(capsuleLabel([{ action: 'fold', weight: 0.5 }, { action: 'fourbet', weight: 0.25 }, { action: 'call', weight: 0.25 }], 'fold', 'vs_3bet')).toBe('절반은 폴드');
+    expect(capsuleLabel([{ action: 'fold', weight: 0.5 }, { action: 'threebet', weight: 0.25 }, { action: 'call', weight: 0.25 }], 'fold', 'vs_open')).toBe('절반은 폴드');
+    // SB 의 함정 림프(rfi SB): AA · QQ · AKo 는 오픈 75 · 림프 25 → '주로 오픈', KK · JJ · AQo 는 반반 → '오픈·림프 반반'.
+    expect(capsuleLabel([{ action: 'raise', weight: 0.75 }, { action: 'limp', weight: 0.25 }], 'fold', 'rfi')).toBe('주로 오픈');
+    expect(capsuleLabel([{ action: 'raise', weight: 0.5 }, { action: 'limp', weight: 0.5 }], 'fold', 'rfi')).toBe('오픈·림프 반반');
+    expect(capsuleLabel([{ action: 'limp', weight: 1 }], 'fold', 'rfi')).toBe('림프');
   });
 
   it('부분 정답 문장이 있는 칸 = 2순위 비중 ≥ PARTIAL_THRESHOLD 인 칸', () => {
@@ -700,25 +781,32 @@ describe('line: 경계 거리 꼬리표 (§7.2-10)', () => {
   });
 
   it('stripView: 유령 칸에는 색이 없고, 도달 불가 칸은 점선, 링은 이 패', () => {
+    // HJ 가 UTG 에게 3벳이 1순위인 페어는 AA~88(88 은 3벳 50 · 폴드 50)이라 일곱 칸이 오고, 77~22 는 점선입니다
+    // (77 · 66 은 3벳을 25% 섞지만 1순위가 폴드라 4벳 대응 문제로 나오지 않는 칸 — isReachable).
     const v = stripView({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' }, 'QQ');
-    expect(v.slots.map((x) => x.role)).toEqual(['cell', 'cell', 'cell', 'cell', ...Array(9).fill('unreachable')]);
+    expect(v.slots.map((x) => x.role)).toEqual([...Array(7).fill('cell'), ...Array(6).fill('unreachable')]);
+    expect(v.slots.slice(7).every((x) => x.mix === null)).toBe(true);
     expect(v.ring).toBe(2);
     expect(v.boundaryAfter).toBeNull();
-    const c = stripView({ kind: 'vs_open', hero: 'BTN', villain: 'HJ' }, '76s');
+    // 커넥터 줄의 유령 칸(AKs~JTs)과 경계 막대. 옛 예시 BTN vs HJ 커넥터 줄은 이제 양극화 3벳(T9s 콜 · 87s~54s 3벳)이라 단조롭지 않아 막대가 없습니다.
+    const c = stripView({ kind: 'rfi', hero: 'CO' }, '76s');
     expect(c.slots[0].role).toBe('empty');
     expect(c.slots.slice(1, 5).every((x) => x.role === 'ghost' && x.mix === null)).toBe(true);
     expect(c.slots[8].hand).toBe('76s');
     expect(c.ring).toBe(8);
     expect(c.boundaryAfter).toBe(10); // 54s 뒤
+    expect(stripView({ kind: 'vs_open', hero: 'BTN', villain: 'HJ' }, '76s').boundaryAfter).toBeNull();
   });
 });
 
 /* 교차 검토: 'JTs만 3벳해요'인데 같은 줄의 J9s 가 3벳을 25% 섞으면 '만'이 거짓이에요. */
 describe('line: "X만 V해요"의 V 는 같은 줄 다른 칸에 없어요', () => {
   it('74개 차트의 모든 줄', () => {
-    const VERB: Record<string, string> = { '3벳': 'threebet', 콜: 'call', 오픈: 'raise', '4벳': 'fourbet', 올인: 'allin', 레이즈: 'raise' };
+    // 림프(rfi SB 의 첫 진입)도 동사입니다 — 'SB는 오프수트 9를 98o만 림프해요'.
+    const VERB: Record<string, string> = { '3벳': 'threebet', 콜: 'call', 오픈: 'raise', '4벳': 'fourbet', 올인: 'allin', 레이즈: 'raise', 림프: 'limp' };
     const bad: string[] = [];
     let checked = 0;
+    let limps = 0;
     for (const s of allScenarios()) {
       if (!hasChart(s)) continue;
       const seen = new Set<string>();
@@ -726,27 +814,32 @@ describe('line: "X만 V해요"의 V 는 같은 줄 다른 칸에 없어요', () 
         const line = lineOf(h);
         if (seen.has(line.id)) continue;
         seen.add(line.id);
-        const text = lineSentence(s, line)?.text;
-        if (!text) continue;
-        const cells = lineCells(s, line);
-        const order = line.slots.map((x) => x.hand);
-        for (const m of text.matchAll(/((?:[2-9TJQKA]{2}[so]?)(?:[·~][2-9TJQKA]{2}[so]?)*)만 (?:늘 )?(3벳|콜|오픈|4벳|올인|레이즈)(?:해요|하고)/g)) {
-          checked++;
-          // 'AKs~A8s·A5s·A4s' — 이름 목록 전체(범위는 줄 순서로 펼쳐요)
-          const named = new Set<string>();
-          for (const part of m[1].split('·')) {
-            const [a, b] = part.split('~');
-            if (!b) named.add(a);
-            else for (const x of order.slice(order.indexOf(a), order.indexOf(b) + 1)) if (x) named.add(x);
+        // 형제 줄(topic)도 같은 말을 합니다.
+        for (const text of [lineSentence(s, line)?.text, lineSentence(s, line, { topic: true })?.text]) {
+          if (!text) continue;
+          const cells = lineCells(s, line);
+          const order = line.slots.map((x) => x.hand);
+          for (const m of text.matchAll(/((?:[2-9TJQKA]{2}[so]?)(?:[·~][2-9TJQKA]{2}[so]?)*)만 (?:늘 )?(3벳|콜|오픈|4벳|올인|레이즈|림프)(?:해요|하고)/g)) {
+            checked++;
+            if (m[2] === '림프') limps++;
+            // 'AKs~A8s·A5s·A4s' — 이름 목록 전체(범위는 줄 순서로 펼쳐요)
+            const named = new Set<string>();
+            for (const part of m[1].split('·')) {
+              const [a, b] = part.split('~');
+              if (!b) named.add(a);
+              else for (const x of order.slice(order.indexOf(a), order.indexOf(b) + 1)) if (x) named.add(x);
+            }
+            const act = VERB[m[2]];
+            // 같은 문장 뒤에서 그 칸을 이름으로 대면('…JTs만 늘 3벳하고, J9s는 … 3벳을 25% 섞어요') 괜찮아요.
+            const others = cells.filter((c) => !named.has(c.hand) && !text.includes(c.hand) && c.mixList.some((x) => x.action === act && x.weight > 0));
+            if (others.length) bad.push(`${scenarioKey(s)}: ${text} ← ${others.map((c) => c.hand).join(', ')}`);
           }
-          const act = VERB[m[2]];
-          // 같은 문장 뒤에서 그 칸을 이름으로 대면('…JTs만 늘 3벳하고, J9s는 … 3벳을 25% 섞어요') 괜찮아요.
-          const others = cells.filter((c) => !named.has(c.hand) && !text.includes(c.hand) && c.mixList.some((x) => x.action === act && x.weight > 0));
-          if (others.length) bad.push(`${scenarioKey(s)}: ${text} ← ${others.map((c) => c.hand).join(', ')}`);
         }
       }
     }
     expect(bad).toEqual([]);
     expect(checked).toBeGreaterThan(20);
+    // rfi SB 의 '98o만 림프해요' · '87o만 림프해요' · '43s만 림프해요'(문장 · 형제 줄 각각)
+    expect(limps).toBe(6);
   });
 });

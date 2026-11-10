@@ -15,9 +15,9 @@ import { RANKS, type Action, type HandName, type Rank, type Scenario, type Scena
  *
  * 문장은 "구조 먼저"입니다. 틀(frame)과 주장(claims)을 먼저 정하고 글자는 마지막에 렌더합니다.
  * 이름 규칙(LineClaim 위 주석)을 못 지키는 틀 문장은 쓰지 않고 '나머지 전부' 꼴이나 칸 나열 꼴로 갑니다.
- * tests/line.test.ts 가 1,089개 문장의 claims 를 차트에서 다시 계산해 이름 규칙까지 대조하고,
+ * tests/line.test.ts 가 1,096개 문장의 claims 를 차트에서 다시 계산해 이름 규칙까지 대조하고,
  * tests/line.golden.test.ts 가 글자를 한 자도 안 틀리게 고정합니다. 참고 구현 scripts/reference/line-gen.ts 와는
- * 이름 규칙 때문에 104개 문장이 다릅니다(docs/EXPLAIN_SPEC.md §9).
+ * 옛 차트 기준으로 이름 규칙 때문에 104개 문장이 달랐습니다(docs/EXPLAIN_SPEC.md §9).
  */
 
 export type MixItem = { action: Action; weight: number };
@@ -226,7 +226,7 @@ export function lineRuns(cells: LineCell[]): LineRun[] {
 
 /**
  * 1순위 공격성이 위에서 아래로 줄어들기만 하는가. 계속 비중만 보는 옛 rowBoundary.monotone 은
- * 1순위가 번갈아 나오는 9개 줄(수티드 A 의 3벳/콜 교대 등)을 단조로 잘못 봤습니다.
+ * 1순위가 번갈아 나오는 줄(양극화 3벳의 3벳/콜 교대, 휠 A 의 4벳 블러프 등 — 책에 맞춘 차트에서 33줄)을 단조로 잘못 봤습니다.
  */
 export function isMonotone(cells: LineCell[]): boolean {
   return cells.every((c, i) => i === 0 || agg(c.p) <= agg(cells[i - 1].p));
@@ -349,10 +349,32 @@ function describeGroups(T: LineCell[], a: Action, end: End, cs: LineCell[], kind
     .join(', ')}, ${last}`;
 }
 
-/** 폭 폴백 (1): 줄 이름(〈O〉/〈Q〉)을 뺍니다 — 손패 이름이 줄을 정해 줍니다. */
+/**
+ * 폭 폴백 (1): 줄 이름(〈O〉/〈Q〉)을 뺍니다 — 손패 이름이 줄을 정해 줍니다.
+ * 목적어 · 주제어 꼴('수티드 A를' · '수티드 A는')은 바로 뒤에 패 이름이 올 때만 뺍니다. 줄 이름이 범위의 주인인 꼴
+ * ('BB는 SB 오픈에 오프수트 K를 콜하고, KQo는 …' — 나머지 전부 꼴 · P1)에서 빼면 'BB는 SB 오픈에 콜하고'만 남아
+ * 줄 전체를 콜한다는 말이 사라지고 오픈 전체에 콜한다고 읽힙니다.
+ */
 function dropLabel(text: string, line: LineDef): string {
-  return text.replace(`${line.label} 중 `, '').replace(`${josa(line.label, '을/를')} `, '').replace(`${josa(line.label, '은/는')} `, '');
+  const q = `${line.label} 중 `;
+  if (text.includes(q)) return text.replace(q, '');
+  for (const head of [`${josa(line.label, '을/를')} `, `${josa(line.label, '은/는')} `]) {
+    const i = text.indexOf(head);
+    if (i >= 0 && /^[2-9TJQKA]{2}/.test(text.slice(i + head.length))) return text.slice(0, i) + text.slice(i + head.length);
+  }
+  return text;
 }
+
+/**
+ * 폭 폴백 (0): 'X부터 Y까지는'(줄에서 slot 이 이어진 3칸 이상 — who() 가 그럴 때만 씁니다)을 'X~Y는'으로.
+ * 같은 범위를 짧게 부를 뿐 뜻은 그대로라, 원문 다음 · 줄 이름을 빼기 전에 씁니다(줄 이름을 뺀 꼴에도 한 번 더).
+ */
+function compact(text: string): string {
+  return text.replace(/([2-9TJQKA]{2}[so]?)부터 ([2-9TJQKA]{2}[so]?)까지는/g, (_, a: string, b: string) => josa(`${a}~${b}`, '은/는'));
+}
+
+/** 'SB는 AKo는 …'처럼 문장 첫 두 어절이 둘 다 주제어인가(이중 주제 — rfi 의 칸 나열 꼴에서 줄 이름을 빼면 생깁니다). */
+const doubleTopic = (text: string) => /^\S+[은는] \S+[은는] /.test(text);
 
 interface Built {
   text: string;
@@ -431,14 +453,15 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
   };
   push(legacy(), 'frame');
   push(allBut(), 'except');
+  push(exceptRuns(), 'except');
   push(listForm(cs, rest, kind, S, O, Q, 'strip', holes), 'list');
   if (!mono) push(listForm(cs, rest, kind, S, O, Q, 'action', holes), 'list');
   return cands.length ? { frame, cands } : null;
 
   /**
    * 도달 칸이 줄의 일부뿐이고 전부 같은 액션(비중 ≥ 0.6)일 때: 줄 이름과 '전부' 대신 도달 칸의 이름을 댑니다(THEORY_SPEC §5).
-   * `CO는 SB 올인에 AA~QQ를 콜해요.` — '포켓페어를 전부 콜해요'는 JJ~22(이 자리에 못 오는 칸)까지 콜한다고 읽힙니다.
-   * '주로' 칸은 '주로'와 함께: `CO는 BTN 올인에 AA·KK를 콜하고, QQ는 주로 콜해요.`
+   * `UTG는 HJ 올인에 AA~QQ를 콜해요.` — '포켓페어를 전부 콜해요'는 JJ~22(이 자리에 못 오는 칸)까지 콜한다고 읽힙니다.
+   * '주로' 칸은 '주로'와 함께: `CO는 BTN 올인에 AA·KK를 콜하고, QQ는 주로 콜해요.`(옛 차트의 예 — 책에 맞춘 차트에는 이 꼴이 없습니다)
    */
   function nameAll(a: Action): Built | null {
     if (cs.some((c) => c.p !== a || !isStrong(c))) return null;
@@ -454,7 +477,7 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
 
   /**
    * '나머지 전부' 꼴: 센 칸(비중 ≥ 0.6)이 전부 같은 계속 액션이면 그 액션을 줄 전체에 말하고 섞인 칸만 이름을 댑니다.
-   * `BTN은 림프에 수티드 A를 레이즈하고, A7s·A6s·A3s·A2s는 절반만 레이즈해요.` 줄 이름 전체를 덮으므로 도달 불가 칸이 있으면 쓰지 않습니다.
+   * `SB는 BTN 오픈에 수티드 A를 3벳하고, A7s·A6s·A3s·A2s는 절반만 3벳해요.` 줄 이름 전체를 덮으므로 도달 불가 칸이 있으면 쓰지 않습니다.
    */
   function allBut(): Built | null {
     if (holes.length) return null;
@@ -471,6 +494,59 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
       text: `${S} ${O} ${V(a, '하고')}, ${d}.`,
       claims: [{ t: 'rest', except: weak.map((c) => c.hand), action: a, whole: false }, ...weak.map(cellClaim)],
     };
+  }
+
+  /**
+   * 경계 + 예외 꼴: 단조 줄에서 섞인 칸(비중 ≤ 0.5)이 전부 자기 구간 안쪽에 끼어 있으면 — 같은 1순위 구간에서 그 아래에
+   * 센 칸이 또 있으면 — 틀 문장으로 경계를 말하고 섞인 칸은 '…하되,' 뒤에 이름으로 댑니다(나머지 전부 꼴을 구간 둘로 넓힌 것).
+   * `SB는 포켓페어를 44까지 오픈하고 33부터는 전부 림프하되, KK·JJ는 오픈·림프 반반이에요.`
+   * 칸 나열 꼴로 쓰면 사이사이의 '주로' 칸(AA·QQ 오픈 75 · 림프 25)까지 하나씩 '주로'와 함께 불러야 해서 42em 을 넘습니다.
+   * 범위가 이름 없이 덮는 칸은 그 범위의 액션이 1순위이고 비중이 0.6 이상인 칸뿐입니다(이름 규칙 — obeysNamingRule 이 확인).
+   * 계속 구간 둘까지, 도달 불가 칸이 없는 줄만, 체크(BB 림프 대응)는 틀 문장이 맡습니다.
+   */
+  function exceptRuns(): Built | null {
+    if (!mono || rest === 'check' || holes.length) return null;
+    const weak = cs.filter((c) => !isStrong(c));
+    if (!weak.length || weak.some((c) => c.split)) return null;
+    const runOf = (c: LineCell) => runs.find((r) => r.cells.includes(c))!;
+    if (!weak.every((c) => runOf(c).action !== rest && runOf(c).cells.slice(runOf(c).cells.indexOf(c) + 1).some(isStrong))) return null;
+    const restCells = cs.filter((c) => c.p === rest);
+    // 계속 구간 하나에 rest 칸이 없으면 나머지 전부 꼴(allBut)이 같은 말을 더 짧게 합니다.
+    if (cont.length > 2 || (cont.length === 1 && !restCells.length)) return null;
+    const [r1, r2] = cont;
+    const last = (r: LineRun) => r.cells[r.cells.length - 1];
+    const word = (a: Action) => actWord(a, kind);
+    // 'X만'은 그 액션을 다른 칸이 조금도 섞지 않을 때만(교차 검토: 'AKs만 올인하고'인데 A5s 가 올인 25%).
+    const single1 = r1.cells.length === 1;
+    if (single1 && (!r1.cells[0].full || leaks(r1.action, r1.cells))) return null;
+    const claims: LineClaim[] = [{ t: 'upto', from: null, to: last(r1).hand, action: r1.action }];
+    let head = `${S} ${O} ${last(r1).hand}${single1 ? '만' : '까지'} ${word(r1.action)}`;
+    if (r2) {
+      // '…부터는 전부'는 줄 끝까지 전부 full 일 때만, 끝까지 가지만 섞인 칸이 끼면 '…부터는', 뒤에 rest 칸이 있으면 '…까지'.
+      if (!restCells.length) {
+        const whole = r2.cells.every((c) => c.full);
+        claims.push({ t: 'toEnd', from: r2.cells[0].hand, action: r2.action, whole });
+        head += `하고 ${r2.cells[0].hand}부터는 ${whole ? '전부 ' : ''}${word(r2.action)}`;
+      } else {
+        claims.push({ t: 'upto', from: r2.cells[0].hand, to: last(r2).hand, action: r2.action });
+        head += `하고 ${last(r2).hand}까지 ${word(r2.action)}`;
+      }
+    }
+    // 예외: 같은 캡슐 라벨끼리 묶어 명사 꼴로 잇고 끝 묶음만 서술 — 'KK·JJ는 오픈·림프 반반이에요' · 'AQo는 절반만 오픈해요'.
+    const groups = labelGroups(weak);
+    const tail = groups
+      .map((g, i) => {
+        const c = g[0];
+        if (i < groups.length - 1) return `${who(g, cs)} ${nounLabel(c, rest, kind)}`;
+        return `${who(g, cs)} ${c.word === '반반' ? josa(nounLabel(c, rest, kind), '이에요/예요') : `${c.word} ${V(c.p, '해요')}`}`;
+      })
+      .join(', ');
+    return { text: `${head}하되, ${tail}.`, claims: [...claims, ...weak.map(cellClaim)] };
+  }
+
+  /** 줄에서 own 밖의 칸이 a 를 조금이라도 섞는가 — 그러면 'X만 a'라고 할 수 없습니다. */
+  function leaks(a: Action, own: LineCell[]): boolean {
+    return cs.some((c) => !own.includes(c) && c.mixList.some((m) => m.action === a && m.weight > 0.001));
   }
 
   /* -------- 틀 문장(§3.4 표) -------- */
@@ -522,11 +598,11 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
         const minorPct = minorW.every((w) => Math.abs(w - minorW[0]) < 0.01) ? `${Math.round(minorW[0] * 100)}% ` : '';
         const actsWord = acts.length === 1 ? actWord(acts[0], kind) : `${josa(actWord(acts[0], kind), '이나/나')} ${actWord(acts[1], kind)}`;
         // 도달 칸이 전부 이 섞인 칸이면(5벳에 AKo 하나만 옴) '그 아래 칸은 폴드해요'가 도달 불가 칸만 가리킵니다(THEORY_SPEC §5 (a)).
-        // 줄 이름도 빼고 칸 이름으로: 'UTG는 SB 올인에 AKo를 주로 폴드하고, 콜도 25% 섞어요.'
+        // 줄 이름도 빼고 칸 이름으로: 'UTG는 SB 올인에 AKo를 주로 폴드하고, 콜도 25% 섞어요.'(옛 차트의 예 — 책에 맞춘 차트에서는 5벳에 AK 가 늘 콜이라 이 꼴이 없습니다)
         if (minor.length === cs.length && minor.every((c) => c.word === '주로')) {
           return { text: `${topic ? O : S} ${josa(handList(hs, cs), '을/를')} 주로 ${V(rest, '하고')}, ${actsWord}도 ${minorPct}섞어요.`, claims: [minorClaim] };
         }
-        // 'SB는 UTG 오픈에 수티드 Q 중 QJs만 3벳을 25% 섞고, 그 아래 칸은 폴드해요.'
+        // 'UTG는 HJ 3벳에 오프수트 K 중 KQo만 4벳을 25% 섞고, KJo는 폴드해요.'(그 아래에 점선이 있으면 이름으로 — restTails) · 없으면 '…, 그 아래 칸은 폴드해요.'
         return firstFit(restTails(minor).map((t) => ({ text: `${S} ${topic ? O : Q} ${handList(hs, cs)}만 ${josa(actsWord, '을/를')} ${minorPct}섞고, ${t.who} ${V(rest, '해요')}.`, claims: [minorClaim, ...t.claims] })));
       }
       frame = 'P0';
@@ -582,7 +658,7 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
         }
         if (checkTail) return { text: `${S} ${O} ${h} ${V(r.action, '하고')}, ${checkTail}.`, claims: [upto, ...checkClaims] };
         // 'JTs만 3벳해요'인데 아래 칸(J9s 폴드 75% · 3벳 25%)이 같은 액션을 조금 섞으면 '만'이 거짓이 됩니다(교차 검토).
-        // 그 칸을 이름으로 대고, 머리는 '늘 …하는 건 X까지'로: 'SB는 BTN 오픈에 수티드 J 중 늘 3벳하는 건 JTs까지이고, J9s는 3벳을 25% 섞어요.'
+        // 그 칸을 이름으로 대고, 머리는 '늘 …하는 건 X까지'로: 'SB는 BTN 오픈에 수티드 J 중 늘 3벳하는 건 JTs까지이고, J9s는 3벳을 25% 섞어요.'(옛 차트의 예)
         // '까지'는 아래 칸이 그 액션을 전혀 안 한다고 단정하지 않아 그대로 둡니다. '만'(첫 칸 하나)일 때만 고칩니다.
         const leak = first ? restCells.filter((c) => c.word === '주로' && c.mixList.some((m) => m.action === r.action && m.weight > 0.001)) : [];
         if (leak.length === 1) {
@@ -596,7 +672,7 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
         return { text: `${S} ${O} ${h} ${V(r.action, '해요')}.`, claims: [upto] };
       }
       frame = 'P2h';
-      // 세 액션 칸(들)뿐이면 그 나눔만 말합니다: `CO는 UTG 오픈에 오프수트 K 중 KQo는 절반은 콜하고, 나머지를 3벳과 폴드로 나눠요.`
+      // 세 액션 칸(들)뿐이면 그 나눔만 말합니다: `CO는 UTG 오픈에 오프수트 K 중 KQo는 절반은 콜하고, 나머지를 3벳과 폴드로 나눠요.`(옛 차트의 예)
       // 그 아래 칸은 말하지 않아도 rest 로 읽힙니다('나머지는 폴드'를 덧붙이면 '나머지'가 두 번, 뜻 둘로 나옵니다).
       if (tail.every((c) => c.split) && labelGroups(tail).length === 1) {
         return { text: `${S} ${Q} ${describeGroups(tail, r.action, '해요', cs, kind, rest, false, true)}.`, claims: weightClaims(tail) };
@@ -615,15 +691,26 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
       frame = p1.lf && p2.lf ? 'P3' : 'P3h';
       if (p1.lf && p2.lf) {
         const single1 = r1.cells.length === 1 && r1.cells[0].full;
-        const h1 = single1 ? `${p1.lf.hand}만` : `${p1.lf.hand}까지`;
         // '…부터는 전부'는 줄 끝까지 덮습니다 — 그 뒤에 도달 불가 칸이 있으면 '…까지'로.
         const toEnd = !restCells.length && !p2.tail.length && r2.cells.every((c) => c.full) && cs[cs.length - 1] === r2.cells[r2.cells.length - 1] && !holes.some((i) => i > p2.ff!.slot);
-        const h2 = toEnd ? `${p2.ff!.hand}부터는 전부` : `${p2.lf.hand}까지`;
         const claims: LineClaim[] = [
           { t: 'upto', from: fromOf(r1), to: p1.lf.hand, action: r1.action },
           toEnd ? { t: 'toEnd', from: p2.ff!.hand, action: r2.action, whole: true } : { t: 'upto', from: fromOf(r2), to: p2.lf.hand, action: r2.action },
           ...checkClaims,
         ];
+        // 'AKs만 올인하고'인데 같은 줄의 A5s 가 올인을 25% 섞으면(BB vs CO 4벳, 휠 블로커 블러프) '만'이 거짓입니다(교차 검토).
+        // 그때는 '만' 없이 칸 이름을 주제어로: 'BB는 CO 4벳에 수티드 A 중 AKs는 올인하고, ATs까지는 콜해요.' — 주로 폴드인 A5s 는 이름 규칙대로 나머지.
+        if (single1 && leaks(r1.action, r1.cells)) {
+          const t2 = toEnd ? `${p2.ff!.hand}부터는 전부` : `${p2.lf.hand}까지는`;
+          return {
+            text: checkTail
+              ? `${S} ${Q} ${josa(p1.lf.hand, '은/는')} ${V(r1.action, '하고')}, ${t2} ${V(r2.action, '하고')}, ${checkTail}.`
+              : `${S} ${Q} ${josa(p1.lf.hand, '은/는')} ${V(r1.action, '하고')}, ${t2} ${V(r2.action, '해요')}.`,
+            claims,
+          };
+        }
+        const h1 = single1 ? `${p1.lf.hand}만` : `${p1.lf.hand}까지`;
+        const h2 = toEnd ? `${p2.ff!.hand}부터는 전부` : `${p2.lf.hand}까지`;
         return {
           text: checkTail
             ? `${S} ${O} ${h1} ${V(r1.action, '하고')}, ${h2} ${V(r2.action, '하고')}, ${checkTail}.`
@@ -647,7 +734,7 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
     }
 
     frame = 'P4';
-    // P4: 단조롭지 않은 줄(수티드 A 휠 섬, BB 커넥터). 제일 공격적인 1순위 칸을 이름으로 부릅니다.
+    // P4: 단조롭지 않은 줄(휠 A 블로커, 양극화 3벳 · 4벳의 블러프, BB 림프 대응의 블러프 레이즈). 제일 공격적인 1순위 칸을 이름으로 부릅니다.
     const top = cs.reduce((m, c) => (agg(c.p) > agg(m) ? c.p : m), cs[0].p);
     const topCells = cs.filter((c) => c.p === top);
     // '…만 3벳하고'처럼 비중어 없이 이름만 대는 칸은 full 이어야 합니다 — '주로' 칸이 끼면 칸 나열 꼴로(THEORY_SPEC §5).
@@ -854,8 +941,9 @@ export const LINE_MAX_EM = 42;
 
 /**
  * (상황, 줄)의 문장(§3.4). 줄에 도달 칸이 없으면 null.
- * build() 의 후보(이름 규칙을 지키는 것만, 틀 문장 → 나머지 전부 꼴 → 칸 나열 꼴 순서)마다 원문, (1) 줄 이름(〈O〉/〈Q〉)을
- * 뺀 꼴 순서로 42em 안에 드는 첫 문장을 씁니다. 다 넘치면 (2) 주어에서 상대 액션을 빼고 내 자리를 장소로 —
+ * build() 의 후보(이름 규칙을 지키는 것만, 틀 문장 → 나머지 전부 꼴 · 경계 + 예외 꼴 → 칸 나열 꼴 순서)마다 원문,
+ * (0) 'X부터 Y까지는'을 'X~Y는'으로 줄인 꼴, (1) 줄 이름(〈O〉/〈Q〉)을 뺀 꼴(이중 주제 'SB는 AKo는 …'가 되면 건너뜀),
+ * 줄 이름을 빼고 (0)까지 한 꼴 순서로 42em 안에 드는 첫 문장을 씁니다. 다 넘치면 (2) 주어에서 상대 액션을 빼고 내 자리를 장소로 —
  * 'HJ에서 AKs·AQs…는 3벳, …해요.'(옛 'HJ:' 머리표 대신 문장으로, THEORY_SPEC §5) — 리빌 바로 위 상황 줄이 상대를 말합니다.
  * 그래도 넘치면 (3) 주어를 뺍니다(상황 줄이 내 자리까지 말합니다). 결정적입니다.
  */
@@ -867,17 +955,25 @@ export function lineSentence(s: Scenario, line: LineDef, opts?: { topic?: boolea
   const out = (c: Built & { form: LineForm }, text: string, fallback: LineSentence['fallback']): LineSentence => ({ text, frame: b.frame, claims: c.claims, form: c.form, fallback });
   for (const c of b.cands) {
     const text = c.text.replace(/^ /, '');
-    if (fits(text)) return out(c, text, null);
     const noLabel = dropLabel(text, line);
-    if (fits(noLabel)) return out(c, noLabel, 'noLabel');
+    // 줄 이름을 빼서 'SB는 AKo는 …'(이중 주제)가 되면 그 꼴은 건너뜁니다 — (2)의 'SB에서 AKo는 …'이 맡습니다.
+    // 'X부터 Y까지는' → 'X~Y는'(뜻이 같음)을 줄 이름을 빼기 전에 해 봅니다 — 줄 이름은 남길수록 좋습니다.
+    const variants: Array<[string, LineSentence['fallback']]> = [
+      [text, null],
+      [compact(text), null],
+      [noLabel, 'noLabel'],
+      [compact(noLabel), 'noLabel'],
+    ];
+    for (const [t, fb] of variants) if (fits(t) && !(fb === 'noLabel' && (t === text || t === compact(text) || doubleTopic(t)))) return out(c, t, fb);
   }
   const bare = (c: Built) => dropLabel(c.text.replace(/^ /, ''), line);
   const noCtx = (c: Built) => (topic ? bare(c) : bare(c).replace(`${subject(s)} `, `${s.hero}에서 `));
   const noSubj = (c: Built) => (topic ? bare(c) : bare(c).replace(`${subject(s)} `, ''));
-  const ctx = b.cands.find((c) => fits(noCtx(c)));
-  if (ctx) return out(ctx, noCtx(ctx), 'noCtx');
-  const pick = b.cands.find((c) => fits(noSubj(c))) ?? [...b.cands].sort((x, y) => emWidth(noSubj(x)) - emWidth(noSubj(y)))[0];
-  return out(pick, noSubj(pick), 'noSubj');
+  const shortest = (f: (c: Built) => string) => (c: Built) => (fits(f(c)) ? f(c) : compact(f(c)));
+  const ctx = b.cands.find((c) => fits(shortest(noCtx)(c)));
+  if (ctx) return out(ctx, shortest(noCtx)(ctx), 'noCtx');
+  const pick = b.cands.find((c) => fits(shortest(noSubj)(c))) ?? [...b.cands].sort((x, y) => emWidth(compact(noSubj(x))) - emWidth(compact(noSubj(y))))[0];
+  return out(pick, shortest(noSubj)(pick), 'noSubj');
 }
 
 /* ------------------------------------------------------------------ */

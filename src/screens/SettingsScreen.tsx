@@ -319,7 +319,7 @@ export function SettingsScreen(): JSX.Element {
       </Group>
 
       <Group id="st-data" title="데이터">
-        <Row label={`차트 ${data.charts}개 · 준비 중 ${data.missing}개`} hint="100bb 6-max 캐시 기준 근사치예요" />
+        <Row label={`차트 ${data.charts}개 · 준비 중 ${data.missing}개`} hint="100bb 6-max 캐시 · 책(MPT) 5장에 맞춘 차트예요" />
         <ActionRow label="사용법 다시 보기" hint={s.coachSeen < COACH_VERSION ? '다음 세션에서 보여드려요' : '꾹 누르기 · 버튼 선택 · 세션 안내'} hintTone={s.coachSeen < COACH_VERSION ? 'mint' : undefined} onClick={replayCoach} />
         <ActionRow label="학습 기록 초기화" hint={stats.total > 0 ? `카드 평가 · 연속 · 퀴즈 ${stats.total}문제` : '카드 평가 · 연속 · 퀴즈 기록'} danger onClick={() => setConfirm('records')} />
         <ActionRow label="설정 초기화" hint="모든 설정을 기본값으로" onClick={() => setConfirm('settings')} />

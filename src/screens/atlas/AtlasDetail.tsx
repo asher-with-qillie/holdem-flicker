@@ -30,7 +30,7 @@ function Disclosure({ label, open, onToggle }: { label: string; open: boolean; o
  *   ① 결론 한 문장(compareCells 첫 줄, 비교 상대가 없으면 uniformLine) ② 차이 레버 하나(differingLevers 첫 하나)
  *   ③ 답 캡슐 md + 줄 스트립 md + 줄 문장 — 트레이너 리빌과 글자까지 같습니다. 비교 칸의 줄 문장이 다르면
  *      두 번째 스트립과 문장을 아래에 쌓고, 스트립 왼쪽에 자리 칩을 행 라벨로 둡니다. 두 줄 사이에서 움직이는 경계가 배울 내용입니다.
- *   ④ 섞는 비율 칩 + 부분 정답 문장(비교 줄을 쌓으면 선택 칸 줄 항목 안, 문장 바로 아래) ⑤ 차트 메모 ›(접힘) ⑥ 사람 작성 차트면 DISCLAIMER
+ *   ④ 섞는 비율 칩 + 부분 정답 문장(비교 줄을 쌓으면 선택 칸 줄 항목 안, 문장 바로 아래) ⑤ 차트 메모 ›(접힘) ⑥ 림프 대응 차트면 DISCLAIMER(evidence 'human')
  *   ⑦ 해설 전체 보기 → ExplanationBody variant="atlas"(위에서 이미 보인 ①·③·⑥ 생략) + 헷갈려요
  * 미도달 칸이면 G 문장 한 줄뿐입니다. 비교 상대가 없으면(행·열이 전부 같은 답) 결론을 지어내지 않고,
  * 섹션 전체가 같은 답일 때만 "어느 자리에서나 …" 를 말합니다.
@@ -195,7 +195,7 @@ export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: 
           )}
         </div>
       )}
-      {/* 사람 작성 차트(림프 대응)의 면책 — BB 칸은 'SB가 림프하고 BB 차례'라 다른 문장입니다(disclaimerFor). */}
+      {/* 림프 대응 차트(evidence 'human')의 면책 — BB 칸은 'SB가 림프하고 BB 차례'라 다른 문장입니다(disclaimerFor). */}
       {human && <p className="atlas__disclaimer t-footnote ink-3">{disclaimerFor(cell.evidence === 'human' ? cell.scenario : compare!.scenario)}</p>}
 
       {step && explanation && (

@@ -36,12 +36,14 @@ const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 8, 12, 12, 0, 0);
 const STATS_KEY = 'holdem-flicker.stats.v1';
 
-/* 차트에서 미리 확인한 카드키들. 앞의 다섯은 정답 하나뿐이고, 뒤의 하나는 0.5/0.5 혼합이라
- * grade.ts 가 '부분 정답'으로 쳐 줍니다 — 그래서 '틀렸다'의 뜻이 흐려지고 pure 필터에 걸립니다. */
+/* 차트에서 미리 확인한 카드키들. 앞의 셋은 정답 하나뿐이고(2순위가 0.4 미만), 뒤의 하나는 0.5/0.5 혼합이라
+ * grade.ts 가 '부분 정답'으로 쳐 줍니다 — 그래서 '틀렸다'의 뜻이 흐려지고 pure 필터에 걸립니다.
+ * 책 차트로 다시 만든 뒤: CO 는 오픈에 콜하지 않아(3벳 아니면 폴드) 옛 혼합 칸 AQo(3벳/콜 반반)가 3벳 100% 가
+ * 됐습니다. 같은 차트의 KQo 가 3벳 0.5 / 폴드 0.5 라 그 자리를 이어받습니다(자리 CO 그대로 — byHero 단언이 이것을 봅니다). */
 const FOLD_KEY = 'vs_open:BTN:UTG|72o'; // 정답 폴드
-const THREEBET_KEY = 'vs_open:BTN:UTG|AKs'; // 정답 3벳
+const THREEBET_KEY = 'vs_open:BTN:UTG|AKs'; // 정답 3벳(3벳 0.75 / 콜 0.25 — 콜은 0.4 미만이라 부분 정답이 아님)
 const RFI_KEY = 'rfi:UTG|AJo'; // 정답 오픈, villain 없음
-const MIXED_KEY = 'vs_open:CO:UTG|AQo'; // 3벳 0.5 / 콜 0.5
+const MIXED_KEY = 'vs_open:CO:UTG|KQo'; // 3벳 0.5 / 폴드 0.5
 
 interface SeedMistake {
   at: number;
@@ -53,8 +55,8 @@ interface SeedMistake {
 }
 
 const BASE_MISTAKES: SeedMistake[] = [
-  // 혼합 문제 — 콜도 부분 정답이라 분석 집합에서 빠져야 합니다.
-  { at: NOW - 1 * DAY, scenarioId: 'vs_open:CO:UTG', hand: 'AQo', answer: 'threebet', chosen: 'call' },
+  // 혼합 문제 — 폴드도 부분 정답이라 분석 집합에서 빠져야 합니다.
+  { at: NOW - 1 * DAY, scenarioId: 'vs_open:CO:UTG', hand: 'KQo', answer: 'threebet', chosen: 'fold' },
   { at: NOW - 2 * DAY, scenarioId: 'vs_open:BTN:UTG', hand: '72o', answer: 'fold', chosen: 'call', src: 'train' },
   // src 가 없는 옛 기록. 'quiz' 로 읽혀야 합니다.
   { at: NOW - 3 * DAY, scenarioId: 'vs_open:BTN:UTG', hand: 'AKs', answer: 'threebet', chosen: 'call' },

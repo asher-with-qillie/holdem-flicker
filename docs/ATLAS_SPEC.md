@@ -1,5 +1,15 @@
 # 자리별 보기 (HandAtlas) — 구현 스펙 v1
 
+> **v5 안내 (2026-11, 책 차트):** 차트 74개를 책(MPT 5장)에 맞춰 다시 만든 뒤 바뀐 규칙이에요. 코드(`src/poker/atlas.ts` · `src/poker/sheet.ts`)와 테스트가 기준이고, 아래 본문의 숫자 중 v5 로 표시하지 않은 것은 옛 차트 기록이에요.
+> - **rfi 첫 문장의 자리별 비중어는 레이즈 비중**으로 정해요(`raiseWord`: 1 → 없음 · ≥ 0.6 → `주로` · 0.5 → `절반만` · 그 밖 → `{p}%만`). 1순위 비중 등급을 쓰면 폴드 75 · 레이즈 25 칸(UTG A9o)이 `UTG에서 주로 … 오픈해요`로 거꾸로 읽혔어요 — 지금은 `A9o는 UTG에서 25%만, HJ에서 절반만, CO부터는 항상 오픈해요.` 같은 비중어가 이어지는 자리는 묶어요(`22는 UTG·HJ에서 절반만, CO부터는 항상 오픈해요.`). 테스트 5(b)가 그 자리의 레이즈 비중을 차트에서 다시 읽어 대조해요.
+> - **SB 림프**(책 5장 2절: 림프 약 38 · 레이즈 약 24): SB 에서만 들어가는 패 31개는 전부 림프라 `sbOnly` 문장은 `K6o는 UTG~BTN에서는 폴드하고, SB에서는 림프해요.` 꼴이에요. SB 절은 SB 가 주로 오픈하고 림프를 섞는 함정 칸(AA · QQ · AKo)이면 `단, SB에서는 주로 오픈하되 림프를 25% 섞어요.`처럼 섞는 쪽을 비중과 함께 말해요(`주로 오픈해요`만 쓰면 나머지가 폴드로 읽혀요). 오픈 칸을 SB 와 견주는 비교에는 SB 의 자리 문장(`SB는 포지션이 없어 레이즈는 24%로 좁히고, 반값으로 림프를 38% 섞어요.`)이 역할 레버로 먼저 붙어요 — 오픈 폭만 대면 BTN 이 폴드하고 SB 가 림프하는 K6o 가 거꾸로 읽혀요. 그 뒤의 오픈 폭 문장은 SB 의 24%를 되풀이하지 않고 다른 자리의 폭만 대요(`BTN은 43%를 오픈해요.`).
+> - **3벳 대응 레버(`blind3bet`)는 포지션으로** 말해요: `{V} 3벳에는 포지션이 있어 콜 위주로 지켜요.` / `{V} 3벳에는 포지션이 없어 4벳을 더 섞어요.`(책 5장 3절). 옛 `블라인드 3벳은 범위가 넓어 더 넓게 지켜요`는 새 차트에서 거짓이에요 — 블라인드의 3벳은 크기가 커서 오프너가 오히려 덜 지키고, 블라인드가 더 넓게 3벳하지도 않아요. 비교(villain 축, 한쪽만 블라인드)에서는 포지션도 꼭 갈려서 포지션 문장과 한 문장으로 합쳐요: `SB 상대로는 포지션이 있어 콜 위주로 지키고, BTN 상대로는 없어 4벳을 더 섞어요.`(따로 대면 `포지션이 있어`를 두 번 말하고, 화면은 첫 레버만 보여 줘서 지키는 모양이 빠졌어요).
+> - **SB 의 오픈 대응**은 콜이 0 이라(책 5장 5절) `그래서 콜 없이 3벳 아니면 폴드예요.`(시트 레버 `SB는 콜 없이 3벳 아니면 폴드해요.`).
+> - **BTN 의 오픈 대응**: 책 5장 5절대로 BTN 의 콜 범위는 넓게 여는 오프너일수록 줄어서(UTG 7% → HJ · CO 6%) 33 · 22 는 넓은 오프너에게 절반만 콜해요. 그 비교(villain 축)에서 `뒷자리 오픈엔 약한 패도 많이 섞여 있어 넓게 맞서요`는 결론과 거꾸로라, 새 레버 `btnCallShrink` `넓게 여는 상대일수록 블라인드의 스퀴즈가 늘어 BTN은 콜을 줄여요.`를 먼저 대고 앞자리 · 뒷자리 문장은 빼요(지금 4쌍: 22 UTG-HJ · UTG-CO, 33 UTG-CO · HJ-CO).
+> - **해설 시트**: rfi 숫자 줄은 `UTG 17% · HJ 21% · CO 28% · BTN 43% · SB 레이즈 24% · 림프 38%`, BTN 레버는 차트가 책과 같으면 `BTN은 블라인드만 남아 책과 같은 약 43%를 오픈해요.`
+> - **책과 다른 점(패 단위)**: 올인 대응 · 콜드 4벳 모두 차트가 책과 같아져 지금은 한 줄도 나오지 않아요. 생성기는 차트가 다시 책과 어긋날 때를 위한 가드로 남겨요.
+> - **데이터 불변식(§7 12 · 14 · 15)** 은 책이 일부러 깨는 곳을 예외로 정확히 적었어요(아래 §7).
+
 > **v4 안내 (2026-11):** 레버 문장은 이제 결과까지 말해요(예: `포지션이 있어 플랍 이후 내내 유리해요.`). 결과 절은 차트로 확인한 것만 쓰고, `tests/atlas.test.ts`가 모든 칸에서 다시 셉니다. 아래 §의 레버 문구 표는 v1 기록이에요. 지금 문구는 `src/poker/atlas.ts` `seatLevers`가 기준이고, 원칙은 `docs/THEORY_SPEC.md` §2 · §8에 있어요.
 
 > 기능: **같은 카드인데 포지션에 따라 선택이 달라지는 것과 그 이유를 한 화면에서 보는 기능**
@@ -14,9 +24,9 @@
 
 **학습 목표 — 다 쓰고 나면 이걸 말할 수 있어야 합니다.**
 1. 패에는 고정된 값이 없고 **자리에서의 값**만 있다. (KJo는 UTG에서 절반, HJ부터 항상 오픈)
-2. 그 값을 정하는 셀 수 있는 지표가 있다 — **뒤에 남은 사람 수**(5·4·3·2·1명)와 **오픈 레인지 폭**(18·21·29·46·46%). 사람이 줄수록 넓어진다.
-3. 오픈을 맞았을 때는 **누가 오픈했는가**가 같은 지표다 — UTG는 18%만 오픈해 세고, BTN은 46%를 오픈해 약한 패가 많다.
-4. **SB는 따로다** — 뒤에 BB 한 명뿐이고 플랍 이후 항상 먼저 액션하며, 오픈 대응에서는 3벳 아니면 폴드 위주다.
+2. 그 값을 정하는 셀 수 있는 지표가 있다 — **뒤에 남은 사람 수**(5·4·3·2·1명)와 **오픈 레인지 폭**(v5: 17·21·28·43%, 책 5장 2절). 사람이 줄수록 넓어진다.
+3. 오픈을 맞았을 때는 **누가 오픈했는가**가 같은 지표다 — UTG는 17%만 오픈해 세고, BTN은 43%를 오픈해 약한 패가 많다.
+4. **SB는 따로다** — 뒤에 BB 한 명뿐이고 플랍 이후 항상 먼저 액션하며, 처음 들어갈 때는 레이즈 약 24%에 반값 림프 약 38%를 섞고, 오픈 대응에서는 콜 없이 3벳 아니면 폴드다(v5, 책 5장 2 · 5절).
 5. **BB는 림프를 맞으면 폴드가 없다** (체크 아니면 레이즈).
 6. 생기지 않는 상황이 있다 — 오픈하지 않는 자리에서는 3벳 대응이 생기지 않는다.
 
@@ -286,9 +296,9 @@ export interface RangeGridProps { /* 기존 */ paint?: (hand: HandName) => strin
 
 ### 각 함수가 차트에서 계산하는 것
 - `isReachable` — `buildSteps`의 게이트를 그대로 복제(답 = **primary**): `vs_3bet`·`vs_5bet` ⇒ `primary(rfi:hero) === 'raise'`; `vs_5bet` 추가로 `primary(vs_3bet:hero:villain) === 'fourbet'`; `vs_4bet` ⇒ `primary(vs_open:hero:villain) === 'threebet'`. 나머지 kind 는 항상 ok. (`buildSteps`가 rfi 를 세션에서 뺐을 때 쓰는 "비중>0" 게이트는 쓰지 않는다 — 앱이 가르치는 답은 primary 다.)
-- `rfiProfile` — core 4자리의 raise 비중 벡터로 pattern 결정: 전부 ≥1 → `always`; 전부 0 → SB 비중>0 이면 `sbOnly` 아니면 `never`; 비감소가 아니면 `irregular`(현재 0패, 테스트가 막음); `firstAlways` 없음 → `partial`; `firstAny === firstAlways` → `entry`; 그 외 `half`. 실측: always 45 · entry 41 · half 12(KJo ATo 등) · partial 5(Q8o J8o T8o 98o K6o) · never 71 · sbOnly 1(K6o → partial 보다 sbOnly 가 우선: core 전부 0이면 sbOnly) · irregular 0. SB≠BTN primary: J4s(BTN 오픈→SB 폴드), K6o(BTN 폴드→SB 절반).
-- `rowBoundary` — 같은 줄(페어 줄 / 같은 높은 카드·같은 수티드 여부)을 킥커 내림차순으로 훑어 `contWeight = 1 − rest 비중`의 `{monotone, lastFull, lastAny}`. 실측 1850줄 중 비단조 33줄, **전부 수티드 A 줄**(A5s·A4s > A8s~A6s). 비단조 줄은 문장 생략.
-- `seatLevers` 숫자: `behind = 5 − POS_INDEX[hero]`, `openWidth = rangeShare(rfi:villain,'raise')`, `threebetWidth = rangeShare(vs_open:villain:hero,'threebet')`, `position = heroInPosition(hero, villain)`. 실측 오픈 폭 18/21/29/46/46, 3벳 폭(상대→오프너): SB vs BTN 17 · BB vs BTN 13 · SB vs CO 13 · BB vs SB 14 · BB vs UTG 6 · HJ vs UTG 5.
+- `rfiProfile` — core 4자리의 raise 비중 벡터로 pattern 결정: 전부 ≥1 → `always`; 전부 0 → SB 레이즈 또는 림프 비중>0 이면 `sbOnly` 아니면 `never`; 비감소가 아니면 `irregular`(현재 0패, 테스트가 막음); `firstAlways` 없음 → `partial`; `firstAny === firstAlways` → `entry`; 그 외 `half`. **v5 실측**: always 37 · entry 42 · half 11(KJo ATo A9o 22 등) · partial 3(Q8o J8o T8o) · sbOnly 31(전부 SB 림프) · never 45 · irregular 0. SB≠BTN primary 71패, 전부 SB 림프(BTN 오픈→SB 림프 40, BTN 폴드→SB 림프 31). `sbDiffers` 는 거기에 1순위는 오픈으로 같아도 SB 가 늘 오픈하지는 않는 함정 칸 6개(AA AKo KK AQo QQ JJ)를 더한 77패.
+- `rowBoundary` — 같은 줄(페어 줄 / 같은 높은 카드·같은 수티드 여부)을 킥커 내림차순으로 훑어 `contWeight = 1 − rest 비중`의 `{monotone, lastFull, lastAny}`. v5 실측 1850줄 중 비단조 35줄 = 수티드 A 30줄(A5s·A4s 블로커 > A9s~A6s) + BB 림프 대응 오프수트 5줄(가장 약한 오프수트를 블러프로 레이즈 — 공개 솔버 자료). 줄 문장(line.ts)이 비단조 줄을 따로 다룹니다.
+- `seatLevers` 숫자: `behind = 5 − POS_INDEX[hero]`, `openWidth = rangeShare(rfi:villain,'raise')`, `threebetWidth = rangeShare(vs_open:villain:hero,'threebet')`, `position = heroInPosition(hero, villain)`. v5 실측 오픈 폭 17/21/28/43, SB 레이즈 24 · 림프 38(책 5장 2절), 3벳 폭(상대→오프너): SB vs BTN 15 · BB vs BTN 14 · SB vs CO 11 · BB vs SB 16 · BB vs UTG 6 · HJ vs UTG 8.
 
 ---
 
@@ -331,12 +341,12 @@ export interface RangeGridProps { /* 기존 */ paint?: (hand: HandName) => strin
 |---|---|
 | always | `{hand}는 어느 자리에서든 오픈합니다.` |
 | never | `{hand}는 어느 자리에서도 오픈하지 않습니다.` |
-| sbOnly | `{hand}는 SB에서만 {W(SB) 수식}오픈합니다.` (K6o → "K6o는 SB에서만 절반만 오픈합니다.") |
+| sbOnly | `{hand}는 SB에서만 {W(SB) 수식}오픈합니다.` (K6o → "K6o는 SB에서만 절반만 오픈합니다.") — **v5**: SB 에서 림프하면 `{hand}는 UTG~BTN에서는 폴드하고, SB에서는 {W 수식}림프해요.` (지금 31패 전부) |
 | entry | `{hand}는 {firstAny}부터 오픈합니다.` + (firstAny ≠ UTG) `앞에서는 폴드입니다.` |
-| half | `{hand}는 {s₁}에서 {w₁}, …, {firstAlways}부터 항상 오픈합니다.` — s₁…= firstAny 부터 firstAlways 앞까지의 자리, wᵢ = `절반만` / `{pct}만` |
+| half | `{hand}는 {s₁}에서 {w₁}, …, {firstAlways}부터 항상 오픈합니다.` — s₁…= firstAny 부터 firstAlways 앞까지의 자리, wᵢ = `절반만` / `{pct}만` — **v5**: wᵢ 는 그 자리의 레이즈 비중(`raiseWord`), 같은 wᵢ 의 자리는 `UTG·HJ에서 절반만`으로 묶음 |
 | partial | `{hand}는 {s₁}에서 {w₁}, {s₂}에서 {w₂} 오픈합니다.` (전부 열거, '부터' 금지) |
 | irregular | 자리 열거 `{hand}는 {s₁}·{s₂}에서만 오픈합니다.` ('부터'·'어디서든' 금지) |
-| + SB 절 | `sbDiffers` 이면 뒤에 `SB에서는 {W(SB) 수식}{P(SB)}합니다.` (J4s → "SB에서는 폴드합니다.") |
+| + SB 절 | `sbDiffers` 이면 뒤에 `SB에서는 {W(SB) 수식}{P(SB)}합니다.` (J4s → "SB에서는 폴드합니다.") — **v5**: `단, SB에서는 림프해요.` / SB 가 주로 오픈하고 림프를 섞으면 `단, SB에서는 주로 오픈하되 림프를 25% 섞어요.` |
 | + 두 번째 문장 | pattern ∈ {always, never} 이면 vs_open 섹션의 D 를 붙임: 모든 reachable primary 가 같으면 `오픈을 맞으면 어디서든 {act}합니다.`, 아니면 `오픈을 맞으면 {D 문장}입니다.` |
 
 조사: `{hand}는` — 손패 이름은 모두 영문/숫자로 끝나 "는"으로 고정(앱의 explain.ts `hp()`도 같은 처리).
@@ -374,11 +384,12 @@ export interface RangeGridProps { /* 기존 */ paint?: (hand: HandName) => strin
 | position | villain 있음, kind ≠ vs_5bet | `플랍 이후 내가 나중에 액션합니다.` / `…먼저 액션합니다.` (상수, explain.ts positionReason) | `{VB} 상대로는 플랍 이후 내가 나중에, {VA} 상대로는 먼저 액션합니다.` |
 | earlyOpener | vs_open, villain ∈ {UTG,HJ} | `앞자리라 레인지가 강합니다.` (상수) | (openWidth 와 함께) |
 | lateOpener | vs_open, villain ∈ {CO,BTN,SB} | `뒷자리라 약한 패가 많이 섞여 있습니다.` (상수) | 한쪽만 late 면 두 상수를 나란히 |
+| **v5** btnCallShrink | vs_open, hero = BTN | `넓게 여는 상대일수록 블라인드의 스퀴즈가 늘어 BTN은 콜을 줄여요.` (상수, 책 5장 5절) | villain 축에서 넓은 오프너에게 덜 계속할 때만 — 맨 앞, 그때 early/late 는 뺌 |
 | bbPrice | vs_open, hero = BB | `BB는 이미 1bb를 냈으니 1.5bb만 더 내고 약 5.5bb 팟을 봅니다.` (villain=SB 면 2bb/6bb; `priceFacts` 로 생성) + `마지막 차례라 스퀴즈 걱정 없이 가장 넓게 콜합니다.` | hero 축에서 한쪽만 BB |
-| sbRaiseOrFold | vs_open, hero = SB | `SB는 콜하면 BB의 스퀴즈와 포지션 불리가 겹칩니다.` + `그래서 3벳 아니면 폴드 위주로 대응합니다.` | hero 축에서 한쪽만 SB |
+| sbRaiseOrFold | vs_open, hero = SB | `SB는 콜하면 BB의 스퀴즈와 포지션 불리가 겹칩니다.` + `그래서 3벳 아니면 폴드 위주로 대응합니다.` — **v5**: 둘째 문장 `그래서 콜 없이 3벳 아니면 폴드예요.`(책 5장 5절, 콜 0) | hero 축에서 한쪽만 SB |
 | bbFree | vs_limp, hero = BB | `나는 이미 1bb를 냈으니 공짜로 플랍을 봅니다.` | 한쪽만 BB |
-| blind3bet | vs_3bet·vs_5bet | villain 블라인드: `{V}의 3벳은 밸류와 블러프가 섞입니다.` / 아니면 `{V}의 3벳은 밸류 위주입니다.` | 한쪽만 블라인드일 때 두 문장 |
-| sbOpen | rfi, hero = SB | `SB는 BB 한 명만 남아 따로 봅니다.` (신규 상수 1개 — 스트립 아래 고정) | — |
+| blind3bet | vs_3bet·vs_5bet | villain 블라인드: `{V}의 3벳은 밸류와 블러프가 섞입니다.` / 아니면 `{V}의 3벳은 밸류 위주입니다.` — **v5**: 오프너의 포지션으로 `{V} 3벳에는 포지션이 있어 콜 위주로 지켜요.` / `{V} 3벳에는 포지션이 없어 4벳을 더 섞어요.`(책 5장 3절; 테스트: 포지션 있는 칸은 지키는 패의 60% 이상이 콜, 없는 칸의 4벳 몫은 어느 있는 칸보다 큼) | villain 축에서 한쪽만 블라인드일 때 두 문장 — **v5**: 그때는 포지션 레버와 합친 한 문장 `{IP V} 상대로는 포지션이 있어 콜 위주로 지키고, {OOP V} 상대로는 없어 4벳을 더 섞어요.`(id `position`) |
+| sbOpen | rfi, hero = SB | `SB는 BB 한 명만 남아 따로 봅니다.` (신규 상수 1개 — 스트립 아래 고정) — **v5**: 림프가 있으면 `SB는 포지션이 없어 레이즈는 {r}%로 좁히고, 반값으로 림프를 {l}% 섞어요.` | **v5**: 오픈 칸에서 한쪽만 SB 면 역할 레버로 먼저 |
 
 **레버 우선순위**(두 칸에서 값이 다른 것만, 최대 2): position > behind > bbPrice/sbRaiseOrFold/bbFree > blind3bet > openWidth/threebetWidth > early/lateOpener. 같은 값인 레버는 절대 비교 문장에 나오지 않는다(심사 결함: "둘 다 인포지션"인데 포지션 이유를 붙이는 일 금지). **차이 나는 레버가 0개면 결론 + 메모 + 해설 전체 보기만** 보여 주고 이유를 지어내지 않는다.
 
@@ -494,12 +505,12 @@ export interface RangeGridProps { /* 기존 */ paint?: (hand: HandName) => strin
 **`tests/atlas.test.ts`** — 전수(169패 × 74칸, 셀 캐시 덕분에 explain 감사보다 가벼움; 30초 한도 내)
 1. `handAtlas: 74 cells per hand, keys equal srs.cardKeyOf` — 모든 패에서 섹션 합이 5+15+15+15+15+5+4 이고 `cell.key === cardKeyOf(scenario, hand)`.
 2. `isReachable mirrors buildSteps` — seedRandom 고정 후 `nextHandSequence` 2000회: 만들어진 모든 step 은 `isReachable(step.scenario, hand).ok === true`; 역으로 각 hero×hand 에 대해 `buildSteps` 를 전 villain 조합으로 돌려 나온 kind 집합이 reachable 집합과 같음.
-3. `rfiProfile patterns` — 개수 스냅샷 {always 45, entry 41, half 12, partial 4, sbOnly 1, never 71, irregular 0}, `sbDiffers` 패 = {J4s, K6o}, `firstAlways===null` 패 = {Q8o, J8o, T8o, 98o} (K6o 는 sbOnly).
-4. `newcomersAt partitions the openers` — 네 집합이 서로소이고 합집합 = firstAny≠null 인 패 전체; HJ = [K8s K7s QJo KTo T8s 97s 54s].
+3. `rfiProfile patterns` — 개수 스냅샷 {always 45, entry 41, half 12, partial 4, sbOnly 1, never 71, irregular 0}, `sbDiffers` 패 = {J4s, K6o}, `firstAlways===null` 패 = {Q8o, J8o, T8o, 98o} (K6o 는 sbOnly). **v5**: {always 37, entry 42, half 11, partial 3, sbOnly 31, never 45}, `sbDiffers` 77패(1순위가 다른 71패는 전부 SB 림프 + 함정 칸 6), `firstAlways===null` = {Q8o, J8o, T8o}, `entrySeat` 이 'SB' 인 패 없음(SB 에서만 들어가는 패는 전부 림프).
+4. `newcomersAt partitions the openers` — 네 집합이 서로소이고 합집합 = firstAny≠null 인 패 전체; HJ = [K8s K7s QJo KTo T8s 97s 54s] (**v5**: 54s 대신 65s).
 5. `claims re-derive from the charts` (**속성 테스트**) — 모든 패에 대해 `rfiThesis`, `selfQuestion`, 7개 `sectionDigest`, 6개 `seatSummary`, 모든 한 축 쌍의 `compareCells`(strip 10+10+6, 삼각형 행/열 쌍 40×4 = 186쌍/패) 를 생성하고, 각 `Line` 에 대해 (a) `claims` 의 `action === primaryAction`, `weight === weightClass` 재계산 일치, (b) 텍스트에서 정규식 `/(UTG|HJ|CO|BTN|SB|BB)(에서는|에서|부터|만) ?(절반만 |주로 )?(폴드|콜|오픈|레이즈|3벳|4벳|올인|체크)/g` 와 `/(UTG|HJ|CO|BTN|SB) (오픈|3벳|4벳|올인)에는 (절반만 |주로 )?(폴드|콜|오픈|레이즈|3벳|4벳|올인)/g` 로 뽑은 쌍이 `claims` 로 전부 설명되고 남는 쌍이 없음, (c) `/\d+(?=%|명|곳|문제|종)/g` 로 뽑은 모든 숫자가 `nums` 에 있고 `nums` 가 `share/tb/behind/count` 재계산과 같음(리터럴 숫자 금지; `1bb/1.5bb/5.5bb` 등 가격은 `priceFacts` 출력과 같아야 함), (d) `'부터'` 는 pattern ∈ {entry, half} 또는 villain 축 단조 절에서만, `'어디서든'/'어느 자리에서든'` 은 모든 칸 primary 동일일 때만, `'까지'` 는 `rowBoundary.monotone` 일 때만, (e) `source === 'constant'` 문장은 `explainStep(stepFor(s,h)).reasoning ∪ easy.why` 의 원소(그 kind 의 임의 패 하나로 확인) — 단 `sbOpen` 상수는 예외 목록.
 6. `compareCells null-equivalence` — 결론이 `둘 다` 로 시작 ⇔ `primary(a) === primary(b)`; 레버 문장은 두 칸의 레버 값이 다를 때만(`differingLevers` 결과를 레버별로 재검사).
 7. `unreachable cells never surface` — 다이제스트 개수, `atlasQuizKeys`, `nearestCellWithAction`, anchor 후보 어디에도 `reachable=false` 칸이 없음; `atlasQuizKeys` 는 vs_limp BB 를 제외하고 ≤ max, 중복 없음, 모두 `stepForKey` 로 복원 가능.
-8. `nearestCellWithAction` — ATo vs_open:CO:HJ + call → BTN:HJ; Q9o rfi:BTN + fold → CO; KJo rfi:UTG + fold → null; 결과는 항상 같은 kind·reachable·`primary === action`.
+8. `nearestCellWithAction` — ATo vs_open:CO:HJ + call → BTN:HJ (**v5**: BB:HJ — BTN 은 이제 폴드, SB 는 콜 없음); Q9o rfi:BTN + fold → CO; KJo rfi:UTG + fold → null; 결과는 항상 같은 kind·reachable·`primary === action`.
 9. `style lint` — 모든 생성 텍스트(메모·DISCLAIMER 제외): 느낌표/이모지 없음, `BANNED_KO`(coach lint 의 정규식 재사용, '솔버' 는 DISCLAIMER 전용) 없음, 문장 ≤ 30자(seatSummary 45), `해요`/`거든요` 없음, 괄호 없음, `~합니다|~입니다|~인가요|~나요` 로 끝남.
 10. `OPEN[] class lines agree with the charts` (**기존 카피 감사**) — `OPEN[cls]` 문장에 `뒷자리에서만`·`앞자리 레인지에는 들어가지 않습니다` 가 있으면 그 클래스의 모든 패가 `firstAny ∈ {CO, BTN}` 이거나 null 이어야 하고, `어디서든/항상` 이 있으면 모든 패가 `firstAny === 'UTG'` 여야 함. 현재 실패하는 11패(K9s K8s K7s KQo KJo QJo KTo Q9s J9s T8s 97s) 를 고치는 카피 변경(이 스펙의 일부):
     - `offsuit_broadway`: `['자리가 뒤로 갈수록 더 많이 오픈합니다.', '킥커가 약한 쪽일수록 늦게 들어갑니다.']`
@@ -510,10 +521,10 @@ export interface RangeGridProps { /* 기존 */ paint?: (hand: HandName) => strin
 
 **`tests/data-invariants.test.ts`** (접목: CI 가드, 깨지면 패 이름과 거짓이 될 문장을 함께 출력)
 11. `RFI raise weight is non-decreasing UTG→BTN for all 169 hands` (지금 0 위반).
-12. `vs_open and vs_3bet hero rows are non-decreasing in AGGRESSION_ORDER and in continue weight along the villain axis` (각 kind 676행, 0 위반).
+12. `vs_open and vs_3bet hero rows are non-decreasing in AGGRESSION_ORDER and in continue weight along the villain axis` (각 kind 676행, 0 위반). **v5**: 52곳에서 깨지고, 전부 책이 일부러 깨는 곳이라 묶음과 예외로 다시 적었어요 — vs_open 1순위는 BB 만 예외(BTN→SB 14패: BB 는 BTN 상대 선형 · SB 상대 양극화로 3벳, CO→BTN 수티드 커넥터 4패), vs_open 계속 비중은 BTN 의 33 · 22 만 예외(넓게 여는 상대일수록 BTN 의 콜이 줄어요), vs_3bet 은 블라인드가 아닌 3벳끼리 · 블라인드 3벳끼리 단조이고 예외 32곳은 전부 BTN→SB 한 걸음(포지션이 뒤집힘 — 책 5장 3절). 자리별 보기 문장은 이 축의 '부터'를 쓰지 않아요(테스트 5(d)).
 13. `vs_open: BB continues at least as much as every other hero vs the same opener` (0 위반).
-14. `non-monotone row boundaries occur only in suited-A rows` (33/1850, 전부 A 수티드 줄).
-15. `SB differs from BTN in rfi primary only for J4s, K6o` — 바뀌면 thesis 의 SB 절 규칙을 다시 볼 것.
+14. `non-monotone row boundaries occur only in suited-A rows` (33/1850, 전부 A 수티드 줄). **v5**: 35/1850 = 수티드 A 30 + BB 림프 대응 오프수트 5줄(98o~54o 줄의 가장 약한 오프수트 블러프 레이즈).
+15. `SB differs from BTN in rfi primary only for J4s, K6o` — 바뀌면 thesis 의 SB 절 규칙을 다시 볼 것. **v5**: `only by limping` — 71패 전부 SB 림프(BTN 오픈 → 40, BTN 폴드 → 31), SB 가 조금이라도 레이즈하는 패는 BTN 이 늘 레이즈.
 
 **`tests/explain-golden.test.ts`**
 16. `reasoning() is byte-identical after the priceFacts hoist` — 74차트 × 169패의 `explainStep(step).reasoning.join('\n')` 전체를 FNV-1a 로 해시한 상수와 비교. 리팩터 전에 상수를 기록하고, 카피를 의도적으로 바꿀 때만 갱신.
@@ -570,3 +581,6 @@ export interface RangeGridProps { /* 기존 */ paint?: (hand: HandName) => strin
 | 비중 글자 | 11px 라벨에 포함 | 비중 줄 11px (10px 에서 올림) | 가독성 바닥. |
 | BTN 의 D | 타일 안 | 자리 이름 옆 | 타일 안에 두면 두 줄 라벨('레이즈 50%')의 첫 글자를 덮음. |
 | 추가 export | — | `sectionDigestDetail` · `anchorCell` · `gateText` · `closeAtlas({resume})` | 테스트 7 과 UI 가 씀. |
+| **v5** rfi 자리 비중어 | `절반만` / `{pct}만`(1순위 비중 등급) | 레이즈 비중(`raiseWord`), 같은 비중어 자리는 묶음 | 책 차트의 UTG A9o(폴드 75 · 레이즈 25)가 `UTG에서 주로 … 오픈`으로 거꾸로 나왔음. |
+| **v5** `blind3bet` | 블라인드 3벳은 범위가 넓어 더 넓게 지킴 | 포지션으로: 있으면 콜 위주, 없으면 4벳을 더 섞음 | 책 차트에서 블라인드 3벳에 오히려 덜 지키고(3벳 크기 약 10bb 대 8.5bb), 블라인드가 더 넓게 3벳하지도 않음. 책 5장 3절의 포지션 원칙은 모든 차트에서 참. |
+| **v5** SB 절 · 비교 | SB 칸의 1순위만 | 함정 림프는 섞는 비중까지, SB 와 견주는 오픈 비교엔 SB 자리 문장(레이즈 · 림프 폭)을 먼저 | SB 림프(책 5장 2절)가 생기면서 `주로 오픈`이 나머지를 폴드로 읽게 했고, 오픈 폭만으로는 SB 의 림프가 설명되지 않았음. |

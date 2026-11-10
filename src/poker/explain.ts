@@ -66,7 +66,7 @@ export const HAND_CLASS_KO: Record<HandClass, string> = {
   suited_connector: '수티드 커넥터',
   suited_gapper: '수티드 갭퍼',
   offsuit_connector: '오프수트 커넥터',
-  // 위 어디에도 안 드는 패(K9o · Q8o · T6s · 72o …). K9o 처럼 BTN · SB 에서 늘 오픈하는 패도 있어서 '약한 패'라고 하지 않습니다(감사).
+  // 위 어디에도 안 드는 패(K9o · Q8o · T6s · 72o …). K9o 처럼 BTN 에서 늘 오픈하는(SB 에서는 림프하는) 패도 있어서 '약한 패'라고 하지 않습니다(감사).
   junk: '그 밖의 패',
 };
 
