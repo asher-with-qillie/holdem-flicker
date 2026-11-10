@@ -97,11 +97,12 @@ export const VS_LIMP_CHARTS: ChartDef[] = [
     kind: 'vs_limp',
     hero: 'SB',
     actions: {
-      // rfi:SB 의 레이즈 범위(24%)와 같은 폭: 트랩 섞기를 뺀 강한 패는 늘 레이즈하고, 가장 약한 44 · A5o 를 덜어 냈어요.
+      // rfi:SB 의 레이즈 범위(24%)와 같은 폭: 트랩 섞기를 뺀 강한 패는 늘 레이즈하고, rfi:SB 가 BB 의 3벳을 막는
+      // 블로커로 올리는 K5s~K2s 는 뺐어요 — 림퍼의 Kx 에 지배당하고(림퍼 범위 상대 승률 43~45%), 44(52%)보다 약해요.
       raise: [
-        '55+',
-        'A2s+', 'K2s+', 'Q9s+', 'J9s+', 'T9s',
-        'A6o+', 'KTo+', 'QJo',
+        '44+',
+        'A2s+', 'K6s+', 'Q9s+', 'J9s+', 'T9s',
+        'A5o+', 'KTo+', 'QJo',
       ].join(','),
     },
     summary:
