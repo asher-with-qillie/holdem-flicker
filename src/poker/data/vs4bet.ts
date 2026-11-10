@@ -362,10 +362,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       allin: [
-        'KK-JJ', 'AA:0.5', 'AKs', 'AKo', 'KQs', 'A5s-A4s:0.5',
+        'KK-QQ', 'AA:0.5', 'JJ:0.5', 'AKs', 'AKo', 'KQs', 'A5s-A4s:0.5',
       ].join(','),
       call: [
-        'AA:0.5', 'TT-88', 'AQs', 'AJs', 'ATs', 'AQo', 'AJo', 'KJs', 'A5s-A4s:0.5',
+        'AA:0.5', 'JJ:0.5', 'TT-88', 'AQs', 'AJs', 'ATs', 'AQo', 'AJo', 'KJs', 'A5s-A4s:0.5',
       ].join(','),
     },
     summary: '4벳 팟은 한두 번 베팅이면 올인이 될 만큼 얕아서, 콜할 패도 그만큼 강해야 해요. AA·KK·QQ·AKs는 올인, AKo는 주로 올인, TT·AQs는 콜하고, A5s·A4s는 가끔 올인 블러프로 써요. 책은 포지션이 있으면 대부분 콜하고 AA도 절반쯤 콜로 숨긴다고 하지만, 이 차트는 콜과 올인이 비슷하고 AA는 늘 올인해요.',
