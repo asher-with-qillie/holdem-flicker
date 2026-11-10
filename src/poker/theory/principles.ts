@@ -5,11 +5,11 @@
  * 앱의 말투(해요체)와 자리 이름(LJ → UTG, BN → BTN)으로 옮긴 것이고, 책에 없는 인과는 넣지 않았습니다.
  * 위치 표기는 '책 장 · 원서 절 제목(노트 절 번호)'입니다. 원서는 절에 번호가 없어서, 노트 번호를 같이 적습니다.
  *
- * 숫자(numbers)는 책의 공식을 앱 차트의 크기 가정(price.ts)으로 다시 계산한 값입니다.
+ * 숫자(numbers)는 책의 공식을 책의 베팅 크기(price.ts — 노트 5장 1절)로 계산한 값입니다.
  */
 import { josa } from '../ko';
 import type { Scenario } from '../types';
-import { bb, pct, priceOf, threebetRisk, threebetSize } from './price';
+import { bb, fourbetSize, limpFacts, pct, priceOf, threebetRisk, threebetSize } from './price';
 
 export type PrincipleId =
   | 'seats-behind'
@@ -18,6 +18,7 @@ export type PrincipleId =
   | 'early-high-cards'
   | 'raise-or-fold'
   | 'sb-first-in'
+  | 'sb-limp'
   | 'bb-price'
   | 'bb-vs-opener'
   | 'sb-3bet-or-fold'
@@ -113,6 +114,18 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     ref: '책 5장 「권장 베팅 크기」·「자리별 처음 레이즈」(노트 5장 1~2절)',
     // BB 가 콜할 때의 필요 승률 = 콜 금액 ÷ 콜 뒤의 팟: 3bb 오픈이면 2 ÷ 6, 2.5bb 오픈이면 1.5 ÷ 5.
     numbers: (s) => (s.kind === 'rfi' && s.hero === 'SB' ? '3bb로 오픈하면 BB는 2bb를 더 내고 콜해야 해서 BB의 필요 승률이 약 33%예요(2.5bb로 오픈하면 약 30%).' : null),
+  },
+  'sb-limp': {
+    id: 'sb-limp',
+    chip: 'SB의 림프',
+    body:
+      'SB의 림프는 약하다는 뜻이 아니에요. 책의 균형 전략은 강한 패만 레이즈하고 중간 패만 림프하지 않고, 림프 범위에도 AA·KK·QQ·AK를 일부 섞어 BB가 3.5bb로 레이즈하면 다시 올리거나 AA는 콜로 숨겨요. 그래서 BB는 SB의 림프를 아무 패로나 공격하지 못하고, 공짜로 볼 수 있는 패는 체크해요.',
+    ref: '책 5장 「자리별 처음 레이즈」 SB·4장 「림프」(노트 5장 2절, 4장 7절)',
+    numbers: (s) => {
+      if (!((s.kind === 'rfi' && s.hero === 'SB') || (s.kind === 'vs_limp' && s.hero === 'BB'))) return null;
+      const f = limpFacts();
+      return `SB가 림프하면 팟은 ${josa(bb(f.potAfterLimp), '이/가')} 되고, BB가 ${josa(bb(f.raiseTo), '으로/로')} 레이즈하면 SB는 ${josa(bb(f.toCallRaise), '을/를')} 더 내고 콜해야 해서 필요 승률이 약 ${pct(f.need)}예요.`;
+    },
   },
   'bb-price': {
     id: 'bb-price',
@@ -229,7 +242,7 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     numbers: (s) => {
       const p = priceOf(s);
       if (!p || s.kind !== 'vs_4bet') return null;
-      return `4벳 22bb에 콜하려면 ${bb(p.toCall)}를 더 내고, 필요 승률은 약 ${pct(p.need)}예요.`;
+      return `4벳 ${bb(fourbetSize(s.villain!, s.hero))}에 콜하려면 ${bb(p.toCall)}를 더 내고, 필요 승률은 약 ${pct(p.need)}예요.`;
     },
   },
   'vs-5bet': {
@@ -299,7 +312,7 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     id: 'free-check',
     chip: '공짜 플랍',
     body:
-      'BB는 림프에 체크하면 돈을 더 내지 않고 플랍을 봐요. 체크가 공짜일 때 폴드는 어떤 경우에도 체크보다 못한 \'엄격하게 지배되는 전략\'이라, 아무리 약한 패도 폴드하지 않고 체크해요.',
+      'SB가 림프하면 BB는 체크만 해도 돈을 더 내지 않고 플랍을 봐요. 체크가 공짜일 때 폴드는 어떤 경우에도 체크보다 못한 \'엄격하게 지배되는 전략\'이라, 아무리 약한 패도 폴드하지 않고 체크해요.',
     ref: '책 10장 폴드·체크·콜·레이즈(노트 10장 4절)',
   },
   'blind-vs-blind': {

@@ -3,12 +3,12 @@ import { parseHandName, type HandInfo } from './hands';
 import { josa } from './ko';
 import { capsuleLabel, lineOf, lineSentence, nearMiss, stripView, type LineDef, type LineSentence, type MixItem, type StripView } from './line';
 import { fullMix, restAction } from './range';
-import { acrossRow, mixBlock, oneExample, seatLever, seatNumbers, siblingLine } from './sheet';
+import { acrossRow, mixBlock, oneExample, seatLever, seatNumbers, siblingLine, type LadderRung } from './sheet';
 import { heroInPosition } from './scenarios';
 import type { Step } from './trainer';
 import type { AtlasCell, Line } from './atlas';
 import { POS_INDEX, type Action, type Card, type ChartCells, type Pos, type Scenario, type ScenarioKind } from './types';
-import { DISCLAIMER } from '../screens/charts/disclaimer';
+import { disclaimerFor } from '../screens/charts/disclaimer';
 import { spotReason } from './theory/spot';
 import { handReason } from './theory/handReason';
 import { cellDiff } from './theory/bookDiff';
@@ -110,11 +110,11 @@ export interface Explanation {
   nearMiss: '한 칸 밖' | '마지막 칸' | null;
   sibling: LineSentence | null;
   mix: { chips: Array<{ action: Action; pct: number }>; partial: string | null } | null;
-  seat: { numbers: string; ladder: Array<{ pos: Pos; pct: number; me: boolean }> | null; lever: string | null };
+  seat: { numbers: string; ladder: LadderRung[] | null; lever: string | null };
   across: { cells: AtlasCell[]; line: Line };
   /** 자세히: 사람이 쓴 차트 메모, 메모가 없을 때만 예시 한 줄. 무늬 뒤집기는 여기에만 적용됩니다. */
   more: { memo: string | null; example: string | null };
-  /** vs_limp → DISCLAIMER.vs_limp */
+  /** vs_limp → disclaimerFor(s): HJ·CO·BTN·SB 는 DISCLAIMER.vs_limp, BB(SB 림프)는 DISCLAIMER_BB_LIMP */
   disclaimer: string | null;
   /**
    * 왜 이렇게 칠까 — 책(MPT)의 원리로 든 이유(docs/THEORY_SPEC.md §2.2 ②).
@@ -136,7 +136,6 @@ export interface Explanation {
 /** 정수 퍼센트. 스타일 가이드 §2.6: 빈도는 "10번 중 2번"이 아니라 "18%". */
 export const pctInt = (x: number) => `${Math.round(x * 100)}%`;
 
-const isBlind = (p?: Pos) => p === 'SB' || p === 'BB';
 export const seatsBehind = (hero: Pos) => 5 - POS_INDEX[hero];
 
 /** 상대가 이 상황까지 오며 쓴 레인지(오픈 → 3벳 → 4벳 → 올인). 숫자 줄의 W 가 여기서 나옵니다. */
@@ -167,10 +166,10 @@ export function villainChart(s: Scenario): { cells: ChartCells; action: Action }
 
 export function heroIsIP(s: Scenario): boolean {
   if (s.kind === 'rfi') return s.hero !== 'SB'; // assume the BB (or a later caller) defends
-  // 림퍼는 언제나 내 앞자리(UTG~BTN)에 앉아 있습니다. 그러니 블라인드가 아닌 나는 항상 포지션이 있고,
-  // SB·BB 는 항상 먼저 액션합니다. extras.limper 를 보지 않는 이유: 림퍼 자리는 화면용이라 비어 있을 수 있는데,
-  // 비어 있다고 BB 가 "포지션이 있어요"로 읽히면 모든 BB 림프 카드가 거짓말을 합니다.
-  if (s.kind === 'vs_limp') return !isBlind(s.hero);
+  // 림프 대응: HJ·CO·BTN 의 림퍼는 내 앞자리(UTG~CO)라 나는 늘 포지션이 있고, SB 는 앞자리 림퍼보다 늘 먼저 액션합니다.
+  // BB 의 림퍼는 언제나 SB 입니다(scenarios.limperOf — 책의 균형 전략에서 림프하는 자리는 SB 뿐). 플랍 이후 SB 가 먼저
+  // 액션하니 BB 는 포지션이 있습니다. extras.limper 를 보지 않는 이유: 림퍼 자리는 화면용이라 비어 있을 수 있습니다.
+  if (s.kind === 'vs_limp') return s.hero !== 'SB';
   const v = s.villain ?? s.extras?.threeBettor;
   return v ? heroInPosition(s.hero, v) : s.hero !== 'SB';
 }
@@ -380,7 +379,7 @@ export function explainStep(step: Step, orientation: SuitOrientation = 'spade'):
     seat: { numbers: numbers.text, ladder: numbers.ladder, lever: seatLever(s)?.text ?? null },
     across: acrossRow(s, hand),
     more: orientation === 'diamond' ? mirrorSuits(more) : more,
-    disclaimer: s.kind === 'vs_limp' ? DISCLAIMER.vs_limp : null,
+    disclaimer: s.kind === 'vs_limp' ? disclaimerFor(s) : null,
     why: whyOf(step),
   };
 }

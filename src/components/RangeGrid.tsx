@@ -2,7 +2,7 @@ import { useMemo, type CSSProperties } from 'react';
 import { RANKS, type Action, type ChartCells, type HandName } from '../poker/types';
 import { gridHand } from '../poker/hands';
 import { lineOf } from '../poker/line';
-import { fullMix } from '../poker/range';
+import { AGGRESSION_ORDER, fullMix } from '../poker/range';
 import '../styles/charts.css';
 
 /** P2 mastery overlay state per hand (spec §5.8): mastered = inner mint border, learning = amber dot, weak = coral dot, unseen = dimmed. */
@@ -39,8 +39,9 @@ export function lineHands(hand: HandName): HandName[] {
 }
 
 /** Slice order inside a cell: most aggressive on the left, fold (dim) on the right.
-    손으로 적은 배열입니다 — 빠진 액션은 조용히 사라지고 그라데이션이 100%가 안 됩니다. */
-const SLICE_ORDER: Action[] = ['allin', 'fourbet', 'threebet', 'raise', 'call', 'check', 'fold'];
+    공격성 순서(AGGRESSION_ORDER)를 뒤집어 씁니다 — 손으로 적으면 새 액션(림프)이 조용히 빠지고 그라데이션이 100%가 안 됩니다.
+    allin · fourbet · threebet · raise · call · limp · check · fold */
+const SLICE_ORDER: readonly Action[] = [...AGGRESSION_ORDER].reverse();
 
 /** 혼합 비중 → 칸 배경. 단색이면 `var(--act-*)`, 폴드뿐이면 undefined(칸의 --rg-fold 가 보임), 섞였으면 좌→우 분할 그라데이션. */
 export function cellBackground(mix: Array<{ action: Action; weight: number }>): string | undefined {

@@ -79,7 +79,11 @@ export interface RfiProfile {
   monotone: boolean;
   /** primary(SB) !== primary(BTN) */
   sbDiffers: boolean;
-  seats: Array<{ pos: Pos; behind: number; share: number; raise: number; primary: Action }>;
+  /**
+   * share = 오픈(레이즈) 폭 %, raise = 이 패의 레이즈 비중. limpShare · limp 는 SB 의 림프(책 5장 2절 — SB 만 림프를 섞습니다)이고
+   * 다른 자리는 늘 0입니다. 'X부터 오픈해요'의 오픈은 레이즈만 셉니다 — 림프는 오픈이 아니라 SB 절('단, SB에서는 림프해요')로 말합니다.
+   */
+  seats: Array<{ pos: Pos; behind: number; share: number; raise: number; limpShare: number; limp: number; primary: Action }>;
 }
 
 export interface HandAtlas {
@@ -175,6 +179,9 @@ const weightIn = (s: Scenario, hand: HandName, a: Action): number => fullMix(get
  */
 export function isReachable(s: Scenario, hand: HandName): { ok: boolean; gate?: Gate } {
   const path: Array<{ kind: ScenarioKind; needed: Action; at: Scenario }> = [];
+  // 3벳 대응 · 5벳 대응은 이 자리에서 '레이즈'로 오픈했을 때만 생깁니다. SB 의 림프는 여기에 오지 않아요 — 림프한 뒤 BB 가 올리는 건
+  // 3벳이 아니라 림프에 대한 레이즈라 다른 상황입니다(이 앱은 그 상황을 따로 다루지 않습니다).
+  // 그래서 SB 에서 림프가 1순위인 패의 3벳 대응 칸은 도달 불가(gate rfi · needed raise · weight = 레이즈 비중)입니다.
   if (s.kind === 'vs_3bet' || s.kind === 'vs_5bet') path.push({ kind: 'rfi', needed: 'raise', at: { kind: 'rfi', hero: s.hero } });
   if (s.kind === 'vs_5bet') path.push({ kind: 'vs_3bet', needed: 'fourbet', at: { kind: 'vs_3bet', hero: s.hero, villain: s.villain } });
   if (s.kind === 'vs_4bet') path.push({ kind: 'vs_open', needed: 'threebet', at: { kind: 'vs_open', hero: s.hero, villain: s.villain } });
@@ -281,7 +288,7 @@ export function rfiProfile(hand: HandName): RfiProfile {
   const seats = RFI_ROWS.map((pos) => {
     const s: Scenario = { kind: 'rfi', hero: pos };
     const mix = getChartCells(s)[hand];
-    return { pos, behind: seatsBehind(pos), share: openPct(pos), raise: mix?.raise ?? 0, primary: primaryAction(mix) };
+    return { pos, behind: seatsBehind(pos), share: openPct(pos), raise: mix?.raise ?? 0, limpShare: sharePct(s, 'limp'), limp: mix?.limp ?? 0, primary: primaryAction(mix) };
   });
   const core = seats.slice(0, 4);
   const sb = seats[4];
@@ -294,7 +301,8 @@ export function rfiProfile(hand: HandName): RfiProfile {
   const sbDiffers = sb.primary !== btn.primary || (sb.raise >= 0.999) !== (btn.raise >= 0.999);
   let pattern: RfiProfile['pattern'];
   if (core.every((c) => c.raise >= 0.999)) pattern = 'always';
-  else if (core.every((c) => c.raise <= EPS)) pattern = sb.raise > EPS ? 'sbOnly' : 'never';
+  // SB 에서만 들어가는 패(레이즈든 림프든)는 'sbOnly' — 림프만 하는 패를 '어느 자리에서도 오픈하지 않아요'로 덮으면 SB 의 림프가 사라집니다.
+  else if (core.every((c) => c.raise <= EPS)) pattern = sb.raise > EPS || sb.limp > EPS ? 'sbOnly' : 'never';
   else if (!monotone) pattern = 'irregular';
   else if (!firstAlways) pattern = 'partial';
   else if (firstAny === firstAlways) pattern = 'entry';
@@ -324,7 +332,10 @@ export function newcomersAt(seat: Pos, prefer?: HandName): HandName[] {
     .map((x) => x.h);
 }
 
-/** 손패 고르기 색칠용: firstAny, 없으면 SB 에서 raise > 0 이면 'SB', 아니면 null. */
+/**
+ * 손패 고르기 색칠용: firstAny, 없으면 SB 에서 raise > 0 이면 'SB', 아니면 null.
+ * 범례가 '어느 자리부터 오픈하는지'라 레이즈만 셉니다 — SB 에서 림프만 하는 패는 색이 없습니다.
+ */
 export function entrySeat(hand: HandName): Pos | 'SB' | null {
   const p = rfiProfile(hand);
   if (p.firstAny) return p.firstAny;
@@ -354,6 +365,13 @@ export function entrySeat(hand: HandName): Pos | 'SB' | null {
 export const POSITION_IP = '포지션이 있어 플랍 이후 내내 유리해요.';
 export const POSITION_OOP = '포지션이 없어 플랍 이후 내내 불리해요.';
 export const SB_OPEN = 'SB는 뒤에 BB 한 명뿐이지만 포지션이 없어, BTN보다 넓게 오픈하지는 않아요.';
+/** SB 차트에 림프가 있을 때(책 5장 2절)의 자리 사실. 레이즈와 림프를 따로 말합니다. */
+export const sbLimpText = (raise: number, limp: number): string => `SB는 포지션이 없어 레이즈는 ${raise}%로 좁히고, 반값으로 림프를 ${limp}% 섞어요.`;
+/** 자리별 보기 rfi 섹션의 SB 한 줄: 림프가 있으면 sbLimpText, 없으면 SB_OPEN. */
+export function sbOpenLine(): string {
+  const limp = sharePct({ kind: 'rfi', hero: 'SB' }, 'limp');
+  return limp > 0 ? sbLimpText(openPct('SB'), limp) : SB_OPEN;
+}
 /** SB 의 오픈 대응(책 5장 5절: BB 의 스퀴즈 · 두 명을 상대로 포지션 없음 · 레이크). 차트는 콜을 0.7~1.5% 섞어서 '대부분'. */
 export const SB_RAISE_OR_FOLD = ['SB는 콜하면 BB에게 스퀴즈당하기 쉽고, 플랍 이후 포지션도 없어요.', '그래서 콜은 드물고, 대부분 3벳 아니면 폴드예요.'] as const;
 /**
@@ -412,7 +430,10 @@ export function seatLevers(s: Scenario): Lever[] {
     if (isEarly(v)) out.push({ id: 'earlyOpener', text: '앞자리 오픈은 강한 패 위주라 좁게 맞서요.', nums: [], constant: true });
     else out.push({ id: 'lateOpener', text: '뒷자리 오픈엔 약한 패도 많이 섞여 있어 넓게 맞서요.', nums: [], constant: true });
   }
-  if (kind === 'rfi' && hero === 'SB') out.push({ id: 'sbOpen', text: SB_OPEN, nums: [], constant: true });
+  if (kind === 'rfi' && hero === 'SB') {
+    const limp = sharePct(s, 'limp');
+    out.push(limp > 0 ? { id: 'sbOpen', text: sbLimpText(openPct('SB'), limp), nums: [openPct('SB'), limp], constant: false } : { id: 'sbOpen', text: SB_OPEN, nums: [], constant: true });
+  }
   return out;
 }
 
@@ -797,8 +818,9 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
       if (!rfi.sbDiffers) {
         out.push({ text: `${subject} 어느 자리에서나 오픈해요.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
       } else {
-        // 지금 데이터에는 없지만, SB 가 항상이 아니면 "어느 자리에서나"는 거짓입니다 — UTG~BTN 과 SB 를 나눠 말합니다.
-        out.push({ text: `${subject} UTG부터 오픈해요.${sbClause}`, claims: [...CORE_SEATS.map((p) => claimOf(cell(p))), ...sbClaims], nums: [], source: 'computed' });
+        // SB 가 항상 오픈이 아니면(림프를 섞는 AA 같은 함정 칸 — 책 5장 2절) "어느 자리에서나"는 거짓입니다 — UTG~BTN 과 SB 를 나눠 말합니다.
+        // '…부터'는 앞자리 폴드가 있을 때(entry · half)의 말이라 쓰지 않습니다: 'AA는 UTG~BTN에서 오픈해요. 단, SB에서는 주로 오픈해요.'
+        out.push({ text: `${subject} UTG~BTN에서 오픈해요.${sbClause}`, claims: [...CORE_SEATS.map((p) => claimOf(cell(p))), ...sbClaims], nums: [], source: 'computed' });
       }
       break;
     }
@@ -806,6 +828,12 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
       out.push({ text: `${subject} 어느 자리에서도 오픈하지 않아요.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
       break;
     case 'sbOnly': {
+      // SB 에서 림프(를 섞는) 패: 앞 네 자리는 폴드, SB 는 비중까지 — 'K3o는 UTG~BTN에서는 폴드하고, SB에서는 절반만 림프해요.'
+      // ('…에서는 오픈하지 않고'는 자리 + 액션 꼴이 부정문 속에 숨어, 문장만 보고 '오픈'으로 읽히기 쉽습니다.)
+      if (rfi.seats[4].limp > EPS) {
+        out.push({ text: `${subject} UTG~BTN에서는 폴드하고, SB에서는 ${weightPhrase(sbCell)}.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
+        break;
+      }
       // "SB에서만 절반만" 은 '만'이 겹칩니다. 두 절로 — 어디서 오픈하는지, 나머지는 폴드.
       const w = weightWord(sbCell);
       // '나머지는 폴드예요'는 비중어 바로 뒤라 "SB 의 나머지 절반"으로도 읽힙니다(THEORY_SPEC §5) — 자리라고 못 박습니다.
@@ -851,7 +879,8 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
       if (rfi.pattern === 'partial') {
         // SB 도 같이 — Q8o 는 BTN 과 SB 에서 절반씩 엽니다. SB 를 빼고 말하면 "SB 에서는 안 연다"로 읽힙니다.
         // (sbClause 는 SB·BTN 의 1순위가 다를 때만 붙으므로, SB 가 여기 들어오면 sbClause 는 비어 있습니다.)
-        const all = opens('SB') ? [...seats, 'SB' as Pos] : seats;
+        // SB 가 림프를 1순위로 하면 '오픈'으로 묶지 않습니다 — 그 칸은 sbClause('단, SB에서는 림프해요')가 말합니다.
+        const all = opens('SB') && sbCell.primary !== 'limp' ? [...seats, 'SB' as Pos] : seats;
         const words = all.map((p) => weightWord(cell(p)));
         words.forEach((w) => nums.push(...w.nums));
         // 같은 수식어끼리 묶습니다: "BTN과 SB에서 절반만" / "CO에서 주로, BTN과 SB에서 절반만".
@@ -1087,7 +1116,12 @@ export function gateText(cell: AtlasCell): string | null {
     if (g.kind === 'vs_3bet') return `${hero}에서 ${villain} 3벳에 4벳은 ${p}%만 하니, 올인은 그때만 받아요.`;
     return `${villain} 오픈에 3벳은 ${p}%만 하니, 4벳은 그때만 받아요.`;
   }
-  if (g.kind === 'rfi') return `${hero}에서 오픈하지 않으니 이 상황은 안 생겨요.`;
+  if (g.kind === 'rfi') {
+    // SB 에서 림프하는 패: 림프한 뒤 BB 의 레이즈는 3벳이 아니라 다른 상황이라, '오픈하지 않으니'만 말하면 림프가 안 보입니다.
+    const hand = cell.key.slice(cell.key.indexOf('|') + 1);
+    if (prim({ kind: 'rfi', hero }, hand) === 'limp') return `${hero}에서는 오픈 대신 림프하니 이 상황은 안 생겨요.`;
+    return `${hero}에서 오픈하지 않으니 이 상황은 안 생겨요.`;
+  }
   if (g.kind === 'vs_3bet') return `${hero}에서 4벳하지 않으니 올인을 받을 일이 없어요.`;
   return `${villain} 오픈에 3벳하지 않으니 4벳을 받을 일이 없어요.`;
 }

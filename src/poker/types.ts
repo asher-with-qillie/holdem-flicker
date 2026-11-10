@@ -19,14 +19,18 @@ export const POS_LABEL_KO: Record<Pos, string> = {
  *  - threebet: 3-bet (vs open, or squeeze)
  *  - fourbet : 4-bet (vs 3-bet, or cold 4-bet) — not all-in at 100bb
  *  - allin   : 5-bet jam (vs 4-bet)
+ *  - check   : BB 가 SB 의 림프를 받고 공짜로 넘김(차트의 `rest`)
+ *  - limp    : SB 의 첫 진입에서 레이즈하지 않고 1bb 까지만 맞춤(complete). 책(MPT 5장 2절)의 균형 전략은
+ *              SB 에서만 림프를 섞습니다 — `scenarioActions('rfi', 'SB')` 만 이 버튼을 냅니다.
  */
 /**
- * `check` 는 **반드시 맨 뒤**에 둡니다. src/state/srs.ts 가 저장할 때 `ACTIONS.indexOf(...)` 를 그대로
+ * 새 액션은 **반드시 맨 뒤에만** 붙입니다(`check` 다음에 `limp`). src/state/srs.ts 가 저장할 때 `ACTIONS.indexOf(...)` 를 그대로
  * 숫자로 적고 불러올 때 `ACTIONS[n]` 으로 되읽는데, 버전 표시가 없습니다. 중간에 끼워 넣으면 이미
- * 저장된 모든 카드의 정답이 한 칸씩 밀려 조용히 다른 액션이 됩니다 — 에러도 안 납니다.
- * 이 배열의 순서는 '저장 형식'이지 '공격성 순서'가 아닙니다. 공격성은 range.ts 의 AGGRESSION_ORDER 입니다.
+ * 저장된 모든 카드의 정답이 한 칸씩 밀려 조용히 다른 액션이 됩니다 — 에러도 안 납니다(tests/srs-storage.test.ts 가 인덱스를 못박습니다).
+ * 이 배열의 순서는 '저장 형식'이지 '공격성 순서'가 아닙니다. 공격성은 range.ts 의 AGGRESSION_ORDER 입니다
+ * (림프는 거기서 체크와 콜 사이 — 돈을 더 내고 들어가지만 올리지는 않는 수동적인 진입).
  */
-export const ACTIONS = ['fold', 'call', 'raise', 'threebet', 'fourbet', 'allin', 'check'] as const;
+export const ACTIONS = ['fold', 'call', 'raise', 'threebet', 'fourbet', 'allin', 'check', 'limp'] as const;
 export type Action = (typeof ACTIONS)[number];
 
 export const ACTION_LABEL_KO: Record<Action, string> = {
@@ -37,6 +41,7 @@ export const ACTION_LABEL_KO: Record<Action, string> = {
   threebet: '3벳',
   fourbet: '4벳',
   allin: '올인',
+  limp: '림프',
 };
 
 export const ACTION_SHORT_KO: Record<Action, string> = {
@@ -47,6 +52,7 @@ export const ACTION_SHORT_KO: Record<Action, string> = {
   threebet: '3벳',
   fourbet: '4벳',
   allin: '올인',
+  limp: '림프',
 };
 
 /**
@@ -58,6 +64,8 @@ export const ACTION_SHORT_KO: Record<Action, string> = {
  *  - vs_5bet  : hero opened, villain 3-bet, hero 4-bet, villain jams. villain: 3-bettor/jammer
  *  - cold_4bet: an open and a 3-bet happened in front of hero.        villain: none (generic)
  *  - vs_limp  : exactly one player limped (called the BB) in front.   villain: none (generic — 자리를 안 가립니다)
+ *               hero = BB 이면 림퍼는 언제나 SB 입니다(책의 균형 전략에서 림프하는 자리는 SB 뿐 — BB 는 3.5bb 레이즈
+ *               아니면 체크). HJ·CO·BTN·SB 는 '앞에서 실력이 약한 한 명이 림프'(책 4장 7절의 아이솔레이트 조언)입니다.
  */
 export const SCENARIO_KINDS = ['rfi', 'vs_open', 'vs_3bet', 'vs_4bet', 'vs_5bet', 'cold_4bet', 'vs_limp'] as const;
 export type ScenarioKind = (typeof SCENARIO_KINDS)[number];
@@ -79,6 +87,7 @@ export const SCENARIO_LABEL_KO: Record<ScenarioKind, string> = {
  * 따라 달라집니다(빅블라인드는 이미 돈을 냈으므로 폴드가 없습니다).
  */
 const KIND_ACTIONS: Record<ScenarioKind, Action[]> = {
+  // SB 는 여기에 림프가 더해집니다 — scenarioActions 가 자리를 보고 갈아 끼웁니다.
   rfi: ['fold', 'raise'],
   vs_open: ['fold', 'call', 'threebet'],
   vs_3bet: ['fold', 'call', 'fourbet'],
@@ -89,8 +98,14 @@ const KIND_ACTIONS: Record<ScenarioKind, Action[]> = {
   vs_limp: ['fold', 'raise'],
 };
 
-/** 림프를 맞은 빅블라인드: 이미 돈을 냈으니 공짜로 접을 수 없습니다. 체크 아니면 레이즈. */
+/** SB 의 림프를 맞은 빅블라인드: 이미 돈을 냈으니 공짜로 접을 수 없습니다. 체크 아니면 레이즈(3.5bb). */
 const VS_LIMP_BB: Action[] = ['check', 'raise'];
+
+/**
+ * SB 의 첫 진입: 폴드 · 림프(1bb 까지 맞춤) · 레이즈(3bb). 책의 균형 전략은 림프 약 38% · 레이즈 약 24% · 폴드 약 38%예요.
+ * 다른 자리는 레이즈 아니면 폴드입니다(책 4장 7절 — SB 말고는 림프하지 않습니다).
+ */
+const RFI_SB: Action[] = ['fold', 'limp', 'raise'];
 
 /**
  * 이 상황에서 고를 수 있는 액션 — **공격성 오름차순**입니다.
@@ -101,6 +116,7 @@ const VS_LIMP_BB: Action[] = ['check', 'raise'];
  */
 export function scenarioActions(kind: ScenarioKind, hero: Pos): readonly Action[] {
   if (kind === 'vs_limp' && hero === 'BB') return VS_LIMP_BB;
+  if (kind === 'rfi' && hero === 'SB') return RFI_SB;
   return KIND_ACTIONS[kind];
 }
 
@@ -134,6 +150,7 @@ export interface ChartDef {
   /**
    * Range strings per action. See src/poker/range.ts for notation.
    * `fold` 와 `check` 는 여기 못 씁니다 — 둘은 '적지 않은 나머지'(`rest`)로만 들어갑니다.
+   * `limp` 는 rfi:SB 에만 씁니다(그 상황만 림프 버튼이 있습니다 — scenarioActions).
    */
   actions: Partial<Record<Exclude<Action, 'fold' | 'check'>, string>>;
   /**
@@ -157,7 +174,8 @@ export interface Scenario {
   /**
    * 화면에만 쓰는 상대 자리. 차트는 이 값을 보지 않습니다 —
    * cold_4bet 은 두 상대를 뭉뚱그리고, vs_limp 는 림퍼의 자리를 가리지 않습니다
-   * (어느 자리에서 림프했는지로 레인지를 나누는 출처가 없습니다).
+   * (어느 자리에서 림프했는지로 레인지를 나누는 출처가 없습니다). 단 hero 가 BB 인 vs_limp 는
+   * 림퍼가 언제나 SB 라서, 비어 있어도 scenarios.limperOf 가 'SB' 를 돌려줍니다.
    */
   extras?: { opener?: Pos; threeBettor?: Pos; limper?: Pos };
 }

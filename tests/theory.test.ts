@@ -33,10 +33,14 @@ describe('가격(price.ts)', () => {
     expect(p({ kind: 'vs_open', hero: 'BB', villain: 'UTG' })).toBe(27.3); // 1.5 ÷ 5.5
     expect(p({ kind: 'vs_open', hero: 'BB', villain: 'SB' })).toBe(33.3); // 2 ÷ 6
     expect(p({ kind: 'vs_open', hero: 'BTN', villain: 'CO' })).toBe(38.5); // 2.5 ÷ 6.5
-    expect(p({ kind: 'vs_3bet', hero: 'UTG', villain: 'HJ' })).toBe(30.3); // 5 ÷ 16.5
-    expect(p({ kind: 'vs_3bet', hero: 'UTG', villain: 'BB' })).toBe(37.2); // 8 ÷ 21.5
-    expect(p({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' })).toBe(31.9); // 14.5 ÷ 45.5
-    expect(p({ kind: 'vs_5bet', hero: 'UTG', villain: 'HJ' })).toBe(38.7); // 78 ÷ 201.5
+    // 책 5장 1절의 크기: 3벳 IP 8.5bb · OOP 10bb · SB 레이즈에 BB 3벳 9bb · 4벳 23bb(SB 의 BB 상대 4벳 24bb) · 5벳 100bb.
+    expect(p({ kind: 'vs_3bet', hero: 'UTG', villain: 'HJ' })).toBe(32.4); // 6 ÷ 18.5
+    expect(p({ kind: 'vs_3bet', hero: 'UTG', villain: 'BB' })).toBe(36.6); // 7.5 ÷ 20.5
+    expect(p({ kind: 'vs_3bet', hero: 'SB', villain: 'BB' })).toBe(33.3); // 6 ÷ 18
+    expect(p({ kind: 'vs_4bet', hero: 'HJ', villain: 'UTG' })).toBe(30.5); // 14.5 ÷ 47.5
+    expect(p({ kind: 'vs_4bet', hero: 'BB', villain: 'SB' })).toBe(31.3); // (24 − 9) ÷ (24 + 9 + 15)
+    expect(p({ kind: 'vs_5bet', hero: 'UTG', villain: 'HJ' })).toBe(38.2); // 77 ÷ 201.5
+    expect(p({ kind: 'vs_5bet', hero: 'SB', villain: 'BB' })).toBe(38); // 76 ÷ 200
   });
   it('책 4장 3벳 위험의 단순 모형(한 명당 7%)', () => {
     expect(Math.round(threebetRisk(2) * 1000) / 10).toBe(13.5); // 책의 BN
@@ -152,9 +156,9 @@ describe('자리 이유(spot.ts) — 차트에 대해 단정하는 말', () => {
 });
 
 describe('원리 카드(principles.ts)', () => {
-  it('31장, 본문 2~3문장 해요체, 책 위치가 있어요', () => {
+  it('32장, 본문 2~3문장 해요체, 책 위치가 있어요', () => {
     const ids = Object.keys(PRINCIPLES) as PrincipleId[];
-    expect(ids.length).toBe(31);
+    expect(ids.length).toBe(32); // 31장 + 'SB의 림프'(sb-limp)
     for (const id of ids) {
       const p = PRINCIPLES[id];
       expect(p.id).toBe(id);
@@ -171,7 +175,8 @@ describe('원리 카드(principles.ts)', () => {
     const bbUtg: Scenario = { kind: 'vs_open', hero: 'BB', villain: 'UTG' };
     expect(PRINCIPLES['bb-price'].numbers!(bbUtg)).toBe('1.5bb를 더 내고 콜하면 팟은 5.5bb → 필요 승률 약 27%예요.');
     expect(PRINCIPLES['bb-price'].numbers!({ kind: 'rfi', hero: 'UTG' })).toBeNull();
-    expect(PRINCIPLES['mdf-alpha'].numbers!({ kind: 'vs_3bet', hero: 'UTG', villain: 'BB' })).toContain('70%');
+    // BB 의 10bb 3벳: 위험 9bb ÷ (9 + 팟 4bb) = 알파 약 69%
+    expect(PRINCIPLES['mdf-alpha'].numbers!({ kind: 'vs_3bet', hero: 'UTG', villain: 'BB' })).toContain('69%');
   });
 });
 

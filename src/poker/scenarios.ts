@@ -14,6 +14,17 @@ export function scenarioKey(s: Scenario): string {
   return scenarioId(s.kind, s.hero, s.villain);
 }
 
+/**
+ * 림프 대응에서 림프한 자리. hero 가 BB 면 언제나 SB 입니다 — 책의 균형 전략에서 림프하는 자리는 SB 뿐이고,
+ * BB 차트는 'SB 가 림프했고 BB 차례'를 뜻합니다(extras 가 비어 있어도 SB). HJ·CO·BTN·SB 는 화면용 extras.limper
+ * (트레이너가 앞자리 한 명을 뽑아 둠)를 그대로 쓰고, 없으면 undefined — 차트가 림퍼 자리를 가리지 않습니다.
+ */
+export function limperOf(s: Scenario): Pos | undefined {
+  if (s.kind !== 'vs_limp') return undefined;
+  if (s.hero === 'BB') return 'SB';
+  return s.extras?.limper;
+}
+
 export function positionsBefore(p: Pos): Pos[] {
   return POSITIONS.filter((q) => POS_INDEX[q] < POS_INDEX[p]);
 }
@@ -61,7 +72,7 @@ export function scenarioTitle(s: Scenario): string {
       // 차트가 두 상대를 구분하지 않으므로 자리 이름(extras)은 쓰지 않습니다 — 상황 문구와 같은 말.
       return `${s.hero} · 앞에서 오픈과 3벳`;
     case 'vs_limp': {
-      const l = s.extras?.limper;
+      const l = limperOf(s);
       return l ? `${s.hero} · ${l} 림프에 대응` : `${s.hero} · 림프에 대응`;
     }
   }
@@ -88,9 +99,10 @@ export function scenarioSituation(s: Scenario): string {
       // 차트가 두 상대를 구분하지 않으므로 자리 이름(extras)은 쓰지 않습니다.
       return `앞에서 오픈과 3벳이 나왔어요. ${s.hero}, 내 차례예요.`;
     case 'vs_limp': {
-      const l = s.extras?.limper;
+      const l = limperOf(s);
       const who = l ? josa(l, '이/가') : '앞에서 한 명이';
       // 빅블라인드는 폴드가 없다는 걸 상황 문구에서 먼저 말해 줍니다 — 버튼만 보고 헷갈리지 않게.
+      // BB 의 림퍼는 언제나 SB 입니다(limperOf): 'SB가 림프했어요. BB는 체크 아니면 레이즈예요.'
       if (s.hero === 'BB') return `${who} 림프했어요. BB는 체크 아니면 레이즈예요.`;
       return `${who} 림프했어요. ${s.hero}, 내 차례예요.`;
     }

@@ -980,6 +980,9 @@ export function buildQueue(req: QueueRequest): QueueResult {
         fresh.push({ key, step, origin: 'new' });
       }
       if (!fresh.length) continue;
+      // 이미 줄에 오른 칸을 빼고 나면(같은 자리에 같은 패가 두 번 딜될 때) 체인의 남은 칸이 전부 폴드·체크일 수 있습니다 —
+      // 이어지는 액션(오픈 · 3벳)이 빠진 체인입니다. trainer.pruneSteps 와 같은 규칙으로 한 장만 남깁니다(림프는 진입이라 여기 들지 않습니다).
+      if (fresh.length > 1 && fresh.every((f) => f.step.answer === 'fold' || f.step.answer === 'check')) fresh.splice(1);
       if (newCount + fresh.length > newN + 2) continue; // a chain may overflow by ≤ 2, never split
       if (fresh.length > 1 && req.mode === 'train') {
         const chainId = ++chainCounter;

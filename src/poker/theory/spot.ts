@@ -12,7 +12,7 @@ import { heroInPosition } from '../scenarios';
 import { josa } from '../ko';
 import type { Action, Pos, Scenario } from '../types';
 import { PRINCIPLES, type PrincipleId } from './principles';
-import { pct, sprAfterCall } from './price';
+import { bb, LIMP_RAISE, pct, sprAfterCall } from './price';
 
 export interface SpotReason {
   /** 해요체 1~2문장 */
@@ -26,6 +26,11 @@ export interface SpotReason {
 }
 
 const share = (s: Scenario, a: Action) => (hasChart(s) ? rangeShare(getChartCells(s), a) : 0);
+
+/** 책 5장 2절의 SB 첫 진입: 림프 약 38% · 레이즈 약 24%. 차트가 이 안(±2%p)이면 '책과 다른 점'을 말하지 않아요. */
+const BOOK_SB_LIMP = 0.38;
+const BOOK_SB_RAISE = 0.24;
+const BOOK_SB_TOL = 0.02;
 
 /** 플랍 이후 이 자리보다 나중에 행동하는 사람 수(블라인드는 플랍 이후 먼저 행동합니다). */
 const LATER: Record<Pos, number> = { UTG: 3, HJ: 2, CO: 1, BTN: 0, SB: 0, BB: 0 };
@@ -114,10 +119,21 @@ export function spotReason(s: Scenario): SpotReason {
         ids = ['steal-breakeven', 'seats-behind', 'raise-or-fold'];
         diff = `책의 균형 전략은 BTN이 약 43%를 오픈해요. 이 차트는 ${pct(W)}로 조금 더 넓어요.`;
       } else if (h === 'SB') {
+        const L = share(s, 'limp');
         lines.push('SB 뒤에는 BB 한 명뿐이지만, 플랍 이후에는 늘 포지션이 없어요.');
-        lines.push(`그래서 3bb로 크게 레이즈해 BB가 싸게 따라오지 못하게 하고, ${pct(W)}를 오픈해요.`);
-        ids = ['sb-first-in', 'seats-behind'];
-        diff = '책의 균형 전략은 SB가 반값 할인 덕분에 림프를 약 38% 섞고, 레이즈는 약 24%예요. 이 차트는 림프 없이 레이즈 아니면 폴드로 단순하게 만들었어요.';
+        if (L > 0) {
+          // 림프가 있는 차트: 레이즈와 림프를 따로 말해요(책 5장 2절 — 림프 약 38% · 레이즈 약 24%).
+          lines.push(`그래서 이미 낸 0.5bb 덕분에 반값으로 들어갈 수 있는 패는 림프(${pct(L)})하고, 레이즈(${pct(W)})는 3bb로 크게 해요.`);
+          ids = ['sb-first-in', 'sb-limp', 'seats-behind'];
+          diff =
+            Math.abs(L - BOOK_SB_LIMP) <= BOOK_SB_TOL && Math.abs(W - BOOK_SB_RAISE) <= BOOK_SB_TOL
+              ? null
+              : `책의 균형 전략은 SB가 림프를 약 38%, 레이즈를 약 24% 해요. 이 차트는 림프 ${pct(L)} · 레이즈 ${pct(W)}예요.`;
+        } else {
+          lines.push(`그래서 3bb로 크게 레이즈해 BB가 싸게 따라오지 못하게 하고, ${pct(W)}를 오픈해요.`);
+          ids = ['sb-first-in', 'seats-behind'];
+          diff = '책의 균형 전략은 SB가 반값 할인 덕분에 림프를 약 38% 섞고, 레이즈는 약 24%예요. 이 차트는 림프 없이 레이즈 아니면 폴드로 단순하게 만들었어요.';
+        }
       } else {
         lines.push(`${josa(h, '은/는')} 뒤에 ${BEHIND[h]}명이 남고, 그중 ${LATER[h]}명은 플랍 이후 ${h}보다 나중에 행동해요.`);
         lines.push(`그만큼 3벳을 받을 위험이 있어서, 3벳을 받아도 버틸 수 있을 만큼인 ${pct(W)}만 오픈해요.`);
@@ -225,17 +241,19 @@ export function spotReason(s: Scenario): SpotReason {
     case 'vs_limp': {
       const W = share(s, 'raise');
       if (h === 'BB') {
-        lines.push('BB는 림프에 체크하면 돈을 더 내지 않고 플랍을 봐요.');
+        // BB 의 림프 대응 = SB 가 림프했고 BB 차례(책의 균형 전략에서 림프하는 자리는 SB 뿐). BB 는 3.5bb 레이즈 아니면 체크.
+        lines.push('SB가 림프하면 BB는 체크만 해도 돈을 더 내지 않고 플랍을 봐요.');
         // 차트: BB 는 강한 패에 A 블로커가 있는 A5s · A4s 를 더해 레이즈해요(tests/theory.test.ts 가 확인).
-        lines.push(`그래서 폴드하는 패는 없고, 강한 패에 A 블로커가 있는 A5s·A4s를 더한 ${pct(W)}만 레이즈해요.`);
-        ids = ['free-check', 'vs-limper'];
+        lines.push(`그래서 폴드하는 패는 없고, 강한 패에 A 블로커가 있는 A5s·A4s를 더한 ${pct(W)}만 ${josa(bb(LIMP_RAISE), '으로/로')} 레이즈해요.`);
+        ids = ['free-check', 'sb-limp'];
+        diff = '책의 SB는 림프 범위에도 AA·KK·QQ·AK를 일부 섞어요. 이 차트는 그 림프 범위에 맞춰 만든 것이 아니라, 림퍼가 약하다고 보는 기본값이에요.';
       } else {
         const rfiW = share({ kind: 'rfi', hero: h }, 'raise');
         lines.push('앞에서 한 명이 림프했어요. SB 말고 림프하는 사람은 약한 경우가 많아, 레이즈로 아이솔레이트해 혼자 상대해요.');
         lines.push(`누가 먼저 들어온 만큼 처음 들어갈 때(${pct(rfiW)})보다 좁게, ${pct(W)}만 레이즈해요.`);
         ids = ['vs-limper', 'tighter-after-raise'];
+        diff = '책은 림퍼가 수동적이면 아주 넓게, 공격적이면 강한 패 위주로 아이솔레이트하라고 해요. 이 차트는 상대 유형을 모를 때 쓰는 기본값이에요.';
       }
-      diff = '책은 림퍼가 수동적이면 아주 넓게, 공격적이면 강한 패 위주로 아이솔레이트하라고 해요. 이 차트는 상대 유형을 모를 때 쓰는 기본값이에요.';
       break;
     }
   }

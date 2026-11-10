@@ -58,7 +58,7 @@ const holesOf = (s: Scenario, line: LineDef): number[] => line.slots.flatMap((x,
 /** 이름 없이 덮어도 되는 비중의 하한('주로'). */
 const STRONG = 0.6 - 1e-9;
 
-const ACT_WORD: Record<Action, string> = { raise: '오픈', call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크' };
+const ACT_WORD: Record<Action, string> = { raise: '오픈', call: '콜', threebet: '3벳', fourbet: '4벳', allin: '올인', fold: '폴드', check: '체크', limp: '림프' };
 const actOf = (a: Action, s: Scenario) => (a === 'raise' && s.kind === 'vs_limp' ? '레이즈' : ACT_WORD[a]);
 // P0h 의 섞는 쪽('3벳을 25% 섞고' · '콜도 25% 섞어요')도 비중을 말하는 마디입니다. 옛 '가끔'은 비중어 밖이라 없앴습니다(감사).
 const WEIGHT_WORDS = ['주로', '절반만', '절반은', '반반', '% 섞'];

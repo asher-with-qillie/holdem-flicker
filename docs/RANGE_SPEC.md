@@ -7,20 +7,25 @@ Every chart in `src/poker/data/*.ts` follows it. Use it verbatim when authoring 
 
 - **Format**: 6-max No-Limit Hold'em cash game, **100bb** effective stacks, mid-stakes online rake (≈ NL50–NL200).
 - **Positions (preflop order)**: `UTG` (= LJ), `HJ`, `CO`, `BTN`, `SB`, `BB`.
-- **Sizings**: open 2.5bb (SB opens 3bb; SB is raise-or-fold, no limping). 3-bet ≈ 3× in position, ≈ 4× (to ~10–11bb) from the blinds. 4-bet ≈ 2.2–2.5× (to ~22–25bb, not all-in). 5-bet = all-in. Cold 4-bet ≈ 2.2× the 3-bet.
+- **Sizings** (the book's — *Modern Poker Theory* ch. 5, `src/poker/theory/price.ts` is the one place the app reads them):
+  open 2.5bb, SB raise 3bb, SB limp = complete to 1bb. 3-bet in position ~8.5bb, out of position (blinds) ~10bb,
+  BB 3-bet vs the SB's 3bb raise 9bb. 4-bet ~23bb (SB 4-bet vs BB's 9bb 3-bet 24bb), not all-in. 5-bet = all-in 100bb.
+  BB raise vs an SB limp 3.5bb. Cold 4-bet ≈ 2.2× the 3-bet.
+- **SB first-in** may limp: `rfi:SB` offers `fold`, `limp`, `raise` (the book's equilibrium limps ~38%, raises ~24%).
+  Every other seat is raise-or-fold.
 - **Target**: approximate the widely published solver outputs (GTO Wizard 6-max 100bb NL500 / Upswing style). We favour **memorizable** simplifications: pure strategies where the solver is > 70% one action, otherwise a mixed weight.
 
 ## Scenarios (`kind`) and legal actions
 
 | kind | Situation (hero = the player we train) | villain field | legal actions (aggressive last) |
 |---|---|---|---|
-| `rfi` | Folded to hero. | none | `fold`, `raise` |
+| `rfi` | Folded to hero. | none | `fold`, `raise` — **SB: `fold`, `limp`, `raise`** |
 | `vs_open` | villain (earlier seat) open-raised, hero to act. Everyone between folded. | opener | `fold`, `call`, `threebet` |
 | `vs_3bet` | hero opened, villain (later seat) 3-bet, others folded. | 3-bettor | `fold`, `call`, `fourbet` |
 | `vs_4bet` | villain opened, hero 3-bet, villain 4-bet. | opener | `fold`, `call`, `allin` (5-bet jam) |
 | `vs_5bet` | hero opened, villain 3-bet, hero 4-bet, villain 5-bet all-in. | 3-bettor | `fold`, `call` |
 | `cold_4bet` | an open and a 3-bet happened before hero; hero has not acted. Generic over the two villains. | none | `fold`, `call`, `fourbet` |
-| `vs_limp` | exactly ONE player limped (called the BB) in front of hero. Generic over the limper's seat. | none | `fold`, `raise` — **BB: `check`, `raise`** (already posted, cannot fold) |
+| `vs_limp` | exactly ONE player limped (called the BB) in front of hero. Generic over the limper's seat for HJ..SB (a weak player — the book's isolation advice). **BB: the SB limped** (in the book's equilibrium only the SB limps). | none | `fold`, `raise` — **BB: `check`, `raise`** (already posted, cannot fold; raise = 3.5bb) |
 
 Valid (hero, villain) pairs: `vs_open`/`vs_4bet` need villain **before** hero; `vs_3bet`/`vs_5bet` need villain **after** hero.
 `rfi` exists for UTG..SB (not BB). `cold_4bet` exists for CO, BTN, SB, BB. `vs_limp` exists for HJ..BB (UTG cannot face a limp).
@@ -31,8 +36,9 @@ Chart `id` is always `${kind}:${hero}` or `${kind}:${hero}:${villain}` (e.g. `vs
 
 Everything else in this document targets published solver output. **`vs_limp` does not, and must never claim to.**
 
-- Solvers do not open-limp in a raked 6-max 100bb tree (this spec's own model says `SB is raise-or-fold,
-  no limping`), so the node does not exist in any presolved cash solution.
+- Solvers do not open-limp from UTG..BTN in a raked 6-max 100bb tree, so 'someone in front limped' does not
+  exist in any presolved cash solution. (The SB does limp in the book's equilibrium — that node is `vs_limp:BB`,
+  which follows the book, not this section.)
 - GTO Wizard AI *can* solve a limp tree, but only with **exactly one limper** (`No limps` / `SB complete` /
   `1 limp + SB complete`). That ceiling is why this deck covers one limper and no more.
 - Open the branch and solve it anyway and the solver limps ~0%, leaving the whole facing-limp subtree

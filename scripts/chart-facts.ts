@@ -1,7 +1,7 @@
 // Structural facts per chart (for the explanation rewrite): range shares per action, whether a call range exists.
 import { ALL_CHART_DEFS, getChartCells } from '../src/poker/data/index';
 import { rangeShare } from '../src/poker/range';
-const acts = ['raise', 'call', 'threebet', 'fourbet', 'allin', 'fold', 'check'] as const;
+const acts = ['raise', 'limp', 'call', 'threebet', 'fourbet', 'allin', 'fold', 'check'] as const;
 for (const def of ALL_CHART_DEFS) {
   const sc = { kind: def.kind, hero: def.hero, ...(def.villain ? { villain: def.villain } : {}) } as any;
   const cells = getChartCells(sc);

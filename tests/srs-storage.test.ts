@@ -45,6 +45,7 @@ const PINNED: Record<Action, number> = {
   fourbet: 4,
   allin: 5,
   check: 6,
+  limp: 7,
 };
 
 describe('SRS 저장 형식', () => {
@@ -69,7 +70,7 @@ describe('SRS 저장 형식', () => {
     // lastWrongAction 이고, answer 와 함께 ACTIONS 인덱스로 저장되는 두 칸 중 하나입니다.
     // 손패 이름은 진짜여야 합니다: unpack() 이 parseCardKey 를 try 안에서 부르기 때문에,
     // 가짜 이름을 쓰면 불러올 때 카드가 통째로 버려지고 테스트가 엉뚱한 곳을 가리킵니다.
-    const HANDS = ['AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88'];
+    const HANDS = ['AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88', '77'];
     expect(HANDS.length).toBeGreaterThanOrEqual(ACTIONS.length);
     const written: Array<{ key: string; chosen: Action }> = [];
     ACTIONS.forEach((chosen, i) => {

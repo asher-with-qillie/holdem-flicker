@@ -11,7 +11,7 @@ import { lineOf, lineSentence, stripView } from '../../poker/line';
 import { stepFor, type Step } from '../../poker/trainer';
 import { useSettings } from '../../state/settings';
 import { useCellFlag } from '../charts/CellCard';
-import { DISCLAIMER } from '../charts/disclaimer';
+import { disclaimerFor } from '../charts/disclaimer';
 
 /** 펼침 줄(차트 메모 › · 해설 전체 보기): 44px, 오른쪽 셰브런. */
 function Disclosure({ label, open, onToggle }: { label: string; open: boolean; onToggle(): void }) {
@@ -195,7 +195,8 @@ export function AtlasDetail({ atlas, cell, compare }: { atlas: HandAtlas; cell: 
           )}
         </div>
       )}
-      {human && <p className="atlas__disclaimer t-footnote ink-3">{DISCLAIMER.vs_limp}</p>}
+      {/* 사람 작성 차트(림프 대응)의 면책 — BB 칸은 'SB가 림프하고 BB 차례'라 다른 문장입니다(disclaimerFor). */}
+      {human && <p className="atlas__disclaimer t-footnote ink-3">{disclaimerFor(cell.evidence === 'human' ? cell.scenario : compare!.scenario)}</p>}
 
       {step && explanation && (
         <div className="atlas__more">

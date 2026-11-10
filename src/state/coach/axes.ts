@@ -12,6 +12,17 @@
  *
  * 순수 함수입니다. 저장소도 시계도 읽지 않습니다 — 재료는 digest.ts 가 모아서 넘깁니다.
  * `pure()` 필터(부분 정답이 가능한 문제 제외)도 digest.ts 가 이미 양쪽에 걸어서 넘깁니다.
+ *
+ * 림프(SB 의 첫 진입, rfi:SB 의 세 번째 버튼)를 세는 법 — '레이즈가 아닌 자발적 진입':
+ *   - `entry` : 림프는 폴드가 아니므로 '들어간' 쪽입니다. 정답이 림프인데 폴드하면 타이트 쪽, 정답이 폴드인데 림프하면
+ *     루즈 쪽 실수로 셉니다(콜과 같습니다). 림프 ↔ 레이즈 실수는 정답이 폴드가 아니라서 q 의 분모에만 들어갑니다 —
+ *     둘 다 들어간 것이라 타이트 · 루즈 어느 쪽도 아닙니다(오픈 대응의 콜 ↔ 3벳 실수와 같은 대접).
+ *   - `aggression` : rfi:SB 는 선택지가 셋(폴드 < 림프 < 레이즈)이 되어 부호 검정에 들어옵니다. 오답 둘 중 공격적인 쪽을
+ *     고르면 +1 이라, 정답이 레이즈일 때 림프를 고르면 +1 · 폴드면 −1, 정답이 폴드일 때 레이즈면 +1 · 림프면 −1,
+ *     정답이 림프일 때 레이즈면 +1 · 폴드면 −1 입니다. 오픈 대응(폴드 < 콜 < 3벳)과 같은 규칙이고, 무작위로 틀리는 사람은 평균 0입니다.
+ *     림프는 '레이즈가 아닌' 수동적인 진입이라 AGGRESSION_ORDER 에서도 콜 앞에 둡니다(range.ts).
+ *   - `seat` · `pressure` : seat 는 UTG·HJ·CO·BTN 만, pressure 는 rfi · vs_open 을 '오픈 자리'로 묶으므로 SB 림프 문제는
+ *     pressure 의 오픈 쪽 기준선에만 들어갑니다(폴드-정답 비중 — 림프 정답은 '폴드 아님').
  */
 import { scenarioActions, type Pos, type ScenarioKind } from '../../poker/types';
 import type { AxisId, AxisLevel, AxisLock, AxisView, CoachMistake, SeenRow } from './types';
@@ -184,7 +195,8 @@ function foldShare(ms: CoachMistake[]): number {
 
 /**
  * 부호 검정. L=3 시나리오에서 오답 선택지는 정확히 둘이고, 그중 '더 공격적인 쪽'이면 +1, 아니면 −1.
- * L=2(rfi, vs_5bet)는 오답이 하나뿐이라 방향 정보가 없어 자동으로 빠집니다 — 이게 옳습니다.
+ * L=2(SB 밖의 rfi, vs_5bet, 림프 대응)는 오답이 하나뿐이라 방향 정보가 없어 자동으로 빠집니다 — 이게 옳습니다.
+ * rfi:SB 는 림프가 더해져 L=3 이라 들어옵니다(위 머리말).
  */
 function aggressionAxis(ms: CoachMistake[], minSample: number, where: string): Raw {
   let n = 0;
@@ -202,7 +214,7 @@ function aggressionAxis(ms: CoachMistake[], minSample: number, where: string): R
     s += chosen === topWrong ? 1 : -1;
   }
   const need = Math.max(0, minSample - n);
-  // rfi·vs_5bet 은 오답이 하나뿐이라 이 축에 안 들어갑니다. 그 둘만 푸는 사람에게 "실수 N개 더"만
+  // rfi(SB 제외)·vs_5bet 은 오답이 하나뿐이라 이 축에 안 들어갑니다. 그 둘만 푸는 사람에게 "실수 N개 더"만
   // 적으면 영영 안 줄어드는 숫자를 보여 주는 셈이라, 어디서 필요한지를 같이 싣습니다.
   if (need > 0) return { ...locked(need, n), needWhere: where, lock: 'mistakes' };
   const used = ms.filter((m) => scenarioActions(m.kind, m.hero).length === 3);
@@ -311,7 +323,7 @@ export function computeAxes(m: CoachMistake[], seen: SeenRow[]): AxisView[] {
   const inGroup = <T extends string>(g: readonly T[], v: T): boolean => g.indexOf(v) >= 0;
 
   const raws: Record<AxisId, Raw> = {
-    // 오답이 둘인 상황만 방향을 말해 줍니다 — rfi·vs_5bet 은 선택지가 둘이라 빠집니다.
+    // 오답이 둘인 상황만 방향을 말해 줍니다 — rfi(SB 제외)·vs_5bet 은 선택지가 둘이라 빠집니다.
     aggression: aggressionAxis(m, 12, '답이 셋인 자리'),
     entry: entryAxis(m, seen, 20),
     seat: diffAxis(

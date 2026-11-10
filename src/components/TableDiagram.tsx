@@ -1,5 +1,5 @@
 import { POSITIONS, POS_INDEX, type Pos, type Scenario } from '../poker/types';
-import { heroInPosition } from '../poker/scenarios';
+import { heroInPosition, limperOf } from '../poker/scenarios';
 import '../styles/table.css';
 
 /**
@@ -49,9 +49,9 @@ export function seatsFor(s: Scenario): Seat[] {
       if (pos === opener) return { pos, role: 'villain', tags: ['오픈'] };
       if (pos === threeBettor) return { pos, role: 'villain', tags: ['3벳'] };
     }
-    // 림퍼는 villain 필드가 아니라 extras.limper 로 옵니다(차트가 자리를 안 가리므로).
+    // 림퍼는 villain 필드가 아니라 extras.limper 로 옵니다(차트가 자리를 안 가리므로). BB 의 림퍼는 언제나 SB 입니다(limperOf).
     // 여기서 안 잡으면 아래 '폴드' 로 내려가 림프한 사람이 폴드한 것처럼 그려집니다.
-    if (s.kind === 'vs_limp' && pos === s.extras?.limper) return { pos, role: 'villain', tags: ['림프'] };
+    if (s.kind === 'vs_limp' && pos === limperOf(s)) return { pos, role: 'villain', tags: ['림프'] };
     const everyoneActed = s.kind === 'vs_3bet' || s.kind === 'vs_4bet' || s.kind === 'vs_5bet';
     if (i < hi || everyoneActed) return { pos, role: 'folded', tags: ['폴드'] };
     return { pos, role: 'waiting', tags: ['대기'] };
@@ -79,12 +79,13 @@ export function captionFor(s: Scenario): string {
     case 'cold_4bet':
       return `${s.extras?.opener ?? '앞'} 오픈 → ${s.extras?.threeBettor ?? '앞'} 3벳 · ${waitingText}`;
     case 'vs_limp':
-      return `${s.extras?.limper ?? '앞'} 림프 · ${waitingText}`;
+      return `${limperOf(s) ?? '앞'} 림프 · ${waitingText}`;
   }
 }
 
 function postflopHint(s: Scenario): string | null {
-  const v = s.villain ?? (s.kind === 'cold_4bet' ? s.extras?.threeBettor : undefined);
+  // 림프 대응은 림퍼와 견줍니다 — BB 는 SB 의 림프라 포지션이 있고, SB 는 앞자리 림퍼에게 포지션이 없습니다.
+  const v = s.villain ?? (s.kind === 'cold_4bet' ? s.extras?.threeBettor : s.kind === 'vs_limp' ? limperOf(s) : undefined);
   if (!v) return s.kind === 'rfi' && s.hero === 'SB' ? '포지션 없음' : null;
   return heroInPosition(s.hero, v) ? '포지션 있음' : '포지션 없음';
 }
