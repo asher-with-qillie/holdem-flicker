@@ -9,11 +9,12 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'HJ',
     actions: {
       fourbet: [
-        'KK+', 'AKs', 'QQ:0.5', 'AKo:0.75', 'A5s:0.5', 'A4s:0.25',
+        'KK+', 'QQ:0.75', 'JJ:0.25', 'AKs', 'AKo', 'A5s-A4s', 'A3s:0.5', 'KQs:0.25',
+        'KQo:0.25',
       ].join(','),
       call: [
-        'QQ:0.5', 'JJ-88', '77:0.5', 'AKo:0.25', 'AQs', 'AJs', 'ATs:0.5', 'A5s:0.25',
-        'KQs', 'KJs', 'KTs:0.5', 'QJs', 'JTs', 'T9s:0.5', 'AQo:0.5',
+        'QQ:0.25', 'JJ:0.75', 'TT-88', '77:0.75', 'AQs', 'AJs', 'ATs:0.75', 'KQs:0.75',
+        'KJs', 'QJs:0.5', 'JTs', 'T9s:0.5', 'AQo:0.5',
       ].join(','),
     },
     summary: 'UTG는 HJ보다 포지션이 없어 콜로는 에퀴티를 덜 실현하니, BB 3벳 때보다 좁게 지켜요. AA·KK·AKs는 4벳, AKo는 주로 4벳하고, JJ~88·AQs·AJs·KQs·KJs·QJs·JTs는 콜, AJo·KQo는 폴드해요. 책은 포지션이 없으면 4벳을 늘린다고 하지만, 이 차트는 BB 상대보다 4벳이 적어요.',
@@ -38,11 +39,12 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'CO',
     actions: {
       fourbet: [
-        'KK+', 'AKs', 'QQ:0.5', 'AKo:0.75', 'A5s:0.5', 'A4s:0.5',
+        'KK+', 'QQ:0.75', 'JJ:0.25', 'AKs', 'AKo', 'A5s-A4s', 'A3s:0.75', 'KQs:0.25',
+        'KQo:0.25',
       ].join(','),
       call: [
-        'QQ:0.5', 'JJ-77', '66:0.5', 'AKo:0.25', 'AQs', 'AJs', 'ATs:0.75', 'A5s:0.25',
-        'KQs', 'KJs', 'KTs:0.5', 'QJs', 'JTs', 'T9s:0.5', 'AQo:0.75',
+        'QQ:0.25', 'JJ:0.75', 'TT-77', '66:0.5', 'AQs', 'AJs', 'ATs:0.75', 'KQs:0.75',
+        'KJs', 'QJs:0.5', 'JTs', 'T9s:0.5', 'AQo:0.5',
       ].join(','),
     },
     summary: 'UTG는 CO보다 포지션이 없어 콜로는 에퀴티를 덜 실현하니, BB 3벳 때보다 좁게 지켜요. AA·KK·AKs는 4벳, AKo는 주로 4벳, A5s·A4s는 절반만 4벳하고, JJ~77·AQs·AJs·KQs·KJs·QJs는 콜해요. 책은 포지션이 없으면 4벳을 늘린다고 하지만, 이 차트는 BB 상대보다 4벳이 적어요.',
@@ -66,11 +68,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       fourbet: [
-        'KK+', 'AKs', 'QQ:0.75', 'AKo', 'A5s:0.75', 'A4s:0.5',
+        'QQ+', 'JJ:0.25', 'AKs', 'AKo', 'A5s-A4s', 'A3s:0.75', 'KQs:0.25', 'KQo:0.25',
       ].join(','),
       call: [
-        'QQ:0.25', 'JJ-77', '66:0.75', 'AQs', 'AJs', 'ATs', 'A5s:0.25', 'KQs',
-        'KJs', 'KTs:0.75', 'QJs', 'JTs', 'T9s:0.75', 'AQo', 'KQo:0.25',
+        'JJ:0.75', 'TT-77', '66:0.75', 'AQs', 'AJs', 'ATs', 'KQs:0.75', 'KJs',
+        'QJs:0.5', 'JTs', 'T9s:0.5', 'AQo:0.5',
       ].join(','),
     },
     summary: 'UTG는 BTN보다 포지션이 없어 콜로는 에퀴티를 덜 실현하니, BB 3벳 때보다 좁게 지켜요. AA·KK·AK는 4벳, QQ·A5s는 주로 4벳하고, JJ~77·AQs~ATs·AQo는 콜, AJo는 폴드해요. 책은 포지션이 없으면 4벳을 늘린다고 하지만, 이 차트는 BB 상대보다 4벳이 적어요.',
@@ -93,11 +95,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       fourbet: [
-        'KK+', 'AKs', 'QQ', 'AKo', 'A5s', 'A4s:0.75', 'A3s:0.25',
+        'KK+', 'QQ:0.25', 'AKs', 'AKo:0.5', 'A5s:0.5',
       ].join(','),
       call: [
-        'JJ-66', 'AQs', 'AJs', 'ATs', 'A9s:0.25', 'KQs', 'KJs', 'KTs',
-        'QJs', 'JTs', 'T9s', '98s:0.5', 'AQo', 'KQo:0.5', 'AJo:0.25',
+        'QQ:0.75', 'JJ-77', '66:0.75', 'AKo:0.5', 'AQs', 'AJs', 'ATs', 'KQs',
+        'KJs', 'QJs:0.5', 'JTs', 'T9s:0.5', 'AQo:0.5',
       ].join(','),
     },
     summary: 'UTG는 SB보다 포지션이 있어 콜해도 에퀴티를 잘 실현하니, 4벳보다 콜로 더 많이 지켜요. QQ 이상·AK·A5s는 4벳, A4s는 주로 4벳하고, JJ~66·KQs~KTs·T9s·AQo는 콜, KQo·98s는 절반만 콜해요.',
@@ -120,11 +122,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       fourbet: [
-        'KK+', 'AKs', 'QQ', 'AKo', 'A5s', 'A4s', 'A3s:0.5',
+        'KK+', 'AKs', 'AKo:0.5', 'A5s:0.5', 'A4s:0.25',
       ].join(','),
       call: [
-        'JJ-66', 'AQs', 'AJs', 'ATs', 'A9s:0.5', 'KQs', 'KJs', 'KTs',
-        'QJs', 'JTs', 'T9s', '98s:0.75', 'AQo', 'KQo:0.5', 'AJo:0.25',
+        'QQ', 'JJ-77', '66:0.75', 'AKo:0.5', 'AQs', 'AJs', 'ATs', 'KQs',
+        'KJs', 'QJs:0.5', 'JTs', 'T9s:0.5', 'AQo:0.5', 'A5s:0.5',
       ].join(','),
     },
     summary: 'UTG는 BB보다 포지션이 있어 콜해도 에퀴티를 잘 실현하니, 4벳보다 콜로 더 많이 지켜요. QQ 이상·AK·A5s·A4s는 4벳, A3s는 절반만 4벳하고, JJ~66·KQs~KTs·T9s·AQo는 콜, 98s는 주로 콜해요.',
@@ -148,11 +150,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'CO',
     actions: {
       fourbet: [
-        'KK+', 'AKs', 'QQ:0.75', 'AKo', 'A5s:0.5', 'A4s:0.5',
+        'QQ+', 'JJ:0.25', 'AKs', 'AKo', 'A5s-A2s', 'KQs:0.25', 'AJo:0.5', 'KQo:0.25',
       ].join(','),
       call: [
-        'QQ:0.25', 'JJ-66', '55:0.25', 'AQs', 'AJs', 'ATs', 'A5s:0.25', 'KQs',
-        'KJs', 'KTs:0.75', 'QJs', 'JTs', 'T9s:0.75', 'AQo', 'KQo:0.5',
+        'JJ:0.75', 'TT-77', '66:0.75', '55:0.25', 'AQs', 'AJs', 'ATs', 'KQs:0.75',
+        'KJs', 'KTs', 'QJs', 'JTs', 'T9s', 'AQo:0.5',
       ].join(','),
     },
     summary: 'HJ는 CO보다 포지션이 없어 콜로는 에퀴티를 덜 실현하니, BB 3벳 때보다 좁게 지켜요. AA·KK·AK는 4벳, QQ는 주로 4벳하고, JJ~66·AQs~ATs·AQo는 콜, AJo·KJo·QJo는 폴드해요. 책은 포지션이 없으면 4벳을 늘린다고 하지만, 이 차트는 BB 상대보다 4벳이 적어요.',
@@ -176,11 +178,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       fourbet: [
-        'KK+', 'AKs', 'QQ:0.75', 'AKo', 'A5s:0.75', 'A4s:0.5',
+        'QQ+', 'JJ:0.25', 'AKs', 'AKo', 'A5s-A2s', 'KQs:0.25', 'AJo:0.5', 'KQo:0.25',
       ].join(','),
       call: [
-        'QQ:0.25', 'JJ-66', '55:0.5', 'AQs', 'AJs', 'ATs', 'A9s:0.25', 'A5s:0.25',
-        'KQs', 'KJs', 'KTs', 'QJs', 'JTs', 'T9s', 'AQo', 'KQo:0.5',
+        'JJ:0.75', 'TT-66', '55:0.5', 'AQs', 'AJs', 'ATs', 'KQs:0.75', 'KJs',
+        'KTs', 'QJs', 'JTs', 'T9s', '98s:0.5', 'AQo:0.5',
       ].join(','),
     },
     summary: 'HJ는 BTN보다 포지션이 없어 콜로는 에퀴티를 덜 실현하니, BB 3벳 때보다 좁게 지켜요. AA·KK·AK는 4벳, QQ·A5s는 주로 4벳하고, JJ~66·KQs~KTs·AQo는 콜, AJo는 폴드해요. 책은 포지션이 없으면 4벳을 늘린다고 하지만, 이 차트는 BB 상대보다 4벳이 적어요.',
@@ -202,12 +204,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       fourbet: [
-        'KK+', 'AKs', 'QQ', 'AKo', 'A5s', 'A4s:0.75', 'A3s:0.25',
+        'KK+', 'QQ:0.25', 'AKs', 'AKo:0.5', 'A5s:0.5', 'A4s:0.25',
       ].join(','),
       call: [
-        'JJ-66', '55:0.75', 'AQs', 'AJs', 'ATs', 'A9s:0.5', 'KQs', 'KJs',
-        'KTs', 'K9s:0.25', 'QJs', 'QTs:0.75', 'JTs', 'T9s', '98s:0.75', 'AQo',
-        'KQo:0.75', 'AJo:0.25',
+        'QQ:0.75', 'JJ-66', '55:0.75', 'AKo:0.5', 'AQs', 'AJs', 'ATs', 'KQs',
+        'KJs', 'KTs', 'QJs', 'JTs', 'T9s', '98s:0.5', 'AQo',
       ].join(','),
     },
     summary: 'HJ는 SB보다 포지션이 있어 콜해도 에퀴티를 잘 실현하니, 4벳보다 콜로 더 많이 지켜요. QQ 이상·AK·A5s는 4벳, A4s는 주로 4벳하고, JJ~66·KQs~KTs·T9s·AQo는 콜, 55·KQo·QTs·98s는 주로 콜해요.',
@@ -230,12 +231,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       fourbet: [
-        'KK+', 'AKs', 'QQ', 'AKo', 'A5s', 'A4s', 'A3s:0.5',
+        'KK+', 'AKs', 'AKo:0.5', 'A5s:0.5', 'A4s:0.5', 'A3s:0.25',
       ].join(','),
       call: [
-        'JJ-66', '55:0.75', 'AQs', 'AJs', 'ATs', 'A9s:0.5', 'KQs', 'KJs',
-        'KTs', 'K9s:0.5', 'QJs', 'QTs:0.75', 'JTs', 'T9s', '98s', '87s:0.5',
-        'AQo', 'KQo:0.75', 'AJo:0.5',
+        'QQ', 'JJ-66', '55:0.75', 'AKo:0.5', 'AQs', 'AJs', 'ATs', 'KQs',
+        'KJs', 'KTs', 'QJs', 'JTs', 'T9s', '98s:0.5', 'AQo', 'A5s:0.5',
       ].join(','),
     },
     summary: 'HJ는 BB보다 포지션이 있어 콜해도 에퀴티를 잘 실현하니, 4벳보다 콜로 더 많이 지켜요. QQ 이상·AK·A5s·A4s는 4벳, JJ~66·KQs~KTs·T9s·98s·AQo는 콜하고, AJo·87s는 절반만 콜해요.',
@@ -258,11 +258,13 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       fourbet: [
-        'QQ+', 'AKs', 'AKo', 'A5s', 'A4s',
+        'QQ+', 'JJ:0.75', 'TT:0.5', '99:0.25', 'AKs', 'AKo', 'AQs:0.5', 'AQo:0.5',
+        'A8s:0.5', 'A5s-A2s', 'KQs:0.25', 'KQo:0.5', 'AJo:0.5',
       ].join(','),
       call: [
-        'JJ-66', '55:0.75', 'AQs-ATs', 'A9s:0.75', 'KQs-KTs', 'K9s:0.25', 'QJs', 'QTs:0.75',
-        'JTs', 'T9s', '98s', '87s', 'AQo', 'AJo:0.5', 'KQo:0.5',
+        'JJ:0.25', 'TT:0.5', '99:0.75', '88-66', '55:0.75', '44:0.5', 'AQs:0.5', 'AJs',
+        'ATs', 'A9s:0.75', 'KQs:0.75', 'KJs', 'KTs', 'K9s:0.5', 'QJs', 'QTs',
+        'JTs', 'J9s:0.5', 'T9s', '98s', '87s', 'AQo:0.5',
       ].join(','),
     },
     summary: 'CO는 BTN보다 포지션이 없어 콜로는 에퀴티를 덜 실현하니, BB 3벳 때보다 좁게 지켜요. QQ 이상·AK·A5s·A4s는 4벳, JJ~66·98s·87s·AQo는 콜하고, AJo·KQo는 절반만 콜해요. 책은 포지션이 없으면 4벳을 늘린다고 하지만, 이 차트는 BB 상대보다 4벳이 적어요.',
@@ -288,13 +290,12 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       fourbet: [
-        'QQ+', 'JJ:0.25', 'AKs', 'AKo', 'AQs:0.25', 'A5s', 'A4s', 'A3s:0.5',
-        'AJo:0.25', 'KQo:0.25',
+        'KK+', 'QQ:0.25', 'JJ:0.25', 'AKs', 'AKo', 'A5s:0.5', 'A4s:0.5', 'A3s:0.25',
       ].join(','),
       call: [
-        'JJ:0.75', 'TT-66', '55:0.75', '44:0.25', 'AQs:0.75', 'AJs-A9s', 'A8s:0.75', 'KQs-KTs',
-        'K9s:0.5', 'QJs', 'QTs', 'JTs', 'J9s:0.5', 'T9s', '98s', '87s',
-        '76s:0.5', '65s:0.25', 'AQo', 'AJo:0.5', 'KQo:0.5',
+        'QQ:0.75', 'JJ:0.75', 'TT-66', '55:0.75', '44:0.5', 'AQs', 'AJs', 'ATs',
+        'A9s', 'A8s:0.5', 'KQs', 'KJs', 'KTs', 'K9s:0.5', 'QJs', 'QTs',
+        'JTs', 'J9s:0.5', 'T9s', '98s', '87s', 'AQo', 'AJo:0.5', 'KQo:0.5',
       ].join(','),
     },
     summary: 'CO는 SB보다 포지션이 있어 콜해도 에퀴티를 잘 실현하니, 4벳보다 콜로 더 많이 지켜요. QQ 이상·AK·A5s·A4s는 4벳, JJ·AQs는 주로 콜하고, TT~66·AQo·QTs·T9s·87s는 콜, ATo·KJo는 폴드해요.',
@@ -319,13 +320,12 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       fourbet: [
-        'QQ+', 'JJ:0.25', 'AKs', 'AKo', 'AQs:0.25', 'A5s', 'A4s', 'A3s:0.75',
-        'A2s:0.25', 'AJo:0.25', 'KQo:0.25',
+        'KK+', 'QQ:0.25', 'AKs', 'AKo:0.75', 'A5s:0.75', 'A4s:0.5', 'A3s:0.5', 'A2s:0.25',
       ].join(','),
       call: [
-        'JJ:0.75', 'TT-55', '44:0.75', '33:0.25', 'AQs:0.75', 'AJs-A9s', 'A8s:0.75', 'A7s:0.5',
-        'KQs-KTs', 'K9s:0.75', 'QJs', 'QTs', 'Q9s:0.25', 'JTs', 'J9s:0.5', 'T9s',
-        '98s', '87s', '76s:0.75', '65s:0.5', 'AQo', 'AJo:0.5', 'KQo:0.5',
+        'QQ:0.75', 'JJ-55', '44:0.5', 'AKo:0.25', 'AQs', 'AJs', 'ATs', 'A9s',
+        'A8s:0.5', 'KQs', 'KJs', 'KTs', 'K9s:0.5', 'QJs', 'QTs', 'JTs',
+        'J9s:0.5', 'T9s', '98s', '87s', 'AQo', 'AJo:0.5', 'KQo:0.5',
       ].join(','),
     },
     summary: 'CO는 BB보다 포지션이 있어 콜해도 에퀴티를 잘 실현하니, 4벳보다 콜로 더 많이 지켜요. QQ 이상·AK·A5s·A4s는 4벳, A3s는 주로 4벳하고, JJ·AQs는 주로 콜, TT~55·AQo·QTs·98s·87s는 콜해요.',
@@ -349,14 +349,12 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       fourbet: [
-        'QQ+', 'JJ:0.25', 'AKs', 'AKo', 'AQs:0.25', 'AQo:0.25', 'A5s', 'A4s',
-        'A3s:0.5', 'A2s:0.5', 'AJo:0.25', 'ATo:0.25', 'KQo:0.25',
+        'QQ+', 'JJ:0.5', 'AKs', 'AKo', 'A5s-A2s:0.5', 'AJo:0.25', 'ATo:0.25', 'KQo:0.25',
       ].join(','),
       call: [
-        'JJ:0.75', 'TT-55', '44-22:0.75', 'AQs:0.75', 'AJs-A6s', 'A3s:0.5', 'A2s:0.5', 'KQs-K9s',
-        'K8s:0.75', 'K7s:0.5', 'QJs-Q9s', 'Q8s:0.25', 'JTs', 'J9s', 'J8s:0.25', 'T9s',
-        'T8s:0.75', '98s', '97s:0.5', '87s', '76s', '65s', '54s:0.5', 'AQo:0.75',
-        'AJo:0.75', 'ATo:0.5', 'KQo:0.75', 'KJo:0.75', 'KTo:0.5', 'QJo:0.5',
+        'JJ:0.5', 'TT-55', '44-22:0.5', 'AQs', 'AJs-A6s', 'A5s-A2s:0.5', 'KQs-K9s', 'K8s:0.5',
+        'QJs-Q9s', 'JTs', 'J9s', 'T9s', 'T8s:0.5', '98s', '87s', '76s',
+        '65s', '54s:0.5', 'AQo', 'AJo:0.75', 'ATo:0.5', 'KQo:0.75', 'KJo:0.5', 'QJo:0.25',
       ].join(','),
     },
     summary: 'BTN은 SB보다 포지션이 있어 콜해도 에퀴티를 잘 실현하니, 4벳보다 콜로 더 많이 지켜요. QQ 이상·AK·A5s·A4s는 4벳, JJ·AQs·AQo·AJo·KQo는 주로 콜하고, TT~55·AJs~A6s·T9s~65s는 콜, A9o 이하는 폴드해요.',
@@ -381,15 +379,13 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       fourbet: [
-        'QQ+', 'JJ:0.25', 'AKs', 'AKo', 'AQs:0.25', 'AQo:0.25', 'A5s', 'A4s',
-        'A3s:0.5', 'A2s:0.5', 'AJo:0.25', 'ATo:0.25', 'A9o:0.25', 'KQo:0.25', 'KJo:0.25',
+        'QQ+', 'JJ:0.5', 'AKs', 'AKo', 'A5s-A2s:0.5', 'AJo:0.25', 'ATo:0.25', 'KQo:0.25',
+        'KJo:0.25',
       ].join(','),
       call: [
-        'JJ:0.75', 'TT-44', '33-22:0.75', 'AQs:0.75', 'AJs-A6s', 'A3s:0.5', 'A2s:0.5', 'KQs-K7s',
-        'K6s:0.5', 'QJs-Q9s', 'Q8s:0.75', 'JTs', 'J9s', 'J8s:0.75', 'T9s', 'T8s:0.75',
-        'T7s:0.25', '98s', '97s:0.75', '87s', '86s:0.5', '76s', '75s:0.25', '65s',
-        '54s', 'AQo:0.75', 'AJo:0.75', 'ATo:0.75', 'A9o:0.25', 'KQo:0.75', 'KJo:0.75', 'KTo:0.5',
-        'QJo:0.5', 'JTo:0.25',
+        'JJ:0.5', 'TT-55', '44-22:0.5', 'AQs', 'AJs-A6s', 'A5s-A2s:0.5', 'KQs-K9s', 'K8s:0.75',
+        'QJs-Q9s', 'JTs', 'J9s', 'T9s', 'T8s:0.5', '98s', '87s', '76s',
+        '65s', '54s:0.5', 'AQo', 'AJo:0.75', 'ATo:0.5', 'KQo:0.75', 'KJo:0.5', 'QJo:0.5',
       ].join(','),
     },
     summary: 'BTN은 BB보다 포지션이 있어 콜해도 에퀴티를 잘 실현하니, 4벳보다 콜로 더 많이 지켜요. QQ 이상·AK·A5s·A4s는 4벳, JJ·AQs·AQo·AJo·KQo는 주로 콜하고, TT~44·AJs~A6s·KQs~K7s·T9s~54s는 콜해요.',
@@ -414,14 +410,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       fourbet: [
-        'QQ+', 'JJ:0.75', 'TT:0.25', 'AKs', 'AKo', 'AQs:0.75', 'AQo:0.5', 'AJs:0.5',
-        'KQs:0.25', 'A5s-A3s', 'A2s:0.75', 'AJo:0.5', 'KQo:0.25',
+        'QQ+', 'JJ', 'AKs', 'AKo', 'A8s-A2s', 'AJo:0.5',
       ].join(','),
       call: [
-        'JJ:0.25', 'TT:0.75', '99-55', '44:0.75', '33-22:0.5', 'AQs:0.25', 'AJs:0.5', 'ATs-A6s',
-        'A2s:0.25', 'KQs:0.75', 'KJs-K8s', 'K7s:0.5', 'QJs-Q9s', 'JTs', 'J9s', 'T9s',
-        'T8s:0.5', '98s', '87s', '76s', '65s', '54s:0.75', 'AQo:0.5', 'AJo:0.5',
-        'ATo:0.5', 'KQo:0.5', 'KJo:0.5', 'QJo:0.25',
+        'TT-77', '66:0.5', 'AQs', 'AJs', 'ATs', 'A9s', 'KQs', 'KJs',
+        'KTs', 'QJs', 'QTs', 'JTs', 'T9s', 'AQo',
       ].join(','),
     },
     summary: 'SB는 BB보다 포지션이 없어 콜로는 에퀴티를 덜 실현하니, 오픈한 패의 60%를 폴드해요. QQ 이상·AK·A5s~A3s는 4벳, AQo·AJs·AJo는 4벳과 콜을 반반 섞고, 99~55는 콜해요. 책은 중간 패는 4벳했다가 올인에 폴드하는 상황을 피해 콜한다고 하지만, 이 차트는 JJ·AQs를 주로 4벳하고 올인에 폴드해요.',
