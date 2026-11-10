@@ -310,10 +310,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       allin: [
-        'KK-QQ', 'AA:0.5', 'AKs', 'AKo', 'JJ:0.75', 'TT:0.75', 'A5s:0.5',
+        'KK-QQ', 'AA:0.5', 'AKs', 'AKo', 'JJ:0.75', 'TT:0.25', 'A5s', 'A4s:0.5', 'ATs:0.5',
       ].join(','),
       call: [
-        'AA:0.5', 'JJ:0.25', 'TT:0.25', '99-55', 'AQs', 'AJs', 'ATs', 'A9s', 'KQs', 'KJs',
+        'AA:0.5', 'JJ:0.25', 'TT:0.75', '99-55', 'AQs', 'AJs', 'ATs:0.5', 'A9s', 'KQs', 'KJs',
         'AQo:0.5',
       ].join(','),
     },
@@ -336,10 +336,10 @@ export const VS_4BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       allin: [
-        'KK-QQ', 'AA:0.5', 'AKs', 'AKo', 'JJ:0.75', 'TT:0.75', 'A5s:0.5',
+        'KK-QQ', 'AA:0.5', 'AKs', 'AKo', 'JJ:0.75', 'TT:0.25', 'A5s', 'A4s:0.5', 'ATs:0.5',
       ].join(','),
       call: [
-        'AA:0.5', 'JJ:0.25', 'TT:0.25', '99-66', 'AQs', 'AJs', 'ATs', 'A9s', 'KQs', 'KJs',
+        'AA:0.5', 'JJ:0.25', 'TT:0.75', '99-66', 'AQs', 'AJs', 'ATs:0.5', 'A9s', 'KQs', 'KJs',
         'AQo:0.5',
       ].join(','),
     },

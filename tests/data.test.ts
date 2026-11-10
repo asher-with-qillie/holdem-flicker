@@ -51,23 +51,37 @@ describe('chart data integrity', () => {
     expect(share('UTG')).toBeLessThan(0.21);
     expect(share('BTN')).toBeGreaterThan(0.38);
     expect(share('BTN')).toBeLessThan(0.52);
-    expect(share('SB')).toBeGreaterThan(0.36);
-    expect(share('SB')).toBeLessThan(0.55);
+    // 책(MPT 5장): SB 는 림프 38 · 레이즈 24 · 폴드 38 — 들어가는 비중(림프 + 레이즈)은 약 62%예요.
+    expect(share('SB')).toBeGreaterThan(0.56);
+    expect(share('SB')).toBeLessThan(0.68);
   });
 
   // 쓰레기 패는 어디서도 '들어가지' 않습니다. 다만 '들어가지 않는다'가 곧 폴드는 아닙니다 —
   // 빅블라인드는 이미 돈을 냈으니 접을 수 없고, 안 올린 패는 전부 체크입니다.
-  // 여기서 규칙을 끄지 말고(if kind !== 'vs_limp' 같은 식) 차트의 나머지와 견주세요 — 끄면
-  // 이 규칙이 그 차트를 영영 지켜 주지 않습니다.
+  // 여기서 규칙을 통째로 끄지 마세요(if kind !== 'vs_limp' 같은 식) — 끄면 이 규칙이 그 차트를
+  // 영영 지켜 주지 않습니다. 예외는 한 곳뿐이고, 아래에서 그 모양까지 따로 확인합니다.
+  //   BB vs SB 림프: 레이즈는 양극화(강한 패 + 체크하면 쇼다운까지 못 가는 가장 약한 오프수트)라서
+  //   72o · 83o · 92o 가 블러프 레이즈예요(BOOK_CHART_SPEC §5, 공개 솔버 자료).
+  const POLAR_TRASH_RAISE = new Set(['vs_limp:BB']);
   it("trash hands take the chart's rest action everywhere", () => {
     for (const s of scenarios) {
       if (!hasChart(s)) continue;
+      const def = getChartDef(s);
+      if (POLAR_TRASH_RAISE.has(def.id)) continue;
       const cells = getChartCells(s);
-      const rest = restAction(getChartDef(s));
+      const rest = restAction(def);
       for (const h of ['72o', '83o', '92o']) {
         expect(primaryAction(cells[h]), `${s.kind} ${s.hero} ${s.villain ?? ''} plays ${h}`).toBe(rest);
       }
     }
+  });
+
+  it('the one exception is polar: BB vs SB limp bluff-raises the weakest offsuit hands and checks the middle', () => {
+    const cells = getChartCells({ kind: 'vs_limp', hero: 'BB' });
+    for (const h of ['72o', '83o', '92o']) expect(primaryAction(cells[h]), `BB vs SB limp ${h}`).toBe('raise');
+    // 가운데(쇼다운 가치가 있는 패)는 체크 — 레이즈가 쓰레기까지 이어진 '넓은 선형'이 아니라는 뜻이에요.
+    for (const h of ['A2o', '22', 'J9s', 'T9s']) expect(primaryAction(cells[h]), `BB vs SB limp ${h}`).toBe('check');
+    for (const h of ['AA', 'AKo', 'KQs']) expect(primaryAction(cells[h]), `BB vs SB limp ${h}`).toBe('raise');
   });
 });
 

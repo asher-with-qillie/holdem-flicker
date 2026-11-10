@@ -258,11 +258,11 @@ export const VS_3BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       fourbet: [
-        'QQ+', 'JJ:0.75', 'TT:0.5', '99:0.25', 'AKs', 'AKo', 'AQs:0.5', 'AQo:0.5',
+        'QQ+', 'JJ:0.75', 'TT:0.5', 'AKs', 'AKo', 'AQs:0.5', 'AQo:0.5',
         'A8s:0.5', 'A5s-A2s', 'KQs:0.25', 'KQo:0.5', 'AJo:0.5',
       ].join(','),
       call: [
-        'JJ:0.25', 'TT:0.5', '99:0.75', '88-66', '55:0.75', '44:0.5', 'AQs:0.5', 'AJs',
+        'JJ:0.25', 'TT:0.5', '99-66', '55:0.75', '44:0.5', 'AQs:0.5', 'AJs',
         'ATs', 'A9s:0.75', 'KQs:0.75', 'KJs', 'KTs', 'K9s:0.5', 'QJs', 'QTs',
         'JTs', 'J9s:0.5', 'T9s', '98s', '87s', 'AQo:0.5',
       ].join(','),
