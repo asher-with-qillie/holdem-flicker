@@ -831,6 +831,18 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
       // SB 에서 림프(를 섞는) 패: 앞 네 자리는 폴드, SB 는 비중까지 — 'K3o는 UTG~BTN에서는 폴드하고, SB에서는 절반만 림프해요.'
       // ('…에서는 오픈하지 않고'는 자리 + 액션 꼴이 부정문 속에 숨어, 문장만 보고 '오픈'으로 읽히기 쉽습니다.)
       if (rfi.seats[4].limp > EPS) {
+        // SB 도 1순위가 폴드인 칸(폴드 75 · 림프 25)은 'SB에서는 주로 폴드해요'로 끝내면 림프가 사라집니다 — 섞는 쪽을 비중으로 댑니다
+        // (줄 문장의 '주로 폴드하되 림프를 25% 섞어요'와 같은 말): '97o는 UTG~BTN에서는 폴드하고, SB에서도 주로 폴드하되 림프를 25% 섞어요.'
+        if (sbCell.primary === 'fold' && sbCell.weightClass === 'most') {
+          const minor = sbCell.mixList.filter((m) => m.action !== 'fold');
+          const ps = minor.map((m) => pctInt(m.weight));
+          const mixText =
+            minor.length === 1
+              ? `${josa(actWord(minor[0].action, 'rfi'), '을/를')} ${ps[0]}% 섞어요`
+              : `${josa(minor.map((m, i) => `${actWord(m.action, 'rfi')} ${ps[i]}%`).join(' · '), '을/를')} 섞어요`;
+          out.push({ text: `${subject} UTG~BTN에서는 폴드하고, SB에서도 주로 폴드하되 ${mixText}.`, claims: strip.cells.map(claimOf), nums: ps, source: 'computed' });
+          break;
+        }
         out.push({ text: `${subject} UTG~BTN에서는 폴드하고, SB에서는 ${weightPhrase(sbCell)}.`, claims: strip.cells.map(claimOf), nums: [], source: 'computed' });
         break;
       }
@@ -880,7 +892,11 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
         // SB 도 같이 — Q8o 는 BTN 과 SB 에서 절반씩 엽니다. SB 를 빼고 말하면 "SB 에서는 안 연다"로 읽힙니다.
         // (sbClause 는 SB·BTN 의 1순위가 다를 때만 붙으므로, SB 가 여기 들어오면 sbClause 는 비어 있습니다.)
         // SB 가 림프를 1순위로 하면 '오픈'으로 묶지 않습니다 — 그 칸은 sbClause('단, SB에서는 림프해요')가 말합니다.
-        const all = opens('SB') && sbCell.primary !== 'limp' ? [...seats, 'SB' as Pos] : seats;
+        // SB 칸에 림프가 섞여 있어도(오픈 50 · 림프 50) 묶지 않습니다: 'BTN과 SB에서 절반만 오픈하고, 다른 자리에서는 폴드해요'는
+        // SB 의 나머지 절반을 폴드로 읽게 합니다. 그 칸은 따로 'SB에서는 오픈과 림프를 반반 섞어요'로 말합니다(sbOwn).
+        const sbLimps = sbCell.mixList.some((m) => m.action === 'limp' && m.weight > EPS);
+        const all = opens('SB') && sbCell.primary !== 'limp' && !sbLimps ? [...seats, 'SB' as Pos] : seats;
+        const sbOwn = !rfi.sbDiffers && sbLimps && opens('SB') ? ` 단, SB에서는 ${weightPhrase(sbCell)}.` : '';
         const words = all.map((p) => weightWord(cell(p)));
         words.forEach((w) => nums.push(...w.nums));
         // 같은 수식어끼리 묶습니다: "BTN과 SB에서 절반만" / "CO에서 주로, BTN과 SB에서 절반만".
@@ -891,7 +907,12 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
           else groups.push({ word: words[i].word, seats: [p] });
         });
         const parts = groups.map((g) => `${[...g.seats.slice(0, -1).map((p) => josa(p, '과/와')), g.seats[g.seats.length - 1]].join(' ')}에서 ${g.word}`);
-        out.push({ text: `${subject} ${parts.join(', ')} 오픈하고, 다른 자리에서는 폴드해요.${sbClause}`, claims: [...all.map((p) => claimOf(cell(p))), ...sbClaims], nums, source: 'computed' });
+        out.push({
+          text: `${subject} ${parts.join(', ')} 오픈하고, 다른 자리에서는 폴드해요.${sbClause}${sbOwn}`,
+          claims: [...all.map((p) => claimOf(cell(p))), ...sbClaims, ...(sbOwn ? [claimOf(sbCell)] : [])],
+          nums,
+          source: 'computed',
+        });
       } else {
         out.push({ text: `${subject} ${seats.join('·')}에서만 오픈해요.${sbClause}`, claims: [...seats.map((p) => claimOf(cell(p))), ...sbClaims], nums, source: 'computed' });
       }

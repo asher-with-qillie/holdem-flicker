@@ -675,7 +675,8 @@ function build(s: Scenario, line: LineDef, topic: boolean): { frame: LineFrame; 
     const cCells = cs.filter((x) => x.p === c);
     if (cCells.some((x) => !x.full)) return null;
     const cHands = cCells.map((x) => x.hand);
-    return { text: `${head}하고, ${handList(cHands, cs)}는 ${V(c, '해요')}.`, claims: [onlyTop, { t: 'only', hands: cHands, action: c }] };
+    // 조사는 josa 로: 끝 패가 받침 있는 페어(TT · 88 · 77 · 66 · 33)면 '…66은'입니다.
+    return { text: `${head}하고, ${josa(handList(cHands, cs), '은/는')} ${V(c, '해요')}.`, claims: [onlyTop, { t: 'only', hands: cHands, action: c }] };
   }
 }
 

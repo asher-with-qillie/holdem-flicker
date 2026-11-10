@@ -220,6 +220,14 @@ describe('이 패 이유(handReason.ts)', () => {
         if (!isReachable(s, h).ok) continue;
         const d = handReason(s, h, cells[h])?.bookDiff;
         if (!d) continue;
+        // 'SB에서 늘 레이즈해요'(rfi:SB 의 AA·KK·QQ·AK — 책은 림프에도 섞음)는 그 칸에 림프가 조금이라도 있으면 거짓이에요.
+        // 키(버킷 'raise')는 레이즈 75 · 림프 25 칸도 받으니, 차트를 책에 맞춰 림프를 섞으면 이 문장을 고쳐야 해요.
+        if (/이 차트는 SB에서 늘 레이즈해요/.test(d)) {
+          matched++;
+          const w = cells[h]?.raise ?? 0;
+          if (w < 1 - 1e-9) bad.push(`${id} ${h}: 'SB에서 늘 레이즈해요' (실제 레이즈 ${Math.round(w * 100)}%)`);
+          continue;
+        }
         const esc = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const m = d.match(new RegExp(`이 차트는 (?:4벳한 )?${esc}[을를] (늘 |주로 |절반만 |가끔 )?(폴드|콜|3벳|4벳|오픈|올인|레이즈|체크)해요`));
         if (!m) continue;

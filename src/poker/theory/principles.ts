@@ -119,7 +119,7 @@ export const PRINCIPLES: Record<PrincipleId, Principle> = {
     id: 'sb-limp',
     chip: 'SB의 림프',
     body:
-      'SB의 림프는 약하다는 뜻이 아니에요. 책의 균형 전략은 강한 패만 레이즈하고 중간 패만 림프하지 않고, 림프 범위에도 AA·KK·QQ·AK를 일부 섞어 BB가 3.5bb로 레이즈하면 다시 올리거나 AA는 콜로 숨겨요. 그래서 BB는 SB의 림프를 아무 패로나 공격하지 못하고, 공짜로 볼 수 있는 패는 체크해요.',
+      'SB의 림프는 약한 패라는 뜻이 아니에요. 책의 균형 전략은 림프 범위에도 AA·KK·QQ·AK를 일부 섞어, BB가 3.5bb로 레이즈하면 다시 올리거나 AA는 콜로 숨겨요. 그래서 BB는 SB의 림프를 아무 패로나 공격하지 못하고, 공짜로 볼 수 있는 패는 체크해요.',
     ref: '책 5장 「자리별 처음 레이즈」 SB·4장 「림프」(노트 5장 2절, 4장 7절)',
     numbers: (s) => {
       if (!((s.kind === 'rfi' && s.hero === 'SB') || (s.kind === 'vs_limp' && s.hero === 'BB'))) return null;

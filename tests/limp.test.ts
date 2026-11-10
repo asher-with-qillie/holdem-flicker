@@ -192,6 +192,9 @@ describe('시험용 rfi:SB — 해설 시트 · 자리 이유', () => {
     expect(r.principles).toEqual(['sb-first-in', 'sb-limp', 'seats-behind']);
     expect(r.bookDiff).toBeNull();
     for (const t of r.lines) expect(bannedHits(t, 'style'), t).toEqual([]);
+    // SB 의 아이솔레이트: SB 가 '처음 들어가는' 폭은 레이즈 + 림프(62%)라, 레이즈 폭(24%)과 견줄 때는 '처음 레이즈할 때'예요.
+    expect(spotReason({ kind: 'vs_limp', hero: 'SB' }).lines[1]).toMatch(/^누가 먼저 들어온 만큼 처음 레이즈할 때\(24%\)보다 좁게, \d+%만 레이즈해요\.$/);
+    expect(spotReason({ kind: 'vs_limp', hero: 'BTN' }).lines[1]).toMatch(/처음 들어갈 때\(\d+%\)/);
   });
 
   it('부분 정답 · 예시 · 이 패 이유 키가 림프를 안다', () => {
@@ -236,6 +239,11 @@ describe('시험용 rfi:SB — 자리별 보기 · 도달', () => {
     expect(rfiThesis(handAtlas('AA'))[0].text).toBe('AA는 UTG~BTN에서 오픈해요. 단, SB에서는 주로 오픈해요.');
     expect(rfiThesis(handAtlas('K3o'))[0].text).toBe('K3o는 UTG~BTN에서는 폴드하고, SB에서는 절반만 림프해요.');
     expect(rfiThesis(handAtlas('Q3s'))[0].text).toBe('Q3s는 BTN부터 오픈해요. 단, SB에서는 림프해요.');
+    // SB 의 오픈 50 · 림프 50 을 BTN 의 오픈 50 · 폴드 50 과 '절반만 오픈'으로 묶으면 SB 의 나머지 절반이 폴드로 읽혀요 — 따로 말합니다.
+    expect(rfiThesis(handAtlas('Q8o'))[0].text).toBe('Q8o는 BTN에서 절반만 오픈하고, 다른 자리에서는 폴드해요. 단, SB에서는 오픈과 림프를 반반 섞어요.');
+    // SB 에서도 1순위가 폴드인 칸(폴드 75 · 림프 25): '주로 폴드해요'로 끝내면 림프가 사라져요.
+    expect(rfiThesis(handAtlas('97o'))[0].text).toBe('97o는 UTG~BTN에서는 폴드하고, SB에서도 주로 폴드하되 림프를 25% 섞어요.');
+    expect(rfiThesis(handAtlas('97o'))[0].nums).toEqual([25]);
     expect(sectionDigest(handAtlas('55').sections.rfi).text).toBe('오픈 4곳 · 림프 1곳');
     expect(sectionDigest(handAtlas('AA').sections.rfi).text).toBe('오픈 5곳 · 그중 1곳은 림프 25% 섞음');
     const sb = handAtlas('55').rfi.seats.find((s) => s.pos === 'SB')!;

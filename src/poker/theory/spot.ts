@@ -249,8 +249,11 @@ export function spotReason(s: Scenario): SpotReason {
         diff = '책의 SB는 림프 범위에도 AA·KK·QQ·AK를 일부 섞어요. 이 차트는 그 림프 범위에 맞춰 만든 것이 아니라, 림퍼가 약하다고 보는 기본값이에요.';
       } else {
         const rfiW = share({ kind: 'rfi', hero: h }, 'raise');
+        // SB 첫 진입에 림프가 있으면 SB 가 '처음 들어가는' 폭은 레이즈 + 림프라서, 레이즈 폭만 대고 '처음 들어갈 때'라고 하면 틀려요.
+        // 견주는 것은 레이즈끼리(아이솔레이트 레이즈 vs 첫 레이즈)이니 그때는 '처음 레이즈할 때'라고 해요.
+        const first = h === 'SB' && share({ kind: 'rfi', hero: 'SB' }, 'limp') > 0 ? '처음 레이즈할 때' : '처음 들어갈 때';
         lines.push('앞에서 한 명이 림프했어요. SB 말고 림프하는 사람은 약한 경우가 많아, 레이즈로 아이솔레이트해 혼자 상대해요.');
-        lines.push(`누가 먼저 들어온 만큼 처음 들어갈 때(${pct(rfiW)})보다 좁게, ${pct(W)}만 레이즈해요.`);
+        lines.push(`누가 먼저 들어온 만큼 ${first}(${pct(rfiW)})보다 좁게, ${pct(W)}만 레이즈해요.`);
         ids = ['vs-limper', 'tighter-after-raise'];
         diff = '책은 림퍼가 수동적이면 아주 넓게, 공격적이면 강한 패 위주로 아이솔레이트하라고 해요. 이 차트는 상대 유형을 모를 때 쓰는 기본값이에요.';
       }
