@@ -92,12 +92,13 @@ export const VS_OPEN_CHARTS: ChartDef[] = [
     actions: {
       threebet: [
         'QQ+', 'JJ:0.5', 'TT:0.25', 'AKs:0.75', 'AQs:0.5', 'AJs:0.25', 'KQs:0.5', 'KJs:0.5',
-        'K9s:0.5', 'A5s-A2s', '76s:0.75', '65s:0.75', '54s:0.75', 'AKo', 'AQo:0.75', 'AJo:0.5',
-        'KQo:0.5',
+        'K9s:0.5', 'A5s-A2s', '87s:0.5', '76s:0.75', '65s:0.75', '54s:0.75', 'AKo', 'AQo:0.75',
+        'AJo:0.5', 'KQo:0.5',
       ].join(','),
       call: [
         'JJ:0.5', 'TT:0.75', '99-22', 'AKs:0.25', 'AQs:0.5', 'AJs:0.75', 'ATs', 'KQs:0.5',
-        'KJs:0.5', 'KTs', 'QJs', 'QTs:0.5', 'JTs', 'T9s', '98s', 'AQo:0.25',
+        'KJs:0.5', 'KTs', 'QJs', 'QTs:0.5', 'JTs', 'T9s', '98s', '87s:0.5',
+        'AQo:0.25',
       ].join(','),
     },
     summary: 'BTN은 플랍 이후 늘 마지막에 행동해 콜로도 에퀴티를 잘 실현하니, 콜 범위를 두고 3벳은 최강 패와 블러프로 양극화해요. 3벳(5%)은 QQ 이상·AK·AQs와 블러프 A5s·A4s이고, 콜(10%)은 99~22와 ATs·KTs·QTs·JTs 같은 수티드가 중심이에요. 책은 콜을 약 5~7%, 3벳을 약 7%로 둔다고 해요.',
@@ -124,8 +125,8 @@ export const VS_OPEN_CHARTS: ChartDef[] = [
     actions: {
       threebet: [
         'QQ+', 'JJ:0.75', 'TT:0.25', 'AKs:0.75', 'AQs:0.75', 'AJs:0.5', 'KQs:0.5', 'KJs:0.5',
-        'K9s', 'Q9s', 'A9s:0.5', 'A5s-A2s', '87s', '76s', '65s', '54s',
-        'AKo', 'AQo', 'AJo:0.75', 'KQo:0.75',
+        'K9s', 'QTs:0.5', 'Q9s', 'A9s:0.5', 'A5s-A2s', '98s:0.5', '87s', '76s',
+        '65s', '54s', 'AKo', 'AQo', 'AJo:0.75', 'KQo:0.75',
       ].join(','),
       call: [
         'JJ:0.25', 'TT:0.75', '99-33', '22:0.5', 'AKs:0.25', 'AQs:0.25', 'AJs:0.5', 'ATs',
