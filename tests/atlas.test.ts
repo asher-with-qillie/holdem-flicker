@@ -1226,7 +1226,8 @@ describe('atlas: worked examples (§5.6)', () => {
     }
     expect(texts(rfiThesis(handAtlas('72o')))[0]).toBe('72o는 어느 자리에서도 오픈하지 않아요.');
     // BTN 에서 절반만 오픈하는 패(partial): SB 는 림프라 '오픈'으로 묶지 않고 SB 절로 따로 말해요.
-    expect(texts(rfiThesis(handAtlas('Q8o')))[0]).toBe('Q8o는 BTN에서 절반만 오픈하고, 다른 자리에서는 폴드해요. 단, SB에서는 림프해요.');
+    // 폴드하는 자리는 이름으로 — '다른 자리에서는 폴드해요'는 SB 까지 덮었다가 다음 절에서 뒤집혀요.
+    expect(texts(rfiThesis(handAtlas('Q8o')))[0]).toBe('Q8o는 BTN에서 절반만 오픈하고, UTG~CO에서는 폴드해요. 단, SB에서는 림프해요.');
     const kj = handAtlas('KJo');
     expect(gateText(cellOf(kj, 'vs_5bet', 'UTG', 'HJ'))).toBe('UTG에서 4벳하지 않으니 올인을 받을 일이 없어요.');
     const t2 = handAtlas('72o');

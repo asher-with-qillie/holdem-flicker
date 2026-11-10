@@ -207,8 +207,8 @@ describe('sheet: 레버 데이터 판단 (§7.2-12)', () => {
         expect(lever.text, where).toBe(`${s.hero === 'BTN' ? 'BTN은' : `${s.hero}는`} ${s.villain}보다 포지션이 ${heroIsIP(s) ? '있어요' : '없어요'}.`);
       }
       if (s.kind === 'vs_5bet' || s.kind === 'cold_4bet') expect(lever?.text ?? '', where).not.toMatch(/포지션/);
-      // rfi 레버는 오픈 폭 — SB 차트에 림프가 있으면 레이즈와 림프를 따로('SB는 포지션이 없어 레이즈 24%에 림프 38%를 섞어요.').
-      if (s.kind === 'rfi') expect(lever?.text, where).toMatch(rangeShare(getChartCells(s), 'limp') > 0 ? /^SB는 포지션이 없어 레이즈 \d+%에 림프 \d+%를 섞어요\.$/ : /오픈해요\.$/);
+      // rfi 레버는 오픈 폭 — SB 차트에 림프가 있으면 레이즈와 림프를 따로('SB는 할인 덕분에 레이즈 24%에 림프 38%를 섞어요.' — 책 5장 2절: 림프의 이유는 반값 할인).
+      if (s.kind === 'rfi') expect(lever?.text, where).toMatch(rangeShare(getChartCells(s), 'limp') > 0 ? /^SB는 할인 덕분에 레이즈 \d+%에 림프 \d+%를 섞어요\.$/ : /오픈해요\.$/);
       if (s.kind === 'vs_open' && s.hero === 'BB') expect(lever?.id).toBe('bbPrice');
       if (s.kind === 'vs_limp') expect(lever?.id ?? null).toBe(s.hero === 'BB' ? 'bbFree' : null);
     }
@@ -217,15 +217,19 @@ describe('sheet: 레버 데이터 판단 (§7.2-12)', () => {
     expect(Math.round(rangeShare(getChartCells({ kind: 'rfi', hero: 'BTN' }), 'raise') * 100)).toBe(43);
     expect(seatLever({ kind: 'rfi', hero: 'BTN' })?.text).toBe('BTN은 블라인드만 남아 책과 같은 약 43%를 오픈해요.');
     // SB 오픈은 레이즈와 림프를 따로 — 책 5장 2절: 레이즈 약 24% · 림프 약 38%(감사 7: 'BTN만큼 연다'는 림프가 없던 차트의 말).
-    expect(seatLever({ kind: 'rfi', hero: 'SB' })?.text).toBe('SB는 포지션이 없어 레이즈 24%에 림프 38%를 섞어요.');
+    expect(seatLever({ kind: 'rfi', hero: 'SB' })?.text).toBe('SB는 할인 덕분에 레이즈 24%에 림프 38%를 섞어요.');
     // SB 는 오픈에 콜하지 않아요(책 5장 5절 — 네 오프너 모두 콜 0).
     for (const v of ['UTG', 'HJ', 'CO', 'BTN'] as Pos[]) {
       expect(rangeShare(getChartCells({ kind: 'vs_open', hero: 'SB', villain: v }), 'call'), v).toBe(0);
       expect(seatLever({ kind: 'vs_open', hero: 'SB', villain: v })?.text, v).toBe('SB는 콜 없이 3벳 아니면 폴드해요.');
     }
     // HJ · CO · BTN 의 오픈 대응: 포지션만 말하면 콜의 이유처럼 읽혀서, 책이 드는 스퀴즈 위험을 같이(감사 18).
+    // HJ · CO 는 콜이 0 이라(책 5장 4·5절: 콜 없이 3벳 아니면 폴드) 그 말 그대로, 콜을 섞는 BTN 은 스퀴즈 위험을.
     for (const s of SCENARIOS.filter((x) => x.kind === 'vs_open' && ['HJ', 'CO', 'BTN'].includes(x.hero))) {
-      expect(seatLever(s)).toEqual({ id: 'behind', text: `${s.hero === 'BTN' ? 'BTN은' : `${s.hero}는`} 포지션이 있어도 콜하면 뒤에서 스퀴즈를 받기 쉬워요.` });
+      const noCall = s.hero !== 'BTN';
+      expect(rangeShare(getChartCells(s), 'call') === 0, scenarioKey(s)).toBe(noCall);
+      const text = noCall ? `${s.hero}는 콜 없이 3벳 아니면 폴드해요.` : 'BTN은 포지션이 있어도 콜하면 뒤에서 스퀴즈를 받기 쉬워요.';
+      expect(seatLever(s)).toEqual({ id: 'behind', text });
       expect(heroIsIP(s), scenarioKey(s)).toBe(true);
     }
     expect(seatLever({ kind: 'vs_open', hero: 'BB', villain: 'SB' })?.text).toBe('BB는 이미 1bb를 냈으니 2bb만 더 내면 돼요.');

@@ -1,7 +1,7 @@
 /**
  * 림프(SB 첫 진입) 기반 — 끝에서 끝까지.
  *
- * 실제 rfi:SB 차트는 아직 림프가 없습니다(차트는 책에 맞춰 따로 다시 만듭니다). 그래서 이 파일만 `vi.mock` 으로
+ * 실제 rfi:SB 차트도 이제 책(5장 2절)대로 림프를 섞지만, 차트를 고쳐도 이 파일이 흔들리지 않게 이 파일만 `vi.mock` 으로
  * rfi:SB 를 시험용 차트(tests/fixtures/sbLimpChart.ts — 레이즈 24% · 림프 38%)로 갈아 끼우고, 림프가 지나가는 길을
  * 전부 밟아 봅니다: 액션 순서 · 캡슐과 줄 문장 · 채점 · 해설 시트 · 자리별 보기(도달) · 트레이너 · SRS 왕복 · 코치 축.
  * 'BB 림프 대응 = SB 가 림프했고 BB 차례'와 책의 베팅 크기도 여기서 확인합니다.
@@ -182,7 +182,7 @@ describe('시험용 rfi:SB — 해설 시트 · 자리 이유', () => {
       expect(e.seat.numbers).toMatch(/^UTG \d+% · HJ \d+% · CO \d+% · BTN \d+% · SB 레이즈 24% · 림프 38%$/);
       expect(e.seat.ladder!.find((x) => x.pos === 'SB')).toEqual({ pos: 'SB', pct: 24, limp: 38, me: hero === 'SB' });
     }
-    expect(explainStep(stepFor(SB, '55')).seat.lever).toBe('SB는 포지션이 없어 레이즈 24%에 림프 38%를 섞어요.');
+    expect(explainStep(stepFor(SB, '55')).seat.lever).toBe('SB는 할인 덕분에 레이즈 24%에 림프 38%를 섞어요.');
   });
 
   it('자리 이유: 레이즈와 림프를 따로 말하고, 책(림프 약 38% · 레이즈 약 24%)과 같으면 다른 점을 말하지 않는다', () => {
@@ -192,9 +192,10 @@ describe('시험용 rfi:SB — 해설 시트 · 자리 이유', () => {
     expect(r.principles).toEqual(['sb-first-in', 'sb-limp', 'seats-behind']);
     expect(r.bookDiff).toBeNull();
     for (const t of r.lines) expect(bannedHits(t, 'style'), t).toEqual([]);
-    // SB 의 아이솔레이트: SB 가 '처음 들어가는' 폭은 레이즈 + 림프(62%)라, 레이즈 폭(24%)과 견줄 때는 '처음 레이즈할 때'예요.
-    expect(spotReason({ kind: 'vs_limp', hero: 'SB' }).lines[1]).toMatch(/^누가 먼저 들어온 만큼 처음 레이즈할 때\(24%\)보다 좁게, \d+%만 레이즈해요\.$/);
-    expect(spotReason({ kind: 'vs_limp', hero: 'BTN' }).lines[1]).toMatch(/처음 들어갈 때\(\d+%\)/);
+    // 아이솔레이트 폭: 책 4장 7절 — 뒤에 공격적인 사람이 있으면 평소 오픈 범위 수준으로. SB 가 '처음 들어가는' 폭은
+    // 레이즈 + 림프(62%)라, SB 는 '평소 레이즈 범위'(24%)와 견줘요. HJ · CO · BTN 은 오픈 범위 그대로예요.
+    expect(spotReason({ kind: 'vs_limp', hero: 'SB' }).lines[1]).toMatch(/^림퍼의 유형을 모르고 뒤에 공격적인 사람이 있을 수도 있어서, 평소 레이즈 범위 수준\(24%\)으로 레이즈해요\.$/);
+    expect(spotReason({ kind: 'vs_limp', hero: 'BTN' }).lines[1]).toMatch(/평소 오픈 범위 그대로\(43%\)/);
   });
 
   it('부분 정답 · 예시 · 이 패 이유 키가 림프를 안다', () => {
@@ -236,11 +237,12 @@ describe('시험용 rfi:SB — 자리별 보기 · 도달', () => {
 
   it("rfi 결론과 다이제스트: '단, SB에서는 림프해요' · SB 에서만 림프 · 림프 개수", () => {
     expect(rfiThesis(handAtlas('55'))[0].text).toBe('55는 UTG~BTN에서 오픈해요. 단, SB에서는 림프해요.');
-    expect(rfiThesis(handAtlas('AA'))[0].text).toBe('AA는 UTG~BTN에서 오픈해요. 단, SB에서는 주로 오픈해요.');
+    // '주로 오픈해요'로 끝내면 나머지 25%가 폴드로 읽혀요 — 섞는 쪽을 비중으로 댑니다.
+    expect(rfiThesis(handAtlas('AA'))[0].text).toBe('AA는 UTG~BTN에서 오픈해요. 단, SB에서는 주로 오픈하되 림프를 25% 섞어요.');
     expect(rfiThesis(handAtlas('K3o'))[0].text).toBe('K3o는 UTG~BTN에서는 폴드하고, SB에서는 절반만 림프해요.');
     expect(rfiThesis(handAtlas('Q3s'))[0].text).toBe('Q3s는 BTN부터 오픈해요. 단, SB에서는 림프해요.');
     // SB 의 오픈 50 · 림프 50 을 BTN 의 오픈 50 · 폴드 50 과 '절반만 오픈'으로 묶으면 SB 의 나머지 절반이 폴드로 읽혀요 — 따로 말합니다.
-    expect(rfiThesis(handAtlas('Q8o'))[0].text).toBe('Q8o는 BTN에서 절반만 오픈하고, 다른 자리에서는 폴드해요. 단, SB에서는 오픈과 림프를 반반 섞어요.');
+    expect(rfiThesis(handAtlas('Q8o'))[0].text).toBe('Q8o는 BTN에서 절반만 오픈하고, UTG~CO에서는 폴드해요. 단, SB에서는 오픈과 림프를 반반 섞어요.');
     // SB 에서도 1순위가 폴드인 칸(폴드 75 · 림프 25): '주로 폴드해요'로 끝내면 림프가 사라져요.
     expect(rfiThesis(handAtlas('97o'))[0].text).toBe('97o는 UTG~BTN에서는 폴드하고, SB에서도 주로 폴드하되 림프를 25% 섞어요.');
     expect(rfiThesis(handAtlas('97o'))[0].nums).toEqual([25]);

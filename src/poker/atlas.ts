@@ -958,9 +958,16 @@ export function rfiThesis(atlas: HandAtlas): Line[] {
         const words = all.map((p) => raiseWord(cell(p)));
         const nums = [...new Set(words.flatMap((w) => w.nums))];
         const parts = seatWordGroups(all, words, (ps) => [...ps.slice(0, -1).map((p) => josa(p, '과/와')), ps[ps.length - 1]].join(' '));
+        // SB 를 SB 절로 따로 말할 때 '다른 자리에서는 폴드해요'는 SB 까지 덮었다가 다음 절에서 뒤집힙니다 — 폴드하는 자리를 이름으로 댑니다:
+        // 'Q8o는 BTN에서 절반만 오픈하고, UTG~CO에서는 폴드해요. 단, SB에서는 림프해요.'
+        const folders = all.includes('SB') ? [] : CORE_SEATS.filter((p) => !all.includes(p));
+        // 연속 3자리 이상은 X~Y, 그 밖은 X·Y(sheet.ts seatList 와 같은 꼴 — sheet 가 이 파일을 import 하므로 여기서 짧게 씁니다).
+        const contiguous = folders.every((p, i) => i === 0 || CORE_SEATS.indexOf(p) === CORE_SEATS.indexOf(folders[i - 1]) + 1);
+        const foldSeats = contiguous && folders.length >= 3 ? `${folders[0]}~${folders[folders.length - 1]}` : folders.join('·');
+        const foldWhere = folders.length === 0 ? '다른 자리에서는' : `${foldSeats}에서는`;
         out.push({
-          text: `${subject} ${parts.join(', ')} 오픈하고, 다른 자리에서는 폴드해요.${sbClause}${sbOwn}`,
-          claims: [...all.map((p) => claimOf(cell(p))), ...sbClaims, ...(sbOwn ? [claimOf(sbCell)] : [])],
+          text: `${subject} ${parts.join(', ')} 오픈하고, ${foldWhere} 폴드해요.${sbClause}${sbOwn}`,
+          claims: [...all.map((p) => claimOf(cell(p))), ...folders.map((p) => claimOf(cell(p))), ...sbClaims, ...(sbOwn ? [claimOf(sbCell)] : [])],
           nums: [...nums, ...((sbClause || sbOwn) && sbMinorNamed ? [pctInt(sbMinor[0].weight)] : [])],
           source: 'computed',
         });

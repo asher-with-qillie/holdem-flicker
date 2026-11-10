@@ -144,7 +144,8 @@ export function seatLever(s: Scenario): { text: string; id: LeverId } | null {
     if (hero === 'SB') {
       // 림프가 있는 차트는 레이즈와 림프를 따로(책 5장 2절 — 레이즈 약 24% · 림프 약 38%).
       const L = pct(rangeShare(getChartCells(s), 'limp'));
-      if (L > 0) return { id: 'sbOpen', text: `SB는 포지션이 없어 레이즈 ${W}%에 림프 ${L}%를 섞어요.` };
+      // 책 5장 2절: 포지션이 없는 어려운 자리지만 반값 할인이 있어 림프가 의미 있어요 — 림프의 이유는 할인입니다.
+      if (L > 0) return { id: 'sbOpen', text: `SB는 할인 덕분에 레이즈 ${W}%에 림프 ${L}%를 섞어요.` };
       const btn = pct(rangeShare(getChartCells({ kind: 'rfi', hero: 'BTN' }), 'raise'));
       if (W === btn) return { id: 'sbOpen', text: `SB는 BB만 남아도 포지션이 없어 BTN만큼인 ${W}%를 오픈해요.` };
       if (W < btn) return { id: 'sbOpen', text: `SB는 포지션이 없어서 BTN보다 좁은 ${W}%를 오픈해요.` };
@@ -164,6 +165,8 @@ export function seatLever(s: Scenario): { text: string; id: LeverId } | null {
     return { id: 'sbRaiseOrFold', text: 'SB는 콜을 거의 안 하고, 대부분 3벳 아니면 폴드해요.' };
   }
   if (kind === 'vs_open' && v && (hero === 'HJ' || hero === 'CO' || hero === 'BTN')) {
+    // 책 5장 4·5절: HJ · CO 는 콜 없이 3벳 아니면 폴드 — 차트의 콜이 0 이면 그대로 말합니다(지금 차트는 HJ · CO 모두 0).
+    if (hero !== 'BTN' && rangeShare(getChartCells(s), 'call') === 0) return { id: 'behind', text: `${josa(hero, '은/는')} 콜 없이 3벳 아니면 폴드해요.` };
     return { id: 'behind', text: `${josa(hero, '은/는')} 포지션이 있어도 콜하면 뒤에서 스퀴즈를 받기 쉬워요.` };
   }
   if (kind === 'vs_open' && hero === 'BB') {
