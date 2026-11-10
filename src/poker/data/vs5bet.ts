@@ -9,7 +9,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'HJ',
     actions: {
       call: [
-        'KK+', 'AKs:0.5',
+        'JJ+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'HJ의 올인은 AA·KK·AK 위주이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. AA·KK는 콜, AKs는 절반만 콜하고, QQ·AKo·A5s는 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -28,7 +28,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'CO',
     actions: {
       call: [
-        'KK+', 'AKs:0.5',
+        'JJ+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'CO의 올인은 AA·KK·AK 위주이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. AA·KK는 콜, AKs는 절반만 콜하고, QQ·AKo·A5s·A4s는 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -47,7 +47,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       call: [
-        'KK+', 'AKs:0.5',
+        'JJ+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'BTN의 올인은 AA·KK·AK 위주이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. AA·KK는 콜, AKs는 절반만 콜하고, QQ·AKo·A5s·A4s는 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -66,7 +66,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       call: [
-        'KK+', 'AKs', 'QQ:0.5', 'AKo:0.25',
+        'QQ+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'SB의 올인은 AA·KK·AK에 QQ가 섞인 범위이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. AA·KK·AKs는 콜하고 QQ는 절반만 콜하며, AKo는 주로 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -85,7 +85,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       call: [
-        'KK+', 'AKs', 'QQ:0.5', 'AKo:0.5',
+        'KK+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'BB의 올인은 AA·KK·AK에 QQ가 섞인 범위이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. AA·KK·AKs는 콜하고, QQ·AKo는 절반만 콜하며, A5s~A3s는 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -104,7 +104,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'CO',
     actions: {
       call: [
-        'KK+', 'AKs',
+        'JJ+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'CO의 올인은 AA~QQ·AK 위주이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. AA·KK·AKs는 콜하고, QQ·AKo·A5s·A4s는 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -123,7 +123,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       call: [
-        'KK+', 'AKs', 'QQ:0.5', 'AKo:0.25',
+        'JJ+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'BTN의 올인은 AA~QQ·AK 위주이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. AA·KK·AKs는 콜하고 QQ는 절반만 콜하며, AKo는 주로 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -142,7 +142,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       call: [
-        'KK+', 'AKs', 'QQ:0.5', 'AKo:0.5',
+        'QQ+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'SB의 올인은 AA~QQ·AK 위주이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. AA·KK·AKs는 콜하고, QQ·AKo는 절반만 콜하며, A5s·A4s는 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -161,7 +161,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       call: [
-        'KK+', 'AKs', 'QQ:0.75', 'AKo:0.5',
+        'KK+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'BB의 올인은 AA~QQ·AK 위주이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. AA·KK·AKs는 콜, QQ는 주로 콜하고, AKo는 절반만 콜하며, A5s~A3s는 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -180,7 +180,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'BTN',
     actions: {
       call: [
-        'KK+', 'AKs', 'QQ:0.75', 'AKo:0.5',
+        'TT+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'BTN의 올인은 AA·KK·AK 위주에 QQ·A5s가 섞인 범위이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. AA·KK·AKs는 콜, QQ는 주로 콜하고, AKo는 절반만 콜하며, A5s·A4s는 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -199,7 +199,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       call: [
-        'QQ+', 'AKs', 'AKo:0.5',
+        'JJ+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'SB의 올인은 QQ 이상·AK에 JJ·A5s가 조금 섞인 범위이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. QQ 이상·AKs는 콜하고, AKo는 절반만 콜하며, A5s~A3s는 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -218,7 +218,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       call: [
-        'QQ+', 'AKs', 'AKo:0.5',
+        'QQ+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'BB의 올인은 QQ 이상·AK에 JJ·A5s가 조금 섞인 범위이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. QQ 이상·AKs는 콜하고, AKo는 절반만 콜하며, A5s~A3s는 폴드해요. 책은 일반적으로 TT 이상과 AK가 콜한다고 하지만, 이 차트는 그보다 좁게 콜해요.',
@@ -237,7 +237,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'SB',
     actions: {
       call: [
-        'QQ+', 'AKs', 'AKo',
+        '66+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'SB의 올인은 QQ 이상·AK에 JJ·A5s·A4s가 조금 섞인 범위이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. QQ 이상·AK는 전부 콜하고, A5s~A2s는 폴드해요. 책은 BTN이 올인에 66 이상과 AK로 콜한다고 하지만, 이 차트의 BTN은 TT 이하 페어를 아예 4벳하지 않아요.',
@@ -256,7 +256,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       call: [
-        'QQ+', 'AKs', 'AKo',
+        '66+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'BB의 올인은 QQ 이상·AK에 JJ·A5s·A4s가 조금 섞인 범위이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. QQ 이상·AK는 전부 콜하고, A5s~A2s는 폴드해요. 책은 BTN이 올인에 66 이상과 AK로 콜한다고 하지만, 이 차트의 BTN은 TT 이하 페어를 아예 4벳하지 않아요.',
@@ -275,7 +275,7 @@ export const VS_5BET_CHARTS: ChartDef[] = [
     villain: 'BB',
     actions: {
       call: [
-        'QQ+', 'AKs', 'AKo',
+        'JJ+', 'AKs', 'AKo',
       ].join(','),
     },
     summary: 'BB의 올인은 QQ 이상·AK에 JJ·A5s·A4s가 조금 섞인 범위이고, 콜하려면 이 범위를 상대로 약 38%의 에퀴티가 있어야 해요. QQ 이상·AK는 전부 콜하고, 4벳한 나머지 패는 모두 폴드해요. 책은 TT 이상과 AK가 콜하고 중간 패는 4벳하지 않는다고 하지만, 이 차트는 JJ·AQs도 4벳했다가 폴드해요.',
