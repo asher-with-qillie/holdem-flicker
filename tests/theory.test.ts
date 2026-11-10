@@ -303,7 +303,7 @@ describe('이 패 이유(handReason.ts)', () => {
   });
 
   const entries = Object.entries(HAND_REASONS);
-  it.runIf(entries.length > 0)('도달 가능한 모든 칸(6,255)에 이 패 이유가 있어요', () => {
+  it.runIf(entries.length > 0)('도달 가능한 모든 칸(6,263)에 이 패 이유가 있어요', () => {
     const missing: string[] = [];
     for (const { id, s } of CHARTS) {
       if (!hasChart(s)) continue;
@@ -346,7 +346,32 @@ describe('이 패 이유(handReason.ts)', () => {
       }
     }
     expect(bad.slice(0, 20)).toEqual([]);
-    expect(matched, '검사한 문장 수').toBeGreaterThan(20);
+    // 차트를 책(MPT 5장)에 맞춰 다시 만들면서 키 단위 책과 다른 점은 모두 사라졌어요(THEORY_SPEC §7) — 지금은 검사할 문장이 없어요.
+    // 차트가 다시 책에서 벗어나 책과 다른 점을 적으면 이 줄을 고치고, 위 검사가 그 문장의 비중어를 칸마다 확인해요.
+    expect(entries.filter(([, e]) => e.bookDiff).map(([k]) => k)).toEqual([]);
+    expect(matched, '검사한 문장 수').toBe(0);
+  });
+
+  it.runIf(entries.length > 0)("{주로}는 칸마다 캡슐과 같은 비중어로: 1순위가 100% 아래면 '주로 ', 100% 면 없음", () => {
+    let slotted = 0;
+    for (const { id, s } of CHARTS) {
+      if (!hasChart(s)) continue;
+      const cells = getChartCells(s);
+      for (const h of ALL_HANDS) {
+        if (!isReachable(s, h).ok) continue;
+        const key = reasonKey(s, h, cells[h]);
+        const raw = (HAND_REASONS as Record<string, { text: string } | undefined>)[key]?.text ?? '';
+        if (!raw.includes('{주로}')) continue;
+        slotted++;
+        // 섞인 칸 키(1순위 < 60%)에는 쓰지 않아요 — '주로'는 60% 이상의 말이에요.
+        expect(key.split('|')[3].startsWith('mix:'), key).toBe(false);
+        const top = fullMix(cells[h])[0].weight;
+        const text = handReason(s, h, cells[h])!.text;
+        expect(text.includes('{'), `${id} ${h}`).toBe(false);
+        expect(text.includes('주로 '), `${id} ${h} (1순위 ${Math.round(top * 100)}%): ${text}`).toBe(top < 0.999);
+      }
+    }
+    expect(slotted, '{주로} 가 붙는 칸 수').toBeGreaterThan(100);
   });
 
   it.runIf(entries.length > 0)('문장은 한 문장 해요체, 80자 이하, 원리 카드가 있어요', () => {
@@ -356,7 +381,7 @@ describe('이 패 이유(handReason.ts)', () => {
       expect(bannedHits(e.text, 'style'), `${key}: ${e.text}`).toEqual([]);
       expect(e.principles.length, key).toBeGreaterThan(0);
       for (const p of e.principles) expect(PRINCIPLES[p], `${key} ${p}`).toBeDefined();
-      for (const m of e.text.matchAll(/\{([^}|]+)(?:\|([^}]+))?\}/g)) expect(['hand', 'hero', 'villain'], `${key}: ${m[0]}`).toContain(m[1]);
+      for (const m of e.text.matchAll(/\{([^}|]+)(?:\|([^}]+))?\}/g)) expect(['hand', 'hero', 'villain', '주로'], `${key}: ${m[0]}`).toContain(m[1]);
       if (e.bookDiff) expect(bannedHits(e.bookDiff, 'style'), key).toEqual([]);
       expect(`${e.text} ${e.bookDiff}`, key).not.toMatch(FOLD_VERB);
     }

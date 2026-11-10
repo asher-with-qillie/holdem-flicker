@@ -569,7 +569,9 @@ describe('suit orientation', () => {
     expect(noMemo(s, 'KTs')).toBe(true);
     const kt = explainStep(stepFor(s, 'KTs'), 'diamond').more.example!;
     expect(kt).toBe('내 K♦10♦ vs 상대 A♠K♠ → K를 맞춰도 킥커에서 밀려요.');
-    const a4 = explainStep(stepFor({ kind: 'vs_open', hero: 'HJ', villain: 'UTG' }, 'A4s'), 'diamond').more.example!;
+    // CO 는 UTG 오픈에 A4s 를 늘 3벳해요(블러프 칸이라 블로커 줄) — HJ 의 A4s(3벳 50%)는 이제 메모가 예시 자리를 맡아요.
+    expect(noMemo({ kind: 'vs_open', hero: 'CO', villain: 'UTG' }, 'A4s')).toBe(true);
+    const a4 = explainStep(stepFor({ kind: 'vs_open', hero: 'CO', villain: 'UTG' }, 'A4s'), 'diamond').more.example!;
     expect(a4).toBe('내 A♦4♦ → A를 쥐고 있어 상대 AA·AK 조합이 줄어요.');
   });
 

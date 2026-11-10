@@ -247,7 +247,7 @@ const CASES: Case[] = [
     tiles: 'UTG 콜 · HJ 콜 · CO 콜',
     across: 'QQ는 BTN 올인에 어느 자리에서나 콜해요.',
     example: null,
-    memo: true,
+    memo: false, // 올인 대응 차트에는 섞인 칸이 없고, 이 칸만의 이유가 없어 메모를 지웠어요(THEORY_SPEC §9).
   },
   {
     s: { kind: 'cold_4bet', hero: 'CO', extras: { opener: 'UTG', threeBettor: 'HJ' } },
@@ -314,7 +314,7 @@ const CASES: Case[] = [
     tiles: 'HJ 폴드 · CO 폴드 · BTN 절반만 레이즈 · SB 폴드 · BB 체크',
     across: 'Q8o는 림프에 BTN에서 절반만 레이즈하고, 다른 자리에서는 폴드나 체크예요.', // [자리] [§5c]
     example: null, // Q8o 에는 예시 모양이 없습니다(exampleShape — 킥커 대결 계열이 아님). 메모도 없어 ⑦ 은 숨김.
-    memo: false,
+    memo: true, // Q9o 와 견준 킥커 · 스트레이트 플랍 수(이 패만의 이유)
   },
   {
     s: { kind: 'vs_open', hero: 'BB', villain: 'CO' },
